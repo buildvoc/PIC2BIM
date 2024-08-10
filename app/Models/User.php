@@ -20,7 +20,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'login',
-        'pswd',
+        'password',
         'name',
         'surname',
         'email',
@@ -32,7 +32,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $hidden = [
-        'pswd',
+        'password',
     ];
 
     /**
@@ -43,7 +43,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'pswd' => 'hashed',
+            //'password' => 'hashed',
         ];
     }
 }

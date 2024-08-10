@@ -31,7 +31,7 @@ class Sha1UserProvider implements UserProvider
 
     public function validateCredentials(Authenticatable $user, #[\SensitiveParameter] array $credentials)
     {
-        return sha1(Arr::get($credentials, 'password')) == $user->pswd;
+        return sha1(Arr::get($credentials, 'password')) == $user->password;
     }
 
     public function rehashPasswordIfRequired(Authenticatable $user, #[\SensitiveParameter] array $credentials, bool $force = false)
