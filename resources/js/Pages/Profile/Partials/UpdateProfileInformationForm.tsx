@@ -11,8 +11,12 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
     const user = usePage<PageProps>().props.auth.user;
 
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+        login: user.login,
         name: user.name,
         email: user.email,
+        surname: user.surname,
+        identification_number: user.identification_number,
+        vat: user.vat,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -46,6 +50,64 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                     />
 
                     <InputError className="mt-2" message={errors.name} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="login" value="Login (username)" />
+
+                    <TextInput
+                        id="login"
+                        className="mt-1 block w-full"
+                        value={data.login}
+                        onChange={(e) => setData('login', e.target.value)}
+                        required
+                        isFocused
+                        autoComplete="login"
+                    />
+
+                    <InputError className="mt-2" message={errors.login} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="surname" value="Surname" />
+
+                    <TextInput
+                        id="surname"
+                        className="mt-1 block w-full"
+                        value={data.surname}
+                        onChange={(e) => setData('surname', e.target.value)}
+                        autoComplete="surname"
+                    />
+
+                    <InputError className="mt-2" message={errors.surname} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="identification_number" value="Identification Number" />
+
+                    <TextInput
+                        id="identification_number"
+                        className="mt-1 block w-full"
+                        value={data.identification_number}
+                        onChange={(e) => setData('identification_number', e.target.value)}
+                        autoComplete="identification_number"
+                    />
+
+                    <InputError className="mt-2" message={errors.identification_number} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="vat" value="Vat" />
+
+                    <TextInput
+                        id="vat"
+                        className="mt-1 block w-full"
+                        value={data.vat}
+                        onChange={(e) => setData('vat', e.target.value)}
+                        autoComplete="vat"
+                    />
+
+                    <InputError className="mt-2" message={errors.vat} />
                 </div>
 
                 <div>

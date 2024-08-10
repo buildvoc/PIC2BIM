@@ -6,6 +6,7 @@ import { Head } from '@inertiajs/react';
 import { PageProps } from '@/types';
 
 export default function Edit({ auth, mustVerifyEmail, status }: PageProps<{ mustVerifyEmail: boolean, status?: string }>) {
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -24,11 +25,15 @@ export default function Edit({ auth, mustVerifyEmail, status }: PageProps<{ must
                     </div>
 
                     <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                        <UpdatePasswordForm className="max-w-xl" />
+                        <UpdatePasswordForm
+                            className="max-w-xl"
+                        />
                     </div>
 
                     <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                        <DeleteUserForm className="max-w-xl" />
+                        <DeleteUserForm
+                            className="max-w-xl"
+                        />
                     </div>
                 </div>
             </div>
