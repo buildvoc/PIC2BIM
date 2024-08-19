@@ -1,0 +1,6 @@
+@yield('header')
+@yield('aside')
+@yield('breadcrumb_content')
+@yield('content')
+@yield('footer')
+@yield('admin_script')
