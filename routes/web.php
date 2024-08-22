@@ -15,8 +15,8 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 
 Route::prefix('dashboard/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');
-    Route::get('/create', [AgencyController::class, 'index'])->name('create');
-    Route::post('/create', [AgencyController::class, 'index'])->name('store');
+    Route::get('/create', [AgencyController::class, 'create'])->name('create');
+    Route::post('/create', [AgencyController::class, 'store'])->name('store');
     Route::get('/{agency}', [AgencyController::class, 'edit'])->name('edit');
     Route::patch('/{agency}', [AgencyController::class, 'update'])->name('update');
     Route::delete('/{agency}', [AgencyController::class, 'destroy'])->name('destroy');

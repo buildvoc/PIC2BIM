@@ -1,27 +1,21 @@
 import React from 'react';
-import { Head } from '@inertiajs/react';
-import { Link, usePage, useForm, router } from '@inertiajs/react';
+import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DeleteButton from '@/Components/Button/DeleteButton';
 import LoadingButton from '@/Components/Button/LoadingButton';
 import TextInput from '@/Components/Form/TextInput';
-import SelectInput from '@/Components/Form/SelectInput';
-import TrashedMessage from '@/Components/Messages/TrashedMessage';
-import {Agency, PageProps} from '@/types';
-import Table from '@/Components/Table/Table';
 import FieldGroup from '@/Components/Form/FieldGroup';
-
-const { auth } = usePage<PageProps>();
+import TrashedMessage from '@/Components/Messages/TrashedMessage';
+import { Agency, PageProps } from '@/types';
 
 export function Edit({ auth }: PageProps) {
   const { agency } = usePage<{ agency: Agency }>().props;
-  const { data, setData, errors, put, processing } = useForm({
+  const { data, setData, errors, patch, processing } = useForm({
     name: agency.name || '',
   });
-
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    put(route('dashboard.agencies.update', agency.id));
+    patch(route('dashboard.agencies.update', agency.id));
   }
 
   function destroy() {
@@ -43,21 +37,17 @@ export function Edit({ auth }: PageProps) {
     >
       <Head title={data.name} />
       <h1 className="mb-8 text-3xl font-bold">
-        <Link
-          href={route('dashboard')}
-          className="text-indigo-600 hover:text-indigo-700"
-        >
+        <Link href={route('dashboard')} className="text-indigo-600 hover:text-indigo-700">
           Organizations
         </Link>
         <span className="mx-2 font-medium text-indigo-600">/</span>
         {data.name}
       </h1>
+
       {agency.deleted_at && (
-        <TrashedMessage
-          message="This agency has been deleted."
-          onRestore={restore}
-        />
+        <TrashedMessage message="This agency has been deleted." onRestore={restore} />
       )}
+
       <div className="max-w-3xl overflow-hidden bg-white rounded shadow">
         <form onSubmit={handleSubmit}>
           <div className="grid gap-8 p-8 lg:grid-cols-2">
@@ -66,7 +56,7 @@ export function Edit({ auth }: PageProps) {
                 name="name"
                 error={errors.name}
                 value={data.name}
-                onChange={e => setData('name', e.target.value)}
+                onChange={(e) => setData('name', e.target.value)}
               />
             </FieldGroup>
           </div>
@@ -87,14 +77,17 @@ export function Edit({ auth }: PageProps) {
           </div>
         </form>
       </div>
-      {/*<h2 className="mt-12 mb-6 text-2xl font-bold">Contacts</h2>*/}
-      {/*<Table*/}
-      {/*  columns={[*/}
-      {/*    { label: 'Name', name: 'name' },*/}
-      {/*  ]}*/}
-      {/*  rows={agency.contacts}*/}
-      {/*  getRowDetailsUrl={row => route('contacts.edit', row.id)}*/}
-      {/*/>*/}
+      {/* Uncomment and modify the following lines if the contacts table is needed */}
+      {/* <h2 className="mt-12 mb-6 text-2xl font-bold">Contacts</h2>
+      <Table
+        columns={[
+          { label: 'Name', name: 'name' },
+        ]}
+        rows={agency.contacts}
+        getRowDetailsUrl={(row) => route('contacts.edit', row.id)}
+      /> */}
     </AuthenticatedLayout>
   );
 }
+
+export default Edit;

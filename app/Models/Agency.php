@@ -10,4 +10,11 @@ class Agency extends Model
     use HasFactory;
 
     protected $table = 'pa';
+    protected $fillable = ['name','timestamp'];
+    
+    public $timestamps = false;
+
+    public function users(){
+        return $this->hasMany(User::class,'pa_id');
+    }
 }
