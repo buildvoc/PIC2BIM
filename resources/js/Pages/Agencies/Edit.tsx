@@ -13,6 +13,7 @@ export function Edit({ auth }: PageProps) {
   const { data, setData, errors, patch, processing } = useForm({
     name: agency.name || '',
   });
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     patch(route('dashboard.agencies.update', agency.id));
@@ -33,59 +34,60 @@ export function Edit({ auth }: PageProps) {
   return (
     <AuthenticatedLayout
       user={auth.user}
-      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Agency name</h2>}
+      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">{agency.name}</h2>}
     >
       <Head title={data.name} />
-      <h1 className="mb-8 text-3xl font-bold">
-        <Link href={route('dashboard')} className="text-indigo-600 hover:text-indigo-700">
-          Organizations
-        </Link>
-        <span className="mx-2 font-medium text-indigo-600">/</span>
-        {data.name}
-      </h1>
-
-      {agency.deleted_at && (
-        <TrashedMessage message="This agency has been deleted." onRestore={restore} />
-      )}
-
-      <div className="max-w-3xl overflow-hidden bg-white rounded shadow">
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-8 p-8 lg:grid-cols-2">
-            <FieldGroup label="Name" name="name" error={errors.name}>
-              <TextInput
-                name="name"
-                error={errors.name}
-                value={data.name}
-                onChange={(e) => setData('name', e.target.value)}
-              />
-            </FieldGroup>
-          </div>
-
-          <div className="flex items-center px-8 py-4 bg-gray-100 border-t border-gray-200">
-            {!agency.deleted_at && (
-              <DeleteButton onDelete={destroy}>
-                Delete Agency
-              </DeleteButton>
-            )}
-            <LoadingButton
-              loading={processing}
-              type="submit"
-              className="ml-auto btn-indigo"
+      
+      <div className="py-12">
+        <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
+          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              Update Agency
-            </LoadingButton>
+              <h1 className="text-3xl font-bold">{data.name}</h1>
+              <Link
+                className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                href={route('dashboard')}
+              >
+                <span>Back to Dashboard</span>
+              </Link>
+            </div>
+            <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
+              <form onSubmit={handleSubmit}>
+                <div className="grid gap-8 p-8">
+                  <FieldGroup label="Name" name="name" class="text-white" error={errors.name}>
+                    <TextInput
+                      name="name"
+                      error={errors.name}
+                      value={data.name}
+                      onChange={(e) => setData('name', e.target.value)}
+                      className='text-white'
+                      style={{background:'transparent'}}
+                    />
+                  </FieldGroup>
+                </div>
+
+                <div className="flex flex-col items-center px-8 py-4 space-y-4">
+                  <div className="flex space-x-4">
+                    {!agency.deleted_at && (
+                      <DeleteButton onDelete={destroy} className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md">
+                        Delete Agency
+                      </DeleteButton>
+                    )}
+                    <LoadingButton
+                      loading={processing}
+                      type="submit"
+                      className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                    >
+                      Update Agency
+                    </LoadingButton>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
-      {/* Uncomment and modify the following lines if the contacts table is needed */}
-      {/* <h2 className="mt-12 mb-6 text-2xl font-bold">Contacts</h2>
-      <Table
-        columns={[
-          { label: 'Name', name: 'name' },
-        ]}
-        rows={agency.contacts}
-        getRowDetailsUrl={(row) => route('contacts.edit', row.id)}
-      /> */}
     </AuthenticatedLayout>
   );
 }
