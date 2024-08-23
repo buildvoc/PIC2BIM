@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, PageProps, PaginatedData} from '@/types';
+import {Agency, Officer, PageProps, PaginatedData} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
@@ -9,18 +9,24 @@ import { faEdit, faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
 
-  const { agencies } = usePage<{
-    agencies: PaginatedData<Agency>;
+  const { agency } = usePage<{
+    agency: Agency;
+  }>().props;
+  
+  
+  
+  const { officers } = usePage<{
+    officers: PaginatedData<Officer>;
   }>().props;
 
   const {
     data,
     links
-  } = agencies;
+  } = officers;
 
   function destroy(id : number | string) : void {
     if (confirm('Are you sure you want to delete this agency?')) {
-      router.delete(route('dashboard.agencies.destroy', id));
+      router.delete(route('dashboard.agencies.officers.destroy', id)+`?agencyId=${agency.id}`);
     }
   }
 
@@ -37,10 +43,10 @@ export default function Dashboard({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <span className="hidden md:inline">Agencies Management</span>
+              <span className="hidden md:inline">Officers Management</span>
               <Link
                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                href={route('dashboard.agencies.create')}
+                href={route('dashboard.agencies.officers.create', { id: agency.id })}
               >
                 <span>Create</span>
                 <PlusCircleIcon size={16} className="ml-2" />
@@ -70,13 +76,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.show',row.id)}
-                      >
-                        <FontAwesomeIcon icon={faEye}/>
-                      </Link>
-                      <Link
-                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.edit',row.id)}
+                        href={route('dashboard.agencies.officers.edit',row.id)+`?agencyId=${agency.id}`}
                       >
                         <FontAwesomeIcon icon={faEdit}/>
                       </Link>
