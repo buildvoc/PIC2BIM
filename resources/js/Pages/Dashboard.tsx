@@ -1,9 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import {Head, Link, usePage} from '@inertiajs/react';
+import {Head, Link, usePage, router} from '@inertiajs/react';
 import {Agency, PageProps, PaginatedData} from '@/types';
 import Table from "@/Components/Table/Table";
-import {PlusCircleIcon, Trash2} from "lucide-react";
+import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEdit, faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
 
@@ -15,6 +17,12 @@ export default function Dashboard({ auth }: PageProps) {
     data,
     links
   } = agencies;
+
+  function destroy(id : number | string) : void {
+    if (confirm('Are you sure you want to delete this agency?')) {
+      router.delete(route('dashboard.agencies.destroy', id));
+    }
+  }
 
   return (
     <AuthenticatedLayout
@@ -55,9 +63,34 @@ export default function Dashboard({ auth }: PageProps) {
                     </>
                   )
                 },
+                {
+                  label: 'Action',
+                  name: 'action',
+                  renderCell: row => (
+                    <>
+                      <Link
+                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                        href={route('dashboard.agencies.create')}
+                      >
+                        <FontAwesomeIcon icon={faEye}/>
+                      </Link>
+                      <Link
+                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                        href={route('dashboard.agencies.edit',row.id)}
+                      >
+                        <FontAwesomeIcon icon={faEdit}/>
+                      </Link>
+                      <button
+                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                        onClick={() => destroy(row.id)}
+                      >
+                        <FontAwesomeIcon icon={faTrash}/>
+                      </button>
+                    </>
+                  )
+                },
               ]}
               rows={data}
-              getRowDetailsUrl={row => route('dashboard.agencies.edit', row.id)}
             />
           </div>
         </div>

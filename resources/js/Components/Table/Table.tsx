@@ -10,13 +10,11 @@ interface TableProps<T> {
     renderCell?: (row: T) => React.ReactNode;
   }[];
   rows: T[];
-  getRowDetailsUrl?: (row: T) => string;
 }
 
 export default function Table<T>({
    columns = [],
-   rows = [],
-   getRowDetailsUrl
+   rows = []
  }: TableProps<T>) {
   return (
     <div className="overflow-x-auto rounded shadow">
@@ -50,32 +48,23 @@ export default function Table<T>({
           return (
             <tr
               key={index}
-              className="hover:bg-gray-100 focus-within:bg-gray-100 dark:hover:bg-gray-600 dark:focus-within:bg-gray-600"
+              className=" focus-within:bg-gray-100  dark:focus-within:bg-gray-600"
             >
               {columns.map(column => {
                 return (
                   <td key={column.name} className="border-t">
-                    <Link
+                    <span
                       tabIndex={-1}
-                      href={getRowDetailsUrl?.(row) as string}
                       className="flex items-center px-6 py-4 text-gray-700 dark:text-gray-300 focus:outline-none"
                     >
                       {column.renderCell?.(row) ??
                         get(row, column.name) ??
                         'N/A'
                       }
-                    </Link>
+                    </span>
                   </td>
                 );
               })}
-              <td className="w-px border-t">
-                <Link
-                  href={getRowDetailsUrl?.(row)!}
-                  className="flex items-center px-4 focus:outline-none"
-                >
-                  <ChevronRight size={24} className="text-gray-400 dark:text-gray-500" />
-                </Link>
-              </td>
             </tr>
           );
         })}
