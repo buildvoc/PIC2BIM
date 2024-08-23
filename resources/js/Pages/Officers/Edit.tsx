@@ -148,7 +148,7 @@ export function Edit({ auth }: PageProps) {
                       type="submit"
                       className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                     >
-                      Update Agency
+                      Update Officer
                     </LoadingButton>
                   </div>
                 </div>

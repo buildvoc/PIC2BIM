@@ -25,7 +25,7 @@ export default function Dashboard({ auth }: PageProps) {
   } = officers;
 
   function destroy(id : number | string) : void {
-    if (confirm('Are you sure you want to delete this agency?')) {
+    if (confirm('Are you sure you want to delete this officer?')) {
       router.delete(route('dashboard.agencies.officers.destroy', id)+`?agencyId=${agency.id}`);
     }
   }
