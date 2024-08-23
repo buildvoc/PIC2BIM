@@ -19,12 +19,6 @@ export function Edit({ auth }: PageProps) {
     patch(route('dashboard.agencies.update', agency.id));
   }
 
-  function destroy() {
-    if (confirm('Are you sure you want to delete this agency?')) {
-      router.delete(route('dashboard.agencies.destroy', agency.id));
-    }
-  }
-
   function restore() {
     if (confirm('Are you sure you want to restore this agency?')) {
       router.put(route('dashboard.agencies.restore', agency.id));
@@ -69,11 +63,6 @@ export function Edit({ auth }: PageProps) {
 
                 <div className="flex flex-col items-center px-8 py-4 space-y-4">
                   <div className="flex space-x-4">
-                    { (
-                      <DeleteButton onDelete={destroy} className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md">
-                        Delete Agency
-                      </DeleteButton>
-                    )}
                     <LoadingButton
                       loading={processing}
                       type="submit"

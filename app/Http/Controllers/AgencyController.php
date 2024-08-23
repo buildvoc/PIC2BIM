@@ -36,6 +36,24 @@ class AgencyController extends Controller
         ]);
     }
 
+    public function show(Request $request, Agency $agency) : Response{
+        $officers = User::
+        join('user_role as ur', 'user.id', '=', 'ur.user_id')
+        ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
+        ->where('ur.role_id', '=', 2)
+        ->where('user.active', '=', 1)
+        ->where('user.pa_id', '=', $agency->id)
+        ->orderBy('user.id')
+        ->paginate(10);
+
+        return Inertia::render('Agencies/Index', [
+            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'status' => session('status'),
+            'agency' => $agency,
+            'officers' => $officers
+        ]);
+    }
+
     public function store(Request $request){
         $request->validate([
             'name' => 'required'
@@ -51,6 +69,7 @@ class AgencyController extends Controller
      */
     public function edit(Request $request, Agency $agency): Response
     {
+
         return Inertia::render('Agencies/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),

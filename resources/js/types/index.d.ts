@@ -15,6 +15,18 @@ export interface Agency {
   id: number;
   name: string;
 }
+export interface Officer {
+  id: number;
+  name: string;
+  password: string;
+  login: string;
+  pa_id: number;
+  surname : string;
+  identification_number : string;
+  email : string;
+  active : number;
+  vat : number;
+}
 
 export type PaginatedData<T> = {
   data: T[];
