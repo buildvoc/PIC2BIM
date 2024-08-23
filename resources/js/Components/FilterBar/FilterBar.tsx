@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { usePrevious } from 'react-use';
+import usePrevious from 'react-use/lib/usePrevious';
 import SelectInput from '@/Components/Form/SelectInput';
 import pickBy from 'lodash/pickBy';
 import { ChevronDown } from 'lucide-react';

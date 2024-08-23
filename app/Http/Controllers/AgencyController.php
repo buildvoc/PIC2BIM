@@ -33,7 +33,6 @@ class AgencyController extends Controller
         return Inertia::render('Agencies/Create', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
-            'auth' => auth()->user(),
         ]);
     }
 

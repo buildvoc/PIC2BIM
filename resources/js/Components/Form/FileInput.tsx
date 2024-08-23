@@ -1,5 +1,5 @@
 import React, { useState, useRef, ComponentProps } from 'react';
-import { fileSize } from '@/utils';
+// import { fileSize } from '@/utils';
 import { Omit } from 'lodash';
 
 interface FileInputProps extends Omit<ComponentProps<'input'>, 'onChange'> {
@@ -53,7 +53,7 @@ export default function FileInput({ name, error, onChange }: FileInputProps) {
           <div className="flex-1 pr-1">
             {file?.name}
             <span className="ml-1 text-xs text-gray-600">
-              ({fileSize(file?.size)})
+              {/* ({fileSize(file?.size)}) */}
             </span>
           </div>
           <BrowseButton text="Remove" onClick={handleRemove} />

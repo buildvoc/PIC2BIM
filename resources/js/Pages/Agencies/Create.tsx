@@ -4,21 +4,21 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import LoadingButton from '@/Components/Button/LoadingButton';
 import TextInput from '@/Components/Form/TextInput';
 import FieldGroup from '@/Components/Form/FieldGroup';
+import { PageProps } from '@/types';
 
-export function Create(props) {
-  const { auth } = props;
+export function Create({ auth }: PageProps) {
   const { data, setData, post, processing, errors } = useForm({
     name: '',
   });
-
-  function handleSubmit(e) {
+  const user = auth.user;
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     post(route('dashboard.agencies.store'));
   }
 
   return (
     <AuthenticatedLayout
-      user={auth ? auth : {}}
+      user={user}
       header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Create Agency</h2>}
     >
       <Head title="Create Agency" />
