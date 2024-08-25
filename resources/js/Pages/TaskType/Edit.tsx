@@ -45,7 +45,7 @@ export function Edit({ auth }: PageProps) {
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-8 px-8 py-4">
-                  <FieldGroup label="Name" name="name" error={errors.name}>
+                  <FieldGroup required={true} label="Name" name="name" error={errors.name}>
                     <TextInput
                       name="name"
                       error={errors.name}

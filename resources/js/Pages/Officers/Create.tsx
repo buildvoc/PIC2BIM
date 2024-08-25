@@ -48,7 +48,7 @@ export function Create({ auth }: PageProps) {
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Login" name="login" error={errors.login}>
+                  <FieldGroup required={true} label="Login" name="login" error={errors.login}>
                     <TextInput
                       name="login"
                       error={errors.login}
@@ -59,7 +59,7 @@ export function Create({ auth }: PageProps) {
                   </FieldGroup>
                 </div>
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Password" name="password" error={errors.password}>
+                  <FieldGroup required={true} label="Password" name="password" error={errors.password}>
                     <TextInput
                       name="password"
                       error={errors.password}
