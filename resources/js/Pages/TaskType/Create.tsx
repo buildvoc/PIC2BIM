@@ -30,7 +30,7 @@ export function Create({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <h1 className="text-3xl font-bold">Create New Agency</h1>
+              <h1 className="text-3xl font-bold">Create New Purpose</h1>
             </div>
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
