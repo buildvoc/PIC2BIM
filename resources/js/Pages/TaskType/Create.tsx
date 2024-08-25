@@ -46,7 +46,7 @@ export function Create({ auth }: PageProps) {
                   </FieldGroup>
                 </div>
                 <div className="grid gap-8 px-8 py-4">
-                  <FieldGroup label="Description" name="description" error={errors.name}>
+                  <FieldGroup label="Description" name="description" error={errors.description}>
                     <TextInput
                       name="description"
                       error={errors.description}
