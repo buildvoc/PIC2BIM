@@ -14,7 +14,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::prefix('dashboard/agencies')->name('dashboard.agencies.')->group(function () {
+Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');
     Route::get('/create', [AgencyController::class, 'create'])->name('create');
     Route::post('/create', [AgencyController::class, 'store'])->name('store');

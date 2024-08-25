@@ -104,8 +104,7 @@ class OfficerController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        UserRole::where('user_id',$id)->delete();
-        User::find($id)->delete();
+        User::find($id)->update(['active' => 0]);
         return redirect()->route('dashboard.agencies.show',$request->agencyId);
     }
 }

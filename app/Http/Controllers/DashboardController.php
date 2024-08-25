@@ -16,11 +16,9 @@ class DashboardController extends Controller
     /**
      * Display the user's profile form.
      */
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
-        $agencies = Agency::query()->paginate(10);
-
-        return Inertia::render('Dashboard', compact('agencies'));
+        return redirect()->route('dashboard.agencies.index');
     }
 
     /**

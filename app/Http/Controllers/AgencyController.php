@@ -22,10 +22,9 @@ class AgencyController extends Controller
      */
     public function index(Request $request): Response
     {
-        return Inertia::render('Agencies/Index', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
-        ]);
+        $agencies = Agency::query()->paginate(10);
+
+        return Inertia::render('Dashboard', compact('agencies'));
     }
 
     public function create(Request $request): Response
@@ -46,7 +45,7 @@ class AgencyController extends Controller
         ->orderBy('user.id')
         ->paginate(10);
 
-        return Inertia::render('Agencies/Index', [
+        return Inertia::render('Officers/Index', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
             'agency' => $agency,

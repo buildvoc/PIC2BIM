@@ -5,7 +5,7 @@ import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faBan, faEye } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
 
@@ -25,7 +25,7 @@ export default function Dashboard({ auth }: PageProps) {
   } = officers;
 
   function destroy(id : number | string) : void {
-    if (confirm('Are you sure you want to delete this officer?')) {
+    if (confirm('Are you sure you want to deactivate this officer?')) {
       router.delete(route('dashboard.agencies.officers.destroy', id)+`?agencyId=${agency.id}`);
     }
   }
@@ -33,9 +33,9 @@ export default function Dashboard({ auth }: PageProps) {
   return (
     <AuthenticatedLayout
       user={auth.user}
-      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Main</h2>}
+      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Officers</h2>}
     >
-      <Head title="Dashboard" />
+      <Head title="Officers Management" />
 
       <div className="py-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -61,11 +61,29 @@ export default function Dashboard({ auth }: PageProps) {
                   name: 'id',
                 },
                 {
+                  label: 'Login',
+                  name: 'login',
+                  renderCell: row => (
+                    <>
+                      {row.login}
+                    </>
+                  )
+                },
+                {
                   label: 'Name',
                   name: 'name',
                   renderCell: row => (
                     <>
                       {row.name}
+                    </>
+                  )
+                },
+                {
+                  label: 'Surname',
+                  name: 'surname',
+                  renderCell: row => (
+                    <>
+                      {row.surname}
                     </>
                   )
                 },
@@ -76,15 +94,15 @@ export default function Dashboard({ auth }: PageProps) {
                     <>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.officers.edit',row.id)+`?agencyId=${agency.id}`}
+                        href={route('dashboard.agencies.officers.edit',row.id)+`?agencyId=${agency.id}`}  title='Edit'
                       >
-                        <FontAwesomeIcon icon={faEdit}/>
+                        <FontAwesomeIcon icon={faEdit} />
                       </Link>
                       <button
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        onClick={() => destroy(row.id)}
+                        onClick={() => destroy(row.id)} title='Deactivate' 
                       >
-                        <FontAwesomeIcon icon={faTrash}/>
+                        <FontAwesomeIcon icon={faBan} />
                       </button>
                     </>
                   )
