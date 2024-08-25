@@ -26,7 +26,8 @@ class OfficerController extends Controller
     public function create(Request $request)
     {
         return Inertia::render('Officers/Create', [
-            'agency_id' => $request->id
+            'agency_id' => $request->id,
+            'agency' => Agency::find($request->id)
         ]);
     }
 
@@ -71,7 +72,8 @@ class OfficerController extends Controller
     {
         return Inertia::render('Officers/Edit', [
             'officer' => User::find($id),
-            'agency_id' => $request->agencyId
+            'agency_id' => $request->agencyId,
+            'agency' => Agency::find($request->agencyId)
         ]);
     }
 

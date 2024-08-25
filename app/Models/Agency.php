@@ -10,7 +10,7 @@ class Agency extends Model
     use HasFactory;
 
     protected $table = 'pa';
-    protected $fillable = ['name','timestamp'];
+    protected $fillable = ['name','timestamp','active'];
     
     public $timestamps = false;
 

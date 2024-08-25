@@ -5,7 +5,7 @@ import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faBan, faEye } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
 
@@ -19,7 +19,7 @@ export default function Dashboard({ auth }: PageProps) {
   } = agencies;
 
   function destroy(id : number | string) : void {
-    if (confirm('Are you sure you want to delete this agency?')) {
+    if (confirm('Are you sure with deactivating?')) {
       router.delete(route('dashboard.agencies.destroy', id));
     }
   }
@@ -27,9 +27,9 @@ export default function Dashboard({ auth }: PageProps) {
   return (
     <AuthenticatedLayout
       user={auth.user}
-      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Agencies</h2>}
+      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Agency Management</h2>}
     >
-      <Head title="Agencies Management" />
+      <Head title="Agency Management" />
 
       <div className="py-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -37,12 +37,12 @@ export default function Dashboard({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <span className="hidden md:inline">Agencies Management</span>
+              <span className="hidden md:inline">Agency Management</span>
               <Link
                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                 href={route('dashboard.agencies.create')}
               >
-                <span>Create</span>
+                <span>Add New Agency</span>
                 <PlusCircleIcon size={16} className="ml-2" />
               </Link>
             </div>
@@ -50,10 +50,6 @@ export default function Dashboard({ auth }: PageProps) {
 
             <Table
               columns={[
-                {
-                  label: '#',
-                  name: 'id',
-                },
                 {
                   label: 'Name',
                   name: 'name',
@@ -64,27 +60,27 @@ export default function Dashboard({ auth }: PageProps) {
                   )
                 },
                 {
-                  label: 'Action',
+                  label: 'Actions',
                   name: 'action',
                   renderCell: row => (
                     <>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.show',row.id)}
+                        href={route('dashboard.agencies.show',row.id)} title='View'
                       >
                         <FontAwesomeIcon icon={faEye}/>
                       </Link>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.edit',row.id)}
+                        href={route('dashboard.agencies.edit',row.id)} title='Edit'
                       >
                         <FontAwesomeIcon icon={faEdit}/>
                       </Link>
                       <button
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        onClick={() => destroy(row.id)}
+                        onClick={() => destroy(row.id)} title='Deactivate'
                       >
-                        <FontAwesomeIcon icon={faTrash}/>
+                        <FontAwesomeIcon icon={faBan}/>
                       </button>
                     </>
                   )

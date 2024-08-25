@@ -22,7 +22,7 @@ class AgencyController extends Controller
      */
     public function index(Request $request): Response
     {
-        $agencies = Agency::query()->paginate(10);
+        $agencies = Agency::where('active',1)->paginate(10);
 
         return Inertia::render('Agencies/Index', compact('agencies'));
     }
@@ -93,10 +93,7 @@ class AgencyController extends Controller
      */
     public function destroy(Request $request, Agency $agency): RedirectResponse
     {
-        $user_ids = User::select('id')->where('pa_id',$agency->id)->pluck('id')->toArray();
-        DB::table('user_role')->whereIn('user_id',$user_ids)->delete();
-        DB::table('user')->where('pa_id',$agency->id)->delete();
-        $agency->delete();
+        $agency->update(['active' => 0]);
         return redirect()->route('dashboard');
     }
 }

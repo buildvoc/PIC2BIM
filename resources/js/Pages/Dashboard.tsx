@@ -29,7 +29,7 @@ export default function Dashboard({ auth }: PageProps) {
       user={auth.user}
       header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Agencies</h2>}
     >
-      <Head title="Agencies Management" />
+      <Head title="Agency Management" />
 
       <div className="py-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -37,7 +37,7 @@ export default function Dashboard({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <span className="hidden md:inline">Agencies Management</span>
+              <span className="hidden md:inline">Agency Management</span>
               <Link
                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                 href={route('dashboard.agencies.create')}
