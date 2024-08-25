@@ -15,6 +15,12 @@ export interface Agency {
   id: number;
   name: string;
 }
+
+export interface TaskType {
+  id: number;
+  name: string;
+  description: string;
+}
 export interface Officer {
   id: number;
   name: string;

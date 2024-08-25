@@ -1,36 +1,28 @@
 import React from 'react';
-import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import DeleteButton from '@/Components/Button/DeleteButton';
 import LoadingButton from '@/Components/Button/LoadingButton';
 import TextInput from '@/Components/Form/TextInput';
 import FieldGroup from '@/Components/Form/FieldGroup';
-import TrashedMessage from '@/Components/Messages/TrashedMessage';
-import { Agency, PageProps } from '@/types';
+import { PageProps } from '@/types';
 
-export function Edit({ auth }: PageProps) {
-  const { agency } = usePage<{ agency: Agency }>().props;
-  const { data, setData, errors, patch, processing } = useForm({
-    name: agency.name || '',
+export function Create({ auth }: PageProps) {
+  const { data, setData, post, processing, errors } = useForm({
+    name: '',
+    description: '',
   });
-
+  const user = auth.user;
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    patch(route('dashboard.agencies.update', agency.id));
-  }
-
-  function restore() {
-    if (confirm('Are you sure you want to restore this agency?')) {
-      router.put(route('dashboard.agencies.restore', agency.id));
-    }
+    post(route('types.store'));
   }
 
   return (
     <AuthenticatedLayout
-      user={auth.user}
-      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">{agency.name}</h2>}
+      user={user}
+      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Create Agency</h2>}
     >
-      <Head title={'Edit Agency - ' + data.name} />
+      <Head title="Create Agency" />
       
       <div className="py-12">
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
@@ -38,19 +30,29 @@ export function Edit({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <h1 className="text-3xl font-bold">{data.name}</h1>
+              <h1 className="text-3xl font-bold">Create New Agency</h1>
             </div>
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
-                <div className="grid gap-8 p-8">
+                <div className="grid gap-8 px-8 py-4">
                   <FieldGroup label="Name" name="name" error={errors.name}>
                     <TextInput
                       name="name"
                       error={errors.name}
                       value={data.name}
                       onChange={(e) => setData('name', e.target.value)}
-                      className='text-white'
-                      style={{background:'transparent'}}
+                      style={{ background: 'transparent', color: 'white' }}
+                    />
+                  </FieldGroup>
+                </div>
+                <div className="grid gap-8 px-8 py-4">
+                  <FieldGroup label="Description" name="description" error={errors.name}>
+                    <TextInput
+                      name="description"
+                      error={errors.description}
+                      value={data.description}
+                      onChange={(e) => setData('description', e.target.value)}
+                      style={{ background: 'transparent', color: 'white' }}
                     />
                   </FieldGroup>
                 </div>
@@ -62,7 +64,7 @@ export function Edit({ auth }: PageProps) {
                       type="submit"
                       className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                     >
-                      Update Agency
+                      Create Agency
                     </LoadingButton>
                   </div>
                 </div>
@@ -75,4 +77,4 @@ export function Edit({ auth }: PageProps) {
   );
 }
 
-export default Edit;
+export default Create;
