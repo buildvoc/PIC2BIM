@@ -24,7 +24,7 @@ class AgencyController extends Controller
     {
         $agencies = Agency::query()->paginate(10);
 
-        return Inertia::render('Dashboard', compact('agencies'));
+        return Inertia::render('Agencies/Index', compact('agencies'));
     }
 
     public function create(Request $request): Response
