@@ -34,7 +34,7 @@ export function Create({ auth }: PageProps) {
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-8 p-8">
-                  <FieldGroup label="Name" name="name" required={true} error={errors.name}>
+                  <FieldGroup label="Agency name" name="name" required={true} error={errors.name}>
                     <TextInput
                       name="name"
                       error={errors.name}

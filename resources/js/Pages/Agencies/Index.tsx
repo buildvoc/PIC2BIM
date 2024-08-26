@@ -51,7 +51,7 @@ export default function Dashboard({ auth }: PageProps) {
             <Table
               columns={[
                 {
-                  label: 'Name',
+                  label: 'Agency name',
                   name: 'name',
                   renderCell: row => (
                     <>

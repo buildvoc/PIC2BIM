@@ -5,7 +5,7 @@ import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faBan, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
 
@@ -43,7 +43,16 @@ export default function Dashboard({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <span className="hidden md:inline">{agency.name} - Officers management</span>
+              <span className="hidden md:inline">
+                <Link
+                  className="text-indigo-600 dark:text-indigo-400 mr-8"
+                  href={route('dashboard.agencies.index')}  title='Back'
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} className='mr-2' />
+                  Back
+                </Link>
+                {agency.name} - Officers management
+              </span>
               <Link
                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                 href={route('dashboard.agencies.officers.create', { id: agency.id })}
