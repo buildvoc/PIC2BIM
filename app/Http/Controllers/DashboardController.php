@@ -18,6 +18,13 @@ class DashboardController extends Controller
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
+        $roles = $user->rolesArray();
+        
+        if(in_array('ADMIN',$roles)) return redirect()->route('dashboard.agencies.index');
+        
+        if(in_array('OFFICER',$roles)) return redirect()->route('users.index');
+
         return redirect()->route('dashboard.agencies.index');
     }
 

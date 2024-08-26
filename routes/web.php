@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\OfficerController;
 use App\Http\Controllers\TaskTypeController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -26,7 +27,9 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::resource('/officers', OfficerController::class);
 })->middleware(['auth', 'verified']);
 
+
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
+Route::resource('/users', UserController::class)->middleware(['auth', 'verified']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
