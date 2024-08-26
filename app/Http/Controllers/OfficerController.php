@@ -2,16 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\CheckAdmin;
 use App\Models\Agency;
 use App\Models\User;
 use App\Models\UserRole;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class OfficerController extends Controller
+class OfficerController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(middleware: CheckAdmin::class, except: ['index']),
+        ];
+    }
     /**
      * Display a listing of the resource.
      */

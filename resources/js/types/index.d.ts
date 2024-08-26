@@ -9,6 +9,13 @@ export interface User {
   identification_number: string;
   vat: string;
   email_verified_at: string;
+  roles : Array<Role>;
+}
+
+export interface Role {
+  id : number;
+  role_id : number;
+  user_id : number;
 }
 
 export interface Agency {

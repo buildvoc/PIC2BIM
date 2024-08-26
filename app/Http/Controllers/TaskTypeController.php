@@ -2,12 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\CheckAdmin;
 use App\Models\TaskType;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 
-class TaskTypeController extends Controller
+class TaskTypeController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(middleware: CheckAdmin::class, except: ['destroy']),
+        ];
+    }
     /**
      * Display a listing of the resource.
      */
