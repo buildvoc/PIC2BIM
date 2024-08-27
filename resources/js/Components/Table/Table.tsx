@@ -1,21 +1,36 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import get from 'lodash/get';
 import { ChevronRight } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowDown, faArrowUp } from '@fortawesome/free-solid-svg-icons';
 
 interface TableProps<T> {
   columns: {
     name: string;
     label: string;
     colSpan?: number;
+    sorting?: boolean;
     renderCell?: (row: T) => React.ReactNode;
   }[];
   rows: T[];
+  sortColumn?: string;
+  sortOrder?: 'asc' | 'desc';
+  onSort?: (columnName: string, sortOrder: 'asc' | 'desc') => void;
 }
+
 
 export default function Table<T>({
    columns = [],
-   rows = []
+   rows = [],
+   sortColumn, sortOrder, onSort
  }: TableProps<T>) {
+
+  const handleSort = (columnName: string, order : 'asc' | 'desc') => {
+    if (onSort) {
+      onSort(columnName, order);
+    }
+  };
+
   return (
     <div className="overflow-x-auto rounded shadow">
       <table className="w-full whitespace-nowrap">
@@ -27,7 +42,19 @@ export default function Table<T>({
               colSpan={column.colSpan ?? 1}
               className="px-6 pt-5 pb-4"
             >
-              {column.label}
+                <span className='flex flex-row'>
+                  <span>{column.label}</span>
+                  { column.sorting &&
+                      <span>
+                        <button onClick={() => handleSort(column.name, 'asc')} type='button'>
+                          <FontAwesomeIcon className={sortColumn == column.name && sortOrder == 'asc' ? 'ml-2 text-indigo-600 dark:text-indigo-400' : 'ml-2'} icon={faArrowUp}></FontAwesomeIcon>
+                        </button>
+                        <button onClick={() => handleSort(column.name, 'desc')} type='button'>
+                          <FontAwesomeIcon  className={sortColumn == column.name && sortOrder == 'desc' ? 'ml-[1px] text-indigo-600 dark:text-indigo-400' : 'ml-[1px]'} icon={faArrowDown}></FontAwesomeIcon>
+                        </button>
+                      </span>
+                  }
+                </span>
             </th>
           ))}
         </tr>

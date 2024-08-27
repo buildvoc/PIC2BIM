@@ -6,10 +6,13 @@ import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
+import { useState } from 'react';
 
 export default function Dashboard({ auth }: PageProps) {  
-  const { users } = usePage<{
+  const { users,sortColumn ,sortOrder  } = usePage<{
     users: PaginatedData<Officer>;
+    sortColumn : string;
+    sortOrder : 'asc' | 'desc';
   }>().props;
 
   const {
@@ -23,7 +26,11 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
   function handlePageChange(url: string) {
-    router.get(url);
+    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn);
+  }
+
+  function handleSort(column : string, order : 'asc' | 'desc'){
+    router.get(route('users.index'),{"sortColumn" : column, "sortOrder" : order})
   }
 
   return (
@@ -53,10 +60,14 @@ export default function Dashboard({ auth }: PageProps) {
 
 
             <Table
+              sortColumn={sortColumn}
+              sortOrder={sortOrder}
+              onSort={handleSort}
               columns={[
                 {
                   label: 'ID',
                   name: 'id',
+                  sorting : true,
                   renderCell: row => (
                     <>
                       {row.id}
@@ -66,6 +77,7 @@ export default function Dashboard({ auth }: PageProps) {
                 {
                   label: 'Name',
                   name: 'name',
+                  sorting : true,
                   renderCell: row => (
                     <>
                       {row.name}
@@ -75,6 +87,7 @@ export default function Dashboard({ auth }: PageProps) {
                 {
                   label: 'Surname',
                   name: 'surname',
+                  sorting : true,
                   renderCell: row => (
                     <>
                       {row.surname}
@@ -84,6 +97,7 @@ export default function Dashboard({ auth }: PageProps) {
                 {
                   label: 'Idenitification number',
                   name: 'identification_number',
+                  sorting : true,
                   renderCell: row => (
                     <>
                       {row.identification_number}

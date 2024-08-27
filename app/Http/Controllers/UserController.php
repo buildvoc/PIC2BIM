@@ -14,16 +14,23 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $users = User::
             join('user_role as ur', 'user.id', '=', 'ur.user_id')
             ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
             ->where('ur.role_id', '=', User::FARMER_ROLE)
             ->where('user.active', '=', 1)
-            ->where('user.pa_id', '=', Auth::user()->pa_id)
-            ->orderBy('user.id')
-            ->paginate(10);
+            ->where('user.pa_id', '=', Auth::user()->pa_id);
+
+        $sortColumn = 'id';
+        $sortOrder = 'asc';
+        if($request->sortColumn && $request->sortOrder) {
+            $sortColumn = $request->sortColumn;
+            $sortOrder = $request->sortOrder;
+        }
+        $users->orderBy($sortColumn,$sortOrder);
+        $users = $users->paginate(10);
 
         foreach($users as $user){
             $user->tasks_count=User::getFarmerCounts($user['id'],'tasks');
@@ -31,7 +38,7 @@ class UserController extends Controller
             $user->unassigned_photos_count=User::getFarmerCounts($user['id'],'unassigned_photos');
             $user->tasks_provided_count=User::getFarmerCounts($user['id'],'tasks_provided');
         }
-        return Inertia::render('Users/Index',compact('users'));
+        return Inertia::render('Users/Index',compact('users','sortColumn','sortOrder'));
     }
 
     /**
