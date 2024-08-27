@@ -9,10 +9,11 @@ import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg
 import { useState } from 'react';
 
 export default function Dashboard({ auth }: PageProps) {  
-  const { users,sortColumn ,sortOrder  } = usePage<{
+  const { users,sortColumn ,sortOrder,search  } = usePage<{
     users: PaginatedData<Officer>;
     sortColumn : string;
     sortOrder : 'asc' | 'desc';
+    search : string;
   }>().props;
 
   const {
@@ -26,11 +27,20 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
   function handlePageChange(url: string) {
-    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn);
+    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+  }
+  function reset(){
+    router.get(route('users.index'));
+  }
+  function handleSort(column : string, order : 'asc' | 'desc'){
+    applyFilters({search : search, sortColumn : column , sortOrder : order});
+  }
+  function handleSearch(q : string){
+    applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder});
   }
 
-  function handleSort(column : string, order : 'asc' | 'desc'){
-    router.get(route('users.index'),{"sortColumn" : column, "sortOrder" : order})
+  function applyFilters(params : {search : string;sortColumn : string;sortOrder : string}){
+    router.get(route('users.index'),params);
   }
 
   return (
@@ -63,6 +73,10 @@ export default function Dashboard({ auth }: PageProps) {
               sortColumn={sortColumn}
               sortOrder={sortOrder}
               onSort={handleSort}
+              search={search}
+              isSearchable={true}
+              onSearch={handleSearch}
+              onReset={reset}
               columns={[
                 {
                   label: 'ID',

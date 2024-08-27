@@ -25,6 +25,16 @@ class UserController extends Controller
 
         $sortColumn = 'id';
         $sortOrder = 'asc';
+
+        $search = $request->search;
+        if($request->search){
+            $users = $users->where(function($q) use($request){
+                $q->orWhere('user.name','LIKE','%'.$request->search.'%')
+                    ->orWhere('user.surname','LIKE','%'.$request->search.'%')
+                    ->orWhere('user.identification_number','LIKE','%'.$request->search.'%');
+            });
+        }
+
         if($request->sortColumn && $request->sortOrder) {
             $sortColumn = $request->sortColumn;
             $sortOrder = $request->sortOrder;
@@ -38,7 +48,7 @@ class UserController extends Controller
             $user->unassigned_photos_count=User::getFarmerCounts($user['id'],'unassigned_photos');
             $user->tasks_provided_count=User::getFarmerCounts($user['id'],'tasks_provided');
         }
-        return Inertia::render('Users/Index',compact('users','sortColumn','sortOrder'));
+        return Inertia::render('Users/Index',compact('users','sortColumn','sortOrder','search'));
     }
 
     /**
