@@ -34,14 +34,15 @@ export default function Dashboard({ auth }: PageProps) {
     );
   };
 
-  const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors  } = usePage<{
+  const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors,filtersVal  } = usePage<{
     tasks: PaginatedData<Tasks>;
     sortColumn : string;
     sortOrder : 'asc' | 'desc';
     search : string;
     user : Officer,
     selectedStatuses : string[],
-    errors : string[]
+    errors : string[],
+    filtersVal : string[]
   }>().props;
 
   if(typeof errors[0] != 'undefined'){
@@ -66,18 +67,18 @@ export default function Dashboard({ auth }: PageProps) {
     router.get(route('users.show',user.id));
   }
   function handleSort(column : string, order : 'asc' | 'desc'){
-    applyFilters({search : search, sortColumn : column , sortOrder : order});
+    applyFilters({search : search, sortColumn : column , sortOrder : order, filters : selectedStatus});
   }
   function handleSearch(q : string){
-    applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder});
+    applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder, filters : selectedStatus});
   }
 
-  async function applyFilters(params : {search : string;sortColumn : string;sortOrder : string}){
+  async function applyFilters(params : {search : string;sortColumn : string;sortOrder : string;filters : string[]}){
     const queryString = new URLSearchParams({
       search: params.search || '',
       sortColumn: params.sortColumn || '',
       sortOrder: params.sortOrder || '',
-      status : selectedStatus.join(",")
+      status : params.filters.join(",")
     }).toString();
     router.get(route('users.show',user.id)+'?'+queryString);
   }
@@ -96,22 +97,29 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
 
-  const [selectedStatus, setSelectedStatus] = useState<string[]>(["none"]);
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(filtersVal);
 
   const handleSelectedStatus = (status: string) => {
     setSelectedStatus(prevSelectedStatus => {
       if (prevSelectedStatus.includes(status)) {
-        return prevSelectedStatus.filter(selectedStatus => selectedStatus !== status);
+        const return1 =  prevSelectedStatus.filter(selectedStatus => selectedStatus !== status);
+        console.log(return1,'1');
+        applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return1});
+        return return1;
       } 
       else {
-        return [...prevSelectedStatus, status];
+        const return2 =  [...prevSelectedStatus, status];
+        applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return2});
+        return return2;
       }
+      
+
     });
   };
 
   useEffect (() => {
-    console.log(selectedStatus)
-    if(selectedStatus.length > 1) applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder})
+    // console.log(selectedStatus);
+    // applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder});
   } , [selectedStatus]);
 
   function handleRowClick(row:Tasks){
@@ -151,7 +159,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
-                      checked={selectedStatuses.includes('new')}
+                      checked={selectedStatus.includes('new')}
                       onChange={() => handleSelectedStatus('new')}
                     />
                     <span>New</span>
@@ -160,7 +168,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
-                      checked={selectedStatuses.includes('open')}
+                      checked={selectedStatus.includes('open')}
                       onChange={() => handleSelectedStatus('open')}
                     />
                     <span>Open</span>
@@ -169,7 +177,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
-                      checked={selectedStatuses.includes('data provided')}
+                      checked={selectedStatus.includes('data provided')}
                       onChange={() => handleSelectedStatus('data provided')}
                     />
                     <span>Data provided</span>
@@ -178,7 +186,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
-                      checked={selectedStatuses.includes('returned')}
+                      checked={selectedStatus.includes('returned')}
                       onChange={() => handleSelectedStatus('returned')}
                     />
                     <span>Returned</span>
@@ -187,6 +195,8 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
+                      checked={selectedStatus.includes('accepted')}
+                      onChange={() => handleSelectedStatus('accepted')}
                     />
                     <span>Accepted</span>
                   </div>
@@ -194,6 +204,8 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
+                      checked={selectedStatus.includes('declined')}
+                      onChange={() => handleSelectedStatus('declined')}
                     />
                     <span>Declined</span>
                   </div>
@@ -209,6 +221,8 @@ export default function Dashboard({ auth }: PageProps) {
                     <input 
                       className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
+                      checked={sortColumn == 'task_due_date'}
+                      onChange={(e) => e.target.checked ? handleSort('task_due_date','desc') : handleSort('status_sortorder.sortorder','asc')}
                     />
                     <span>After deadline last</span>
                   </div>

@@ -91,7 +91,7 @@ class UserController extends Controller
      */
     public function show(Request $request, User $user)
     {
-        $filtersVal = [];
+        $filtersVal = ["new","open","data provided","returned","accepted","declined"];
         $search = $request->search;
         $filters = array('new' => 1,'open' => 1,'data provided' => 1, 'data checked' => 1, 'closed' => 1, 'returned' => 1);
         $tasksQuery = Task::select(
@@ -118,15 +118,27 @@ class UserController extends Controller
         if (!empty($search)) {
             $tasksQuery->where('task.name', 'LIKE', '%' . $search . '%');
         }
-        $selectedStatuses = explode(",",$request->status);
-        unset($selectedStatuses[0]);
         
-        if(count($selectedStatuses) > 0){
-            $tasksQuery->whereIn('task.status', $selectedStatuses);
+        $selectedStatuses = explode(",",$request->status);
+        
+        if($request->has('status')) {
+            $filtersVal = $selectedStatuses;
+            if(!in_array('new',$selectedStatuses)) $tasksQuery->where('task.status','!=','new');
+            if(!in_array('open',$selectedStatuses)) $tasksQuery->where('task.status','!=','open');
+            if(!in_array('data provided',$selectedStatuses)) $tasksQuery->where('task.status','!=','data provided');
+            if(!in_array('returned',$selectedStatuses)) $tasksQuery->where('task.status','!=','returned');
+            if(!in_array('accepted',$selectedStatuses)) {
+                $tasksQuery->where(function($q){
+                    $q->whereNull('task_flag.flag_id')->orWhere('task_flag.flag_id','!=',1);
+                });
+                
+            }
+            if(!in_array('declined',$selectedStatuses)) {
+                $tasksQuery->where(function($q){
+                    $q->whereNull('task_flag.flag_id')->orWhere('task_flag.flag_id','!=',2);
+                });
+            }
         }
-        // if (!empty($filter)) {
-        //     $tasksQuery->whereRaw($filter);
-        // }
         $sortColumn = 'status_sortorder.sortorder';$sortOrder='asc';
         
         if($request->sortColumn && $request->sortOrder){
@@ -154,7 +166,7 @@ class UserController extends Controller
         }
 
         $selectedStatuses = implode(",",$selectedStatuses);
-        return Inertia::render('Tasks/Index',compact('tasks','sortColumn','sortOrder','search', 'user','selectedStatuses'));
+        return Inertia::render('Tasks/Index',compact('tasks','sortColumn','sortOrder','search', 'user','selectedStatuses','filtersVal'));
     }
 
     /**
