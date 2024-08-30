@@ -21,13 +21,13 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
                                 </Link>
                             </div>
-                            {userRoles.includes(3) && userRoles.length > 0 &&  
-                                <>   
-                                    <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                        <NavLink href={route('dashboard.agencies.index')} active={route().current('dashboard.agencies.index')}>
-                                            Home
-                                        </NavLink>
-                                    </div>
+                                <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                    <NavLink href={route('dashboard')} active={route().current('dashboard')}>
+                                        Home
+                                    </NavLink>
+                                </div>
+                                {userRoles.includes(3) && userRoles.length > 0 &&  
+                                <>  
                                     <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                         <NavLink href={route('types.index')} active={route().current('types.index')}>
                                             Task Purpose

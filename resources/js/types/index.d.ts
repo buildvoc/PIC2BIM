@@ -39,17 +39,23 @@ export interface Officer {
   email : string;
   active : number;
   vat : number;
+  tasks_count : number;
+  photos_count : number;
+  unassigned_photos_count : number;
+  tasks_provided_count : number;
 }
 
 export type PaginatedData<T> = {
   data: T[];
-  links: {
-    first: string;
-    last: string;
-    prev: string | null;
-    next: string | null;
-  };
+  links: PaginationLink[];
+  total : number;
 };
+
+export interface PaginationLink {
+  url: string;
+  label: string;
+  active: boolean;
+}
 
 export type PageProps<
   T extends Record<string, unknown> = Record<string, unknown>
