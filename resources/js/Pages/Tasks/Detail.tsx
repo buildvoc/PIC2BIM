@@ -25,11 +25,16 @@ interface Tasks {
 }
 
 export default function Dashboard({ auth }: PageProps) {
-  const { task, user  } = usePage<{
+  const { task, user, errors  } = usePage<{
     task: Tasks;
     user : Officer
+    errors : string[]
   }>().props;
   
+  if(typeof errors[0] != 'undefined'){
+    alert(errors[0]);
+  }
+
   const deleteTask = (id:number) => {
     if(confirm('Delete task?')){
         router.delete(route('tasks.destroy',id));
@@ -44,7 +49,13 @@ export default function Dashboard({ auth }: PageProps) {
   }
   const acceptTask = (task:Tasks) => {
     if(confirm('Accept task?')){
-        router.post(route('tasks.bulkAccept',task.id),{tasks : [task.id]})
+        router.post(route('tasks.bulkAccept',task.id),{tasks : [task.id]},{
+            onSuccess : ((res) =>{
+            }),
+            onError :((err) => {
+                console.log(err);
+            })
+        })
     }
   }
 
@@ -58,7 +69,14 @@ export default function Dashboard({ auth }: PageProps) {
   const returnTask = (task:Tasks) => {
     const textNote = prompt('Return task to farmer? Enter reason of reopening, please..', "");
     if(textNote && textNote.length > 0){
-        router.post(route('tasks.return'),{id : task.id, reason : textNote})
+        router.post(route('tasks.return'),{id : task.id, reason : textNote},{
+            onSuccess : ((res) =>{
+                console.log(res);
+            }),
+            onError :((err) => {
+                console.log(err);
+            })
+        })
     }
   }
 
@@ -129,7 +147,7 @@ export default function Dashboard({ auth }: PageProps) {
                 },
                 {
                   label: 'Description',
-                  name: 'text',
+                  name: 'description',
                   renderCell: row => (
                     <>
                       {task.text}
@@ -138,7 +156,7 @@ export default function Dashboard({ auth }: PageProps) {
                 },
                 {
                   label: 'Repoen reason',
-                  name: 'text',
+                  name: 'text_returned',
                   renderCell: row => (
                     <>
                       {task.text_returned}

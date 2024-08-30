@@ -133,27 +133,29 @@ export default function Table<T>({
             </td>
           </tr>
         )}
-        {rows?.map((row, index) => {
+        {rows?.map((row, rowIndex) => {
           return (
             <tr
-              key={index}
-              className={`focus-within:bg-gray-100  dark:focus-within:bg-gray-600
-                ${onRowClick ? 'cursor-pointer' :
-                  ''}`} 
-              
-              onClick={() => handleRowClick(row)}
+              key={rowIndex}
+              className={`focus-within:bg-gray-100 dark:focus-within:bg-gray-600 ${onRowClick ? 'cursor-pointer' : ''}`}
             >
-              {columns.map(column => {
+              {columns.map((column, colIndex) => {
+                const isLastColumn = colIndex === columns.length - 1;
                 return (
-                  <td key={column.name} className="border-t">
+                  <td 
+                    key={column.name} 
+                    className="border-t" 
+                    onClick={() => {
+                      if (!isLastColumn) {
+                        handleRowClick(row);
+                      }
+                    }}
+                  >
                     <span
                       tabIndex={-1}
                       className="flex items-center px-6 py-4 text-gray-700 dark:text-gray-300 focus:outline-none"
                     >
-                      {column.renderCell?.(row) ??
-                        get(row, column.name) ??
-                        'N/A'
-                      }
+                      {column.renderCell?.(row) ?? get(row, column.name) ?? 'N/A'}
                     </span>
                   </td>
                 );

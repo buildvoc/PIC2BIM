@@ -4,30 +4,45 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import LoadingButton from '@/Components/Button/LoadingButton';
 import TextInput from '@/Components/Form/TextInput';
 import FieldGroup from '@/Components/Form/FieldGroup';
-import { Agency, PageProps } from '@/types';
+import { Agency, Officer, PageProps } from '@/types';
 
 export function Create({ auth }: PageProps) {
+
+  const { user,task_types  } = usePage<{
+    user : Officer
+    task_types : [{
+      id : number;
+      name : string;
+    }]
+  }>().props;
+
   const { data, setData, post, processing, errors } = useForm({
-    login: '',
-    password : '',
-    name : '',
-    surname : '',
-    email : '',
-    identification_number : '',
-    vat : ''
+    name: '',
+    text : '',
+    purpose : '',
+    date_due : '',
+    user_id : user.id
   });
-  const user = auth.user;
+  
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    post(route('users.store'));
+    post(route('tasks.store'));
   }
+
+  const allPurpose = task_types.map((purpose,i) => {
+    return (
+      <option key={i} value={purpose.id}>
+        {purpose.name}
+      </option>
+    );
+  })
 
   return (
     <AuthenticatedLayout
-      user={user}
-      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">New Farmer</h2>}
+      user={auth.user}
+      header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">New task</h2>}
     >
-      <Head title="Users" />
+      <Head title="New task" />
       
       <div className="py-12">
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
@@ -35,38 +50,14 @@ export function Create({ auth }: PageProps) {
             <div
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
-              <h1 className="text-3xl font-bold">New Farmer</h1>
+              <h1 className="text-3xl font-bold">New task</h1>
             </div>
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup required={true} label="Login" name="login" error={errors.login}>
+                  <FieldGroup required={true} label="Name" name="name" error={errors.name}>
                     <TextInput
                       name="login"
-                      error={errors.login}
-                      value={data.login}
-                      onChange={(e) => setData('login', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
-                    />
-                  </FieldGroup>
-                </div>
-                <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup required={true} label="Password" name="password" error={errors.password}>
-                    <TextInput
-                      name="password"
-                      error={errors.password}
-                      type='password'
-                      value={data.password}
-                      onChange={(e) => setData('password', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
-                    />
-                  </FieldGroup>
-                </div>
-
-                <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Name" name="name" error={errors.name}>
-                    <TextInput
-                      name="name"
                       error={errors.name}
                       value={data.name}
                       onChange={(e) => setData('name', e.target.value)}
@@ -74,51 +65,38 @@ export function Create({ auth }: PageProps) {
                     />
                   </FieldGroup>
                 </div>
+                <div className="grid gap-8 px-8 py-2">
+                  <FieldGroup label="Description" name="text" error={errors.text}>
+                    <TextInput
+                      name="text"
+                      error={errors.text}
+                      type='text'
+                      value={data.text}
+                      onChange={(e) => setData('text', e.target.value)}
+                      style={{ background: 'transparent', color: 'white' }}
+                    />
+                  </FieldGroup>
+                </div>
 
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Surname" name="surname" error={errors.name}>
-                    <TextInput
-                      name="surname"
-                      error={errors.surname}
-                      value={data.surname}
-                      onChange={(e) => setData('surname', e.target.value)}
+                  <FieldGroup label="Purpose" name="text" error={errors.purpose}>
+                    <select name="purpose" onChange={(e) => setData('purpose', e.target.value)} className='form-input w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
                       style={{ background: 'transparent', color: 'white' }}
-                    />
+                    >
+                      {allPurpose}
+                    </select>
                   </FieldGroup>
                 </div>
+
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Email" name="email" error={errors.email}>
-                    <TextInput
-                      name="email"
-                      error={errors.email}
-                      value={data.email}
-                      onChange={(e) => setData('email', e.target.value)}
+                  <FieldGroup required={true} label="Due date" name="date_due" error={errors.date_due}>
+                    <input type='date' name="date_due" onChange={(e) => setData('date_due', e.target.value)} className='form-input w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
                       style={{ background: 'transparent', color: 'white' }}
+                      min={new Date().toISOString().split('T')[0]}
                     />
                   </FieldGroup>
                 </div>
-                <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Identification Number" name="identification_number" error={errors.email}>
-                    <TextInput
-                      name="identification_number"
-                      error={errors.identification_number}
-                      value={data.identification_number}
-                      onChange={(e) => setData('identification_number', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
-                    />
-                  </FieldGroup>
-                </div>
-                <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Vat" name="vat" error={errors.vat}>
-                    <TextInput
-                      name="vat"
-                      error={errors.vat}
-                      value={data.vat}
-                      onChange={(e) => setData('vat', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
-                    />
-                  </FieldGroup>
-                </div>
+                
 
                 <div className="flex flex-col items-center px-8 py-4 space-y-4">
                   <div className="flex space-x-4">

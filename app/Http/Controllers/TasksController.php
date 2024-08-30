@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Photo;
 use App\Models\Task;
 use App\Models\TaskFlag;
+use App\Models\TaskType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -23,9 +25,13 @@ class TasksController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
-        //
+        $user_id = $request->id;
+        $user = User::find($user_id);
+
+        $task_types = TaskType::where('active',1)->get();
+        return Inertia::render('Tasks/Create',compact('user','task_types'));
     }
 
     /**
@@ -33,7 +39,25 @@ class TasksController extends Controller
      */
     public function store(Request $request)
     {
-        
+        $request->validate([
+            'name' => 'required',
+            'date_due' => 'required'
+        ]);
+
+        Task::create([
+            'user_id'=> $request->user_id,
+            'created_id'=> Auth::id(),
+            'type_id' => $request->purpose,
+            'status'=> Task::STATUS[0],
+            'name'=> $request->name,
+            'text'=> $request->text,
+            'date_created'=> now(),
+            'task_due_date'=> $request->date_due.' 23:59:59',
+            'note'=> '',
+            'timestamp'=> now(),
+            'flg_deleted' => 0
+        ]);
+        return redirect()->route('users.show',$request->user_id);
     }
 
     /**
@@ -116,6 +140,8 @@ class TasksController extends Controller
                     $response['error'] = '1';
                     $response['errorText'] = $ex->getMessage();
                 }
+            }else{
+                return redirect()->back()->withErrors('Task cannot be accepted without photos!');
             }
         }
 
@@ -123,43 +149,32 @@ class TasksController extends Controller
     }
 
     public function declineTaskPhotos(Request $request){
-        $photosCount = Photo::where('task_id', $request->id)
-        ->where('flg_deleted', 0)
-        ->count();
-        if ($photosCount > 0){
-            try {
-                TaskFlag::create([
-                    'task_id' => $request->id,
-                    'flag_id' => Task::INVALID,
-                    'timestamp' => now()
-                ]);
-                Task::where('id', $request->id)->update([
-                    'status' => Task::STATUS[3],
-                    'text_reason' => $request->reason
-                ]);
-            } catch (\Exception $ex) {
-                $response['error'] = '1';
-                $response['errorText'] = $ex->getMessage();
-            }
+        try {
+            TaskFlag::create([
+                'task_id' => $request->id,
+                'flag_id' => Task::INVALID,
+                'timestamp' => now()
+            ]);
+            Task::where('id', $request->id)->update([
+                'status' => Task::STATUS[3],
+                'text_reason' => $request->reason
+            ]);
+        } catch (\Exception $ex) {
+            $response['error'] = '1';
+            $response['errorText'] = $ex->getMessage();
         }
         return redirect()->back();
     }
 
     public function returnTaskPhotos(Request $request){
-        $photosCount = Photo::where('task_id', $request->id)
-        ->where('flg_deleted', 0)
-        ->count();
-        if ($photosCount > 0){
-            try {
-                Task::where('id', $request->id)->update([
-                    'status' => Task::STATUS[5],
-                    'text_returned' => $request->reason
-                ]);
-            } catch (\Exception $ex) {
-                dd($ex);
-                $response['error'] = '1';
-                $response['errorText'] = $ex->getMessage();
-            }
+        try {
+            Task::where('id', $request->id)->update([
+                'status' => Task::STATUS[5],
+                'text_returned' => $request->reason
+            ]);
+        } catch (\Exception $ex) {
+            $response['error'] = '1';
+            $response['errorText'] = $ex->getMessage();
         }
         return redirect()->back();
     }

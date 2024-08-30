@@ -34,15 +34,19 @@ export default function Dashboard({ auth }: PageProps) {
     );
   };
 
-  const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses  } = usePage<{
+  const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors  } = usePage<{
     tasks: PaginatedData<Tasks>;
     sortColumn : string;
     sortOrder : 'asc' | 'desc';
     search : string;
     user : Officer,
-    selectedStatuses : string[]
+    selectedStatuses : string[],
+    errors : string[]
   }>().props;
 
+  if(typeof errors[0] != 'undefined'){
+    alert(errors[0]);
+  }
 
   const {
     data,
@@ -80,15 +84,13 @@ export default function Dashboard({ auth }: PageProps) {
 
   function bulkAccept(){
 
-    if (confirm('Bulk accept selected tasks?') && selectedTasks.length > 1) {
+    if (confirm('Bulk accept selected tasks?') && selectedTasks.length > 0) {
       router.post(route('tasks.bulkAccept'), { tasks : selectedTasks }, {
         onSuccess: () => {
           alert('Selected tasks have been accepted.');
           router.reload();
         },
         onError: (errors) => {
-          console.error(errors);
-          alert('An error occurred while accepting tasks.');
         }
       });
     }
@@ -134,7 +136,7 @@ export default function Dashboard({ auth }: PageProps) {
               </span>
               <Link
                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                href={route('users.create')}
+                href={route('tasks.create',{id:user.id})}
               >
                 <span>Add New Task</span>
                 <PlusCircleIcon size={16} className="ml-2" />
