@@ -31,7 +31,7 @@ export function Create({ auth }: PageProps) {
 
   const allPurpose = task_types.map((purpose,i) => {
     return (
-      <option key={i} value={purpose.id}>
+      <option key={i} value={purpose.id} style={{background:'#1a1a1a',color:'white'}}>
         {purpose.name}
       </option>
     );
