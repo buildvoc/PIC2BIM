@@ -140,6 +140,13 @@ export default function Dashboard({ auth }: PageProps) {
               className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
             >
               <span className="hidden md:inline">
+                <Link
+                  className="text-indigo-600 dark:text-indigo-400 mr-8"
+                  href={route('users.index')}  title='Back'
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} className='mr-2' />
+                  Back
+                </Link>
                 {user.surname + ' ' + user.name + ' tasks'}
               </span>
               <Link
