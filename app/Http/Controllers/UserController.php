@@ -46,8 +46,8 @@ class UserController extends Controller
 
         foreach($users as $user){
             $user->tasks_count=User::getFarmerCounts($user['id'],'tasks');
-            $user->photo_count=User::getFarmerCounts($user['id'],'photo');
-            $user->unassigned_photo_count=User::getFarmerCounts($user['id'],'unassigned_photo');
+            $user->photo_count=User::getFarmerCounts($user['id'],'photos');
+            $user->unassigned_photos_count=User::getFarmerCounts($user['id'],'unassigned_photos');
             $user->tasks_provided_count=User::getFarmerCounts($user['id'],'tasks_provided');
         }
         return Inertia::render('Users/Index',compact('users','sortColumn','sortOrder','search'));

@@ -40,7 +40,7 @@ export interface Officer {
   active : number;
   vat : number;
   tasks_count : number;
-  photos_count : number;
+  photo_count : number;
   unassigned_photos_count : number;
   tasks_provided_count : number;
 }

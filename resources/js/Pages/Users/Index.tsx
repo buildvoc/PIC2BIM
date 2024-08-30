@@ -132,7 +132,7 @@ export default function Dashboard({ auth }: PageProps) {
                   name: 'photos_count',
                   renderCell: row => (
                     <>
-                      {row.photos_count}
+                      {row.photo_count}
                     </>
                   )
                 },

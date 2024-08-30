@@ -57,7 +57,7 @@ export function Edit({ auth }: PageProps) {
                       name="login"
                       error={errors.login}
                       value={data.login}
-                      onChange={(e) => setData('login', e.target.value)}
+                      readOnly
                       style={{ background: 'transparent', color: 'white' }}
                     />
                   </FieldGroup>
