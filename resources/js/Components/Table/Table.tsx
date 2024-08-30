@@ -19,16 +19,18 @@ interface TableProps<T> {
   sortOrder?: 'asc' | 'desc';
   onSort?: (columnName: string, sortOrder: 'asc' | 'desc') => void;
   onSearch?: (search : string) => void;
+  onRowClick?: (row : T) => void;
+  onBulkAccept?: () => void;
   onReset?: () => void;
   isSearchable ?: boolean;
-  search : string;
+  search?: string;
 }
 
 
 export default function Table<T>({
    columns = [],
    rows = [],
-   sortColumn, sortOrder, onSort, onSearch, isSearchable, search, onReset
+   sortColumn, sortOrder, onSort, onSearch, isSearchable, search, onReset,onBulkAccept,onRowClick
  }: TableProps<T>) {
 
   const [searchValue, setSearchValue] = useState(search || '');
@@ -45,6 +47,17 @@ export default function Table<T>({
   function handleReset (){
     if (onReset) {
       onReset();
+    }
+  }
+  function hanldeBulkAccept(){
+    if(onBulkAccept){
+      onBulkAccept();
+    }
+  }
+
+  function handleRowClick(row:T){
+    if(onRowClick){
+      onRowClick(row);
     }
   }
 
@@ -73,6 +86,12 @@ export default function Table<T>({
               <span className='ml-1'>Cancel Sorting</span>
             </button> 
           </div>
+          {
+            onBulkAccept &&
+            <div className='ml-auto'>
+              <button type='button' onClick={hanldeBulkAccept} className='mr-4 focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md'>Bulk Accept</button>
+            </div>
+          }
           
         </div>
       }
@@ -118,7 +137,11 @@ export default function Table<T>({
           return (
             <tr
               key={index}
-              className=" focus-within:bg-gray-100  dark:focus-within:bg-gray-600"
+              className={`focus-within:bg-gray-100  dark:focus-within:bg-gray-600
+                ${onRowClick ? 'cursor-pointer' :
+                  ''}`} 
+              
+              onClick={() => handleRowClick(row)}
             >
               {columns.map(column => {
                 return (

@@ -48,6 +48,7 @@ export interface Officer {
 export type PaginatedData<T> = {
   data: T[];
   links: PaginationLink[];
+  total : number;
 };
 
 export interface PaginationLink {

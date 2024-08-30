@@ -161,6 +161,12 @@ export default function Dashboard({ auth }: PageProps) {
                     <>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                        href={route('users.show',row.id)}  title='View'
+                      >
+                        <FontAwesomeIcon icon={faEye} />
+                      </Link>
+                      <Link
+                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                         href={route('users.edit',row.id)}  title='Edit'
                       >
                         <FontAwesomeIcon icon={faEdit} />

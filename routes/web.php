@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\OfficerController;
+use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,11 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
 
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
 Route::resource('/users', UserController::class)->middleware(['auth', 'verified']);
+Route::resource('/tasks', TasksController::class)->middleware(['auth', 'verified']);
+Route::post('/tasks/bulk-accept',[TasksController::class,'acceptTaskPhotos'])->name('tasks.bulkAccept');
+Route::post('/tasks/decline',[TasksController::class,'declineTaskPhotos'])->name('tasks.decline');
+Route::post('/tasks/return',[TasksController::class,'returnTaskPhotos'])->name('tasks.return');
+Route::post('/tasks/move-from-open/{id?}',[TasksController::class,'moveFromOpen'])->name('task.moveOpen');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
