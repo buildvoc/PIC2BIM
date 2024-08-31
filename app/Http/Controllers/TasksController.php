@@ -180,10 +180,17 @@ class TasksController extends Controller
     }
 
     public function moveFromOpen(Request $request, $id){
-        Task::find($id)->update([
-            'note' => $request->note,
-            'status' => Task::STATUS[2]
-        ]);
+        $photosCount = Photo::where('task_id', $id)
+                ->where('flg_deleted', 0)
+                ->count();
+        if ($photosCount > 0){
+            Task::find($id)->update([
+                'note' => $request->note,
+                'status' => Task::STATUS[2]
+            ]);
+        }else{
+            return redirect()->back()->withErrors('The task has no photos!');
+        }
         return redirect()->back();
     }
 }
