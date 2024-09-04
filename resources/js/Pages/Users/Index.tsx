@@ -43,6 +43,10 @@ export default function Dashboard({ auth }: PageProps) {
     router.get(route('users.index'),params);
   }
 
+  function handleRowClick(row:Officer){
+    router.get(route('users.show',row.id));
+  }
+
   return (
     <AuthenticatedLayout
       user={auth.user}
@@ -77,6 +81,7 @@ export default function Dashboard({ auth }: PageProps) {
               isSearchable={true}
               onSearch={handleSearch}
               onReset={reset}
+              onRowClick={handleRowClick}
               columns={[
                 {
                   label: 'ID',
@@ -159,12 +164,6 @@ export default function Dashboard({ auth }: PageProps) {
                   name: 'action',
                   renderCell: row => (
                     <>
-                      <Link
-                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('users.show',row.id)}  title='View'
-                      >
-                        <FontAwesomeIcon icon={faEye} />
-                      </Link>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                         href={route('users.edit',row.id)}  title='Edit'

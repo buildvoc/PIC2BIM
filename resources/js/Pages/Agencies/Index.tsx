@@ -24,6 +24,10 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
 
+  function handleRowClick(row:Agency){
+    router.get(route('dashboard.agencies.show',row.id));
+  }
+
   return (
     <AuthenticatedLayout
       user={auth.user}
@@ -49,6 +53,7 @@ export default function Dashboard({ auth }: PageProps) {
 
 
             <Table
+              onRowClick={handleRowClick}
               columns={[
                 {
                   label: 'Agency name',
@@ -64,12 +69,6 @@ export default function Dashboard({ auth }: PageProps) {
                   name: 'action',
                   renderCell: row => (
                     <>
-                      <Link
-                        className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                        href={route('dashboard.agencies.show',row.id)} title='View'
-                      >
-                        <FontAwesomeIcon icon={faEye}/>
-                      </Link>
                       <Link
                         className="hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                         href={route('dashboard.agencies.edit',row.id)} title='Edit'
