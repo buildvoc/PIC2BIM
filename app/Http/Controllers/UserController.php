@@ -73,7 +73,7 @@ class UserController extends Controller
 
         $user = User::create([
             'login' => $request->login,
-            'password' => sha1($request->password),
+            'pswd' => sha1($request->password),
             'name' => $request->name,
             'surname' => $request->surname,
             'email' => $request->email,
@@ -195,7 +195,7 @@ class UserController extends Controller
             'vat' => $request->vat,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
-        if($request->password) $user->update(['password' =>  sha1($request->password) ]);
+        if($request->password) $user->update(['pswd' =>  sha1($request->password) ]);
         return redirect()->route('users.index');
     }
 

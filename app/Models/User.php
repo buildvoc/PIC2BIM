@@ -13,6 +13,7 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public $timestamps = false;
 
     public const FARMER_ROLE = 1;
     public const OFFICER_ROLE = 2;
