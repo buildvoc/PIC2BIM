@@ -17,7 +17,7 @@ class Sha1CurrentPassword implements ValidationRule
     {
         $user = Auth::user();
 
-        if (sha1($value) !== $user->password) {
+        if (sha1($value) !== $user->pswd) {
             $fail('The current password is incorrect.');
         }
     }
