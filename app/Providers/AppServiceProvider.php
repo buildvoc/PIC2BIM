@@ -6,6 +6,7 @@ use App\Auth\Sha1UserProvider;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,5 +26,9 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('sha1', function (Application $app, array $config) {
             return new Sha1UserProvider();
         });
+
+        if (env('APP_ENV') !== 'local') {
+            URL::forceScheme('https');
+        }
     }
 }
