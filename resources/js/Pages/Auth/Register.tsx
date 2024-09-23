@@ -81,7 +81,6 @@ export default function Register() {
                         autoComplete="name"
                         isFocused={true}
                         onChange={(e) => setData('name', e.target.value)}
-                        required
                     />
 
                     <InputError message={errors.name} className="mt-2" />
@@ -130,7 +129,6 @@ export default function Register() {
                         autoComplete="identification_number"
                         isFocused={true}
                         onChange={(e) => setData('identification_number', e.target.value)}
-                        required
                     />
 
                     <InputError message={errors.identification_number} className="mt-2" />
@@ -146,7 +144,6 @@ export default function Register() {
                         autoComplete="vat"
                         isFocused={true}
                         onChange={(e) => setData('vat', e.target.value)}
-                        required
                     />
 
                     <InputError message={errors.vat} className="mt-2" />
