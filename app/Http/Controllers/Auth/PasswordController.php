@@ -21,7 +21,7 @@ class PasswordController extends Controller
         ]);
 
         $request->user()->update([
-            'password' => sha1($validated['password']),
+            'pswd' => sha1($validated['password']),
         ]);
 
         return back();
