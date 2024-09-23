@@ -4,18 +4,24 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Register() {
+    const { agency, email } = usePage<{
+        agency: number;
+        email : string
+      }>().props;
     const { data, setData, post, processing, errors, reset } = useForm({
         login : '',
         password: '',
         name: '',
         surname : '',
-        email: '',
+        email: email,
         identification_number : '',
-        vat : ''
+        vat : '',
+        agency_id : agency
     });
+    console.log(data);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
