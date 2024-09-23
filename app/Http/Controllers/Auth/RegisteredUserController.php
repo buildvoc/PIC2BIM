@@ -50,7 +50,8 @@ class RegisteredUserController extends Controller
             'identification_number' => $request->identification_number,
             'vat' => $request->vat,
             'pa_id' => $request->agency_id,
-            'timestamp' => now()
+            'timestamp' => now(),
+            'active' => 1
         ]);
 
         DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => 2,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);

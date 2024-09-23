@@ -26,6 +26,8 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::patch('/{agency}', [AgencyController::class, 'update'])->name('update');
     Route::delete('/{agency}', [AgencyController::class, 'destroy'])->name('destroy');
     Route::resource('/officers', OfficerController::class);
+    Route::get('/invite/{id}/officer', [OfficerController::class , 'invite'])->name('officers.invite');
+    Route::post('/invite/officer', [OfficerController::class , 'sendInvite'])->name('officer.invite');
 })->middleware(['auth', 'verified']);
 
 
