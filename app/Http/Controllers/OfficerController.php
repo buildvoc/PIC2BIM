@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\CheckAdmin;
+use App\Mail\OfficerInvite;
 use App\Models\Agency;
 use App\Models\User;
 use App\Models\UserRole;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class OfficerController extends Controller implements HasMiddleware
@@ -116,6 +118,20 @@ class OfficerController extends Controller implements HasMiddleware
     public function destroy(Request $request, string $id)
     {
         User::find($id)->update(['active' => 0]);
+        return redirect()->route('dashboard.agencies.show',$request->agencyId);
+    }
+
+    public function invite(Request $request, $id){
+        return Inertia::render('Officers/Invite', [
+            'agency_id' => $id,
+            'agency' => Agency::find($id)
+        ]);
+    }
+
+    public function sendInvite(Request $request){
+        $signupUrl = route('register',['agency' => $request->agencyId,'email'=> $request->email]);
+
+        Mail::to($request->email)->send(new OfficerInvite($signupUrl));
         return redirect()->route('dashboard.agencies.show',$request->agencyId);
     }
 }

@@ -53,13 +53,24 @@ export default function Dashboard({ auth }: PageProps) {
                 </Link>
                 {agency.name} - Officers management
               </span>
-              <Link
-                className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                href={route('dashboard.agencies.officers.create', { id: agency.id })}
-              >
-                <span>New Officer</span>
-                <PlusCircleIcon size={16} className="ml-2" />
-              </Link>
+              
+              <div className='flex'>
+                <Link
+                  className="focus:outline-none flex mr-2 items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                  href={route('dashboard.agencies.officers.invite', { id: agency.id })}
+                >
+                  <span>Invite New Officer</span>
+                  <PlusCircleIcon size={16} className="ml-2" />
+                </Link>
+                <Link
+                  className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                  href={route('dashboard.agencies.officers.create', { id: agency.id })}
+                >
+                  <span>New Officer</span>
+                  <PlusCircleIcon size={16} className="ml-2" />
+                </Link>
+              </div>
+              
             </div>
 
 
