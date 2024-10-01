@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,9 +19,12 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register',[
+            'agency' => $request->agency,
+            'email' => $request->email
+        ]);
     }
 
     /**
@@ -31,16 +35,25 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'login' => 'required|string|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255',
+            'password' => ['required'],
         ]);
 
         $user = User::create([
+            'login' => $request->login,
+            'pswd' => sha1($request->password),
             'name' => $request->name,
+            'surname' => $request->surname,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'identification_number' => $request->identification_number,
+            'vat' => $request->vat,
+            'pa_id' => $request->agency_id,
+            'timestamp' => now(),
+            'active' => 1
         ]);
+
+        DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => 2,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
 
         event(new Registered($user));
 

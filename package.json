@@ -3,18 +3,19 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc && vite build"
+        "build": "tsc && vite build && vite build --ssr && vite build && vite build --ssr --ssr"
     },
     "devDependencies": {
         "@headlessui/react": "^2.0.0",
         "@inertiajs/react": "^1.0.0",
         "@tailwindcss/forms": "^0.5.3",
+        "@types/lodash": "^4.17.7",
         "@types/node": "^18.13.0",
         "@types/react": "^18.0.28",
         "@types/react-dom": "^18.0.10",
         "@vitejs/plugin-react": "^4.2.0",
         "autoprefixer": "^10.4.12",
-        "axios": "^1.7.4",
+        "axios": "^1.6.4",
         "laravel-vite-plugin": "^1.0",
         "postcss": "^8.4.31",
         "react": "^18.2.0",
@@ -22,5 +23,14 @@
         "tailwindcss": "^3.2.1",
         "typescript": "^5.0.2",
         "vite": "^5.0"
+    },
+    "dependencies": {
+        "@fortawesome/fontawesome-svg-core": "^6.6.0",
+        "@fortawesome/free-solid-svg-icons": "^6.6.0",
+        "@fortawesome/react-fontawesome": "^0.2.2",
+        "classnames": "^2.5.1",
+        "lodash": "^4.17.21",
+        "lucide-react": "^0.427.0",
+        "react-use": "^17.5.1"
     }
 }

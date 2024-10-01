@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Rules\Sha1CurrentPassword;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,12 +17,12 @@ class PasswordController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
+            'current_password' => ['required', new Sha1CurrentPassword],
             'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
         $request->user()->update([
-            'password' => Hash::make($validated['password']),
+            'pswd' => sha1($validated['password']),
         ]);
 
         return back();
