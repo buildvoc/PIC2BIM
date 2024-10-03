@@ -47,10 +47,10 @@ Route::middleware('auth')->group(function () {
 });
 
 
-Route::post('/comm_login.php', [UserController::class, 'createToken']);
+Route::post('/comm_login', [UserController::class, 'createToken']);
 
 Route::middleware('auth:sanctum')->group(function(){
-    Route::post('/comm_get_paths.php', [ApiController::class, 'comm_get_paths']);
+    Route::post('/comm_get_paths', [ApiController::class, 'comm_get_paths']);
 });
 
 
