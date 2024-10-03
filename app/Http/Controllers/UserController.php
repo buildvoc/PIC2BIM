@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -241,5 +242,31 @@ class UserController extends Controller
           }
         }
         return $return;
+      }
+
+      public function createToken(Request $request){
+        
+        $validator = Validator::make($request->all(),[
+            'login' => 'required',
+            'pswd' => 'required'
+        ]);
+        $error_response = ['status' => 'error', 'error_msg' => 'bad login or password'];
+        if($validator->fails()) return response()->json($error_response);
+
+        $user = User::select('id','name','surname','identification_number','email','vat')->where('login',trim($request->login))->where('pswd',sha1(trim($request->pswd)))->first();
+
+        if($user){
+            $token = $user->createToken($request->login)->plainTextToken;
+
+            return response()->json([
+                'status' => 'ok',
+                'error_message' => null,
+                'user' => $user,
+                'token' => $token
+            ]);
+
+        }else{
+            return response()->json($error_response);
+        }
       }
 }

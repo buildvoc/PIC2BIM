@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AgencyController;
+use App\Http\Controllers\ApiController;
 use App\Http\Controllers\OfficerController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TaskTypeController;
@@ -44,5 +45,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+
+Route::post('/comm_login.php', [UserController::class, 'createToken']);
+
+Route::middleware('auth:sanctum')->group(function(){
+    Route::post('/comm_get_paths.php', [ApiController::class, 'comm_get_paths']);
+});
+
 
 require __DIR__.'/auth.php';
