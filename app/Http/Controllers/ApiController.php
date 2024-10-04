@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Path;
+use App\Models\Photo;
 use Illuminate\Http\Request;
+use PDO;
 
 class ApiController extends Controller
 {
@@ -47,5 +49,18 @@ class ApiController extends Controller
             'error_msg' => null,
             'paths' => $output
         ]);
+    }
+
+    public function comm_unassigned(Request $request){
+        $user_id = $request->user_id;
+
+        $ids = Photo::where('user_id',$user_id)->where('flg_deleted',0)->whereNull('task_id')->pluck('id')->toArray();
+
+        $output = [];
+        $output['status'] = 'ok';
+        $output['error_msg'] = NULL;
+        $output['photos_ids'] = $ids;
+
+        return response()->json($output);
     }
 }

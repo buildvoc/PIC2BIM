@@ -51,6 +51,7 @@ Route::post('/comm_login', [UserController::class, 'createToken']);
 
 Route::middleware('auth:sanctum')->group(function(){
     Route::post('/comm_get_paths', [ApiController::class, 'comm_get_paths']);
+    Route::post('/comm_unassigned', [ApiController::class, 'comm_unassigned']);
 });
 
 
