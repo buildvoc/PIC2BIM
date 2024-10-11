@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -68,8 +69,9 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'login' => 'required',
-            'password' => 'required'
+            'login' => ['required', Rule::unique(User::class)],
+            'password' => 'required',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
         ]);
 
         $user = User::create([
@@ -184,7 +186,9 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'login' => 'required'
+            'login' => ['required', Rule::unique(User::class)],
+            'password' => 'required',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
         ]);
 
         $user->update([

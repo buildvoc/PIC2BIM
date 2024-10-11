@@ -62,6 +62,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                         onChange={(e) => setData('login', e.target.value)}
                         required
                         isFocused
+                        readOnly
                         autoComplete="login"
                     />
 

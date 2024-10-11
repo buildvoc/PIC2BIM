@@ -117,7 +117,7 @@ export function Edit({ auth }: PageProps) {
                   </FieldGroup>
                 </div>
                 <div className="grid gap-8 px-8 py-2">
-                  <FieldGroup label="Identification Number" name="identification_number" error={errors.email}>
+                  <FieldGroup label="Identification Number" name="identification_number" error={errors.identification_number}>
                     <TextInput
                       name="identification_number"
                       error={errors.identification_number}

@@ -13,6 +13,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class OfficerController extends Controller implements HasMiddleware
@@ -48,8 +49,9 @@ class OfficerController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $request->validate([
-            'login' => 'required',
-            'password' => 'required'
+            'login' => ['required', Rule::unique(User::class)],
+            'password' => 'required',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
         ]);
 
         $user = User::create([
@@ -129,6 +131,9 @@ class OfficerController extends Controller implements HasMiddleware
     }
 
     public function sendInvite(Request $request){
+        $request->validate([
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
+        ]);
         $signupUrl = route('register',['agency' => $request->agencyId,'email'=> $request->email]);
 
         Mail::to($request->email)->send(new OfficerInvite($signupUrl));
