@@ -22,4 +22,12 @@ class Task extends Model
     public const FILTER_TASKS = 'task';
     public const FILTER_TASKS_DETAIL = 'task_detail';
     public const FILTER_USERS_GALLERY = 'users_gallery';
+
+    public function photos(){
+        return $this->hasMany(Photo::class,'task_id');
+    }
+
+    public function taskType(){
+        return $this->belongsTo(TaskType::class,'type_id');
+    }
 }

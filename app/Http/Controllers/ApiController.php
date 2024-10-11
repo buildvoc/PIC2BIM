@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Path;
 use App\Models\Photo;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use PDO;
 
@@ -61,6 +62,49 @@ class ApiController extends Controller
         $output['error_msg'] = NULL;
         $output['photos_ids'] = $ids;
 
+        return response()->json($output);
+    }
+
+    public function comm_tasks(Request $request){
+        $user_id = $request->user_id;
+        
+        
+        $tasks = Task::withCount(['photos' => function ($query) {
+            $query->where('flg_deleted', 0);
+        }])
+        ->with(['taskType' => function ($query) {
+            $query->select('id', 'description');
+        }])
+        ->select('id', 'task.status','type_id', 'name', 'text', 'text_returned', 'date_created', 'task_due_date', 'note', 'text_reason')
+        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0, "1", "0") AS flag_valid')
+        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0, "1", "0") AS flag_invalid')
+        ->where('user_id', $user_id)
+        ->where('flg_deleted', 0)
+        ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status')
+        ->orderBy('status_sortorder.sortorder')
+        ->get()
+        ->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'status' => $task->status,
+                'name' => $task->name,
+                'text' => $task->text,
+                'text_returned' => $task->text_returned,
+                'date_created' => $task->date_created,
+                'task_due_date' => $task->task_due_date,
+                'note' => $task->note,
+                'number_of_photos' => $task->photos->count(),
+                'flag_valid' => $task->flag_valid,
+                'flag_invalid' => $task->flag_invalid,
+                'reopen_reason' => $task->text_reason,
+                'purpose' => $task->taskType->description ?? null,
+                'photos_ids' => $task->photos->pluck('id')->toArray(),
+            ];
+        });
+        $output = [];
+        $output['status'] = 'ok';
+        $output['error_msg'] = NULL;
+        $output['tasks'] = $tasks;
         return response()->json($output);
     }
 }
