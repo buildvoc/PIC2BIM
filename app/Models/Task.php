@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -29,5 +30,19 @@ class Task extends Model
 
     public function taskType(){
         return $this->belongsTo(TaskType::class,'type_id');
+    }
+    public static function setTaskStatus($task_id, $status, $note){
+        $task = Task::find($task_id);
+        $task->update([
+            'status' => $status,
+            'note' => $note ? $note : null,
+            'timestamp' => Carbon::now()->format("Y-m-d H:i:s")
+        ]);
+        return ['status' => 'ok','error_msg' => NULL];
+    }
+
+    public static function checkTaskPhotos($task_id){
+        $photo_count = Photo::where('task_id',$task_id)->count();
+        return $photo_count > 0 ? true : false;
     }
 }

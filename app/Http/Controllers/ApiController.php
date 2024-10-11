@@ -107,4 +107,31 @@ class ApiController extends Controller
         $output['tasks'] = $tasks;
         return response()->json($output);
     }
+
+    public function comm_status(Request $request){
+
+        $task_id = trim($request->task_id);
+        $status = trim($request->status);
+        $note = trim($request->note);
+        $output = array(); 
+        $output['status'] = 'ok';
+        $output['error_msg'] = NULL; 
+
+        if($task_id){
+            $task_status = Task::select('id','status')->where('id',$task_id)->first();
+            $task_status = $task_status ? $task_status->status : '';
+
+            if($task_status == 'new' && $status == 'open'){
+                $output = Task::setTaskStatus($task_id, $status, $note);
+            }elseif (($task_status == 'new' || $task_status == 'open' || $task_status == 'returned') && $status == 'data provided') {
+                if(Task::checkTaskPhotos($task_id)){
+                    $output = Task::setTaskStatus($task_id, $status, $note);
+                }else{
+                    $output['status'] = 'error';
+                    $output['error_msg'] = 'task has no photos';
+                }
+            }
+        }
+        return response()->json($output);
+    }
 }
