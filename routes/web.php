@@ -56,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::post('/comm_status', [ApiController::class, 'comm_status']);
     Route::post('/comm_path', [ApiController::class, 'comm_path']);
     Route::post('/comm_shapes', [ApiController::class, 'comm_shapes']);
+    Route::post('/comm_photo', [ApiController::class, 'comm_photo']);
+    Route::post('/comm_get_photo', [ApiController::class, 'comm_get_photo']);
+    Route::post('/comm_update', [ApiController::class, 'comm_update']);
 });
 
 

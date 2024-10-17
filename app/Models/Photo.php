@@ -10,4 +10,6 @@ class Photo extends Model
     use HasFactory;
     protected $table = 'photo';
     protected $guarded = [];
+
+    public $timestamps = false;
 }

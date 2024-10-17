@@ -190,4 +190,131 @@ class ApiController extends Controller
 
         return response()->json($output);
     }
+
+    public function comm_photo(Request $request){
+        $task_id = trim($request->input('task_id'));
+        $user_id = trim($request->input('user_id'));
+        $photo_json = trim($request->input('photo'));
+        
+        $status_ok = true;
+        if ($task_id) {
+            $task_status = getTaskStatus($task_id);
+            if (!in_array($task_status, ['new', 'open', 'returned'])) {
+                $status_ok = false;
+            }
+        }
+
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null,
+        ];
+
+        if ($photo_json) {
+            if ($user_id) {
+                if ($status_ok) {
+                    $photo = json_decode($photo_json, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $output = setPhoto($photo, $user_id, $task_id);
+                    } else {
+                        $output['status'] = 'error';
+                        $output['error_msg'] = 'photo json decode error';
+                    }
+                } else {
+                    $output['status'] = 'error';
+                    $output['error_msg'] = 'task is not in editable status';
+                }
+            } else {
+                $output['status'] = 'error';
+                $output['error_msg'] = 'missing user ID';
+            }
+        }
+
+        if ($output['status'] == 'error') {
+            Log::error('Task Photo Error', ['status' => $output['status'], 'error_msg' => $output['error_msg']]);
+        }
+
+        return response()->json($output);
+    }
+
+    public function comm_get_photo(Request $request){
+        $photo_id = trim($request->input('photo_id'));
+
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null,
+            'photo' => getPhoto($photo_id),
+        ];
+
+        if (empty($output['photo'])) {
+            $output['status'] = 'error';
+            $output['error_msg'] = 'wrong photo ID';
+            unset($output['photo']);
+        }
+        
+        return response()->json($output);
+    }
+
+    public function comm_update(Request $request){
+        $task_id = trim($request->input('task_id'));
+        $user_id = trim($request->input('user_id'));
+        $status = trim($request->input('status'));
+        $note = trim($request->input('note'));
+        $photos_json = trim($request->input('photos'));
+
+        
+        $status_ok = true;
+        if ($task_id) {
+            $task_status = getTaskStatus($task_id);
+            if (!in_array($task_status, ['new', 'open', 'returned'])) {
+                $status_ok = false;
+            }
+        }
+
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null,
+        ];
+        if ($photos_json) {
+            if ($user_id) {
+                if ($status_ok) {
+                    $photos = json_decode($photos_json, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $output = setPhotos($photos, $user_id, $task_id);
+                    } else {
+                        $output['status'] = 'error';
+                        $output['error_msg'] = 'photos json decode error';
+                    }
+                } else {
+                    $output['status'] = 'error';
+                    $output['error_msg'] = 'task is not in editable status';
+                }
+            } else {
+                $output['status'] = 'error';
+                $output['error_msg'] = 'missing user ID';
+            }
+        }
+
+        if ($output['status'] === 'ok') {
+            if ($task_id) {
+                $task_status = getTaskStatus($task_id);
+                if ($task_status === 'new' && $status === 'open') {
+                    $output = setTaskStatus($task_id, $status, $note);
+                } elseif (in_array($task_status, ['new', 'open', 'returned']) && $status === 'data provided') {
+                    if (checkTaskPhotos($task_id)) { 
+                        $output = setTaskStatus($task_id, $status, $note);
+                    } else {
+                        $output['status'] = 'error';
+                        $output['error_msg'] = 'task has no photos';
+                    }
+                }
+            }
+        }
+
+        if ($output['status'] === 'error') {
+            Log::error('Task Process Error', ['status' => $output['status'], 'error_msg' => $output['error_msg']]);
+        }
+
+        return response()->json($output);
+    }
+
 }
