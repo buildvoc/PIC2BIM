@@ -6,6 +6,7 @@ use App\Models\Path;
 use App\Models\Photo;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use PDO;
 
 class ApiController extends Controller
@@ -133,5 +134,45 @@ class ApiController extends Controller
             }
         }
         return response()->json($output);
+    }
+
+    public function comm_path(Request $request){
+        $user_id = $request->input('user_id');
+        $name = $request->input('name');
+        $device_manufacture = $request->input('deviceManufacture');
+        $device_model = $request->input('deviceModel');
+        $device_platform = $request->input('devicePlatform');
+        $device_version = $request->input('deviceVersion');
+        $area = $request->input('area');
+        $points_json = $request->input('points');
+        
+        $start = gmdate('Y-m-d H:i:s', strtotime($request->input('start')));
+        $end = gmdate('Y-m-d H:i:s', strtotime($request->input('end')));
+
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null
+        ];
+
+        if ($user_id && $start && $end && $points_json) {
+            $points = json_decode($points_json, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $output = setPath($user_id, $name, $start, $end, $area, $device_manufacture, $device_model, $device_platform, $device_version, $points);
+            } else {
+                $output['status'] = 'error';
+                $output['error_msg'] = 'Points JSON decode error';
+            }
+        } else {
+            $output['status'] = 'error';
+            $output['error_msg'] = 'Missing mandatory data';
+        }
+
+        if ($output['status'] === 'error') {
+            Log::error('Request error', ['status' => $output['status'], 'error_msg' => $output['error_msg']]);
+        }
+        
+        return response()->json($output);
+        
     }
 }
