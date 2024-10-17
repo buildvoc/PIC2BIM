@@ -171,8 +171,23 @@ class ApiController extends Controller
         if ($output['status'] === 'error') {
             Log::error('Request error', ['status' => $output['status'], 'error_msg' => $output['error_msg']]);
         }
-        
+
         return response()->json($output);
-        
+ 
+    }
+
+    public function comm_shapes(Request $request){
+        $max_lat = trim($request->input('max_lat'));
+        $min_lat = trim($request->input('min_lat'));
+        $max_lng = trim($request->input('max_lng'));
+        $min_lng = trim($request->input('min_lng'));
+
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null,
+            'shapes' => getShapes($max_lat, $min_lat, $max_lng, $min_lng),
+        ];
+
+        return response()->json($output);
     }
 }
