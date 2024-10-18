@@ -50,12 +50,15 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'identification_number' => $request->identification_number,
             'vat' => $request->vat,
-            'pa_id' => $request->agency_id,
+            'pa_id' => $request->agency_id ? $request->agency_id : 0,
             'timestamp' => now(),
             'active' => 1
         ]);
 
-        DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => 2,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
+        if($user->pa_id == 0) $role_id = 1;
+        else $role_id = 2;
+        
+        DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => $role_id,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
 
         event(new Registered($user));
 
