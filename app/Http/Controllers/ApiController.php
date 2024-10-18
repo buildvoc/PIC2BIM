@@ -317,4 +317,42 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    public function comm_task_photos(Request $request){
+        $task_id = trim($request->input('task_id'));
+        $user_id = trim($request->input('user_id'));
+    
+        $output = [
+            'status' => 'ok',
+            'error_msg' => null,
+            'photos' => getTaskPhotos($task_id, $user_id),
+        ];
+    
+        return response()->json($output);
+    }
+
+    public function comm_delete_path(Request $request){
+        $uid = trim($request->input('path_id'));
+
+        $output = [];
+        $res = deletePath($uid);
+
+        $output['status'] = $res > 0 ? 'ok' : 'error';
+        $output['error_msg'] = $res > 0 ? null : 'No record deleted or record not found';
+
+        return response()->json($output);
+    }
+
+    public function comm_delete_unassigned_photo(Request $request){
+        $uid = trim($request->input('photo_id'));
+
+        $output = [];
+
+        $res = deleteUnassignedPhoto($uid);
+
+        $output['status'] = $res > 0 ? 'ok' : 'error';
+        $output['error_msg'] = $res > 0 ? null : 'No record deleted or record not found';
+
+        return response()->json($output);
+    }
+
 }

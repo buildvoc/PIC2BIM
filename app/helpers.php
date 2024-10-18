@@ -523,3 +523,152 @@ function checkTaskPhotos($task_id)
 
     return $photoCount > 0;
 }
+
+function getTaskPhotos($task_id = null, $user_id = null)
+{
+    $output = [];
+
+    // Build the query based on the conditions
+    $query = DB::table('photo')
+        ->select([
+            'altitude',
+            'vertical_view_angle',
+            'accuracy',
+            'distance',
+            'nmea_distance',
+            'device_manufacture',
+            'device_model',
+            'device_platform',
+            'device_version',
+            'efkLatGpsL1',
+            'efkLngGpsL1',
+            'efkAltGpsL1',
+            'efkTimeGpsL1',
+            'efkLatGpsL5',
+            'efkLngGpsL5',
+            'efkAltGpsL5',
+            'efkTimeGpsL5',
+            'efkLatGpsIf',
+            'efkLngGpsIf',
+            'efkAltGpsIf',
+            'efkTimeGpsIf',
+            'efkLatGalE1',
+            'efkLngGalE1',
+            'efkAltGalE1',
+            'efkTimeGalE1',
+            'efkLatGalE5',
+            'efkLngGalE5',
+            'efkAltGalE5',
+            'efkTimeGalE5',
+            'efkLatGalIf',
+            'efkLngGalIf',
+            'efkAltGalIf',
+            'efkTimeGalIf',
+            'timestamp',
+            'note',
+            'lat',
+            'lng',
+            'photo_heading',
+            'created',
+            'path',
+            'file_name',
+            'digest'
+        ])
+        ->where('flg_deleted', 0);
+
+    if ($task_id) {
+        $query->where('task_id', $task_id);
+    } elseif ($user_id) {
+        $query->whereNull('task_id')->where('user_id', $user_id);
+    } else {
+        return $output;
+    }
+
+    $photos = $query->get();
+
+    foreach ($photos as $photo) {
+        $out = [
+            'altitude' => $photo->altitude,
+            'vertical_view_angle' => $photo->vertical_view_angle,
+            'accuracy' => $photo->accuracy,
+            'distance' => $photo->distance,
+            'nmea_distance' => $photo->nmea_distance,
+            'device_manufacture' => $photo->device_manufacture,
+            'device_model' => $photo->device_model,
+            'device_platform' => $photo->device_platform,
+            'device_version' => $photo->device_version,
+            'efkLatGpsL1' => $photo->efkLatGpsL1,
+            'efkLngGpsL1' => $photo->efkLngGpsL1,
+            'efkAltGpsL1' => $photo->efkAltGpsL1,
+            'efkTimeGpsL1' => $photo->efkTimeGpsL1,
+            'efkLatGpsL5' => $photo->efkLatGpsL5,
+            'efkLngGpsL5' => $photo->efkLngGpsL5,
+            'efkAltGpsL5' => $photo->efkAltGpsL5,
+            'efkTimeGpsL5' => $photo->efkTimeGpsL5,
+            'efkLatGpsIf' => $photo->efkLatGpsIf,
+            'efkLngGpsIf' => $photo->efkLngGpsIf,
+            'efkAltGpsIf' => $photo->efkAltGpsIf,
+            'efkTimeGpsIf' => $photo->efkTimeGpsIf,
+            'efkLatGalE1' => $photo->efkLatGalE1,
+            'efkLngGalE1' => $photo->efkLngGalE1,
+            'efkAltGalE1' => $photo->efkAltGalE1,
+            'efkTimeGalE1' => $photo->efkTimeGalE1,
+            'efkLatGalE5' => $photo->efkLatGalE5,
+            'efkLngGalE5' => $photo->efkLngGalE5,
+            'efkAltGalE5' => $photo->efkAltGalE5,
+            'efkTimeGalE5' => $photo->efkTimeGalE5,
+            'efkLatGalIf' => $photo->efkLatGalIf,
+            'efkLngGalIf' => $photo->efkLngGalIf,
+            'efkAltGalIf' => $photo->efkAltGalIf,
+            'efkTimeGalIf' => $photo->efkTimeGalIf,
+            'timestamp' => $photo->timestamp,
+            'note' => $photo->note,
+            'lat' => $photo->lat,
+            'lng' => $photo->lng,
+            'photo_heading' => $photo->photo_heading,
+            'created' => $photo->created,
+            'digest' => $photo->digest,
+        ];
+
+
+        
+        $file = null;
+
+        $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
+
+        if (file_exists($filePath)) {
+            $file = file_get_contents($filePath);
+        }
+
+        $out['photo'] = base64_encode($file);
+
+        $output[] = $out;
+    }
+
+    return $output;
+}
+
+function deletePath($photo_id)
+{
+    $affectedRows = DB::table('path')
+        ->where('id', $photo_id)
+        ->where('flg_deleted', 0)
+        ->update([
+            'flg_deleted' => 1,
+        ]);
+
+    return $affectedRows;
+}
+
+function deleteUnassignedPhoto($uid)
+{
+    $affectedRows = DB::table('photo')
+        ->where('id', $uid)
+        ->where('flg_deleted', 0)
+        ->whereNull('task_id')
+        ->update([
+            'flg_deleted' => 1,
+        ]);
+
+    return $affectedRows;
+}
