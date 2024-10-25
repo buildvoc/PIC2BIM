@@ -1,0 +1,91 @@
+.container{
+flex:1;
+padding: 0px 20px;
+}
+
+.map_container{
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: height 0.5s ease, opacity 0.5s ease,  visibility 0.5s ease;
+  visibility: hidden;
+
+}
+
+.map_container.show{
+  visibility: visible;
+  height: 50vh;
+  opacity: 1;
+}
+
+.map_dropdown  {
+  overflow: hidden;
+  transition: height 0.5s ease, opacity 0.5s ease;
+  opacity: 1;
+}
+
+.map_dropdown_btn {
+    color: white;
+    border-color: var(--primary);
+    background-color: var(--primary);
+    margin-top: 20px;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+    transition: all .2s ease-in-out;
+}
+
+.map_dropdown_btn span {
+    font-weight: 500;
+}
+
+.map_dropdown_btn:hover {
+    color: white;
+    border-color: var(--primaryHover);
+    background-color: var(--primaryHover);
+
+} 
+
+
+.cancle_sorting{
+  margin: 0px;
+  padding: 0px;
+
+}
+/* TODO: Split screen here */
+
+
+/* Global Styles */
+.split_view_container {
+  display: flex;
+  height: 100vh; /* Full height */
+
+}
+
+.split_view_master {
+  width: 50%; /* Adjust this percentage for master view width */
+  padding: 20px;
+  border-right: 1px solid #ccc;
+  overflow: auto;
+  scrollbar-width: none; /* Firefox 64 and later */
+
+}
+
+.split_view_detail {
+  width: 50%; /* Adjust this percentage for detail view width */
+  padding: 20px;
+  overflow: auto;
+  scrollbar-width: none; /* Firefox 64 and later */
+
+}
+
+
+.split_view_master::-webkit-scrollbar,
+.split_view_detail::-webkit-scrollbar
+{
+  display: none; /* Hides the scrollbar */
+  -webkit-appearance: none;
+    width: 0;
+    height: 0;
+}
+
+
