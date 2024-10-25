@@ -10,6 +10,10 @@ use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/api-docs', function () {
+    return view('api-docs');
+});
+
 Route::get('/', function () {
     return to_route('dashboard');
 });
