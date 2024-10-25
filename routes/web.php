@@ -34,6 +34,8 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
 
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
 Route::resource('/users', UserController::class)->middleware(['auth', 'verified']);
+Route::get('/unassigned_users', [UserController::class,'unassignedUsers'])->name('users.unassigned');
+Route::get('/assign_user/{id?}', [UserController::class,'assign_user'])->name('users.assign');
 Route::resource('/tasks', TasksController::class)->middleware(['auth', 'verified']);
 Route::post('/tasks/bulk-accept',[TasksController::class,'acceptTaskPhotos'])->name('tasks.bulkAccept');
 Route::post('/tasks/decline',[TasksController::class,'declineTaskPhotos'])->name('tasks.decline');

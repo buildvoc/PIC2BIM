@@ -273,4 +273,45 @@ class UserController extends Controller
             return response()->json($error_response);
         }
       }
+    public function unassignedUsers(Request $request)
+    {
+        $users = User::
+            join('user_role as ur', 'user.id', '=', 'ur.user_id')
+            ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
+            ->where('ur.role_id', '=', User::FARMER_ROLE)
+            ->where('user.pa_id',0);
+
+        $sortColumn = 'id';
+        $sortOrder = 'asc';
+
+        $search = $request->search;
+        if($request->search){
+            $users = $users->where(function($q) use($request){
+                $q->orWhere('user.name','LIKE','%'.$request->search.'%')
+                    ->orWhere('user.surname','LIKE','%'.$request->search.'%')
+                    ->orWhere('user.identification_number','LIKE','%'.$request->search.'%');
+            });
+        }
+
+        if($request->sortColumn && $request->sortOrder) {
+            $sortColumn = $request->sortColumn;
+            $sortOrder = $request->sortOrder;
+        }
+        $users->orderBy($sortColumn,$sortOrder);
+        $users = $users->paginate(10);
+
+        foreach($users as $user){
+            $user->tasks_count=User::getFarmerCounts($user['id'],'tasks');
+            $user->photo_count=User::getFarmerCounts($user['id'],'photos');
+            $user->unassigned_photos_count=User::getFarmerCounts($user['id'],'unassigned_photos');
+            $user->tasks_provided_count=User::getFarmerCounts($user['id'],'tasks_provided');
+        }
+        return Inertia::render('Users/Unassigned',compact('users','sortColumn','sortOrder','search'));
+    }
+
+    public function assign_user($id){
+        $user = User::find($id);
+        $user->update(['pa_id' => Auth::user()->pa_id]);
+        return redirect()->route('users.index');
+    }
 }
