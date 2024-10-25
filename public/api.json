@@ -20,8 +20,8 @@
   "paths": {
     "/comm_login": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_login.php",
+        "tags": ["Authorization"],
+        "summary": "Get Bearer Token",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -30,11 +30,11 @@
                 "properties": {
                   "login": {
                     "type": "string",
-                    "example": "admin"
+                    "example": "user"
                   },
                   "pswd": {
                     "type": "string",
-                    "example": "demo"
+                    "example": "1234"
                   }
                 }
               }
@@ -63,8 +63,8 @@
     },
     "/comm_unassigned": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_unassigned",
+        "tags": ["Photos"],
+        "summary": "Get unassigned photo IDs by user ID",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -107,8 +107,8 @@
     },
     "/comm_status": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_status",
+        "tags": ["Tasks"],
+        "summary": "Update task status",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -159,8 +159,8 @@
     },
     "/comm_tasks": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_tasks",
+        "tags": ["Tasks"],
+        "summary": "Get tasks by user ID",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -193,8 +193,8 @@
     },
     "/comm_get_paths": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_get_paths",
+        "tags": ["Paths"],
+        "summary": "Get paths by user ID",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -227,8 +227,8 @@
     },
     "/comm_path": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_path",
+        "tags": ["Paths"],
+        "summary": "Create a new path",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -307,8 +307,8 @@
     },
     "/comm_shapes": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_shapes",
+        "tags": ["Shapes"],
+        "summary": "Get shapes by coordinates",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -363,8 +363,8 @@
     },
     "/comm_photo": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_photo",
+        "tags": ["Photos"],
+        "summary": "Upload a photo",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -419,8 +419,8 @@
     },
     "/comm_get_photo": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_get_photo",
+        "tags": ["Photos"],
+        "summary": "Get photo by ID",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -463,8 +463,8 @@
     },
     "/comm_update": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_update",
+        "tags": ["Tasks"],
+        "summary": "Submit task photos and update task status",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -513,8 +513,8 @@
     },
     "/comm_task_photos": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_task_photos",
+        "tags": ["Tasks"],
+        "summary": "Get task photos",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -551,8 +551,8 @@
     },
     "/comm_delete_path": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_delete_path",
+        "tags": ["Paths"],
+        "summary": "Delete a path",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -585,8 +585,8 @@
     },
     "/comm_delete_unassigned_photo": {
       "post": {
-        "tags": ["default"],
-        "summary": "comm_delete_unassigned_photo",
+        "tags": ["Photos"],
+        "summary": "Delete unassigned photo",
         "requestBody": {
           "content": {
             "multipart/form-data": {
