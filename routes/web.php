@@ -9,6 +9,7 @@ use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TestController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -21,6 +22,7 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+    Route::get('/test', [TestController::class, 'edit'])->name('test.edit');
 
 Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -34,6 +36,7 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/invite/{id}/officer', [OfficerController::class , 'invite'])->name('officers.invite');
     Route::post('/invite/officer', [OfficerController::class , 'sendInvite'])->name('officer.invite');
 })->middleware(['auth', 'verified']);
+
 
 
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
