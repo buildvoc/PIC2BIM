@@ -22,7 +22,7 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
-    Route::get('/test', [TestController::class, 'edit'])->name('test.edit');
+    Route::get('/test', [TestController::class, 'index'])->name('test.index');
 
 Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');

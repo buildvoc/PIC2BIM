@@ -6,8 +6,9 @@ use Illuminate\Http\Request;
 
 class TestController extends Controller
 {
-    public function edit(Request $request)
+    public function index(Request $request)
   {
+    
       $status = "This is my test react page";
       return Inertia::render('Test/Index', [
           'status' => $status,

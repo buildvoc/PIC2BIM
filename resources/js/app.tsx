@@ -1,6 +1,5 @@
 import './bootstrap';
 import '../css/app.css';
-import '../css/globals.css';
 
 
 import { createRoot, hydrateRoot } from 'react-dom/client';
@@ -8,6 +7,9 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const endpoint = import.meta.env.REACT_APP_API_URL;
+console.log("api url---",endpoint)
+
 
 createInertiaApp({
     title: (title) => `${title}`,
