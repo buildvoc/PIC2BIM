@@ -5,11 +5,27 @@ import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link } from '@inertiajs/react';
 import { User } from '@/types';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSun } from '@fortawesome/free-solid-svg-icons';
+
+
+
 
 export default function Authenticated({ user, header, children }: PropsWithChildren<{ user: User, header?: ReactNode }>) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
     
     const userRoles = user && user.roles ? user.roles.map(obj => obj.role_id) : [];
+
+    const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
+
+// function toggleTheme(){
+
+    const toggleTheme = () => {
+        document.documentElement.classList.toggle('dark')
+        setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    // document.documentElement.classList.toggle('dark');
+// }
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
@@ -81,6 +97,21 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                         </Dropdown.Link>
                                     </Dropdown.Content>
                                 </Dropdown>
+                            </div>
+                            <div className="ms-3 relative">
+                                <button type='button' onClick={()=> toggleTheme()}>
+                                    {isDark ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className={'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <circle cx="12" cy="12" r="4"></circle>
+                                            <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"></path>
+                                        </svg>
+                                    ) : (
+                                        <svg className={'w-[24px] h-[24px] border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M12 2A10 10 0 0 0 2 12A10 10 0 0 0 12 22A10 10 0 0 0 22 12A10 10 0 0 0 12 2M12 4A8 8 0 0 1 20 12A8 8 0 0 1 12 20V4Z"></path>
+                                        </svg>
+                                    )}
+                                </button>
                             </div>
                         </div>
 
