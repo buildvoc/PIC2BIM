@@ -72,7 +72,7 @@ function BrowseButton({ text, onClick, ...props }: BrowseButtonProps) {
     <button
       {...props}
       type="button"
-      className="px-4 py-1 text-xs font-medium text-white bg-gray-600 rounded-sm focus:outline-none hover:bg-gray-700"
+      className="px-4 py-1 text-xs font-medium dark:text-white bg-gray-600 rounded-sm focus:outline-none hover:bg-gray-700"
       onClick={onClick}
     >
       {text}
