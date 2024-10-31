@@ -101,7 +101,7 @@ export default function FilterBar() {
           className="px-4 border-r rounded-l md:px-6 hover:bg-gray-100 focus:outline-none focus:border-white focus:ring-2 focus:ring-indigo-400 focus:z-10"
         >
           <div className="flex items-center">
-            <span className="hidden text-gray-700 md:inline">Filter</span>
+            <span className="hidden dark:text-white md:inline">Filter</span>
             <ChevronDown size={14} strokeWidth={3} className="md:ml-2" />
           </div>
         </button>
@@ -116,7 +116,7 @@ export default function FilterBar() {
       </div>
       <button
         onClick={reset}
-        className="ml-3 text-sm text-gray-600 hover:text-gray-700 focus:text-indigo-700 focus:outline-none"
+        className="ml-3 text-sm text-gray-600 hover:dark:text-white focus:text-indigo-700 focus:outline-none"
         type="button"
       >
         Reset

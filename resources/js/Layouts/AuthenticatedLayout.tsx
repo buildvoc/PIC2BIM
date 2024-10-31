@@ -70,7 +70,7 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                         <span className="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150"
+                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:dark:text-white dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150"
                                             >
                                                 {user.name}
 
@@ -101,13 +101,13 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                             <div className="ms-3 relative">
                                 <button type='button' onClick={()=> toggleTheme()}>
                                     {isDark ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className={'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className={'border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white focus:border-gray-300 focus:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                             <circle cx="12" cy="12" r="4"></circle>
                                             <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"></path>
                                         </svg>
                                     ) : (
-                                        <svg className={'w-[24px] h-[24px] border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} viewBox="0 0 24 24">
+                                        <svg className={'w-[24px] h-[24px] border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white focus:border-gray-300 focus:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300 dark:focus:border-gray-700 dark:focus:text-gray-300'} viewBox="0 0 24 24">
                                             <path fill="currentColor" d="M12 2A10 10 0 0 0 2 12A10 10 0 0 0 12 22A10 10 0 0 0 22 12A10 10 0 0 0 12 2M12 4A8 8 0 0 1 20 12A8 8 0 0 1 12 20V4Z"></path>
                                         </svg>
                                     )}

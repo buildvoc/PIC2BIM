@@ -16,7 +16,7 @@ export default function FieldGroup({
   return (
     <div className="space-y-2">
       {label && (
-        <label className="block text-white select-none" htmlFor={name}>
+        <label className="block dark:text-white select-none" htmlFor={name}>
           {label} {required && <span style={{ color: 'red' }}>*</span>}
         </label>
       )}

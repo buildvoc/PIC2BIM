@@ -72,7 +72,7 @@ export default function Table<T>({
                 name="search"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                style={{ background: 'transparent', color: 'white' }}
+                style={{ background: 'transparent' }}
             />
           </div>
           <div className=''>
@@ -97,7 +97,7 @@ export default function Table<T>({
       }
       <table className="w-full whitespace-nowrap">
         <thead>
-        <tr className="font-bold text-left text-gray-700 dark:text-gray-300">
+        <tr className="font-bold text-left dark:text-white dark:text-gray-300">
           {columns?.map(column => (
             <th
               key={column.label}
@@ -153,7 +153,7 @@ export default function Table<T>({
                   >
                     <span
                       tabIndex={-1}
-                      className="flex items-center px-6 py-4 text-gray-700 dark:text-gray-300 focus:outline-none"
+                      className="flex items-center px-6 py-4 dark:text-white dark:text-gray-300 focus:outline-none"
                     >
                       {column.renderCell?.(row) ?? get(row, column.name) ?? 'N/A'}
                     </span>
