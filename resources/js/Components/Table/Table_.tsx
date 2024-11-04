@@ -29,6 +29,8 @@ interface TableProps<T> {
     onRowClick?: (row: T) => void;
     onBulkAccept?: () => void;
     onReset?: () => void;
+    sortConfig:any
+    onHeaderClick: (lable:string) => void
     isSearchable?: boolean;
     search?: string;
 }
@@ -45,10 +47,12 @@ export default function Table_<T>({
     onReset,
     onBulkAccept,
     onRowClick,
+    onHeaderClick,
+    sortConfig,
 }: TableProps<T>) {
     const [searchValue, setSearchValue] = useState(search || "");
     const [columnActive, setColumnActive] = useState("Status");
-    const [sortConfig, setSortConfig] = useState({ key: '', direction: "des" });
+
 
     const handleSort = (columnName: string, order: "asc" | "desc") => {
         if (onSort) {
@@ -135,7 +139,7 @@ export default function Table_<T>({
                                 key={column.label}
                                 onClick={() => {
                                     setColumnActive(column.label)
-                                    setSortConfig({key:column.label,direction:sortConfig.direction=="asc"?"desc":"asc"})
+                                    onHeaderClick(column.label)
                                 }}
                                 colSpan={column.colSpan ?? 1}
                                 className={`px-6 pt-5 pb-4 cursor-pointer`}
@@ -194,7 +198,7 @@ export default function Table_<T>({
                                         } `}
                                     >
                                         <FaCircleArrowDown className={`fas dark:gray-100 
-                                            ${sortConfig.direction == "asc" ? "rotate-270":"rotate-180"}
+                                            ${sortConfig.direction == "asc" ? "block transform rotate-180":"block"}
                                             `} />{" "}
                                     </span>
                                 </span>

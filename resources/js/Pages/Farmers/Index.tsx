@@ -9,37 +9,267 @@ import Map from "@/Components/Map/Map";
 import Checkbox from "@/Components/Checkbox";
 import { FaTimesCircle } from "react-icons/fa";
 import Table_ from "@/Components/Table/Table_";
+import { FormEventHandler } from "react";
+import { FILTERS_DATA } from "@/Constants/Constants";
 import { table } from "console";
-export function Index({ auth,tasks }: PageProps) {
-  var tasks_array: any = [];
-  var tasks_photos_array: any = [];
-  for(let task of tasks)
-  {
-    let tasks_data = {
-      status: task?.status,
-      photos_taken:task?.number_of_photos,
-      name: task?.name,
-      description: task?.text,
-      date_created: task.date_created,
-      date_due: task.task_due_date,
-      flag_valid:task.flag_valid
+export function Index({ auth, tasks }: PageProps) {
+    var tasks_array: any = [];
+    var tasks_photos_array: any = [];
+    for (let task of tasks) {
+        let tasks_data = {
+            status: task?.status,
+            photos_taken: task?.number_of_photos,
+            name: task?.name,
+            description: task?.text,
+            date_created: task.date_created,
+            date_due: task.task_due_date,
+            flag_valid: task.flag_valid,
+        };
+        let tasks_photos_data = {
+            ...tasks_data,
+            farmer_name: `${auth.user.name} ${auth.user.surname}`,
+            photo: task.photos[0],
+            location: [task.photos[0]?.lng, task.photos[0]?.lat],
+        };
+        tasks_array.push(tasks_data);
+        tasks_photos_array.push(tasks_photos_data);
     }
-    let tasks_photos_data = {
-      ...tasks_data,
-      farmer_name:`${auth.user.name} ${auth.user.surname}`,
-      photo:task.photos[0],
-      location: [task.photos[0]?.lng, task.photos[0]?.lat],
-    }
-    tasks_array.push(tasks_data);
-    tasks_photos_array.push(tasks_photos_data);
-  }
     const [isMapVisible, setIsMapVisible] = useState(true);
     const [tasks_, setTasks_] = useState<any>(tasks_array);
     const [tasksPhotos, setTasksPhotos] = useState<any>(tasks_photos_array);
     const handleToggleMapVisibility = () => {
         setIsMapVisible((prevVisibility) => !prevVisibility);
     };
+    const [filter_tasks, set_filter_tasks] = useState<any>([]);
+    const [selectedFilters, setSelectedFilters] = useState(() => {
+        try {
+            const savedFilters = localStorage?.getItem("selectedFilters");
+            return savedFilters ? JSON.parse(savedFilters) : {};
+        } catch (e) {
+            return null;
+        }
+    });
 
+    const [sortConfig, setSortConfig] = useState({
+        key: null,
+        direction: "asc",
+    });
+
+    useEffect(() => {
+        set_filter_tasks(tasks_);
+    }, []);
+
+    useEffect(() => {
+        if (!Object.keys(selectedFilters).length) {
+            let filters_json = {};
+            for (let item of FILTERS_DATA) {
+                filters_json = { ...filters_json, [item]: true };
+            }
+            setSelectedFilters(filters_json);
+        }
+        applyFilters(false);
+    }, [tasks]);
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        const name: any = formData.get("name");
+        if (name.length > 0) {
+            const filtered = filter_tasks.filter((task: any) =>
+                task.name.toLowerCase().includes(name.toLowerCase())
+            );
+            set_filter_tasks(filtered);
+        } else {
+            applyFilters(true);
+        }
+    };
+
+    const applyFilters = (force_filter: any) => {
+        if (tasks_.length == 0 || force_filter) {
+            var data: any = [];
+
+            for (const key in selectedFilters) {
+                switch (key) {
+                    case "new":
+                        if (selectedFilters["new"]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.status === key
+                                ),
+                            ];
+                        }
+                        break;
+                    case "open":
+                        if (selectedFilters["open"]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.status === key
+                                ),
+                            ];
+                        }
+                        break;
+                    case "data provided":
+                        if (selectedFilters["data provided"]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.status === key
+                                ),
+                            ];
+                        }
+                        break;
+                    case "returned":
+                        if (selectedFilters["returned"]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.status === key
+                                ),
+                            ];
+                        }
+                        break;
+                    case "accepted":
+                        if (selectedFilters[key]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.flag_valid === "1"
+                                ),
+                            ];
+                        }
+                        break;
+                    case "declined":
+                        if (selectedFilters[key]) {
+                            data = [
+                                ...data,
+                                ...tasks_?.filter(
+                                    (task: any) => task.flag_valid === "2"
+                                ),
+                            ];
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            set_filter_tasks(data);
+        }
+    };
+
+    const handleCheckboxChange = (event: any) => {
+        const { dataset, checked } = event.target;
+        const { fieldtype } = dataset;
+        const newFilters = { ...selectedFilters, [fieldtype]: checked };
+        setSelectedFilters(newFilters);
+        localStorage.setItem("selectedFilters", JSON.stringify(newFilters));
+
+        if (checked) {
+            fieldtype == "after deadline"
+                ? sortData("reset")
+                : fieldtype == "accepted"
+                ? set_filter_tasks([
+                      ...filter_tasks,
+                      ...tasks_?.filter((task: any) => task.flag_valid === "1"),
+                  ])
+                : fieldtype == "declined"
+                ? set_filter_tasks([
+                      ...filter_tasks,
+                      ...tasks_?.filter((task: any) => task.flag_valid === "2"),
+                  ])
+                : set_filter_tasks([
+                      ...filter_tasks,
+                      ...tasks_?.filter(
+                          (task: any) => task.status === fieldtype
+                      ),
+                  ]);
+        } else {
+            fieldtype == "after deadline"
+                ? sortData("status")
+                : fieldtype == "accepted"
+                ? set_filter_tasks(
+                      filter_tasks?.filter(
+                          (task: any) => task.flag_valid !== "1"
+                      )
+                  )
+                : fieldtype == "declined"
+                ? filter_tasks?.filter((task: any) => task.flag_valid !== "2")
+                : set_filter_tasks(
+                      filter_tasks?.filter(
+                          (task: any) => task.status !== fieldtype
+                      )
+                  );
+        }
+    };
+
+    const sortData = (key: any) => {
+        let direction = "asc";
+        if (key != "reset") {
+            if (
+                (sortConfig.key === key && sortConfig.direction === "asc") ||
+                sortConfig.key == null
+            ) {
+                direction = "desc";
+            }
+
+            const sortedByName = [...filter_tasks].sort((a: any, b: any) => {
+                if (direction == "asc") {
+                    switch (key) {
+                        case "status":
+                            if (a.status < b.status) return -1;
+                            if (a.status > b.status) return 1;
+                            break;
+                        case "photos taken":
+                            if (a.number_of_photos < b.number_of_photos)
+                                return -1;
+                            if (a.number_of_photos > b.number_of_photos)
+                                return 1;
+                            break;
+                        case "name":
+                            if (a.name < b.name) return -1;
+                            if (a.name > b.name) return 1;
+                            break;
+                        case "description":
+                            if (a.text < b.text) return -1;
+                            if (a.text > b.text) return 1;
+                            break;
+                        case "date created":
+                            if (a.date_created < b.date_created) return -1;
+                            if (a.date_created > b.date_created) return 1;
+                            break;
+                        case "due date":
+                            if (a.task_due_date < b.task_due_date) return -1;
+                            if (a.task_due_date > b.task_due_date) return 1;
+                            break;
+                        case "acception":
+                            if (a.flag_valid < b.flag_valid) return -1;
+                            if (a.flag_valid > b.flag_valid) return 1;
+                            break;
+                        case "reset":
+                            if (a.status < b.status) return -1;
+                            if (a.status > b.status) return 1;
+                            break;
+                        default:
+                            return 1;
+                    }
+                }
+                return -1;
+            });
+            set_filter_tasks(sortedByName);
+            setSortConfig({ key, direction });
+        } else {
+            const sortedByName = [...filter_tasks].sort((a, b) => {
+                if (a.status < b.status) {
+                    return -1;
+                }
+                return 0;
+            });
+            key = "status";
+            set_filter_tasks(sortedByName);
+            setSortConfig({ key, direction });
+        }
+    };
 
     return (
         <AuthenticatedLayout
@@ -58,13 +288,13 @@ export function Index({ auth,tasks }: PageProps) {
                         <div className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
                             <Link
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={route("dashboard.agencies.create")}
+                                href={""}
                             >
                                 <span>Photo Gallery</span>
                             </Link>
                             <Link
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={route("dashboard.agencies.create")}
+                                href={""}
                             >
                                 <span>Show Paths</span>
                             </Link>
@@ -77,7 +307,7 @@ export function Index({ auth,tasks }: PageProps) {
                                         : "h-0 opacity-0 invisible"
                                 }`}
                             >
-                                <Map data={tasksPhotos}/>
+                                {/* <Map data={tasksPhotos}/> */}
                             </div>
                             <button
                                 className={`w-full rounded-b-md items-center border border-transparent bg-gray-800 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-gray-700 focus:bg-gray-700 focus:outline-none  focus:ring-indigo-500 focus:ring-offset-2 active:bg-gray-900 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white dark:focus:bg-white dark:focus:ring-offset-gray-800 dark:active:bg-gray-300 `}
@@ -93,7 +323,10 @@ export function Index({ auth,tasks }: PageProps) {
                                     {isMapVisible ? "HIDE MAP" : "SHOW MAP"}
                                 </div>
                             </button>
-                            <div className="flex gap-8 py-5 pl-5 items-center">
+                            <form
+                                onSubmit={submit}
+                                className="flex gap-8 py-5 pl-5 items-center"
+                            >
                                 <span>
                                     <TextInput
                                         name="name"
@@ -103,14 +336,22 @@ export function Index({ auth,tasks }: PageProps) {
                                         }}
                                     />
                                 </span>
-                                <FaSearch size={18} color="white" />
-                            </div>
+                                <button type="submit">
+                                    <FaSearch size={18} color="white" />
+                                </button>
+                            </form>
+
                             <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                                 Status filter:
                             </h5>
                             <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">
                                 <Checkbox
-                                    name="new"
+                                    data-fieldtype="new"
+                                    onChange={handleCheckboxChange}
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["new"]
+                                    }
                                     className="sm:mb-1 lg:mb-0"
                                     style={{ width: "18px", height: "18px" }}
                                 />
@@ -119,7 +360,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 </span>
                                 <Checkbox
                                     className="ml-5 sm:mb-1 lg:mb-0"
-                                    name="remember"
+                                    data-field="status"
+                                    data-fieldtype="open"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["open"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -127,7 +374,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 </span>
                                 <Checkbox
                                     className="ml-5 sm:mb-1 lg:mb-0"
-                                    name="remember"
+                                    data-field="status"
+                                    data-fieldtype="data provided"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["data provided"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -135,7 +388,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 </span>
                                 <Checkbox
                                     className="ml-5 sm:mb-1 lg:mb-0"
-                                    name="remember"
+                                    data-field="status"
+                                    data-fieldtype="returned"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["returned"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -143,7 +402,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 </span>
                                 <Checkbox
                                     className="ml-5 sm:mb-1 lg:mb-0"
-                                    name="remember"
+                                    data-field="flag"
+                                    data-fieldtype="accepted"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["accepted"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -151,7 +416,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 </span>
                                 <Checkbox
                                     className="ml-5 sm:mb-1 lg:mb-0"
-                                    name="remember"
+                                    data-field="flag"
+                                    data-fieldtype="declined"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["declined"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -165,6 +436,13 @@ export function Index({ auth,tasks }: PageProps) {
                                 <Checkbox
                                     className=" sm:mb-1 "
                                     name="remember"
+                                    data-field="after deadline"
+                                    data-fieldtype="after deadline"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["after deadline"]
+                                    }
+                                    onChange={handleCheckboxChange}
                                     style={{ width: "18px", height: "18px" }}
                                 />
                                 <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
@@ -179,55 +457,73 @@ export function Index({ auth,tasks }: PageProps) {
             <div className="pb-12">
                 <div className="max-w mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        <div className="flex gap-3 py-5 pl-5 items-center text-white border-b dark:border-gray-700">
+                        <button
+                            onClick={() => {
+                                sortData("reset");
+                            }}
+                            className="flex gap-3 py-5 pl-5 items-center text-white  dark:border-gray-700"
+                        >
                             <span>
                                 <FaTimesCircle size={18} />
                             </span>
                             CANCEL SORTING
+                        </button>
+                        <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
+                        {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
                         </div>
-                        <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
-                            Showing 10 out of 10
-                        </div>
-                          <Table_ 
-                          columns={[
-                            {
-                              label:'Status',
-                              name:'status'
-                            },
-                            {
-                              label:'Photos taken',
-                              name:'photos_taken'
-                            },
-                            {
-                              label:'Name',
-                              name:'name'
-                            },
-                            {
-                              label:'Decription',
-                              name:'description'
-                            },
-                            {
-                              label:'Date Created',
-                              name:'date_created'
-                            },
-                            {
-                              label:'Due date',
-                              name:'date_due'
-                            },
-                            {
-                              label:'Acception',
-                              name:'acception',
-                            renderCell:(row:any)=>(
-                              <>
-                              <button className={`w-24 ${row.status=="data provided"?"bg-blue-500":"bg-green-500"
-                                }  font-semibold text-white   py-2 rounded-lg`}>{`${row.status=="data provided"?"Waiting":"Accepted"
-                                }`}</button>
-                              </>
-                            )
+                        <Table_
+                            columns={[
+                                {
+                                    label: "Status",
+                                    name: "status",
+                                },
+                                {
+                                    label: "Photos taken",
+                                    name: "photos_taken",
+                                },
+                                {
+                                    label: "Name",
+                                    name: "name",
+                                },
+                                {
+                                    label: "Description",
+                                    name: "description",
+                                },
+                                {
+                                    label: "Date Created",
+                                    name: "date_created",
+                                },
+                                {
+                                    label: "Due date",
+                                    name: "date_due",
+                                },
+                                {
+                                    label: "Acception",
+                                    name: "acception",
+                                    renderCell: (row: any) => (
+                                        <>
+                                            <button
+                                                className={`w-24 ${
+                                                    row.status ==
+                                                    "data provided"
+                                                        ? "bg-blue-500"
+                                                        : "bg-green-500"
+                                                }  font-semibold text-white   py-1.5 rounded-lg`}
+                                            >{`${
+                                                row.status == "data provided"
+                                                    ? "Waiting"
+                                                    : "Accepted"
+                                            }`}</button>
+                                        </>
+                                    ),
+                                },
+                            ]}
+                            onHeaderClick={(label) =>
+                                sortData(label.toLowerCase())
                             }
-                          ]}
-                          rows={tasks_}
-                          />              
+                            rows={filter_tasks}
+                            sortConfig={sortConfig}
+                        />
                     </div>
                 </div>
             </div>

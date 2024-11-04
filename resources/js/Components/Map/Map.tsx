@@ -69,8 +69,6 @@ function Map({ data, onClick, isSelected,isUnassigned,  zoomFilter}: any) {
                 insertMarkers();
               } 
               else {
-                    console.log("bounds---",bounds)
-
                     mapRef.current.fitBounds(bounds, {
                     padding: { top: 60, bottom: 60, left: 20, right: 20 },
                     duration: 0,
