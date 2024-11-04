@@ -9,7 +9,7 @@ use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TestController;
+use App\Http\Controllers\UserTaskController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -22,7 +22,10 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
-    Route::get('/test', [TestController::class, 'index'])->name('test.index');
+    
+    Route::get('/user_task', [UserTaskController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('user_task.index');
 
 Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');

@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@layer utilities {
+    .table td[data-label]:before {
+      content: attr(data-label);
+      display: block;
+      font-weight: bold;
+    }
+  }

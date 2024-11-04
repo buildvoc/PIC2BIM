@@ -67,5 +67,6 @@ export type PageProps<
     success: string | null;
     error: string | null;
   };
+  tasks:any;
   ziggy: Config & { location: string };
 };
