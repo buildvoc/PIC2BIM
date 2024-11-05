@@ -1,5 +1,5 @@
 import { PageProps } from "@/types";
-import { memo, useEffect, useState } from "react";
+import { memo,useEffect,useState,useRef,useLayoutEffect } from "react";
 import { Head, Link } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { FaRegMap } from "react-icons/fa6";
@@ -11,12 +11,14 @@ import { FaTimesCircle } from "react-icons/fa";
 import Table_ from "@/Components/Table/Table_";
 import { FormEventHandler } from "react";
 import { FILTERS_DATA } from "@/Constants/Constants";
-import { table } from "console";
+import { TaskPhotos,Task } from "@/types";
 export function Index({ auth, tasks }: PageProps) {
-    var tasks_array: any = [];
-    var tasks_photos_array: any = [];
+    const tasks_array: Array<Task> = [];
+    const tasks_photos_array: Array<TaskPhotos> = [];
+    const previousTasksRef = useRef<any>([]);
     for (let task of tasks) {
-        let tasks_data = {
+        let tasks_data:Task = {
+            id:task?.id,
             status: task?.status,
             photos_taken: task?.number_of_photos,
             name: task?.name,
@@ -35,12 +37,14 @@ export function Index({ auth, tasks }: PageProps) {
         tasks_photos_array.push(tasks_photos_data);
     }
     const [isMapVisible, setIsMapVisible] = useState(true);
-    const [tasks_, setTasks_] = useState<any>(tasks_array);
-    const [tasksPhotos, setTasksPhotos] = useState<any>(tasks_photos_array);
+    const tasks_ = tasks_array;
+    const tasksPhotos = tasks_photos_array;
     const handleToggleMapVisibility = () => {
         setIsMapVisible((prevVisibility) => !prevVisibility);
     };
-    const [filter_tasks, set_filter_tasks] = useState<any>([]);
+    const [filter_tasks, set_filter_tasks] = useState<Array<Task>>([]);
+    const [filter_tasks_photos, set_filter_tasks_photos] = useState<Array<TaskPhotos>>([]);
+
     const [selectedFilters, setSelectedFilters] = useState(() => {
         try {
             const savedFilters = localStorage?.getItem("selectedFilters");
@@ -57,7 +61,10 @@ export function Index({ auth, tasks }: PageProps) {
 
     useEffect(() => {
         set_filter_tasks(tasks_);
+        set_filter_tasks(tasksPhotos);
+
     }, []);
+
 
     useEffect(() => {
         if (!Object.keys(selectedFilters).length) {
@@ -69,6 +76,35 @@ export function Index({ auth, tasks }: PageProps) {
         }
         applyFilters(false);
     }, [tasks]);
+
+    useEffect(() => {
+      previousTasksRef.current = filter_tasks_photos;
+      update_map_source(filter_tasks);
+    }, [filter_tasks]);
+
+    const update_map_source = async (filter_data: Array<Task>) => {
+      const task_1 = new Set(filter_data.map((task: any) => task.id));
+
+       const task_2 = new Set(tasksPhotos.map((task: any) => task.id));
+
+      const common_id = [...task_1].filter((id) => task_2.has(id));
+      const filter_tasks_photos = tasksPhotos.filter((task: any) =>
+        common_id.includes(task.id)
+      );
+
+      if (!areTasksEqual(previousTasksRef.current, filter_tasks_photos)) {
+        console.log("update photos here---",previousTasksRef.current,filter_tasks_photos)
+        set_filter_tasks_photos(filter_tasks_photos);
+      }
+    };
+
+
+    const areTasksEqual = (prevTasks: Array<Task>, nextTasks: Array<Task>): boolean => {
+      if (prevTasks.length !== nextTasks.length) {
+        return false;
+      }
+      return prevTasks.every((task:Task, index) => task === nextTasks[index]);
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -307,7 +343,7 @@ export function Index({ auth, tasks }: PageProps) {
                                         : "h-0 opacity-0 invisible"
                                 }`}
                             >
-                                {/* <Map data={tasksPhotos}/> */}
+                                <Map data={filter_tasks_photos} />
                             </div>
                             <button
                                 className={`w-full rounded-b-md items-center border border-transparent bg-gray-800 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-gray-700 focus:bg-gray-700 focus:outline-none  focus:ring-indigo-500 focus:ring-offset-2 active:bg-gray-900 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white dark:focus:bg-white dark:focus:ring-offset-gray-800 dark:active:bg-gray-300 `}
@@ -469,7 +505,7 @@ export function Index({ auth, tasks }: PageProps) {
                             CANCEL SORTING
                         </button>
                         <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
-                        {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
+                            {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
                         </div>
                         <Table_
                             columns={[
