@@ -93,7 +93,6 @@ export function Index({ auth, tasks }: PageProps) {
       );
 
       if (!areTasksEqual(previousTasksRef.current, filter_tasks_photos)) {
-        console.log("update photos here---",previousTasksRef.current,filter_tasks_photos)
         set_filter_tasks_photos(filter_tasks_photos);
       }
     };

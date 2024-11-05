@@ -51,8 +51,8 @@ function Map({
             ],
         });
         mapRef.current.addControl(toggleControl, "top-left");
-        mapRef.current.addControl(new mapboxgl.NavigationControl());
-        loadClustersAndImage();
+        mapRef.current.addControl(new mapboxgl.NavigationControl()); 
+        data.length>0&&loadClustersAndImage();
     };
 
     const loadClustersAndImage = () => {
@@ -132,8 +132,6 @@ function Map({
             Promise.all(loadImagePromises).then(() => {
                 mapRef.current?.addSource("tasks_photos", {
                     type: "geojson",
-                    // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
-                    // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
                     data: {
                         type: "FeatureCollection",
                         features: data.map((task: TaskPhotos) => ({
@@ -151,14 +149,13 @@ function Map({
                         })),
                     },
                     cluster: true,
-                    clusterMaxZoom: 14, // Max zoom to cluster points on
-                    clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
+                    clusterMaxZoom: 14, 
+                    clusterRadius: 50,
                 });
 
                 mapRef.current?.addSource("filter_source", {
                     type: "geojson",
-                    // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
-                    // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
+
                     data: {
                         type: "FeatureCollection",
                         features: data.map((task: any) => ({
@@ -204,7 +201,7 @@ function Map({
                         "text-size": 12,
                     },
                 });
-
+                
                 mapRef.current?.addLayer({
                     id: "unclustered-point",
                     type: "symbol",
