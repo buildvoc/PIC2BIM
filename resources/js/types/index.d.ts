@@ -131,6 +131,13 @@ export interface MapProps{
   isUnassigned?:boolean;
   zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
 }
+export interface MapProps{
+  data:Array<TaskPhotos>;
+  onClick?:() => void;
+  isSelected?:boolean;
+  isUnassigned?:boolean;
+  zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
+}
 
 export type PageProps<
   T extends Record<string, unknown> = Record<string, unknown>

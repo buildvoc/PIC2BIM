@@ -1,11 +1,9 @@
 import { PageProps } from "@/types";
 import { memo,useEffect,useState,useRef,useLayoutEffect } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link,router } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { FaRegMap } from "react-icons/fa6";
 import TextInput from "@/Components/Form/TextInput";
 import { FaSearch } from "react-icons/fa";
-import Map from "@/Components/Map/Map";
 import Checkbox from "@/Components/Checkbox";
 import { FaTimesCircle } from "react-icons/fa";
 import Table_ from "@/Components/Table/Table_";
@@ -313,7 +311,7 @@ export function Index({ auth, tasks }: PageProps) {
                 </h2>
             }
         >
-            <Head title="Tasks" />
+            <Head title="Task list" />
 
             <div className="py-12">
                 <div className="max-w mx-auto sm:px-6 lg:px-8">
@@ -321,13 +319,13 @@ export function Index({ auth, tasks }: PageProps) {
                         <div className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
                             <Link
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={""}
-                            >
+                                href={route('photo_gallery')}
+                                >
                                 <span>Photo Gallery</span>
                             </Link>
                             <Link
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={""}
+                                href={route('user_paths')}
                             >
                                 <span>Show Paths</span>
                             </Link>
@@ -536,6 +534,7 @@ export function Index({ auth, tasks }: PageProps) {
                             }
                             rows={filter_tasks}
                             sortConfig={sortConfig}
+                            onRowClick={()=>{ router.get('task')}}
                         />
                     </div>
                 </div>

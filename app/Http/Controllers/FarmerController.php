@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
- class UserTaskController extends Controller
+ class FarmerController extends Controller
 {
     public function index(Request $request)
     {   
