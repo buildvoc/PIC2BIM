@@ -48,7 +48,7 @@ export function Create({ auth }: PageProps) {
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
               <h1 className="text-3xl font-bold">New task</h1>
             </div>
@@ -61,7 +61,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.name}
                       value={data.name}
                       onChange={(e) => setData('name', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -73,15 +73,15 @@ export function Create({ auth }: PageProps) {
                       type='text'
                       value={data.text}
                       onChange={(e) => setData('text', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
 
                 <div className="grid gap-8 px-8 py-2">
                   <FieldGroup label="Purpose" name="text" error={errors.purpose}>
-                    <select name="purpose" onChange={(e) => setData('purpose', e.target.value)} className='form-input w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
-                      style={{ background: 'transparent', color: 'white' }}
+                    <select name="purpose" onChange={(e) => setData('purpose', e.target.value)} className='form-input w-full text-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
+                      style={{ background: 'transparent'}}
                     >
                       {allPurpose}
                     </select>
@@ -90,8 +90,8 @@ export function Create({ auth }: PageProps) {
 
                 <div className="grid gap-8 px-8 py-2">
                   <FieldGroup required={true} label="Due date" name="date_due" error={errors.date_due}>
-                    <input type='date' name="date_due" onChange={(e) => setData('date_due', e.target.value)} className='form-input w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
-                      style={{ background: 'transparent', color: 'white' }}
+                    <input type='date' name="date_due" onChange={(e) => setData('date_due', e.target.value)} className='form-input w-full text-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded'
+                      style={{ background: 'transparent' }}
                       min={new Date().toISOString().split('T')[0]}
                     />
                   </FieldGroup>

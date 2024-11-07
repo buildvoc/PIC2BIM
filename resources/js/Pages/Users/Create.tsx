@@ -33,7 +33,7 @@ export function Create({ auth }: PageProps) {
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
               <h1 className="text-3xl font-bold">New Farmer</h1>
             </div>
@@ -46,7 +46,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.login}
                       value={data.login}
                       onChange={(e) => setData('login', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -58,7 +58,7 @@ export function Create({ auth }: PageProps) {
                       type='password'
                       value={data.password}
                       onChange={(e) => setData('password', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -70,7 +70,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.name}
                       value={data.name}
                       onChange={(e) => setData('name', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -82,7 +82,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.surname}
                       value={data.surname}
                       onChange={(e) => setData('surname', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -93,7 +93,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.email}
                       value={data.email}
                       onChange={(e) => setData('email', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -104,7 +104,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.identification_number}
                       value={data.identification_number}
                       onChange={(e) => setData('identification_number', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>
@@ -115,7 +115,7 @@ export function Create({ auth }: PageProps) {
                       error={errors.vat}
                       value={data.vat}
                       onChange={(e) => setData('vat', e.target.value)}
-                      style={{ background: 'transparent', color: 'white' }}
+                      style={{ background: 'transparent' }}
                     />
                   </FieldGroup>
                 </div>

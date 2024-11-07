@@ -24,8 +24,8 @@ export default function Alert({
   }[variant || 'success'];
 
   const backGroundColor = {
-    success: 'bg-green-500 text-white',
-    error: 'bg-red-500 text-white',
+    success: 'bg-green-500 dark:text-white',
+    error: 'bg-red-500 dark:text-white',
     warning: 'bg-yellow-500 text-yellow-800'
   }[variant || 'success'];
 

@@ -58,7 +58,7 @@ export default function Dashboard({ auth }: PageProps) {
         <div className="max-w mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
               <span className="hidden md:inline">
                 User management
@@ -190,8 +190,8 @@ export default function Dashboard({ auth }: PageProps) {
       onClick={() => handlePageChange(link.url)}
       className={`mx-1 px-3 py-1 border rounded ${
         link.active
-          ? 'text-white bg-indigo-600 border-indigo-600'
-          : 'text-white border-gray-300'
+          ? 'dark:text-white bg-indigo-600 border-indigo-600'
+          : 'dark:text-white border-gray-300'
       } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
       dangerouslySetInnerHTML={{ __html: link.label }}
     />

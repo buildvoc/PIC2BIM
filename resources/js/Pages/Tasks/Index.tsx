@@ -137,7 +137,7 @@ export default function Dashboard({ auth }: PageProps) {
         <div className="max-w mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
               <span className="hidden md:inline">
                 <Link
@@ -158,13 +158,13 @@ export default function Dashboard({ auth }: PageProps) {
               </Link>
             </div>
 
-            <div className='flex flex-col justify-between mb-4 w-full p-4 text-gray-700 dark:text-gray-300 text-md font-medium'>
+            <div className='flex flex-col justify-between mb-4 w-full p-4 dark:text-white dark:text-gray-300 text-md font-medium'>
               <div>
                 <h6>Status filter:</h6>
                 <div className='flex items-center w-[60%] justify-between mt-4'>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('new')}
                       onChange={() => handleSelectedStatus('new')}
@@ -173,7 +173,7 @@ export default function Dashboard({ auth }: PageProps) {
                   </div>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('open')}
                       onChange={() => handleSelectedStatus('open')}
@@ -182,7 +182,7 @@ export default function Dashboard({ auth }: PageProps) {
                   </div>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('data provided')}
                       onChange={() => handleSelectedStatus('data provided')}
@@ -191,7 +191,7 @@ export default function Dashboard({ auth }: PageProps) {
                   </div>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('returned')}
                       onChange={() => handleSelectedStatus('returned')}
@@ -200,7 +200,7 @@ export default function Dashboard({ auth }: PageProps) {
                   </div>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('accepted')}
                       onChange={() => handleSelectedStatus('accepted')}
@@ -209,7 +209,7 @@ export default function Dashboard({ auth }: PageProps) {
                   </div>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={selectedStatus.includes('declined')}
                       onChange={() => handleSelectedStatus('declined')}
@@ -220,13 +220,13 @@ export default function Dashboard({ auth }: PageProps) {
               </div>
             </div>
 
-            <div className='flex flex-col justify-between mb-4 w-full p-4 text-gray-700 dark:text-gray-300 text-md font-medium'>
+            <div className='flex flex-col justify-between mb-4 w-full p-4 dark:text-white dark:text-gray-300 text-md font-medium'>
               <div>
                 <h6>Sort:</h6>
                 <div className='flex items-center w-[60%] justify-between mt-4'>
                   <div>
                     <input 
-                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                      className='border-3 mr-2 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                       type="checkbox"
                       checked={sortColumn == 'task_due_date'}
                       onChange={(e) => e.target.checked ? handleSort('task_due_date','desc') : handleSort('status_sortorder.sortorder','asc')}
@@ -256,10 +256,10 @@ export default function Dashboard({ auth }: PageProps) {
                     <>
                       <button
                         className={`w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none
-                          ${row.status === 'new' ? 'bg-yellow-500 text-white' :
-                            row.status === 'open' ? 'bg-blue-500 text-white' :
-                            row.status === 'data checked' ? 'bg-green-500 text-white' :
-                            row.status === 'returned' ? 'bg-purple-500 text-white' :
+                          ${row.status === 'new' ? 'bg-yellow-500 dark:text-white' :
+                            row.status === 'open' ? 'bg-blue-500 dark:text-white' :
+                            row.status === 'data checked' ? 'bg-green-500 dark:text-white' :
+                            row.status === 'returned' ? 'bg-purple-500 dark:text-white' :
                             'bg-gray-200 text-gray-800'}`} 
                         type='button'
                       >
@@ -334,11 +334,11 @@ export default function Dashboard({ auth }: PageProps) {
                   renderCell: row => (
                     <>
                         {row.flag_id === 1 ? (
-                          <div className="bg-green-500 text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Accepted</div>
+                          <div className="bg-green-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Accepted</div>
                         ) : row.flag_id === 2 ? (
-                          <div className="bg-red-500 text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Declined</div>
+                          <div className="bg-red-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Declined</div>
                         ) : row.status === 'data provided' ? (
-                          <div className="bg-blue-500 text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Waiting</div>
+                          <div className="bg-blue-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Waiting</div>
                         ) : null}
                     </>
                   )
@@ -350,7 +350,7 @@ export default function Dashboard({ auth }: PageProps) {
                     <>
                       { row.status == 'data provided' && !row.flag_id &&
                         <input 
-                          className='border-3 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
+                          className='border-3 border-indigo-300 dark:border-indigo-700 dark:bg-white-900 dark:dark:text-white-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow'
                           type="checkbox"
                           checked={selectedTasks.includes(row.id)}
                           onChange={() => handleCheckboxChange(row.id)}
@@ -362,7 +362,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
-            <div className="flex items-center justify-center mt-4 mb-4 text-white">
+            <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
               <span>Showing {data.length} out of {total}</span>
             </div>
             <div className="flex items-center justify-center mt-4 mb-4">
@@ -373,8 +373,8 @@ export default function Dashboard({ auth }: PageProps) {
                   onClick={() => handlePageChange(link.url)}
                   className={`mx-1 px-3 py-1 border rounded ${
                     link.active
-                      ? 'text-white bg-indigo-600 border-indigo-600'
-                      : 'text-white border-gray-300'
+                      ? 'dark:text-white bg-indigo-600 border-indigo-600'
+                      : 'dark:text-white border-gray-300'
                   } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   dangerouslySetInnerHTML={{ __html: link.label }}
                 />

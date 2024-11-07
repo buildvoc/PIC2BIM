@@ -91,7 +91,7 @@ export default function Dashboard({ auth }: PageProps) {
         <div className="max-w mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
                 
               <span className="hidden md:inline">
@@ -197,15 +197,15 @@ export default function Dashboard({ auth }: PageProps) {
                        {(
                             <>
                                 {task.flag_id === 1 && (
-                                    <div className="mr-2 btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Accepted</div>
+                                    <div className="mr-2 btn bg-green-500 dark:text-white px-4 py-2 rounded hover:bg-green-600">Accepted</div>
                                 )}
                                 {task.flag_id === 2 && (
-                                    <div className="mr-2 btn bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Declined</div>
+                                    <div className="mr-2 btn bg-red-500 dark:text-white px-4 py-2 rounded hover:bg-red-600">Declined</div>
                                 )}
                                 {task.status === 'data provided' && (
                                     <>
                                         <button
-                                            className="mr-2 btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 js_ack tt"
+                                            className="mr-2 btn bg-green-500 dark:text-white px-4 py-2 rounded hover:bg-green-600 js_ack tt"
                                             title="Accept"
                                             type='button'
                                             onClick={()=>acceptTask(task)}
@@ -213,7 +213,7 @@ export default function Dashboard({ auth }: PageProps) {
                                             <FontAwesomeIcon icon={faCheck} />
                                         </button>
                                         <button
-                                            className="mr-2 btn bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 js_decline tt"
+                                            className="mr-2 btn bg-red-500 dark:text-white px-4 py-2 rounded hover:bg-red-600 js_decline tt"
                                             title="Decline"
                                             type='button'
                                             onClick={ () => declineTask(task)}
@@ -221,7 +221,7 @@ export default function Dashboard({ auth }: PageProps) {
                                             <FontAwesomeIcon icon={faTimes} />
                                         </button>
                                         <button
-                                            className="mr-2 btn bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 js_return tt"
+                                            className="mr-2 btn bg-red-500 dark:text-white px-4 py-2 rounded hover:bg-red-600 js_return tt"
                                             title="Return"
                                             type='button'
                                             onClick={ () => returnTask(task)}
@@ -232,7 +232,7 @@ export default function Dashboard({ auth }: PageProps) {
                                 )}
                                 {task.status === 'new' && task.created_id == auth.user.id && (
                                 <button
-                                    className="mr-2 btn bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 js_delete tt"
+                                    className="mr-2 btn bg-red-500 dark:text-white px-4 py-2 rounded hover:bg-red-600 js_delete tt"
                                     title="Delete"
                                     type='button'
                                     onClick={() => deleteTask(task.id)}
@@ -245,7 +245,7 @@ export default function Dashboard({ auth }: PageProps) {
 
                             {task.status === 'new' && (
                                 <button
-                                    className="mr-2 btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
+                                    className="mr-2 btn bg-green-500 dark:text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
                                     title="Move to Data provided"
                                     type='button'
                                     onClick={ () => moveFromOpenTask(task)}
@@ -255,7 +255,7 @@ export default function Dashboard({ auth }: PageProps) {
                             )}
                             {task.status === 'open' && (
                             <button
-                                className="mr-2 btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
+                                className="mr-2 btn bg-green-500 dark:text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
                                 title="Move to Data provided"
                                 type='button'
                                 onClick={ () => moveFromOpenTask(task)}
@@ -265,7 +265,7 @@ export default function Dashboard({ auth }: PageProps) {
                             )}
                             {task.status === 'returned' && (
                             <button
-                                className="mr-2 btn bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
+                                className="mr-2 btn bg-green-500 dark:text-white px-4 py-2 rounded hover:bg-green-600 js_move_from_open tt"
                                 title="Move to Data provided"
                                 type='button'
                                 onClick={ () => moveFromOpenTask(task)}
