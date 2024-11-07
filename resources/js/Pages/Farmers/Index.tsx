@@ -1,29 +1,29 @@
 import { PageProps } from "@/types";
-import { memo,useEffect,useState,useRef,useLayoutEffect } from "react";
-import { Head, Link,router } from "@inertiajs/react";
+import { memo, useEffect, useState, useRef, useLayoutEffect } from "react";
+import { Head, Link, router } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import TextInput from "@/Components/Form/TextInput";
 import { FaSearch } from "react-icons/fa";
 import Checkbox from "@/Components/Checkbox";
 import { FaTimesCircle } from "react-icons/fa";
-import Table_ from "@/Components/Table/Table_";
+import Table from "@/Components/Table/Table";
 import { FormEventHandler } from "react";
 import { FILTERS_DATA } from "@/Constants/Constants";
-import { TaskPhotos,Task } from "@/types";
+import { TaskPhotos, Task } from "@/types";
 import ButtonMap from "@/Components/Map/ButtonMap";
 export function Index({ auth, tasks }: PageProps) {
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
     const previousTasksRef = useRef<any>([]);
     for (let task of tasks) {
-        let tasks_data:Task = {
-            id:task?.id,
+        let tasks_data: Task = {
+            id: task?.id,
             status: task?.status,
-            photos_taken: task?.number_of_photos,
+            number_of_photos: task?.number_of_photos,
             name: task?.name,
-            description: task?.text,
+            text: task?.text,
             date_created: task.date_created,
-            date_due: task.task_due_date,
+            task_due_date: task.task_due_date,
             flag_valid: task.flag_valid,
         };
         let tasks_photos_data = {
@@ -39,7 +39,9 @@ export function Index({ auth, tasks }: PageProps) {
     const tasksPhotos = tasks_photos_array;
 
     const [filter_tasks, set_filter_tasks] = useState<Array<Task>>([]);
-    const [filter_tasks_photos, set_filter_tasks_photos] = useState<Array<TaskPhotos>>([]);
+    const [filter_tasks_photos, set_filter_tasks_photos] = useState<
+        Array<TaskPhotos>
+    >([]);
 
     const [selectedFilters, setSelectedFilters] = useState(() => {
         try {
@@ -58,9 +60,7 @@ export function Index({ auth, tasks }: PageProps) {
     useEffect(() => {
         set_filter_tasks(tasks_);
         set_filter_tasks(tasksPhotos);
-
     }, []);
-
 
     useEffect(() => {
         if (!Object.keys(selectedFilters).length) {
@@ -74,31 +74,35 @@ export function Index({ auth, tasks }: PageProps) {
     }, [tasks]);
 
     useEffect(() => {
-      previousTasksRef.current = filter_tasks_photos;
-      update_map_source(filter_tasks);
+        previousTasksRef.current = filter_tasks_photos;
+        update_map_source(filter_tasks);
     }, [filter_tasks]);
 
     const update_map_source = async (filter_data: Array<Task>) => {
-      const task_1 = new Set(filter_data.map((task: any) => task.id));
+        const task_1 = new Set(filter_data.map((task: any) => task.id));
 
-       const task_2 = new Set(tasksPhotos.map((task: any) => task.id));
+        const task_2 = new Set(tasksPhotos.map((task: any) => task.id));
 
-      const common_id = [...task_1].filter((id) => task_2.has(id));
-      const filter_tasks_photos = tasksPhotos.filter((task: any) =>
-        common_id.includes(task.id)
-      );
+        const common_id = [...task_1].filter((id) => task_2.has(id));
+        const filter_tasks_photos = tasksPhotos.filter((task: any) =>
+            common_id.includes(task.id)
+        );
 
-      if (!areTasksEqual(previousTasksRef.current, filter_tasks_photos)) {
-        set_filter_tasks_photos(filter_tasks_photos);
-      }
+        if (!areTasksEqual(previousTasksRef.current, filter_tasks_photos)) {
+            set_filter_tasks_photos(filter_tasks_photos);
+        }
     };
 
-
-    const areTasksEqual = (prevTasks: Array<Task>, nextTasks: Array<Task>): boolean => {
-      if (prevTasks.length !== nextTasks.length) {
-        return false;
-      }
-      return prevTasks.every((task:Task, index) => task === nextTasks[index]);
+    const areTasksEqual = (
+        prevTasks: Array<Task>,
+        nextTasks: Array<Task>
+    ): boolean => {
+        if (prevTasks.length !== nextTasks.length) {
+            return false;
+        }
+        return prevTasks.every(
+            (task: Task, index) => task === nextTasks[index]
+        );
     };
 
     const submit: FormEventHandler = (e) => {
@@ -316,24 +320,8 @@ export function Index({ auth, tasks }: PageProps) {
             <div className="py-12">
                 <div className="max-w mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        <div className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
-                            <Link
-                                className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={route('photo_gallery')}
-                                >
-                                <span>Photo Gallery</span>
-                            </Link>
-                            <Link
-                                className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={route('user_paths')}
-                            >
-                                <span>Show Paths</span>
-                            </Link>
-                        </div>
                         <div>
-                            <ButtonMap 
-                            data={filter_tasks_photos}
-                            />
+                            <ButtonMap data={filter_tasks_photos} />
                             <form
                                 onSubmit={submit}
                                 className="flex gap-8 py-5 pl-5 items-center"
@@ -482,7 +470,7 @@ export function Index({ auth, tasks }: PageProps) {
                         <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
                             {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
                         </div>
-                        <Table_
+                        <Table
                             columns={[
                                 {
                                     label: "Status",
@@ -490,7 +478,7 @@ export function Index({ auth, tasks }: PageProps) {
                                 },
                                 {
                                     label: "Photos taken",
-                                    name: "photos_taken",
+                                    name: "number_of_photos",
                                 },
                                 {
                                     label: "Name",
@@ -498,7 +486,7 @@ export function Index({ auth, tasks }: PageProps) {
                                 },
                                 {
                                     label: "Description",
-                                    name: "description",
+                                    name: "text",
                                 },
                                 {
                                     label: "Date Created",
@@ -506,7 +494,7 @@ export function Index({ auth, tasks }: PageProps) {
                                 },
                                 {
                                     label: "Due date",
-                                    name: "date_due",
+                                    name: "task_due_date",
                                 },
                                 {
                                     label: "Acception",
@@ -534,7 +522,9 @@ export function Index({ auth, tasks }: PageProps) {
                             }
                             rows={filter_tasks}
                             sortConfig={sortConfig}
-                            onRowClick={()=>{ router.get('task')}}
+                            onRowClick={() => {
+                                router.get("task");
+                            }}
                         />
                     </div>
                 </div>

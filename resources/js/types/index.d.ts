@@ -62,14 +62,12 @@ export interface PaginationLink {
 export interface Task {
   id:number;
   status: string;
-  photos_taken: number;
+  number_of_photos: number;
   name: string;
-  description: string;
+  text: string;
   date_created: string;
-  date_due: string;
+  task_due_date: string;
   flag_valid: string;
-
-
 }
 
 export interface Photo {
@@ -123,6 +121,9 @@ export interface TaskPhotos extends Task{
   farmer_name: string;
   location: [number, number]|any;
 }
+export interface Tasks extends Task{
+  photos: Array<Photo>;
+}
 
 export interface MapProps{
   data:Array<TaskPhotos>;
@@ -149,6 +150,6 @@ export type PageProps<
     success: string | null;
     error: string | null;
   };
-  tasks:any;
+  tasks:Array<Tasks>;
   ziggy: Config & { location: string };
 };

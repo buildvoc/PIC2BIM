@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Http;
 {
     public function index(Request $request)
     {   
-        $token = env('NEXT_PUBLIC_MAPBOX_TOKEN');
         $user = Auth::user();
         $user_id = $user->id;
         $tasks = Task::withCount(['photos' => function ($query) {
@@ -70,7 +69,7 @@ use Illuminate\Support\Facades\Http;
             ];
         });
     
-        return Inertia::render('Farmers/Index',compact('tasks','token'));
+        return Inertia::render('Farmers/Index',compact('tasks'));
     }
 
 

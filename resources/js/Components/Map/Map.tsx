@@ -224,9 +224,7 @@ function Map({
                         mapRef.current.getCanvas().style.cursor = "";
                 });
 
-                // handle zoom level
 
-                // inspect a cluster on click
                 mapRef.current?.on("click", "clusters", (e: any) => {
                     const features: any = mapRef.current?.queryRenderedFeatures(
                         e.point,

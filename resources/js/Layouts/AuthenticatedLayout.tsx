@@ -45,6 +45,18 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                         </div>
                                     </>
                                 }
+                                    {userRoles.includes(1) && userRoles.length > 0 &&  
+                                    <>  
+                                        <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                            <NavLink href={route('photo_gallery')} active={route().current('types.index')}>
+                                                Photo Gallery 
+                                            </NavLink>
+                                            <NavLink href={route('user_paths')} active={route().current('types.index')}>
+                                                Show Paths
+                                            </NavLink>
+                                        </div>
+                                    </>
+                                }
                         </div>
 
                         <div className="hidden sm:flex sm:items-center sm:ms-6">

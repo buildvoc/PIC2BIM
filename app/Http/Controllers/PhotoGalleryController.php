@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\Http;
 {
     public function index(Request $request)
     {   
-        $user = Auth::user();
-        $user_id = $user->id;
+
         return Inertia::render('Farmers/PhotoGallery');
     }
 }

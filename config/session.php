@@ -19,7 +19,6 @@ return [
     */
 
     'driver' => env('SESSION_DRIVER', 'database'),
-    'mapbox_token' => env('NEXT_PUBLIC_MAPBOX_TOKEN', ''),
 
     /*
     |--------------------------------------------------------------------------

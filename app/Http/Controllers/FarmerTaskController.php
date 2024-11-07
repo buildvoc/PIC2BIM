@@ -13,9 +13,6 @@ use Illuminate\Support\Facades\Http;
 {
     public function index(Request $request)
     {   
-        $user = Auth::user();
-        $user_id = $user->id;
-        // compact('task')
         return Inertia::render('Farmers/Task');
     }
 
