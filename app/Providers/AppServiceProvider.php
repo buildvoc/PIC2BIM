@@ -7,6 +7,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+    
+
     }
 
     /**
@@ -26,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('sha1', function (Application $app, array $config) {
             return new Sha1UserProvider();
         });
+        
         // Vite::prefetch(concurrency: 3);
     }
+
+ 
 }

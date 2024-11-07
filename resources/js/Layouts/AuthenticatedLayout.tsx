@@ -13,7 +13,7 @@ import { faSun } from '@fortawesome/free-solid-svg-icons';
 
 export default function Authenticated({ user, header, children }: PropsWithChildren<{ user: User, header?: ReactNode }>) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
-    
+
     const userRoles = user && user.roles ? user.roles.map(obj => obj.role_id) : [];
 
     const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
@@ -57,6 +57,18 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                         <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                             <NavLink href={route('types.index')} active={route().current('types.index')}>
                                                 Task Purpose
+                                            </NavLink>
+                                        </div>
+                                    </>
+                                }
+                                    {userRoles.includes(1) && userRoles.length > 0 &&  
+                                    <>  
+                                        <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                            <NavLink href={route('photo_gallery')} active={route().current('types.index')}>
+                                                Photo Gallery 
+                                            </NavLink>
+                                            <NavLink href={route('user_paths')} active={route().current('types.index')}>
+                                                Show Paths
                                             </NavLink>
                                         </div>
                                     </>

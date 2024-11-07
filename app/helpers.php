@@ -629,19 +629,12 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'created' => $photo->created,
             'digest' => $photo->digest,
         ];
-
-
-        
         $file = null;
-
         $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
-
         if (file_exists($filePath)) {
             $file = file_get_contents($filePath);
         }
-
         $out['photo'] = base64_encode($file);
-
         $output[] = $out;
     }
 

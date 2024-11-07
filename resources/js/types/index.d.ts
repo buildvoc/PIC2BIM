@@ -57,6 +57,89 @@ export interface PaginationLink {
   active: boolean;
 }
 
+
+
+export interface Task {
+  id:number;
+  status: string;
+  number_of_photos: number;
+  name: string;
+  text: string;
+  date_created: string;
+  task_due_date: string;
+  flag_valid: string;
+}
+
+export interface Photo {
+
+  altitude: number;
+  vertical_view_angle: number | null;
+  distance: number | null;
+  nmea_distance: number | null;
+  accuracy: number;
+  device_manufacture: string | null;
+  device_model: string | null;
+  device_platform: string | null;
+  device_version: string | null;
+  efkLatGpsL1: number | null;
+  efkLngGpsL1: number | null;
+  efkAltGpsL1: number | null;
+  efkTimeGpsL1: string | null;
+  efkLatGpsL5: number | null;
+  efkLngGpsL5: number | null;
+  efkAltGpsL5: number | null;
+  efkTimeGpsL5: string | null;
+  efkLatGpsIf: number | null;
+  efkLngGpsIf: number | null;
+  efkAltGpsIf: number | null;
+  efkTimeGpsIf: string | null;
+  efkLatGalE1: number | null;
+  efkLngGalE1: number | null;
+  efkAltGalE1: number | null;
+  efkTimeGalE1: string | null;
+  efkLatGalE5: number | null;
+  efkLngGalE5: number | null;
+  efkAltGalE5: number | null;
+  efkTimeGalE5: string | null;
+  efkLatGalIf: number | null;
+  efkLngGalIf: number | null;
+  efkAltGalIf: number | null;
+  efkTimeGalIf: string | null;
+  note: string | null;
+  lat: number;
+  lng: number;
+  photo_heading: number;
+  created: string;
+  path: string;
+  file_name: string;
+  digest: string;
+  photo: string | null;
+}
+
+export interface TaskPhotos extends Task{
+  photo: Photo;
+  farmer_name: string;
+  location: [number, number]|any;
+}
+export interface Tasks extends Task{
+  photos: Array<Photo>;
+}
+
+export interface MapProps{
+  data:Array<TaskPhotos>;
+  onClick?:() => void;
+  isSelected?:boolean;
+  isUnassigned?:boolean;
+  zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
+}
+export interface MapProps{
+  data:Array<TaskPhotos>;
+  onClick?:() => void;
+  isSelected?:boolean;
+  isUnassigned?:boolean;
+  zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
+}
+
 export type PageProps<
   T extends Record<string, unknown> = Record<string, unknown>
 > = T & {
@@ -67,5 +150,6 @@ export type PageProps<
     success: string | null;
     error: string | null;
   };
+  tasks:Array<Tasks>;
   ziggy: Config & { location: string };
 };
