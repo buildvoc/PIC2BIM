@@ -70,77 +70,86 @@ export function Paths({ auth, paths }: PageProps) {
             }
         >
             <Head title="Paths" />
-            <div className="py-12">
-                <div className="max-w mx-auto sm:px-6 lg:px-8">
-                    <Map data={[]} paths={filterPaths.data} />
-                </div>
-            </div>
-            <div className="pb-12">
-                <div className="max-w mx-auto sm:px-6 lg:px-8">
-                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        <Table
-                            columns={[
-                                {
-                                    label: "Name",
-                                    name: "name",
-                                },
-                                {
-                                    label: "Area",
-                                    name: "area",
-                                },
-                                {
-                                    label: "Path start time",
-                                    name: "start",
-                                },
-                                {
-                                    label: "Path end time",
-                                    name: "end",
-                                },
-                                {
-                                    label: "Device",
-                                    name: "",
-                                    renderCell: (row: Path) => (
-                                        <div>
-                                            {toDeviceString(
-                                                row.device_manufacture,
-                                                row.device_model,
-                                                row.device_platform,
-                                                row.device_version
-                                            )}
-                                        </div>
-                                    ),
-                                },
-                                {
-                                    label: "Show on map",
-                                    name: "show",
-                                    renderCell: (row: Path) => (
-                                        <label className="flex  items-center ">
-                                            <Checkbox type="checkbox" 
-                                            onChange={()=>handleCheckboxChange(row.id)}
-                                            />
-                                        </label>
-                                    ),
-                                },
-                                {
-                                    label: "Actions",
-                                    name: "action",
+            <div className="flex flex-wrap ">
+                <div className="w-full md:w-1/2  py-12 pl-4 pr-2">
+                    <div className="max-w mx-auto ">
+                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                            <div className="overflow-y-auto  h-3/4-screen ">
+                                <Table
+                                    columns={[
+                                        {
+                                            label: "Name",
+                                            name: "name",
+                                        },
+                                        {
+                                            label: "Area",
+                                            name: "area",
+                                        },
+                                        {
+                                            label: "Path start time",
+                                            name: "start",
+                                        },
+                                        {
+                                            label: "Path end time",
+                                            name: "end",
+                                        },
+                                        {
+                                            label: "Device",
+                                            name: "",
+                                            renderCell: (row: Path) => (
+                                                <div>
+                                                    {toDeviceString(
+                                                        row.device_manufacture,
+                                                        row.device_model,
+                                                        row.device_platform,
+                                                        row.device_version
+                                                    )}
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            label: "Show on map",
+                                            name: "show",
+                                            renderCell: (row: Path) => (
+                                                <label className="flex  items-center ">
+                                                    <Checkbox
+                                                        type="checkbox"
+                                                        onChange={() =>
+                                                            handleCheckboxChange(
+                                                                row.id
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
+                                            ),
+                                        },
+                                        {
+                                            label: "Actions",
+                                            name: "action",
 
-                                    renderCell: (row: Path) => (
-                                        <Link
-                                            className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
-                                            href={""}
-                                        >
-                                            <FaTrash
-                                                size={16}
-                                                className="mr-2"
-                                            />
-                                            <span>Delete Selected</span>
-                                        </Link>
-                                    ),
-                                },
-                            ]}
-                            rows={paths_}
-                        />
+                                            renderCell: (row: Path) => (
+                                                <Link
+                                                    className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
+                                                    href={""}
+                                                >
+                                                    <FaTrash
+                                                        size={16}
+                                                        className="mr-2"
+                                                    />
+                                                    <span>Delete Selected</span>
+                                                </Link>
+                                            ),
+                                        },
+                                    ]}
+                                    rows={paths_}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="w-full md:w-1/2  py-12 pl-2 pr-4">
+                    <div className="max-w mx-auto ">
+                        <Map data={[]} paths={filterPaths.data} />
                     </div>
                 </div>
             </div>

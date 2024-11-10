@@ -68,7 +68,6 @@ function Map({
             });
 
             let bounds = calculateBoundingBox(coordintates.flat());
-
             mapRef.current.fitBounds(bounds, {
                 padding: { top: 60, bottom: 60, left: 20, right: 20 },
                 duration: 0,
@@ -79,7 +78,10 @@ function Map({
                 loadPaths(path);
             });
         }
-        data.length > 0 && loadClustersAndImage();
+        else
+        {
+            data.length > 0 && loadClustersAndImage();
+        }
     };
 
     const loadClustersAndImage = () => {
@@ -100,13 +102,19 @@ function Map({
                     linear: true,
                     zoom: 16,
                 });
+                console.log("bound 2 call--- ")
+
                 insertMarkers();
             } else {
-                mapRef.current?.fitBounds(bounds, {
-                    padding: { top: 60, bottom: 60, left: 20, right: 20 },
-                    duration: 0,
-                    linear: true,
-                });
+                if (data.length > 0) {
+                    console.log("bound 1 call---")
+                    mapRef.current?.fitBounds(bounds, {
+                        padding: { top: 60, bottom: 200, left: 60, right: 60 },
+                        duration: 0,
+                        linear: true,
+                    });
+                  }
+
             }
             if (isUnassigned) {
                 mapRef.current?.on("moveend", async () => {

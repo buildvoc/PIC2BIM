@@ -141,7 +141,7 @@ export default function Table<T>({
                                   onHeaderClick!(column.label)
                               }}
                             >
-                                <span className="flex flex-row">
+                                <span className="flex flex-row items-center">
                                     <span>{column.label}</span>
                                     {column.sorting && (
                                         <span>
@@ -190,7 +190,7 @@ export default function Table<T>({
                                     {
                                       sortConfig && (
                                         <span
-                                        className={`absolute mt-7  ${
+                                        className={` ml-2 ${
                                             column.label == columnActive
                                                 ? ""
                                                 : "hidden"
