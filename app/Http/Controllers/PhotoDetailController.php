@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Http;
 {
     public function index(Request $request)
     {   
-
+        
         return Inertia::render('Farmers/PhotoDetail');
     }
 

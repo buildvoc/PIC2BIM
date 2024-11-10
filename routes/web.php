@@ -34,7 +34,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     Route::get('/user_task', [FarmerController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('user_task.index');
-    Route::get('/task', [FarmerTaskController::class, 'index'])
+    Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('task');
     Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])

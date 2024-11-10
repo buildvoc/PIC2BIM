@@ -60,18 +60,23 @@ export interface PaginationLink {
 
 
 export interface Task {
-  id:number;
-  status: string;
-  number_of_photos: number;
-  name: string;
-  text: string;
-  date_created: string;
-  task_due_date: string;
-  flag_valid: string;
+  id?:number;
+  status?: string;
+  number_of_photos?: number;
+  name?: string;
+  text?: string;
+  note?: string;
+  date_created?: string;
+  task_due_date?: string;
+  flag_valid?: string;
+  flag_deleted?:number;
+  text_reason?:string;
+  text_returned?:string;
+  timestamp?:string;
+  user_id?:number
 }
 
 export interface Photo {
-
   altitude: number;
   vertical_view_angle: number | null;
   distance: number | null;
@@ -109,6 +114,7 @@ export interface Photo {
   lat: number;
   lng: number;
   photo_heading: number;
+  timestamp:string;
   created: string;
   path: string;
   file_name: string;
@@ -130,14 +136,40 @@ export interface MapProps{
   onClick?:() => void;
   isSelected?:boolean;
   isUnassigned?:boolean;
-  zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
+  paths?:Array<Path>;
+  zoomFilter?:(leaves:Array<String>|undefined) => void;
 }
-export interface MapProps{
-  data:Array<TaskPhotos>;
-  onClick?:() => void;
-  isSelected?:boolean;
-  isUnassigned?:boolean;
-  zoomFilter?:(cluster:Array<mapboxgl.GeoJSONFeature>|undefined) => void;
+
+
+interface Point {
+  id: number;
+  lat: number;
+  lng: number;
+  altitude: number | null;
+  accuracy: number | null;
+  created: string;
+}
+
+interface Path {
+  id: number;
+  name: string;
+  start: string;
+  end: string;
+  area: number;
+  device_manufacture: string | null;
+  device_model: string | null;
+  device_platform: string | null;
+  device_version: string | null;
+  points: Point[];
+}
+export interface PathFilter{
+  data: Array<Path>;
+  filterIds:Array<number>
+}
+
+export interface GalleryProps{
+  photos:Array<Photo>;
+  isUnassigned?:boolean
 }
 
 export type PageProps<
@@ -150,6 +182,9 @@ export type PageProps<
     success: string | null;
     error: string | null;
   };
+  task:Task;
   tasks:Array<Tasks>;
+  photos:Array<Photo>;
+  paths:Array<Path>
   ziggy: Config & { location: string };
 };

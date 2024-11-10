@@ -1,6 +1,6 @@
 import { PageProps } from "@/types";
 import { memo, useEffect, useState, useRef, useLayoutEffect } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import TextInput from "@/Components/Form/TextInput";
 import { FaSearch } from "react-icons/fa";
@@ -26,14 +26,17 @@ export function Index({ auth, tasks }: PageProps) {
             task_due_date: task.task_due_date,
             flag_valid: task.flag_valid,
         };
-        let tasks_photos_data = {
-            ...tasks_data,
-            farmer_name: `${auth.user.name} ${auth.user.surname}`,
-            photo: task.photos[0],
-            location: [task.photos[0]?.lng, task.photos[0]?.lat],
-        };
+        if (task.photos.length > 0) {
+            let tasks_photos_data = {
+                ...tasks_data,
+                farmer_name: `${auth.user.name} ${auth.user.surname}`,
+                photo: task.photos[0],
+                location: [task.photos[0]?.lng, task.photos[0]?.lat],
+            };
+            tasks_photos_array.push(tasks_photos_data);
+        }
+
         tasks_array.push(tasks_data);
-        tasks_photos_array.push(tasks_photos_data);
     }
     const tasks_ = tasks_array;
     const tasksPhotos = tasks_photos_array;
@@ -295,7 +298,7 @@ export function Index({ auth, tasks }: PageProps) {
             setSortConfig({ key, direction });
         } else {
             const sortedByName = [...filter_tasks].sort((a, b) => {
-                if (a.status < b.status) {
+                if (a.status! < b.status!) {
                     return -1;
                 }
                 return 0;
@@ -499,7 +502,7 @@ export function Index({ auth, tasks }: PageProps) {
                                 {
                                     label: "Acception",
                                     name: "acception",
-                                    renderCell: (row: any) => (
+                                    renderCell: (row: Task) => (
                                         <>
                                             <button
                                                 className={`w-24 ${
@@ -522,8 +525,8 @@ export function Index({ auth, tasks }: PageProps) {
                             }
                             rows={filter_tasks}
                             sortConfig={sortConfig}
-                            onRowClick={() => {
-                                router.get("task");
+                            onRowClick={(row) => {
+                                router.get(route("task", row.id));
                             }}
                         />
                     </div>
