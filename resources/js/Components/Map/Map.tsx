@@ -377,9 +377,9 @@ function Map({
                     type: "Feature",
                     geometry: {
                         type: "Polygon",
-                        // These coordinates outline Maine.
-                        coordinates: [coordinates],
+                        coordinates: [coordinates],                        
                     },
+                    properties:{}
                 },
             });
             // Add a new layer to visualize the polygon.
@@ -406,7 +406,7 @@ function Map({
             });
 
             // Prepare point data for circles
-            const pointFeatures = coordinates.map(
+            const pointFeatures:any = coordinates.map(
                 (coord: any, index: number) => ({
                     type: "Feature",
                     geometry: {
@@ -551,7 +551,7 @@ function Map({
             });
 
             // Get the first point of the polygon
-            let firstPoint = coordinates[0];
+            let firstPoint:any = coordinates[0];
 
             // Adjust the latitude of the first point to move the text box
             const adjustedLatitude = firstPoint[1] + 0.0003; // Shift up by 0.001 degrees

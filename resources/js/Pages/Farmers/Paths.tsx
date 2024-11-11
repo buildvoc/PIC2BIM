@@ -37,7 +37,7 @@ export function Paths({ auth, paths }: PageProps) {
 
     const handleCheckboxChange = (pathId: any) => {
         if (filterPaths.filterIds.includes(pathId)) {
-            let filterIds = filterPaths.filterIds.filter(
+            let filterIds:any = filterPaths.filterIds.filter(
                 (value) => value != pathId
             );
             let data =
