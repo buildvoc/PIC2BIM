@@ -1,16 +1,20 @@
-import { useRef, useEffect, useState,memo } from "react";
+import { useRef, useEffect, useState, memo } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "./map.css"
 import ToggleControl from "./ToggleControl";
 import { createRoot } from "react-dom/client";
 import TaskPhoto from "./TaskPhoto";
-import { MapProps, TaskPhotos } from "@/types";
+import { loadJQuery } from "@/helpers";
+import CustomPopup from "./CustomPopup";
+import { MapProps, Path, TaskPhotos } from "@/types";
 function Map({
     data,
     onClick,
     isSelected,
     isUnassigned,
     zoomFilter,
+    paths,
 }: MapProps) {
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +40,9 @@ function Map({
         return () => {
             mapRef.current?.remove();
         };
-    }, [data,mapStyle]);
+    }, [data, mapStyle]);
+    
+ 
 
     const loadMapBox = () => {
         mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -51,8 +57,31 @@ function Map({
             ],
         });
         mapRef.current.addControl(toggleControl, "top-left");
-        mapRef.current.addControl(new mapboxgl.NavigationControl()); 
-        data.length>0&&loadClustersAndImage();
+        mapRef.current.addControl(new mapboxgl.NavigationControl());
+        if (paths && data && paths.length > 0) {
+            const coordintates = paths.map((path: any) => {
+                let coordsArray = path.points.map((coord: any) => [
+                    coord.lng,
+                    coord.lat,
+                ]);
+                return coordsArray;
+            });
+
+            let bounds = calculateBoundingBox(coordintates.flat());
+            mapRef.current.fitBounds(bounds, {
+                padding: { top: 60, bottom: 60, left: 20, right: 20 },
+                duration: 0,
+                linear: true,
+            });
+
+            paths?.map((path) => {
+                loadPaths(path);
+            });
+        }
+        else
+        {
+            data.length > 0 && loadClustersAndImage();
+        }
     };
 
     const loadClustersAndImage = () => {
@@ -73,13 +102,17 @@ function Map({
                     linear: true,
                     zoom: 16,
                 });
+
                 insertMarkers();
             } else {
-                mapRef.current?.fitBounds(bounds, {
-                    padding: { top: 60, bottom: 60, left: 20, right: 20 },
-                    duration: 0,
-                    linear: true,
-                });
+                if (data.length > 0) {
+                    mapRef.current?.fitBounds(bounds, {
+                        padding: { top: 60, bottom: 200, left: 60, right: 60 },
+                        duration: 0,
+                        linear: true,
+                    });
+                  }
+
             }
             if (isUnassigned) {
                 mapRef.current?.on("moveend", async () => {
@@ -149,7 +182,7 @@ function Map({
                         })),
                     },
                     cluster: true,
-                    clusterMaxZoom: 14, 
+                    clusterMaxZoom: 14,
                     clusterRadius: 50,
                 });
 
@@ -201,7 +234,7 @@ function Map({
                         "text-size": 12,
                     },
                 });
-                
+
                 mapRef.current?.addLayer({
                     id: "unclustered-point",
                     type: "symbol",
@@ -223,7 +256,6 @@ function Map({
                     if (mapRef.current)
                         mapRef.current.getCanvas().style.cursor = "";
                 });
-
 
                 mapRef.current?.on("click", "clusters", (e: any) => {
                     const features: any = mapRef.current?.queryRenderedFeatures(
@@ -302,7 +334,7 @@ function Map({
         const clusters = mapRef.current?.queryRenderedFeatures({
             layers: ["circles-layer"],
         });
-        zoomFilter!(clusters?.map((photo) => photo.properties?.id));
+        zoomFilter!(clusters?.map((photo): String => photo.properties?.digest));
     }
 
     const updateUnclusteredIcon = () => {
@@ -315,7 +347,6 @@ function Map({
                 "none"
             );
         } else {
-            // Remove markers if they are currently added
             !isUnassigned &&
                 mapRef.current?.setLayoutProperty(
                     "unclustered-point",
@@ -330,7 +361,223 @@ function Map({
         }
     };
 
-    const loadPaths = () => {};
+    const loadPaths = (path: Path) => {
+        mapRef.current?.on("load", () => {
+            const coordinates = path?.points.map((point) => [
+                parseFloat(point.lng.toString()),
+                parseFloat(point.lat.toString()),
+            ]);
+
+            // Add the first point at the end to close the loop
+            coordinates.push(coordinates[0]);
+            // Add a data source containing GeoJSON data.
+            mapRef.current?.addSource(path.id.toString(), {
+                type: "geojson",
+                data: {
+                    type: "Feature",
+                    geometry: {
+                        type: "Polygon",
+                        // These coordinates outline Maine.
+                        coordinates: [coordinates],
+                    },
+                },
+            });
+            // Add a new layer to visualize the polygon.
+            mapRef.current?.addLayer({
+                id: path.id.toString(),
+                type: "fill",
+                source: path.id.toString(), // reference the data source
+                layout: {},
+                paint: {
+                    "fill-color": "#9a97f2", // blue color fill
+                    "fill-opacity": 0.2,
+                },
+            });
+            // Add a black outline around the polygon.
+            mapRef.current?.addLayer({
+                id: `outline_${path.id}`,
+                type: "line",
+                source: path.id.toString(),
+                layout: {},
+                paint: {
+                    "line-color": "#0401fc",
+                    "line-width": 2,
+                },
+            });
+
+            // Prepare point data for circles
+            const pointFeatures = coordinates.map(
+                (coord: any, index: number) => ({
+                    type: "Feature",
+                    geometry: {
+                        type: "Point",
+                        coordinates: coord,
+                    },
+                    properties: {
+                        details: path.points[--index],
+                        points: index,
+                    },
+                })
+            );
+
+            // Add a data source containing GeoJSON data for the points.
+            mapRef.current?.addSource(`points_${path.id}`, {
+                type: "geojson",
+                data: {
+                    type: "FeatureCollection",
+                    features: pointFeatures,
+                },
+            });
+
+            mapRef.current?.addLayer({
+                id: `circles_${path.id}`,
+                type: "circle",
+                source: `points_${path.id}`,
+                layout: {},
+                paint: {
+                    "circle-radius": 5,
+                    "circle-color": "#0401fc",
+                    "circle-stroke-width": 1,
+                    "circle-opacity": 0.8,
+                    "circle-stroke-color": "#0401fc",
+                },
+            });
+
+            // Add click event listeners to change colors to yellow
+            mapRef.current?.on("click", path.id.toString(), () => {
+                mapRef.current?.setPaintProperty(
+                    path.id.toString(),
+                    "fill-color",
+                    "#ffd219"
+                ); // yellow color
+                mapRef.current?.setPaintProperty(
+                    path.id.toString(),
+                    "fill-opacity",
+                    0.7
+                ); // yellow color
+                mapRef.current?.setPaintProperty(
+                    `outline_${path.id}`,
+                    "line-color",
+                    "#ffd219"
+                ); // yellow outline
+                mapRef.current?.setPaintProperty(
+                    `circles_${path.id}`,
+                    "circle-color",
+                    "#ffd219"
+                ); // yellow circles
+                mapRef.current?.setPaintProperty(
+                    `circles_${path.id}`,
+                    "circle-stroke-color",
+                    "#ffd219"
+                ); // yellow circles
+            });
+
+            mapRef.current?.on("click", `circles_${path.id}`, (e: any) => {
+                (async () => {
+                    const $ = await loadJQuery();
+                    $(".mapboxgl-popup-content")
+                        .removeClass("mapboxgl-popup-content")
+                        .addClass("cus-mapboxgl-popup-content");
+                    $(".mapboxgl-popup-close-button")
+                        .removeClass("mapboxgl-popup-close-button")
+                        .addClass("cus-mapboxgl-popup-close-button");
+                })();
+
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const details = JSON.parse(e.features[0].properties.details);
+                const points = JSON.parse(e.features[0].properties.points);
+
+                // Render the React component into the DOM element
+                const el: any = document.createElement("div");
+                const root = createRoot(el);
+                root.render(
+                    <CustomPopup
+                        points={points}
+                        pathText={path.name}
+                        latitude={details.lat}
+                        longitude={details.lng}
+                        altitude={details.altitude}
+                        accuracy={details.accuracy}
+                        time={details.created}
+                    /> // Pass any props you need
+                );
+
+                const popup = new mapboxgl.Popup({ maxWidth: "320px" })
+                    .setLngLat(coordinates)
+                    .setDOMContent(el)
+                    .addTo(mapRef.current!);
+            });
+
+            mapRef.current?.on("mouseenter", path.id.toString(), () => {
+                mapRef.current!.getCanvas().style.cursor = "pointer";
+            });
+
+            mapRef.current?.on("mouseleave", path.id.toString(), () => {
+                mapRef.current!.getCanvas().style.cursor = "";
+            });
+
+            // Click event on the map to detect if the click is outside the polygon
+            mapRef.current?.on("click", (e: any) => {
+                const features = mapRef.current?.queryRenderedFeatures(
+                    e.point,
+                    {
+                        layers: [path.id.toString()], // check for clicks on the 'maine' polygon
+                    }
+                );
+
+                if (!features?.length) {
+                    // If no features are returned, the click was outside the polygon
+                    mapRef.current?.setPaintProperty(
+                        path.id.toString(),
+                        "fill-color",
+                        "#9a97f2"
+                    ); // reset to initial color
+                    mapRef.current?.setPaintProperty(
+                        `outline_${path.id}`,
+                        "line-color",
+                        "#0401fc"
+                    ); // reset outline to initial color
+                    mapRef.current?.setPaintProperty(
+                        `circles_${path.id}`,
+                        "circle-color",
+                        "#0401fc"
+                    ); // yellow circles
+                    mapRef.current?.setPaintProperty(
+                        `circles_${path.id}`,
+                        "circle-stroke-color",
+                        "#0401fc"
+                    ); // yellow circles
+                }
+            });
+
+            // Get the first point of the polygon
+            let firstPoint = coordinates[0];
+
+            // Adjust the latitude of the first point to move the text box
+            const adjustedLatitude = firstPoint[1] + 0.0003; // Shift up by 0.001 degrees
+            firstPoint = [firstPoint[0], adjustedLatitude]; // Update the first point with the new latitude
+
+            // Create a custom HTML element (a simple text box)
+            const textBox = document.createElement("div");
+            textBox.textContent = path.name; // Set your desired text
+            textBox.style.backgroundColor = "white"; // White background
+            textBox.style.fontSize = "14px"; // White background
+            textBox.style.border = "1px solid #ccc"; // Light grey border
+            textBox.style.padding = "10px"; // Padding inside the box
+            textBox.style.paddingRight = "20px"; // Padding inside the box
+
+            textBox.style.borderRadius = "3px"; // Rounded corners
+            textBox.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)"; // Subtle shadow
+
+            // Create a marker using the custom HTML element
+            const marker = new mapboxgl.Marker({
+                element: textBox, // Use the custom div element
+                anchor: "bottom", // Position marker relative to the element
+            })
+                .setLngLat(firstPoint) // Position at the first point
+                .addTo(mapRef.current!); // Add to the map
+        });
+    };
 
     return (
         <div

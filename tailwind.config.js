@@ -17,7 +17,7 @@ export default {
                 sans: ["Figtree", ...defaultTheme.fontFamily.sans],
             },
             height: {
-                "3/4-screen": "50vh", // 3/4 of the viewport height
+                "3/4-screen": "71vh", // 3/4 of the viewport height
             },
        
         },
