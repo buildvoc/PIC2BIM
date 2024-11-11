@@ -572,7 +572,8 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'created',
             'path',
             'file_name',
-            'digest'
+            'digest',
+            'id'
         ])
         ->where('flg_deleted', 0);
 
@@ -628,6 +629,7 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'id' => $photo->id
         ];
         $file = null;
         $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
@@ -712,6 +714,9 @@ function getPhotosWithoutTask($user_id)
             'path',
             'file_name',
             'digest',
+            'id'
+
+            
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -761,6 +766,8 @@ function getPhotosWithoutTask($user_id)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'id' => $photo->id
+
         ];
 
         $file = null;

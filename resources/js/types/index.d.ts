@@ -77,7 +77,9 @@ export interface Task {
 }
 
 export interface Photo {
+  id:number;
   altitude: number;
+  angle:number;
   vertical_view_angle: number | null;
   distance: number | null;
   nmea_distance: number | null;
@@ -120,6 +122,7 @@ export interface Photo {
   file_name: string;
   digest: string;
   photo: string | null;
+  check:boolean
 }
 
 export interface TaskPhotos extends Task{
@@ -133,7 +136,7 @@ export interface Tasks extends Task{
 
 export interface MapProps{
   data:Array<TaskPhotos>;
-  onClick?:() => void;
+  onClick?:(taskId:number) => void;
   isSelected?:boolean;
   isUnassigned?:boolean;
   paths?:Array<Path>;
@@ -172,6 +175,16 @@ export interface GalleryProps{
   isUnassigned?:boolean
 }
 
+export interface GalleryModalProps{
+  modal:any;
+  setModal:any;
+  handleClose:()=>void;
+  photos:Array<Photo>;
+  rotateLeft:(digest:string,direction:string)=>void;
+  rotateRight:(digest:string,direction:string)=>void;
+
+}
+
 export type PageProps<
   T extends Record<string, unknown> = Record<string, unknown>
 > = T & {
@@ -185,6 +198,7 @@ export type PageProps<
   task:Task;
   tasks:Array<Tasks>;
   photos:Array<Photo>;
+  photo:Photo;
   paths:Array<Path>
   ziggy: Config & { location: string };
 };

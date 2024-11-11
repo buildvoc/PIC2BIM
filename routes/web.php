@@ -43,7 +43,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     Route::get('/user_paths', [FarmerPathsController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('user_paths');
-    Route::get('/photo_detail', [PhotoDetailController::class, 'index'])
+    Route::get('/photo_detail/{id}', [PhotoDetailController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('photo_detail');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])

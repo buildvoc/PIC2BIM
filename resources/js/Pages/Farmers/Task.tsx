@@ -7,6 +7,7 @@ import { FaSignOutAlt } from "react-icons/fa";
 import { Link } from "@inertiajs/react";
 import ButtonMap from "@/Components/Map/ButtonMap";
 import TaskGallery from "@/Components/TaskGallery/TaskGallery";
+
 export function Task_({ auth, task, photos }: PageProps) {
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<
         Array<TaskPhotos>
@@ -66,7 +67,7 @@ export function Task_({ auth, task, photos }: PageProps) {
                                 },
                                 {
                                     label: "Reopen reason",
-                                    name: "text_reason",
+                                    name: "text_reason_",
                                 },
                                 {
                                     label: "Date Created",

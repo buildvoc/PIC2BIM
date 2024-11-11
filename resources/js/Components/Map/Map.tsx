@@ -102,12 +102,10 @@ function Map({
                     linear: true,
                     zoom: 16,
                 });
-                console.log("bound 2 call--- ")
 
                 insertMarkers();
             } else {
                 if (data.length > 0) {
-                    console.log("bound 1 call---")
                     mapRef.current?.fitBounds(bounds, {
                         padding: { top: 60, bottom: 200, left: 60, right: 60 },
                         duration: 0,

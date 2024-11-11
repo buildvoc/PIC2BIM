@@ -309,6 +309,10 @@ export function Index({ auth, tasks }: PageProps) {
         }
     };
 
+    const handle_toggle_task_details = (taskId: number) => {
+        router.get(route("task",taskId));
+      };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -403,7 +407,10 @@ export function Index({ auth, tasks }: PageProps) {
                     <div className="max-w mx-auto sm:px-4">
                         <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                             <div>
-                                <ButtonMap data={filter_tasks_photos} />
+                                <ButtonMap
+                                    data={filter_tasks_photos}
+                                    onClick={handle_toggle_task_details}
+                                />
                                 <form
                                     onSubmit={submit}
                                     className="flex gap-8 py-5 pl-5 items-center"
