@@ -185,6 +185,9 @@ function setPhoto($photo, $user_id, $task_id)
                     'flg_original' => $flg_original,
                 ]);
             }
+        }else{
+            $status['status'] = 'error';
+            $status['error_msg'] = 'Photo already exists.';
         }
 
         DB::commit();
