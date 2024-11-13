@@ -9,6 +9,15 @@ use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FarmerController;
+use App\Http\Controllers\FarmerTaskController;
+use App\Http\Controllers\FarmerPathsController;
+use App\Http\Controllers\PhotoGalleryController;
+use App\Http\Controllers\PhotoDetailController;
+use App\Http\Controllers\PdfPreviewController;
+
+
+
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -21,6 +30,26 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+    
+    Route::get('/user_task', [FarmerController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('user_task.index');
+    Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('task');
+    Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('photo_gallery');
+    Route::get('/user_paths', [FarmerPathsController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('user_paths');
+    Route::get('/photo_detail/{id}', [PhotoDetailController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('photo_detail');
+    Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('pdf_preview');
+
 
 Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -34,6 +63,7 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::get('/invite/{id}/officer', [OfficerController::class , 'invite'])->name('officers.invite');
     Route::post('/invite/officer', [OfficerController::class , 'sendInvite'])->name('officer.invite');
 })->middleware(['auth', 'verified']);
+
 
 
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);

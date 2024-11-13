@@ -8,7 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { useState } from 'react';
 
-export default function Dashboard({ auth }: PageProps) {  
+export default function Dashboard({ auth }: PageProps) { 
   const { users,sortColumn ,sortOrder,search  } = usePage<{
     users: PaginatedData<Officer>;
     sortColumn : string;

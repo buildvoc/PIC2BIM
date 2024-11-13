@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -20,10 +21,12 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $roles = $user->rolesArray();
-        
+
         if(in_array('ADMIN',$roles)) return redirect()->route('dashboard.agencies.index');
         
         if(in_array('OFFICER',$roles)) return redirect()->route('users.index');
+
+        if(in_array('FARMER',$roles)) return redirect()->route('user_task.index');
 
         return redirect()->route('dashboard.agencies.index');
     }
