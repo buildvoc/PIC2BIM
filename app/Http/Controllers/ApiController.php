@@ -208,7 +208,7 @@ class ApiController extends Controller
             'status' => 'ok',
             'error_msg' => null,
         ];
-
+        
         if ($photo_json) {
             if ($user_id) {
                 if ($status_ok) {

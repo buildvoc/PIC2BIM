@@ -62,7 +62,7 @@ export interface PaginationLink {
 export interface Task {
   id?:number;
   status?: string;
-  number_of_photos?: number;
+  photo_taken?: number;
   name?: string;
   text?: string;
   note?: string;

@@ -38,11 +38,11 @@ function setPath($user_id, $name, $start, $end, $area, $device_manufacture, $dev
             foreach ($points as $point) {
                 PathPoint::create([
                     'path_id' => $path_id,
-                    'lat' => $point['lat'] ?: null,
-                    'lng' => $point['lng'] ?: null,
-                    'altitude' => $point['altitude'] ?: null,
-                    'accuracy' => $point['accuracy'] ?: null,
-                    'created' => $point['created'] ? gmdate('Y-m-d H:i:s', strtotime($point['created'])) : null,
+                    'lat' => $point['lat'] ?? null,
+                    'lng' => $point['lng'] ?? null,
+                    'altitude' => $point['altitude'] ?? null,
+                    'accuracy' => $point['accuracy'] ?? null,
+                    'created' => isset($point['created']) && $point['created'] ? gmdate('Y-m-d H:i:s', strtotime($point['created'])) : null,
                 ]);
 
                 $points_count++;

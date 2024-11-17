@@ -5,7 +5,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Task;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\DB;
 
  class FarmerController extends Controller
 {
@@ -28,17 +28,77 @@ use Illuminate\Support\Facades\Auth;
             'task_id'
             ]);
         }])
-        ->select('id', 'task.status','type_id', 'name', 'text', 'date_created', 'task_due_date'  )
+        ->has('photos')
+        // ->select('id', 'task.status', 'type_id', 'name', 'text', 'date_created', 'task_due_date')
+        ->select(
+            'task.id',
+            'task.status',
+            'task.name',
+            'task.text',
+            'task.date_created as created',
+            'task.task_due_date as due',
+            DB::raw('DATE_FORMAT(task.date_created, "%d-%m-%Y") as date_created'),
+            DB::raw('DATE_FORMAT(task.task_due_date, "%d-%m-%Y") as task_due_date'),
+            DB::raw('COUNT(photo.id) as photo_taken'),
+            'task_flag.flag_id',
+            'status_sortorder.sortorder'
+        )
         ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0, "1", "0") AS flag_valid')
         ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0, "1", "0") AS flag_invalid')
-        ->where('user_id', $user_id)
-        ->where('flg_deleted', 0)
-        ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status')
-        ->orderBy('status_sortorder.sortorder')
-        ->get()
-        ->map(function ($task) {
+        ->where('task.user_id', $user_id)
+        ->where('task.flg_deleted', 0)
+        ->leftJoin('photo', 'task.id', '=', 'photo.task_id')
+        ->leftJoin('task_flag', 'task.id', '=', 'task_flag.task_id')
+        ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status');
+
+        if (!empty($search)) {
+            $tasks->where('task.name', 'LIKE', '%' . $search . '%');
+        }
+        
+        $selectedStatuses = explode(",",$request->status);
+        if($request->has('status')) {
+            $filtersVal = $selectedStatuses;
+            if(!in_array('new',$selectedStatuses)) $tasks->where('task.status','!=','new');
+            if(!in_array('open',$selectedStatuses)) $tasks->where('task.status','!=','open');
+            if(!in_array('data provided',$selectedStatuses)) $tasks->where('task.status','!=','data provided');
+            if(!in_array('returned',$selectedStatuses)) $tasks->where('task.status','!=','returned');
+            if(!in_array('accepted',$selectedStatuses)) {
+                $tasks->where(function($q){
+                    $q->whereNull('task_flag.flag_id')->orWhere('task_flag.flag_id','!=',1);
+                });
+                
+            }
+            if(!in_array('declined',$selectedStatuses)) {
+                $tasks->where(function($q){
+                    $q->whereNull('task_flag.flag_id')->orWhere('task_flag.flag_id','!=',2);
+                });
+            }
+        }
+        $sortColumn = 'status_sortorder.sortorder';$sortOrder='asc';
+        
+        if($request->sortColumn && $request->sortOrder){
+            $sortColumn = $request->sortColumn;
+            $sortOrder = $request->sortOrder;
+            $tasks->orderBy($sortColumn,$sortOrder);
+        }else{
+            $tasks->orderByRaw('status_sortorder.sortorder ASC, created DESC');
+        }
+
+        $tasks = $tasks->orderBy('status_sortorder.sortorder');
+        $tasks = $tasks->groupBy([
+            'task.id', 
+            'task.status', 
+            'task.name', 
+            'task.text', 
+            'date_created', 
+            'task_due_date', 
+            'task_flag.flag_id',
+            'status_sortorder.sortorder'
+        ])
+        ->paginate(10) // Add pagination here with 10 items per page
+        ->through(function ($task) {
             $photos = $task->photos->map(function ($photo) {
-                $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
+                $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
                 $file = null;
                 if (file_exists($filePath)) {
                     $file = file_get_contents($filePath);
@@ -61,13 +121,12 @@ use Illuminate\Support\Facades\Auth;
                 'text' => $task->text,
                 'date_created' => $task->date_created,
                 'task_due_date' => $task->task_due_date,
-                'number_of_photos' => $task->photos->count(),
+                'photo_taken' => $task->photos->count(),
                 'flag_valid' => $task->flag_valid,
-                'photos' => $photos->toArray() 
+                'photos' => $photos->toArray(),
             ];
         });
-    
-        return Inertia::render('Farmers/Index',compact('tasks'));
+        return Inertia::render('Farmers/Index',compact('tasks','sortColumn','sortOrder','selectedStatuses'));
     }
 
 
