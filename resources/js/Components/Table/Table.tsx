@@ -89,7 +89,6 @@ export default function Table<T>({
                             onChange={(e) => setSearchValue(e.target.value)}
                             style={{
                                 background: "transparent",
-                                color: "white",
                             }}
                         />
                     </div>

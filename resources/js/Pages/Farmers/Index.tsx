@@ -420,7 +420,6 @@ export function Index({ auth, tasks }: PageProps) {
                                             name="name"
                                             style={{
                                                 background: "transparent",
-                                                color: "white",
                                             }}
                                         />
                                     </span>
