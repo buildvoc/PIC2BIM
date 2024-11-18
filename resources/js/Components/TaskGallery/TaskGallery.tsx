@@ -59,7 +59,7 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
                                 {isUnassigned && (
                                     <FaTrash
                                         className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                        onClick={() => destroy(photo.id)}
+                                        onClick={() => destroy!(photo.id)}
                                     />
                                 )}
                                 <FaSync

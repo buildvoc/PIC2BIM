@@ -173,7 +173,7 @@ export interface PathFilter{
 export interface GalleryProps{
   photos:Array<Photo>;
   isUnassigned?:boolean;
-  destroy:(id:number)=>void
+  destroy?:(id:number)=>void
 }
 
 export interface GalleryModalProps{

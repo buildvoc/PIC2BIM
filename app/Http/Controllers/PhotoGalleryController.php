@@ -19,7 +19,7 @@ class PhotoGalleryController extends Controller
 
     public function destroy(Request $request, String $id): RedirectResponse
     {
-    //    deleteUnassignedPhoto($id);
+       deleteUnassignedPhoto($id);
         return redirect()->route('photo_gallery');
     }
 }
