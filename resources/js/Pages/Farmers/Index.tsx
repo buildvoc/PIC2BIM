@@ -67,9 +67,7 @@ export function Index({ auth }: PageProps) {
     const tasksPhotos = tasks_photos_array;
     
     const [filter_tasks, set_filter_tasks] = useState<Array<Task>>(tasks_);
-    const [filter_tasks_photos, set_filter_tasks_photos] = useState<
-        Array<TaskPhotos>
-    >([]);
+    const [filter_tasks_photos, set_filter_tasks_photos] = useState<Array<TaskPhotos>>(tasksPhotos);
 
     const [selectedFilters, setSelectedFilters] = useState(() => {
         try {
@@ -144,7 +142,6 @@ export function Index({ auth }: PageProps) {
             set_filter_tasks_photos(filter_tasks_photos);
         }
     };
-
     const areTasksEqual = (
         prevTasks: Array<Task>,
         nextTasks: Array<Task>
