@@ -15,7 +15,7 @@ export default function TextInput({
       id={name}
       name={name}
       {...props}
-      className={`form-input w-full dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded ${
+      className={`form-input w-full text-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 border-gray-300 rounded ${
         error ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : ''
       } ${className}`}
     />
