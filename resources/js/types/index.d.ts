@@ -172,7 +172,8 @@ export interface PathFilter{
 
 export interface GalleryProps{
   photos:Array<Photo>;
-  isUnassigned?:boolean
+  isUnassigned?:boolean;
+  destroy:(id:number)=>void
 }
 
 export interface GalleryModalProps{
@@ -183,6 +184,11 @@ export interface GalleryModalProps{
   rotateLeft:(digest:string,direction:string)=>void;
   rotateRight:(digest:string,direction:string)=>void;
 
+}
+
+export interface SplitViewState {
+  split: boolean;
+  single: boolean;
 }
 
 export type PageProps<

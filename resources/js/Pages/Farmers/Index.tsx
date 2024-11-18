@@ -9,11 +9,15 @@ import { FaTimesCircle } from "react-icons/fa";
 import Table from "@/Components/Table/Table";
 import { FormEventHandler } from "react";
 import { FILTERS_DATA } from "@/Constants/Constants";
-import { TaskPhotos, Task } from "@/types";
+import { TaskPhotos, Task, SplitViewState } from "@/types";
 import ButtonMap from "@/Components/Map/ButtonMap";
 export function Index({ auth, tasks }: PageProps) {
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
+    const [splitView, setSplitView] = useState<SplitViewState>({
+        split: true,
+        single: false,
+    });
     const previousTasksRef = useRef<any>([]);
     for (let task of tasks) {
         let tasks_data: Task = {
@@ -310,9 +314,268 @@ export function Index({ auth, tasks }: PageProps) {
     };
 
     const handle_toggle_task_details = (taskId: number) => {
-        router.get(route("task",taskId));
-      };
+        router.get(route("task", taskId));
+    };
 
+    const LeftPane = () => {
+        return (
+            <div
+                className={`w-full py-12  ${
+                    splitView.split ? "md:w-1/2  " : ""
+                } `}
+            >
+                {" "}
+                <div className="max-w mx-auto sm:px-4 ">
+                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg ">
+                        <button
+                            onClick={() => {
+                                sortData("reset");
+                            }}
+                            className="flex gap-3 py-5 pl-5 items-center text-white  dark:border-gray-700"
+                        >
+                            <span>
+                                <FaTimesCircle size={18} />
+                            </span>
+                            CANCEL SORTING
+                        </button>
+                        <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
+                            {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
+                        </div>
+                        <div
+                            className={`h-3/4-screen ${
+                                splitView.split ? "overflow-y-auto" : ""
+                            } `}
+                        >
+                            <Table
+                                columns={[
+                                    {
+                                        label: "Status",
+                                        name: "status",
+                                    },
+                                    {
+                                        label: "Photos taken",
+                                        name: "number_of_photos",
+                                    },
+                                    {
+                                        label: "Name",
+                                        name: "name",
+                                    },
+                                    {
+                                        label: "Description",
+                                        name: "text",
+                                    },
+                                    {
+                                        label: "Date Created",
+                                        name: "date_created",
+                                    },
+                                    {
+                                        label: "Due date",
+                                        name: "task_due_date",
+                                    },
+                                    {
+                                        label: "Acception",
+                                        name: "acception",
+                                        renderCell: (row: Task) => (
+                                            <>
+                                                <button
+                                                    className={`w-24 ${
+                                                        row.status ==
+                                                        "data provided"
+                                                            ? "bg-blue-500"
+                                                            : "bg-green-500"
+                                                    }  font-semibold text-white   py-1.5 rounded-lg`}
+                                                >{`${
+                                                    row.status ==
+                                                    "data provided"
+                                                        ? "Waiting"
+                                                        : "Accepted"
+                                                }`}</button>
+                                            </>
+                                        ),
+                                    },
+                                ]}
+                                onHeaderClick={(label) =>
+                                    sortData(label.toLowerCase())
+                                }
+                                rows={filter_tasks}
+                                sortConfig={sortConfig}
+                                onRowClick={(row) => {
+                                    router.get(route("task", row.id));
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+    const RightPane = () => {
+        return (
+            <div
+                className={`w-full py-12  ${
+                    splitView.split ? "md:w-1/2  " : ""
+                } `}
+            >
+                <div className="max-w mx-auto sm:px-4">
+                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                        <div>
+                            <ButtonMap
+                                data={filter_tasks_photos}
+                                onClick={handle_toggle_task_details}
+                            />
+                            <form
+                                onSubmit={submit}
+                                className="flex gap-8 py-5 pl-5 items-center"
+                            >
+                                <span>
+                                    <TextInput
+                                        name="name"
+                                        style={{
+                                            background: "transparent",
+                                            color: "white",
+                                        }}
+                                    />
+                                </span>
+                                <button type="submit">
+                                    <FaSearch size={18} color="white" />
+                                </button>
+                            </form>
+
+                            <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                                Status filter:
+                            </h5>
+                            <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">
+                                <Checkbox
+                                    data-fieldtype="new"
+                                    onChange={handleCheckboxChange}
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["new"]
+                                    }
+                                    className="sm:mb-1 lg:mb-0"
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    New
+                                </span>
+                                <Checkbox
+                                    className="ml-5 sm:mb-1 lg:mb-0"
+                                    data-field="status"
+                                    data-fieldtype="open"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["open"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    Open
+                                </span>
+                                <Checkbox
+                                    className="ml-5 sm:mb-1 lg:mb-0"
+                                    data-field="status"
+                                    data-fieldtype="data provided"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["data provided"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    Data provided
+                                </span>
+                                <Checkbox
+                                    className="ml-5 sm:mb-1 lg:mb-0"
+                                    data-field="status"
+                                    data-fieldtype="returned"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["returned"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    Returned
+                                </span>
+                                <Checkbox
+                                    className="ml-5 sm:mb-1 lg:mb-0"
+                                    data-field="flag"
+                                    data-fieldtype="accepted"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["accepted"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    Accepted
+                                </span>
+                                <Checkbox
+                                    className="ml-5 sm:mb-1 lg:mb-0"
+                                    data-field="flag"
+                                    data-fieldtype="declined"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["declined"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    Declined
+                                </span>
+                            </div>
+                            <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                                Sort:
+                            </h5>
+                            <div className=" p-4">
+                                <Checkbox
+                                    className=" sm:mb-1 "
+                                    name="remember"
+                                    data-field="after deadline"
+                                    data-fieldtype="after deadline"
+                                    checked={
+                                        selectedFilters &&
+                                        !!selectedFilters["after deadline"]
+                                    }
+                                    onChange={handleCheckboxChange}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    After deadline last
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -321,246 +584,22 @@ export function Index({ auth, tasks }: PageProps) {
                     Tasks
                 </h2>
             }
+            setSplitView={setSplitView}
+            splitView={splitView}
         >
             <Head title="Task list" />
             <div className="flex flex-wrap ">
-                <div className="w-full md:w-1/2  py-12">
-                    <div className="max-w mx-auto sm:px-4 ">
-                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg ">
-                            <button
-                                onClick={() => {
-                                    sortData("reset");
-                                }}
-                                className="flex gap-3 py-5 pl-5 items-center text-white  dark:border-gray-700"
-                            >
-                                <span>
-                                    <FaTimesCircle size={18} />
-                                </span>
-                                CANCEL SORTING
-                            </button>
-                            <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
-                                {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
-                            </div>
-                            <div className="overflow-y-auto  h-3/4-screen ">
-                                <Table
-                                    columns={[
-                                        {
-                                            label: "Status",
-                                            name: "status",
-                                        },
-                                        {
-                                            label: "Photos taken",
-                                            name: "number_of_photos",
-                                        },
-                                        {
-                                            label: "Name",
-                                            name: "name",
-                                        },
-                                        {
-                                            label: "Description",
-                                            name: "text",
-                                        },
-                                        {
-                                            label: "Date Created",
-                                            name: "date_created",
-                                        },
-                                        {
-                                            label: "Due date",
-                                            name: "task_due_date",
-                                        },
-                                        {
-                                            label: "Acception",
-                                            name: "acception",
-                                            renderCell: (row: Task) => (
-                                                <>
-                                                    <button
-                                                        className={`w-24 ${
-                                                            row.status ==
-                                                            "data provided"
-                                                                ? "bg-blue-500"
-                                                                : "bg-green-500"
-                                                        }  font-semibold text-white   py-1.5 rounded-lg`}
-                                                    >{`${
-                                                        row.status ==
-                                                        "data provided"
-                                                            ? "Waiting"
-                                                            : "Accepted"
-                                                    }`}</button>
-                                                </>
-                                            ),
-                                        },
-                                    ]}
-                                    onHeaderClick={(label) =>
-                                        sortData(label.toLowerCase())
-                                    }
-                                    rows={filter_tasks}
-                                    sortConfig={sortConfig}
-                                    onRowClick={(row) => {
-                                        router.get(route("task", row.id));
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="w-full md:w-1/2 py-12">
-                    <div className="max-w mx-auto sm:px-4">
-                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                            <div>
-                                <ButtonMap
-                                    data={filter_tasks_photos}
-                                    onClick={handle_toggle_task_details}
-                                />
-                                <form
-                                    onSubmit={submit}
-                                    className="flex gap-8 py-5 pl-5 items-center"
-                                >
-                                    <span>
-                                        <TextInput
-                                            name="name"
-                                            style={{
-                                                background: "transparent",
-                                            }}
-                                        />
-                                    </span>
-                                    <button type="submit">
-                                        <FaSearch size={18} color="white" />
-                                    </button>
-                                </form>
-
-                                <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                                    Status filter:
-                                </h5>
-                                <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">
-                                    <Checkbox
-                                        data-fieldtype="new"
-                                        onChange={handleCheckboxChange}
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["new"]
-                                        }
-                                        className="sm:mb-1 lg:mb-0"
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        New
-                                    </span>
-                                    <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
-                                        data-field="status"
-                                        data-fieldtype="open"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["open"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        Open
-                                    </span>
-                                    <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
-                                        data-field="status"
-                                        data-fieldtype="data provided"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["data provided"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        Data provided
-                                    </span>
-                                    <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
-                                        data-field="status"
-                                        data-fieldtype="returned"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["returned"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        Returned
-                                    </span>
-                                    <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
-                                        data-field="flag"
-                                        data-fieldtype="accepted"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["accepted"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        Accepted
-                                    </span>
-                                    <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
-                                        data-field="flag"
-                                        data-fieldtype="declined"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["declined"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        Declined
-                                    </span>
-                                </div>
-                                <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                                    Sort:
-                                </h5>
-                                <div className=" p-4">
-                                    <Checkbox
-                                        className=" sm:mb-1 "
-                                        name="remember"
-                                        data-field="after deadline"
-                                        data-fieldtype="after deadline"
-                                        checked={
-                                            selectedFilters &&
-                                            !!selectedFilters["after deadline"]
-                                        }
-                                        onChange={handleCheckboxChange}
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        After deadline last
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {splitView.split ? (
+                    <>
+                        <LeftPane />
+                        <RightPane />
+                    </>
+                ) : (
+                    <>
+                        <RightPane />
+                        <LeftPane />
+                    </>
+                )}
             </div>
         </AuthenticatedLayout>
     );

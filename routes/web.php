@@ -30,23 +30,25 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
-    
-    Route::get('/user_task', [FarmerController::class, 'index'])
+Route::get('/user_task', [FarmerController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('user_task.index');
-    Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
+Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('task');
-    Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
+Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('photo_gallery');
-    Route::get('/user_paths', [FarmerPathsController::class, 'index'])
+Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
+    ->middleware(['auth', 'verified'])
+    ->name('photo_gallery.destroy');
+Route::get('/user_paths', [FarmerPathsController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('user_paths');
-    Route::get('/photo_detail/{id}', [PhotoDetailController::class, 'index'])
+Route::get('/photo_detail/{id}', [PhotoDetailController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('photo_detail');
-    Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
+Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('pdf_preview');
 
@@ -60,21 +62,21 @@ Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
     Route::patch('/{agency}', [AgencyController::class, 'update'])->name('update');
     Route::delete('/{agency}', [AgencyController::class, 'destroy'])->name('destroy');
     Route::resource('/officers', OfficerController::class);
-    Route::get('/invite/{id}/officer', [OfficerController::class , 'invite'])->name('officers.invite');
-    Route::post('/invite/officer', [OfficerController::class , 'sendInvite'])->name('officer.invite');
+    Route::get('/invite/{id}/officer', [OfficerController::class, 'invite'])->name('officers.invite');
+    Route::post('/invite/officer', [OfficerController::class, 'sendInvite'])->name('officer.invite');
 })->middleware(['auth', 'verified']);
 
 
 
 Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
 Route::resource('/users', UserController::class)->middleware(['auth', 'verified']);
-Route::get('/unassigned_users', [UserController::class,'unassignedUsers'])->name('users.unassigned');
-Route::get('/assign_user/{id?}', [UserController::class,'assign_user'])->name('users.assign');
+Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
+Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
 Route::resource('/tasks', TasksController::class)->middleware(['auth', 'verified']);
-Route::post('/tasks/bulk-accept',[TasksController::class,'acceptTaskPhotos'])->name('tasks.bulkAccept');
-Route::post('/tasks/decline',[TasksController::class,'declineTaskPhotos'])->name('tasks.decline');
-Route::post('/tasks/return',[TasksController::class,'returnTaskPhotos'])->name('tasks.return');
-Route::post('/tasks/move-from-open/{id?}',[TasksController::class,'moveFromOpen'])->name('task.moveOpen');
+Route::post('/tasks/bulk-accept', [TasksController::class, 'acceptTaskPhotos'])->name('tasks.bulkAccept');
+Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
+Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
+Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -85,7 +87,7 @@ Route::middleware('auth')->group(function () {
 
 Route::post('/comm_login', [UserController::class, 'createToken']);
 
-Route::middleware('auth:sanctum')->group(function(){
+Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_get_paths', [ApiController::class, 'comm_get_paths']);
     Route::post('/comm_unassigned', [ApiController::class, 'comm_unassigned']);
     Route::post('/comm_tasks', [ApiController::class, 'comm_tasks']);
@@ -101,4 +103,4 @@ Route::middleware('auth:sanctum')->group(function(){
 });
 
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

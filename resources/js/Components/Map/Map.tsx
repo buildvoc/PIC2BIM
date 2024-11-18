@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, memo } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "./map.css"
+import "./map.css";
 import ToggleControl from "./ToggleControl";
 import { createRoot } from "react-dom/client";
 import TaskPhoto from "./TaskPhoto";
@@ -41,8 +41,6 @@ function Map({
             mapRef.current?.remove();
         };
     }, [data, mapStyle]);
-    
- 
 
     const loadMapBox = () => {
         mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -58,6 +56,7 @@ function Map({
         });
         mapRef.current.addControl(toggleControl, "top-left");
         mapRef.current.addControl(new mapboxgl.NavigationControl());
+
         if (paths && data && paths.length > 0) {
             const coordintates = paths.map((path: any) => {
                 let coordsArray = path.points.map((coord: any) => [
@@ -77,9 +76,7 @@ function Map({
             paths?.map((path) => {
                 loadPaths(path);
             });
-        }
-        else
-        {
+        } else {
             data.length > 0 && loadClustersAndImage();
         }
     };
@@ -87,8 +84,10 @@ function Map({
     const loadClustersAndImage = () => {
         const coordintates = data.map((task: TaskPhotos) => task.location);
         let bounds = calculateBoundingBox(coordintates);
+        onSuddenchange();
 
         mapRef.current?.on("load", () => {
+
             data.forEach((task: TaskPhotos) => {
                 addMarkers(task);
             });
@@ -111,8 +110,7 @@ function Map({
                         duration: 0,
                         linear: true,
                     });
-                  }
-
+                }
             }
             if (isUnassigned) {
                 mapRef.current?.on("moveend", async () => {
@@ -120,6 +118,9 @@ function Map({
                 });
             }
             mapRef.current?.on("zoom", () => {
+                console.log("zoom---");
+                const zoomLevel = mapRef.current?.getZoom();
+                console.log("zoom ---", zoomLevel);
                 updateUnclusteredIcon();
             });
 
@@ -377,9 +378,9 @@ function Map({
                     type: "Feature",
                     geometry: {
                         type: "Polygon",
-                        coordinates: [coordinates],                        
+                        coordinates: [coordinates],
                     },
-                    properties:{}
+                    properties: {},
                 },
             });
             // Add a new layer to visualize the polygon.
@@ -406,7 +407,7 @@ function Map({
             });
 
             // Prepare point data for circles
-            const pointFeatures:any = coordinates.map(
+            const pointFeatures: any = coordinates.map(
                 (coord: any, index: number) => ({
                     type: "Feature",
                     geometry: {
@@ -551,7 +552,7 @@ function Map({
             });
 
             // Get the first point of the polygon
-            let firstPoint:any = coordinates[0];
+            let firstPoint: any = coordinates[0];
 
             // Adjust the latitude of the first point to move the text box
             const adjustedLatitude = firstPoint[1] + 0.0003; // Shift up by 0.001 degrees
@@ -578,6 +579,40 @@ function Map({
                 .addTo(mapRef.current!); // Add to the map
         });
     };
+
+
+    function onSuddenchange (){
+        let previousZoom: any;
+        let previousCenter: any;
+        mapRef.current?.on("movestart", () => {
+            console.log("Map movement started");
+            previousZoom = mapRef.current?.getZoom();
+            previousCenter = mapRef.current?.getCenter();
+        });
+
+        mapRef.current?.on("moveend", () => {
+            console.log("Map movement ended");
+            const currentZoom = mapRef.current?.getZoom();
+            const currentCenter = mapRef.current?.getCenter();
+            if (previousZoom && Math.abs(currentZoom! - previousZoom) > 2) {
+                console.log(
+                    "Sudden zoom change detected!",
+                    Math.abs(currentZoom! - previousZoom)
+                );
+                if (Math.abs(currentZoom! - previousZoom) > 12) {
+                    insertMarkers();
+                }
+            }
+
+            if (
+                previousCenter &&
+                (Math.abs(currentCenter!.lng - previousCenter.lng) > 0.1 ||
+                    Math.abs(currentCenter!.lat - previousCenter.lat) > 0.1)
+            ) {
+                console.log("Sudden center change detected!");
+            }
+        });
+    }
 
     return (
         <div
