@@ -1,6 +1,6 @@
 import { PageProps } from "@/types";
 import { memo, useEffect, useState, useRef, useLayoutEffect } from "react";
-import { Head, router, useForm } from "@inertiajs/react";
+import { Head, router, useForm, usePage } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import TextInput from "@/Components/Form/TextInput";
 import { FaSearch } from "react-icons/fa";
@@ -9,9 +9,29 @@ import { FaTimesCircle } from "react-icons/fa";
 import Table from "@/Components/Table/Table";
 import { FormEventHandler } from "react";
 import { FILTERS_DATA } from "@/Constants/Constants";
-import { TaskPhotos, Task, SplitViewState } from "@/types";
+import { TaskPhotos, Task, SplitViewState, PaginatedData, Tasks } from "@/types";
 import ButtonMap from "@/Components/Map/ButtonMap";
-export function Index({ auth, tasks }: PageProps) {
+export function Index({ auth }: PageProps) {
+
+    
+    const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors,filtersVal  } = usePage<{
+        tasks: PaginatedData<Tasks>;
+        sortColumn : string;
+        sortOrder : 'asc' | 'desc';
+        search : string;
+        selectedStatuses : string[],
+        errors : string[],
+        filtersVal : string[]
+      }>().props;
+      const {
+        data,
+        total,
+        links
+      } = tasks;
+    function handleSort(column : string, order : 'asc' | 'desc'){
+        applyFilters({search : search, sortColumn : column , sortOrder : order, filters : selectedStatus});
+    }
+
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
     const [splitView, setSplitView] = useState<SplitViewState>({
@@ -19,11 +39,11 @@ export function Index({ auth, tasks }: PageProps) {
         single: false,
     });
     const previousTasksRef = useRef<any>([]);
-    for (let task of tasks) {
+    for (let task of tasks.data) {
         let tasks_data: Task = {
             id: task?.id,
             status: task?.status,
-            number_of_photos: task?.number_of_photos,
+            photo_taken: task?.photo_taken,
             name: task?.name,
             text: task?.text,
             date_created: task.date_created,
@@ -42,10 +62,11 @@ export function Index({ auth, tasks }: PageProps) {
 
         tasks_array.push(tasks_data);
     }
+    
     const tasks_ = tasks_array;
     const tasksPhotos = tasks_photos_array;
-
-    const [filter_tasks, set_filter_tasks] = useState<Array<Task>>([]);
+    
+    const [filter_tasks, set_filter_tasks] = useState<Array<Task>>(tasks_);
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<
         Array<TaskPhotos>
     >([]);
@@ -64,26 +85,50 @@ export function Index({ auth, tasks }: PageProps) {
         direction: "asc",
     });
 
-    useEffect(() => {
-        set_filter_tasks(tasks_);
-        set_filter_tasks(tasksPhotos);
-    }, []);
+    const [selectedStatus, setSelectedStatus] = useState<string[]>(filtersVal);
 
-    useEffect(() => {
-        if (!Object.keys(selectedFilters).length) {
-            let filters_json = {};
-            for (let item of FILTERS_DATA) {
-                filters_json = { ...filters_json, [item]: true };
-            }
-            setSelectedFilters(filters_json);
+    const handleSelectedStatus = (status: string) => {
+      setSelectedStatus(prevSelectedStatus => {
+        if (prevSelectedStatus.includes(status)) {
+          const return1 =  prevSelectedStatus.filter(selectedStatus => selectedStatus !== status);
+          console.log(return1,'1');
+          applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return1});
+          return return1;
+        } 
+        else {
+          const return2 =  [...prevSelectedStatus, status];
+          applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return2});
+          return return2;
         }
-        applyFilters(false);
-    }, [tasks]);
+        
+  
+      });
+    };
+    
+    useEffect (() => {
+        // console.log(selectedStatus);
+        // applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder});
+    } , [selectedStatus]);
+    // useEffect(() => {
+    //     set_filter_tasks(tasks_);
+    //     set_filter_tasks(tasksPhotos);
+    // }, []);
 
-    useEffect(() => {
-        previousTasksRef.current = filter_tasks_photos;
-        update_map_source(filter_tasks);
-    }, [filter_tasks]);
+    // useEffect(() => {
+    //     if (!Object.keys(selectedFilters).length) {
+    //         let filters_json = {};
+    //         for (let item of FILTERS_DATA) {
+    //             filters_json = { ...filters_json, [item]: true };
+    //         }
+    //         setSelectedFilters(filters_json);
+    //     }
+    //     applyFilters(false);
+    // }, [tasks]);
+
+    // useEffect(() => {
+    //     previousTasksRef.current = filter_tasks_photos;
+    //     update_map_source(filter_tasks);
+    // }, [filter_tasks]);
 
     const update_map_source = async (filter_data: Array<Task>) => {
         const task_1 = new Set(filter_data.map((task: any) => task.id));
@@ -113,205 +158,166 @@ export function Index({ auth, tasks }: PageProps) {
     };
 
     const submit: FormEventHandler = (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target as HTMLFormElement);
-        const name: any = formData.get("name");
-        if (name.length > 0) {
-            const filtered = filter_tasks.filter((task: any) =>
-                task.name.toLowerCase().includes(name.toLowerCase())
-            );
-            set_filter_tasks(filtered);
-        } else {
-            applyFilters(true);
-        }
+        return;
     };
+    function handlePageChange(url: string) {
+        router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+      }
 
-    const applyFilters = (force_filter: any) => {
-        if (tasks_.length == 0 || force_filter) {
-            var data: any = [];
+    async function applyFilters(params : {search : string;sortColumn : string;sortOrder : string;filters : string[]}){
+        const queryString = new URLSearchParams({
+            search: params.search || '',
+            sortColumn: params.sortColumn || '',
+            sortOrder: params.sortOrder || '',
+            status : params.filters.join(",")
+        }).toString();
+        router.get(route('user_task.index')+'?'+queryString);
+      }
+    // const applyFilters = (force_filter: any) => {
+    //     if (tasks_.length == 0 || force_filter) {
+    //         var data: any = [];
 
-            for (const key in selectedFilters) {
-                switch (key) {
-                    case "new":
-                        if (selectedFilters["new"]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.status === key
-                                ),
-                            ];
-                        }
-                        break;
-                    case "open":
-                        if (selectedFilters["open"]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.status === key
-                                ),
-                            ];
-                        }
-                        break;
-                    case "data provided":
-                        if (selectedFilters["data provided"]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.status === key
-                                ),
-                            ];
-                        }
-                        break;
-                    case "returned":
-                        if (selectedFilters["returned"]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.status === key
-                                ),
-                            ];
-                        }
-                        break;
-                    case "accepted":
-                        if (selectedFilters[key]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.flag_valid === "1"
-                                ),
-                            ];
-                        }
-                        break;
-                    case "declined":
-                        if (selectedFilters[key]) {
-                            data = [
-                                ...data,
-                                ...tasks_?.filter(
-                                    (task: any) => task.flag_valid === "2"
-                                ),
-                            ];
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-            set_filter_tasks(data);
-        }
-    };
+    //         for (const key in selectedFilters) {
+    //             switch (key) {
+    //                 case "new":
+    //                     if (selectedFilters["new"]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.status === key
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 case "open":
+    //                     if (selectedFilters["open"]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.status === key
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 case "data provided":
+    //                     if (selectedFilters["data provided"]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.status === key
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 case "returned":
+    //                     if (selectedFilters["returned"]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.status === key
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 case "accepted":
+    //                     if (selectedFilters[key]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.flag_valid === "1"
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 case "declined":
+    //                     if (selectedFilters[key]) {
+    //                         data = [
+    //                             ...data,
+    //                             ...tasks_?.filter(
+    //                                 (task: any) => task.flag_valid === "2"
+    //                             ),
+    //                         ];
+    //                     }
+    //                     break;
+    //                 default:
+    //                     break;
+    //             }
+    //         }
+    //         set_filter_tasks(data);
+    //     }
+    // };
 
     const handleCheckboxChange = (event: any) => {
-        const { dataset, checked } = event.target;
-        const { fieldtype } = dataset;
-        const newFilters = { ...selectedFilters, [fieldtype]: checked };
-        setSelectedFilters(newFilters);
-        localStorage.setItem("selectedFilters", JSON.stringify(newFilters));
-
-        if (checked) {
-            fieldtype == "after deadline"
-                ? sortData("reset")
-                : fieldtype == "accepted"
-                ? set_filter_tasks([
-                      ...filter_tasks,
-                      ...tasks_?.filter((task: any) => task.flag_valid === "1"),
-                  ])
-                : fieldtype == "declined"
-                ? set_filter_tasks([
-                      ...filter_tasks,
-                      ...tasks_?.filter((task: any) => task.flag_valid === "2"),
-                  ])
-                : set_filter_tasks([
-                      ...filter_tasks,
-                      ...tasks_?.filter(
-                          (task: any) => task.status === fieldtype
-                      ),
-                  ]);
-        } else {
-            fieldtype == "after deadline"
-                ? sortData("status")
-                : fieldtype == "accepted"
-                ? set_filter_tasks(
-                      filter_tasks?.filter(
-                          (task: any) => task.flag_valid !== "1"
-                      )
-                  )
-                : fieldtype == "declined"
-                ? filter_tasks?.filter((task: any) => task.flag_valid !== "2")
-                : set_filter_tasks(
-                      filter_tasks?.filter(
-                          (task: any) => task.status !== fieldtype
-                      )
-                  );
-        }
+        return;
     };
 
-    const sortData = (key: any) => {
-        let direction = "asc";
-        if (key != "reset") {
-            if (
-                (sortConfig.key === key && sortConfig.direction === "asc") ||
-                sortConfig.key == null
-            ) {
-                direction = "desc";
-            }
+    // const sortData = (key: any) => {
+    //     let direction = "asc";
+    //     if (key != "reset") {
+    //         if (
+    //             (sortConfig.key === key && sortConfig.direction === "asc") ||
+    //             sortConfig.key == null
+    //         ) {
+    //             direction = "desc";
+    //         }
 
-            const sortedByName = [...filter_tasks].sort((a: any, b: any) => {
-                if (direction == "asc") {
-                    switch (key) {
-                        case "status":
-                            if (a.status < b.status) return -1;
-                            if (a.status > b.status) return 1;
-                            break;
-                        case "photos taken":
-                            if (a.number_of_photos < b.number_of_photos)
-                                return -1;
-                            if (a.number_of_photos > b.number_of_photos)
-                                return 1;
-                            break;
-                        case "name":
-                            if (a.name < b.name) return -1;
-                            if (a.name > b.name) return 1;
-                            break;
-                        case "description":
-                            if (a.text < b.text) return -1;
-                            if (a.text > b.text) return 1;
-                            break;
-                        case "date created":
-                            if (a.date_created < b.date_created) return -1;
-                            if (a.date_created > b.date_created) return 1;
-                            break;
-                        case "due date":
-                            if (a.task_due_date < b.task_due_date) return -1;
-                            if (a.task_due_date > b.task_due_date) return 1;
-                            break;
-                        case "acception":
-                            if (a.flag_valid < b.flag_valid) return -1;
-                            if (a.flag_valid > b.flag_valid) return 1;
-                            break;
-                        case "reset":
-                            if (a.status < b.status) return -1;
-                            if (a.status > b.status) return 1;
-                            break;
-                        default:
-                            return 1;
-                    }
-                }
-                return -1;
-            });
-            set_filter_tasks(sortedByName);
-            setSortConfig({ key, direction });
-        } else {
-            const sortedByName = [...filter_tasks].sort((a, b) => {
-                if (a.status! < b.status!) {
-                    return -1;
-                }
-                return 0;
-            });
-            key = "status";
-            set_filter_tasks(sortedByName);
-            setSortConfig({ key, direction });
-        }
-    };
+    //         const sortedByName = [...filter_tasks].sort((a: any, b: any) => {
+    //             if (direction == "asc") {
+    //                 switch (key) {
+    //                     case "status":
+    //                         if (a.status < b.status) return -1;
+    //                         if (a.status > b.status) return 1;
+    //                         break;
+    //                     case "photos taken":
+    //                         if (a.number_of_photos < b.number_of_photos)
+    //                             return -1;
+    //                         if (a.number_of_photos > b.number_of_photos)
+    //                             return 1;
+    //                         break;
+    //                     case "name":
+    //                         if (a.name < b.name) return -1;
+    //                         if (a.name > b.name) return 1;
+    //                         break;
+    //                     case "description":
+    //                         if (a.text < b.text) return -1;
+    //                         if (a.text > b.text) return 1;
+    //                         break;
+    //                     case "date created":
+    //                         if (a.date_created < b.date_created) return -1;
+    //                         if (a.date_created > b.date_created) return 1;
+    //                         break;
+    //                     case "due date":
+    //                         if (a.task_due_date < b.task_due_date) return -1;
+    //                         if (a.task_due_date > b.task_due_date) return 1;
+    //                         break;
+    //                     case "acception":
+    //                         if (a.flag_valid < b.flag_valid) return -1;
+    //                         if (a.flag_valid > b.flag_valid) return 1;
+    //                         break;
+    //                     case "reset":
+    //                         if (a.status < b.status) return -1;
+    //                         if (a.status > b.status) return 1;
+    //                         break;
+    //                     default:
+    //                         return 1;
+    //                 }
+    //             }
+    //             return -1;
+    //         });
+    //         set_filter_tasks(sortedByName);
+    //         setSortConfig({ key, direction });
+    //     } else {
+    //         const sortedByName = [...filter_tasks].sort((a, b) => {
+    //             if (a.status! < b.status!) {
+    //                 return -1;
+    //             }
+    //             return 0;
+    //         });
+    //         key = "status";
+    //         set_filter_tasks(sortedByName);
+    //         setSortConfig({ key, direction });
+    //     }
+    // };
 
     const handle_toggle_task_details = (taskId: number) => {
         router.get(route("task", taskId));
@@ -327,7 +333,7 @@ export function Index({ auth, tasks }: PageProps) {
                 {" "}
                 <div className="max-w mx-auto sm:px-4 ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg ">
-                        <button
+                         {/* <button
                             onClick={() => {
                                 sortData("reset");
                             }}
@@ -340,41 +346,51 @@ export function Index({ auth, tasks }: PageProps) {
                         </button>
                         <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
                             {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
-                        </div>
+                        </div> */}
                         <div
-                            className={`h-3/4-screen ${
+                            className={`h-3/4-screen mt-4 ${
                                 splitView.split ? "overflow-y-auto" : ""
                             } `}
                         >
                             <Table
+                                sortColumn={sortColumn}
+                                sortOrder={sortOrder}
+                                onSort={handleSort}
                                 columns={[
                                     {
                                         label: "Status",
                                         name: "status",
+                                        sorting : true
                                     },
                                     {
                                         label: "Photos taken",
-                                        name: "number_of_photos",
+                                        name: "photo_taken",
+                                        sorting : true
                                     },
                                     {
                                         label: "Name",
                                         name: "name",
+                                        sorting : true
                                     },
                                     {
                                         label: "Description",
                                         name: "text",
+                                        sorting : true
                                     },
                                     {
                                         label: "Date Created",
                                         name: "date_created",
+                                        sorting : true
                                     },
                                     {
                                         label: "Due date",
                                         name: "task_due_date",
+                                        sorting : true
                                     },
                                     {
                                         label: "Acception",
                                         name: "acception",
+                                        sorting : true,
                                         renderCell: (row: Task) => (
                                             <>
                                                 <button
@@ -394,15 +410,30 @@ export function Index({ auth, tasks }: PageProps) {
                                         ),
                                     },
                                 ]}
-                                onHeaderClick={(label) =>
-                                    sortData(label.toLowerCase())
-                                }
+                                isSearchable={true}
                                 rows={filter_tasks}
-                                sortConfig={sortConfig}
                                 onRowClick={(row) => {
                                     router.get(route("task", row.id));
                                 }}
                             />
+                            <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
+                                <span>Showing {data.length} out of {total}</span>
+                            </div>
+                            <div className="flex items-center justify-center mt-4 mb-4">
+                                {links.map((link, index) => (
+                                    <button
+                                    key={index}
+                                    disabled={!link.url}
+                                    onClick={() => handlePageChange(link.url)}
+                                    className={`mx-1 px-3 py-1 border rounded ${
+                                        link.active
+                                        ? 'dark:text-white bg-indigo-600 border-indigo-600'
+                                        : 'dark:text-white border-gray-300'
+                                    } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -447,11 +478,9 @@ export function Index({ auth, tasks }: PageProps) {
                             <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">
                                 <Checkbox
                                     data-fieldtype="new"
-                                    onChange={handleCheckboxChange}
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["new"]
-                                    }
+                                    
+                                    checked={selectedStatus.includes('new')}
+                                    onChange={() => handleSelectedStatus('new')}
                                     className="sm:mb-1 lg:mb-0"
                                     style={{
                                         width: "18px",
@@ -465,11 +494,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     className="ml-5 sm:mb-1 lg:mb-0"
                                     data-field="status"
                                     data-fieldtype="open"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["open"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={selectedStatus.includes('open')}
+                                    onChange={() => handleSelectedStatus('open')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
@@ -482,11 +508,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     className="ml-5 sm:mb-1 lg:mb-0"
                                     data-field="status"
                                     data-fieldtype="data provided"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["data provided"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={selectedStatus.includes('data provided')}
+                                    onChange={() => handleSelectedStatus('data provided')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
@@ -499,11 +522,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     className="ml-5 sm:mb-1 lg:mb-0"
                                     data-field="status"
                                     data-fieldtype="returned"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["returned"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={selectedStatus.includes('returned')}
+                                    onChange={() => handleSelectedStatus('returned')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
@@ -516,11 +536,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     className="ml-5 sm:mb-1 lg:mb-0"
                                     data-field="flag"
                                     data-fieldtype="accepted"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["accepted"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={selectedStatus.includes('accepted')}
+                                    onChange={() => handleSelectedStatus('accepted')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
@@ -533,11 +550,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     className="ml-5 sm:mb-1 lg:mb-0"
                                     data-field="flag"
                                     data-fieldtype="declined"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["declined"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={selectedStatus.includes('declined')}
+                                    onChange={() => handleSelectedStatus('declined')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
@@ -556,11 +570,8 @@ export function Index({ auth, tasks }: PageProps) {
                                     name="remember"
                                     data-field="after deadline"
                                     data-fieldtype="after deadline"
-                                    checked={
-                                        selectedFilters &&
-                                        !!selectedFilters["after deadline"]
-                                    }
-                                    onChange={handleCheckboxChange}
+                                    checked={sortColumn == 'task_due_date'}
+                                    onChange={(e) => e.target.checked ? handleSort('task_due_date','desc') : handleSort('status_sortorder.sortorder','asc')}
                                     style={{
                                         width: "18px",
                                         height: "18px",
