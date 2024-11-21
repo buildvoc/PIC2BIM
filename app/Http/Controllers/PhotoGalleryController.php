@@ -17,9 +17,10 @@ class PhotoGalleryController extends Controller
         return Inertia::render('Farmers/PhotoGallery', compact('photos'));
     }
 
-    public function destroy(Request $request, String $id): RedirectResponse
+    public function destroy(Request $request, String $ids): RedirectResponse
     {
-       deleteUnassignedPhoto($id);
+        $idsArray = explode(',', $ids);
+        deleteSelectedUnassignedPhoto($idsArray);
         return redirect()->route('photo_gallery');
     }
 }

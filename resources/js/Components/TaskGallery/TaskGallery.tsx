@@ -1,23 +1,19 @@
-import { useEffect, useState } from "react";
-import { GalleryProps, MapProps, Photo } from "@/types";
+import { useState } from "react";
+import { GalleryProps} from "@/types";
 import { FaTrash } from "react-icons/fa";
 import { FaSync } from "react-icons/fa";
 import { FaCheck } from "react-icons/fa";
 import Modal_ from "./Modal_";
-const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
-    const [isMapVisible, setIsMapVisible] = useState(true);
+const TaskGallery = ({ photos, isUnassigned,destroy,setPhotos }: GalleryProps) => {
 
-    const handleToggleMapVisibility = () => {
-        setIsMapVisible((prevVisibility) => !prevVisibility);
-    };
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
-    const [photos_, setPhotos] = useState(photos);
-    useEffect(() => {
-        setPhotos(photos);
-    }, [photos]);
+    // const [photos_, setPhotos] = useState(photos);
+    // useEffect(() => {
+    //     setPhotos(photos);
+    // }, [photos]);
 
     const handleRotate = (id: string, direction: string) => {
-        const withAngleUpdate = photos_.map((photo) => {
+        const withAngleUpdate = photos.map((photo) => {
             if (photo.digest === id) {
                 const newAngle = photo?.angle
                     ? direction === "left"
@@ -35,7 +31,7 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
     const handleClose = () => setShowModal({ isShow: false, index: -1 });
 
     const handlePhotoCheckBox = (id: string) => {
-        const withCheckUpdate = photos_.map((photo) => {
+        const withCheckUpdate = photos.map((photo) => {
             if (photo?.digest === id) {
                 const check = !photo.hasOwnProperty("check")
                     ? true
@@ -50,7 +46,7 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {photos_?.map((photo, index) => {
+                {photos?.map((photo, index) => {
                     const imageSrc = `data:image/jpeg;base64,${photo.photo}`;
 
                     return (
@@ -59,7 +55,7 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
                                 {isUnassigned && (
                                     <FaTrash
                                         className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                        onClick={() => destroy!(photo.id)}
+                                        onClick={() => destroy!([photo.id].join(','))}
                                     />
                                 )}
                                 <FaSync
@@ -94,10 +90,6 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
                                     transform: `rotate(${photo?.angle}deg)`,
                                 }}
                                 onClick={() => {
-                                    // setShowModal({
-                                    //     isShow: true,
-                                    //     index: index,
-                                    //   });
                                     setShowModal({
                                         isShow: true,
                                         index: index,
@@ -229,7 +221,7 @@ const TaskGallery = ({ photos, isUnassigned,destroy }: GalleryProps) => {
             <Modal_
                 modal={showModal}
                 handleClose={handleClose}
-                photos={photos_}
+                photos={photos}
                 setModal={setShowModal}
                 rotateLeft={(digest: string) => handleRotate(digest, "left")}
                 rotateRight={(digest: string) => handleRotate(digest, "right")}
