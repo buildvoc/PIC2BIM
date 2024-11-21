@@ -12,11 +12,14 @@ export interface User {
   roles : Array<Role>;
 }
 
+
 export interface Role {
   id : number;
   role_id : number;
   user_id : number;
 }
+
+
 
 export interface Agency {
   id: number;
@@ -173,7 +176,8 @@ export interface PathFilter{
 export interface GalleryProps{
   photos:Array<Photo>;
   isUnassigned?:boolean;
-  destroy?:(id:number)=>void
+  setPhotos?:any
+  destroy?:(id:string)=>void
 }
 
 export interface GalleryModalProps{

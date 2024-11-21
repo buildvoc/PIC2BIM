@@ -326,7 +326,9 @@ function Map({
     const calculateBoundingBox = (coordinates: any) => {
         let bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
         coordinates.forEach((coord: any) => {
+            if (coord[1] >= -90 && coord[0] >= -180 && coord[0] <= 180) {
             bounds.extend(coord);
+            }
         });
         return bounds;
     };

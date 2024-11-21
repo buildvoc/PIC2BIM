@@ -55,7 +55,6 @@ function setPath($user_id, $name, $start, $end, $area, $device_manufacture, $dev
             $status['status'] = 'error';
             $status['error_msg'] = "no points in the path";
         }
-
     } catch (\Exception $e) {
         DB::rollBack();
         $status['status'] = 'error';
@@ -188,7 +187,6 @@ function setPhoto($photo, $user_id, $task_id)
         }
 
         DB::commit();
-
     } catch (\Exception $e) {
         DB::rollBack();
         $status['status'] = 'error';
@@ -248,7 +246,7 @@ function getPhoto($photo_id)
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
         ->first();
-        
+
     $output = [];
 
     if ($photo) {
@@ -295,7 +293,7 @@ function getPhoto($photo_id)
         ];
 
         $file = null;
-        $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
+        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
 
         if (file_exists($filePath)) {
             $file = file_get_contents($filePath);
@@ -307,30 +305,32 @@ function getPhoto($photo_id)
     return $output;
 }
 
-function get_coordinates_from_nmea ($nmea_msg) {  
+function get_coordinates_from_nmea($nmea_msg)
+{
     $record = '';
-    $p1 = strrpos($nmea_msg,'RMC');
+    $p1 = strrpos($nmea_msg, 'RMC');
     if ($p1 !== false) {
-        $p2 = strpos($nmea_msg,'*',$p1);
-        $record = substr($nmea_msg,$p1-3,$p2-$p1+6);
-        
-        $record_array = explode(',',$record);      
+        $p2 = strpos($nmea_msg, '*', $p1);
+        $record = substr($nmea_msg, $p1 - 3, $p2 - $p1 + 6);
+
+        $record_array = explode(',', $record);
         $nmea_location = array();
-        
+
         if ($record_array[3] && $record_array[5]) {
-            $nmea_location['lat'] = substr($record_array[3],0,2) + substr($record_array[3],2) / 60;
+            $nmea_location['lat'] = substr($record_array[3], 0, 2) + substr($record_array[3], 2) / 60;
             if ($record_array[4] == 'S') $record_array[3] = -$record_array[3];
-            $nmea_location['lon'] = substr($record_array[5],0,3) + substr($record_array[5],3) / 60;
-            if ($record_array[6] == 'W') $record_array[5] = -$record_array[5];     
-            
-            return $nmea_location;  
-        }    
+            $nmea_location['lon'] = substr($record_array[5], 0, 3) + substr($record_array[5], 3) / 60;
+            if ($record_array[6] == 'W') $record_array[5] = -$record_array[5];
+
+            return $nmea_location;
+        }
     }
 
     return false;
 }
-function get_distance_from_coordinates($a_lat, $a_lng, $b_lat, $b_lng) {
-		
+function get_distance_from_coordinates($a_lat, $a_lng, $b_lat, $b_lng)
+{
+
     $const_p = pi() / 180;
     $const_r = 12742;
 
@@ -338,7 +338,7 @@ function get_distance_from_coordinates($a_lat, $a_lng, $b_lat, $b_lng) {
 
     $distance = $const_r * sin(sqrt($a));
 
-    return $distance * 1000;		
+    return $distance * 1000;
 }
 
 
@@ -354,7 +354,7 @@ function setPhotos($photos, $user_id, $task_id)
     try {
         if (is_array($photos)) {
             foreach ($photos as $photo) {
-                
+
                 $note = isset($photo['note']) ? $photo['note'] : null;
                 $lat = isset($photo['lat']) ? $photo['lat'] : null;
                 $lng = isset($photo['lng']) ? $photo['lng'] : null;
@@ -406,7 +406,7 @@ function setPhotos($photos, $user_id, $task_id)
                 $efkTimeGpsIf = isset($photo['efkTimeGpsIf']) ? gmdate('Y-m-d H:i:s', strtotime($photo['efkTimeGpsIf'])) : null;
 
                 $existing_photo = DB::table('photo')->where('digest', $digest)->first();
-                
+
                 if (!$existing_photo) {
                     $photo_id = DB::table('photo')->insertGetId([
                         'task_id' => $task_id,
@@ -480,10 +480,10 @@ function setPhotos($photos, $user_id, $task_id)
                 }
             }
         }
-        
+
         DB::commit();
     } catch (\Exception $e) {
-        
+
         DB::rollBack();
         $status['status'] = 'error';
         $status['error_msg'] = $e->getMessage();
@@ -507,7 +507,6 @@ function setTaskStatus($task_id, $status, $note)
 
         $output['status'] = 'ok';
         $output['error_msg'] = null;
-
     } catch (\Exception $e) {
         $output['status'] = 'error';
         $output['error_msg'] = $e->getMessage();
@@ -632,7 +631,7 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'id' => $photo->id
         ];
         $file = null;
-        $filePath = storage_path('app/private/'.$photo->path . $photo->file_name);
+        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
         if (file_exists($filePath)) {
             $file = file_get_contents($filePath);
         }
@@ -668,6 +667,18 @@ function deleteUnassignedPhoto($uid)
     return $affectedRows;
 }
 
+function deleteSelectedUnassignedPhoto(array $uids)
+{
+    $affectedRows = DB::table('photo')
+        ->whereIn('id', $uids) 
+        ->where('flg_deleted', 0)
+        ->whereNull('task_id')
+        ->update([
+            'flg_deleted' => 1,
+        ]);
+
+    return $affectedRows;
+}
 
 function getPhotosWithoutTask($user_id)
 {
@@ -716,7 +727,7 @@ function getPhotosWithoutTask($user_id)
             'digest',
             'id'
 
-            
+
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -786,34 +797,34 @@ function getPhotosWithoutTask($user_id)
 function getPaths($user_id)
 {
     $paths = Path::where('flg_deleted', 0)
-    ->where('user_id', $user_id)
-    ->with('points')
-    ->get();
+        ->where('user_id', $user_id)
+        ->with('points')
+        ->get();
 
-$output = $paths->map(function ($path) {
-return [
-   'id' => $path->id,
-   'name' => $path->name,
-   'start' => $path->start,
-   'end' => $path->end,
-   'area' => $path->area,
-   'device_manufacture' => $path->device_manufacture,
-   'device_model' => $path->device_model,
-   'device_platform' => $path->device_platform,
-   'device_version' => $path->device_version,
-   'points' => $path->points->map(function ($point) {
-       return [
-           'id' => $point->id,
-           'lat' => $point->lat,
-           'lng' => $point->lng,
-           'altitude' => $point->altitude,
-           'accuracy' => $point->accuracy,
-           'created' => $point->created,
-       ];
-   }),
-];
-});
+    $output = $paths->map(function ($path) {
+        return [
+            'id' => $path->id,
+            'name' => $path->name,
+            'start' => $path->start,
+            'end' => $path->end,
+            'area' => $path->area,
+            'device_manufacture' => $path->device_manufacture,
+            'device_model' => $path->device_model,
+            'device_platform' => $path->device_platform,
+            'device_version' => $path->device_version,
+            'points' => $path->points->map(function ($point) {
+                return [
+                    'id' => $point->id,
+                    'lat' => $point->lat,
+                    'lng' => $point->lng,
+                    'altitude' => $point->altitude,
+                    'accuracy' => $point->accuracy,
+                    'created' => $point->created,
+                ];
+            }),
+        ];
+    });
 
-$output = $output->toArray(); 
-return $output;
+    $output = $output->toArray();
+    return $output;
 }

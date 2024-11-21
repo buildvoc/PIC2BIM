@@ -45,7 +45,7 @@ Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
 Route::get('/user_paths', [FarmerPathsController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('user_paths');
-Route::get('/photo_detail/{id}', [PhotoDetailController::class, 'index'])
+Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('photo_detail');
 Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
