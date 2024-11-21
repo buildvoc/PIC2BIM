@@ -1,5 +1,5 @@
 import { PageProps, Path, PathFilter } from "@/types";
-import { memo, useState, useEffect,useCallback } from "react";
+import { memo, useState, useEffect, useCallback, PropsWithChildren } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
 import Table from "@/Components/Table/Table";
@@ -21,10 +21,13 @@ export function Paths({ auth, paths }: PageProps) {
     useEffect(() => {
         (async () => {
             setPaths(paths);
-            filterPaths.filterIds.length == 0 &&
+            if (filterPaths.filterIds.length == 0) {
                 setFilterPaths((item: any) => ({ ...item, data: paths }));
+                console.log("paths here---");
+            }
         })();
     }, []);
+    
     const toDeviceString = (
         manufacture: string | null,
         model: string | null,
@@ -40,47 +43,52 @@ export function Paths({ auth, paths }: PageProps) {
         }${ifNullThenString(device_version)}`;
     const ifNullThenString = (data: string | null) => (data ? data : "");
 
-    const handleCheckboxChange = (pathId: any) => {
-        if (filterPaths.filterIds.includes(pathId)) {
-            let filterIds:any = filterPaths.filterIds.filter(
-                (value) => value != pathId
-            );
-            let data =
-                filterIds == 0
-                    ? paths
-                    : filterPaths.data.filter((path: any) => path.id != pathId);
-            setFilterPaths({ data: data, filterIds: filterIds });
-        } else {
-            const parmData =
-                filterPaths.filterIds.length == 0 ? [] : filterPaths.data;
-            const arrayData = filterPaths.filterIds;
-            arrayData.push(pathId);
-            const data = paths.filter((path: any) => path.id == pathId);
 
-            parmData.push(data[0]);
-            setFilterPaths((value: any) => ({
-                ...value,
-                data: parmData,
-                filterIds: arrayData,
-            }));
-        }
-    };
 
-    const LeftPane = useCallback(() => {
+    const LeftPane = useCallback(({filterPaths,setFilterPaths}:PropsWithChildren<{filterPaths:PathFilter,setFilterPaths:any}>) => {
+        const handleCheckboxChange = (pathId: any) => {
+            if (filterPaths.filterIds.includes(pathId)) {
+                let filterIds: any = filterPaths.filterIds.filter(
+                    (value) => value != pathId
+                );
+                let data =
+                    filterIds == 0
+                        ? paths
+                        : filterPaths.data.filter((path: any) => path.id != pathId);
+    
+                setFilterPaths({ data: data, filterIds: filterIds });
+            } else {
+                const parmData =
+                    filterPaths.filterIds.length == 0 ? [] : filterPaths.data;
+                const arrayData = filterPaths.filterIds;
+                arrayData.push(pathId);
+                const data = paths.filter((path: any) => path.id == pathId);
+    
+                parmData.push(data[0]);
+    
+                setFilterPaths((value: any) => {
+                    const updateData = {
+                        ...value,
+                        data: parmData,
+                        filterIds: arrayData,
+                    };
+                    console.log("Updated data ---", updateData)
+                    return updateData;
+                });
+            }
+        };
         return (
-            <div 
-                
-            className={`w-full py-12 pl-4 pr-2 ${
-                splitView.split ? "md:w-1/2" : ""
-            } `}
+            <div
+                className={`w-full py-12 pl-4 pr-2 ${
+                    splitView.split ? "md:w-1/2" : ""
+                } `}
             >
                 <div className="max-w mx-auto ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        <div 
+                        <div
                             className={`h-3/4-screen ${
                                 splitView.split ? "overflow-y-auto" : ""
                             } `}
-                        
                         >
                             <Table
                                 columns={[
@@ -154,22 +162,22 @@ export function Paths({ auth, paths }: PageProps) {
                     </div>
                 </div>
             </div>
-        )
-    },[paths_,splitView.split]);
+        );
+    }, [paths_, splitView.split]);
 
-    const RightPane = () => {
+    const RightPane = useCallback(({filterPaths}:PropsWithChildren<{filterPaths:PathFilter}>) => {
         return (
-            <div 
-            className={`w-full py-12 pl-4 pr-2 ${
-                splitView.split ? "md:w-1/2" : ""
-            } `}
+            <div
+                className={`w-full py-12 pl-4 pr-2 ${
+                    splitView.split ? "md:w-1/2" : ""
+                } `}
             >
                 <div className="max-w mx-auto ">
                     <Map data={[]} paths={filterPaths.data} />
                 </div>
             </div>
-        )
-    }
+        );
+    }, [filterPaths.data]);
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -183,15 +191,15 @@ export function Paths({ auth, paths }: PageProps) {
         >
             <Head title="Paths" />
             <div className="flex flex-wrap ">
-            {splitView.split ? (
+                {splitView.split ? (
                     <>
-                        <LeftPane />
-                        <RightPane />
+                        <LeftPane filterPaths={filterPaths} setFilterPaths={setFilterPaths}/>
+                        <RightPane filterPaths={filterPaths} />
                     </>
                 ) : (
                     <>
-                        <RightPane />
-                        <LeftPane />
+                        <RightPane filterPaths={filterPaths}/>
+                        <LeftPane filterPaths={filterPaths} setFilterPaths={setFilterPaths}/>
                     </>
                 )}
             </div>
