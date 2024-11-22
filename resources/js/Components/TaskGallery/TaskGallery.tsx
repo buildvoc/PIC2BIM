@@ -1,16 +1,45 @@
-import { useState } from "react";
-import { GalleryProps} from "@/types";
+import { useState, useEffect } from "react";
+import { GalleryProps } from "@/types";
 import { FaTrash } from "react-icons/fa";
 import { FaSync } from "react-icons/fa";
 import { FaCheck } from "react-icons/fa";
+import { FaTimesCircle } from "react-icons/fa";
+import { loadJQuery } from "@/helpers";
+import "./style.css";
 import Modal_ from "./Modal_";
-const TaskGallery = ({ photos, isUnassigned,destroy,setPhotos }: GalleryProps) => {
-
+const TaskGallery = ({
+    photos,
+    isUnassigned,
+    destroy,
+    setPhotos,
+}: GalleryProps) => {
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
+    const [ekfIndex, setEkfIndex] = useState(-1);
+
+
     // const [photos_, setPhotos] = useState(photos);
     // useEffect(() => {
     //     setPhotos(photos);
     // }, [photos]);
+
+    useEffect(() => {
+        const initJQuery = async () => {
+            const $ = await loadJQuery();
+            $(document)
+                .on("click", ".js_open_ekf", async function () {
+                    $(".js_hidden_ekf").fadeIn(200);
+                })
+                .on("click", ".close_popup", function () {
+                    $(this).parent().fadeOut(200);
+                });
+            return () => {
+                $("click").off("click");
+            };
+        };
+        if (typeof window !== "undefined") {
+            initJQuery();
+        }
+    }, []);
 
     const handleRotate = (id: string, direction: string) => {
         const withAngleUpdate = photos.map((photo) => {
@@ -55,7 +84,9 @@ const TaskGallery = ({ photos, isUnassigned,destroy,setPhotos }: GalleryProps) =
                                 {isUnassigned && (
                                     <FaTrash
                                         className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                        onClick={() => destroy!([photo.id].join(','))}
+                                        onClick={() =>
+                                            destroy!([photo.id].join(","))
+                                        }
                                     />
                                 )}
                                 <FaSync
@@ -211,13 +242,89 @@ const TaskGallery = ({ photos, isUnassigned,destroy,setPhotos }: GalleryProps) =
                                     </div>
                                 </div>
                                 <div className="flex justify-end p-4 text-indigo-600 dark:text-indigo-400">
-                                    <button title="">Show EKF metadata</button>
+                                    <label
+                                        className="js_open_ekf"
+                                        data-id="123"
+                                        onClick={() => {
+                                            setEkfIndex(index);
+                                        }}
+                                    >
+                                        Show EKF metadata
+                                    </label>
                                 </div>
                             </div>
                         </div>
                     );
                 })}
             </div>
+            {ekfIndex > -1 && (
+                <div className="js_hidden_ekf">
+                    <span className="close_popup py-2 mb-2">
+                        <FaTimesCircle />
+                    </span>
+                    <table className="my-4">
+                        <tbody>
+                            <tr>
+                                <td></td>
+                                <td className="bold">GPS L1</td>
+                                <td className="bold">GPS L5</td>
+                                <td className="bold">GPS Iono Free (L1/L5)</td>
+                                <td className="bold">Galileo E1</td>
+                                <td className="bold">Galileo E5a</td>
+                                <td className="bold">
+                                    Galileo Iono Free (E1/E5a)
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="bold">Latitude</td>
+                                <td>{photos[ekfIndex].efkLatGpsL1}</td>
+                                <td>{photos[ekfIndex].efkLatGpsL5}</td>
+                                <td>{photos[ekfIndex].efkLatGpsIf}</td>
+                                <td>{photos[ekfIndex].efkLatGalE1}</td>
+                                <td>{photos[ekfIndex].efkLatGalE5}</td>
+                                <td>{photos[ekfIndex].efkLatGalIf}</td>
+                            </tr>
+                            <tr>
+                                <td className="bold">Longitude</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td className="bold">Altitude</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td className="bold">Reference</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td className="bold">Time</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
             <Modal_
                 modal={showModal}
                 handleClose={handleClose}

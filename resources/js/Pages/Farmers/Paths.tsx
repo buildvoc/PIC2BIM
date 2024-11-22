@@ -23,11 +23,10 @@ export function Paths({ auth, paths }: PageProps) {
             setPaths(paths);
             if (filterPaths.filterIds.length == 0) {
                 setFilterPaths((item: any) => ({ ...item, data: paths }));
-                console.log("paths here---");
             }
         })();
     }, []);
-    
+
     const toDeviceString = (
         manufacture: string | null,
         model: string | null,
@@ -177,7 +176,7 @@ export function Paths({ auth, paths }: PageProps) {
                 </div>
             </div>
         );
-    }, [filterPaths.data]);
+    }, [splitView.split]);
     return (
         <AuthenticatedLayout
             user={auth.user}
