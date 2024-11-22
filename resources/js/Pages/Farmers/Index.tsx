@@ -69,20 +69,6 @@ export function Index({ auth }: PageProps) {
     const [filter_tasks, set_filter_tasks] = useState<Array<Task>>(tasks_);
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<Array<TaskPhotos>>(tasksPhotos);
 
-    const [selectedFilters, setSelectedFilters] = useState(() => {
-        try {
-            const savedFilters = localStorage?.getItem("selectedFilters");
-            return savedFilters ? JSON.parse(savedFilters) : {};
-        } catch (e) {
-            return null;
-        }
-    });
-
-    const [sortConfig, setSortConfig] = useState({
-        key: null,
-        direction: "asc",
-    });
-
     const [selectedStatus, setSelectedStatus] = useState<string[]>(filtersVal);
 
     const handleSelectedStatus = (status: string) => {
@@ -98,67 +84,22 @@ export function Index({ auth }: PageProps) {
           applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return2});
           return return2;
         }
-        
-  
       });
     };
     
     useEffect (() => {
-        // console.log(selectedStatus);
-        // applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder});
+        
     } , [selectedStatus]);
-    // useEffect(() => {
-    //     set_filter_tasks(tasks_);
-    //     set_filter_tasks(tasksPhotos);
-    // }, []);
+    
 
-    // useEffect(() => {
-    //     if (!Object.keys(selectedFilters).length) {
-    //         let filters_json = {};
-    //         for (let item of FILTERS_DATA) {
-    //             filters_json = { ...filters_json, [item]: true };
-    //         }
-    //         setSelectedFilters(filters_json);
-    //     }
-    //     applyFilters(false);
-    // }, [tasks]);
-
-    // useEffect(() => {
-    //     previousTasksRef.current = filter_tasks_photos;
-    //     update_map_source(filter_tasks);
-    // }, [filter_tasks]);
-
-    const update_map_source = async (filter_data: Array<Task>) => {
-        const task_1 = new Set(filter_data.map((task: any) => task.id));
-
-        const task_2 = new Set(tasksPhotos.map((task: any) => task.id));
-
-        const common_id = [...task_1].filter((id) => task_2.has(id));
-        const filter_tasks_photos = tasksPhotos.filter((task: any) =>
-            common_id.includes(task.id)
-        );
-
-        if (!areTasksEqual(previousTasksRef.current, filter_tasks_photos)) {
-            set_filter_tasks_photos(filter_tasks_photos);
-        }
-    };
-    const areTasksEqual = (
-        prevTasks: Array<Task>,
-        nextTasks: Array<Task>
-    ): boolean => {
-        if (prevTasks.length !== nextTasks.length) {
-            return false;
-        }
-        return prevTasks.every(
-            (task: Task, index) => task === nextTasks[index]
-        );
-    };
-
-    const submit: FormEventHandler = (e) => {
-        return;
-    };
     function handlePageChange(url: string) {
         router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+    }
+    function handleSearch(q : string){
+        applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder, filters : selectedStatus});
+    }
+    function reset(){
+        router.get(route('user_task.index'));
       }
 
     async function applyFilters(params : {search : string;sortColumn : string;sortOrder : string;filters : string[]}){
@@ -169,152 +110,8 @@ export function Index({ auth }: PageProps) {
             status : params.filters.join(",")
         }).toString();
         router.get(route('user_task.index')+'?'+queryString);
-      }
-    // const applyFilters = (force_filter: any) => {
-    //     if (tasks_.length == 0 || force_filter) {
-    //         var data: any = [];
-
-    //         for (const key in selectedFilters) {
-    //             switch (key) {
-    //                 case "new":
-    //                     if (selectedFilters["new"]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.status === key
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 case "open":
-    //                     if (selectedFilters["open"]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.status === key
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 case "data provided":
-    //                     if (selectedFilters["data provided"]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.status === key
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 case "returned":
-    //                     if (selectedFilters["returned"]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.status === key
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 case "accepted":
-    //                     if (selectedFilters[key]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.flag_valid === "1"
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 case "declined":
-    //                     if (selectedFilters[key]) {
-    //                         data = [
-    //                             ...data,
-    //                             ...tasks_?.filter(
-    //                                 (task: any) => task.flag_valid === "2"
-    //                             ),
-    //                         ];
-    //                     }
-    //                     break;
-    //                 default:
-    //                     break;
-    //             }
-    //         }
-    //         set_filter_tasks(data);
-    //     }
-    // };
-
-    const handleCheckboxChange = (event: any) => {
-        return;
-    };
-
-    // const sortData = (key: any) => {
-    //     let direction = "asc";
-    //     if (key != "reset") {
-    //         if (
-    //             (sortConfig.key === key && sortConfig.direction === "asc") ||
-    //             sortConfig.key == null
-    //         ) {
-    //             direction = "desc";
-    //         }
-
-    //         const sortedByName = [...filter_tasks].sort((a: any, b: any) => {
-    //             if (direction == "asc") {
-    //                 switch (key) {
-    //                     case "status":
-    //                         if (a.status < b.status) return -1;
-    //                         if (a.status > b.status) return 1;
-    //                         break;
-    //                     case "photos taken":
-    //                         if (a.number_of_photos < b.number_of_photos)
-    //                             return -1;
-    //                         if (a.number_of_photos > b.number_of_photos)
-    //                             return 1;
-    //                         break;
-    //                     case "name":
-    //                         if (a.name < b.name) return -1;
-    //                         if (a.name > b.name) return 1;
-    //                         break;
-    //                     case "description":
-    //                         if (a.text < b.text) return -1;
-    //                         if (a.text > b.text) return 1;
-    //                         break;
-    //                     case "date created":
-    //                         if (a.date_created < b.date_created) return -1;
-    //                         if (a.date_created > b.date_created) return 1;
-    //                         break;
-    //                     case "due date":
-    //                         if (a.task_due_date < b.task_due_date) return -1;
-    //                         if (a.task_due_date > b.task_due_date) return 1;
-    //                         break;
-    //                     case "acception":
-    //                         if (a.flag_valid < b.flag_valid) return -1;
-    //                         if (a.flag_valid > b.flag_valid) return 1;
-    //                         break;
-    //                     case "reset":
-    //                         if (a.status < b.status) return -1;
-    //                         if (a.status > b.status) return 1;
-    //                         break;
-    //                     default:
-    //                         return 1;
-    //                 }
-    //             }
-    //             return -1;
-    //         });
-    //         set_filter_tasks(sortedByName);
-    //         setSortConfig({ key, direction });
-    //     } else {
-    //         const sortedByName = [...filter_tasks].sort((a, b) => {
-    //             if (a.status! < b.status!) {
-    //                 return -1;
-    //             }
-    //             return 0;
-    //         });
-    //         key = "status";
-    //         set_filter_tasks(sortedByName);
-    //         setSortConfig({ key, direction });
-    //     }
-    // };
+    }
+      
 
     const handle_toggle_task_details = (taskId: number) => {
         router.get(route("task", taskId));
@@ -330,20 +127,6 @@ export function Index({ auth }: PageProps) {
                 {" "}
                 <div className="max-w mx-auto sm:px-4 ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg ">
-                         {/* <button
-                            onClick={() => {
-                                sortData("reset");
-                            }}
-                            className="flex gap-3 py-5 pl-5 items-center text-white  dark:border-gray-700"
-                        >
-                            <span>
-                                <FaTimesCircle size={18} />
-                            </span>
-                            CANCEL SORTING
-                        </button>
-                        <div className="flex items-center justify-center mb-6 w-full border-gray-200 dark:border-gray-700 p-4 border-t text-gray-700 dark:text-gray-300 border-b text-lg font-medium">
-                            {`Showing ${filter_tasks.length} out of ${tasks_.length}`}
-                        </div> */}
                         <div
                             className={`h-3/4-screen mt-4 ${
                                 splitView.split ? "overflow-y-auto" : ""
@@ -353,6 +136,10 @@ export function Index({ auth }: PageProps) {
                                 sortColumn={sortColumn}
                                 sortOrder={sortOrder}
                                 onSort={handleSort}
+                                search={search}
+                                isSearchable={true}
+                                onSearch={handleSearch}
+                                onReset={reset}
                                 columns={[
                                     {
                                         label: "Status",
@@ -407,7 +194,6 @@ export function Index({ auth }: PageProps) {
                                         ),
                                     },
                                 ]}
-                                isSearchable={true}
                                 rows={filter_tasks}
                                 onRowClick={(row) => {
                                     router.get(route("task", row.id));
@@ -451,25 +237,8 @@ export function Index({ auth }: PageProps) {
                                 data={filter_tasks_photos}
                                 onClick={handle_toggle_task_details}
                             />
-                            <form
-                                onSubmit={submit}
-                                className="flex gap-8 py-5 pl-5 items-center"
-                            >
-                                <span>
-                                    <TextInput
-                                        name="name"
-                                        style={{
-                                            background: "transparent",
-                                            color: "white",
-                                        }}
-                                    />
-                                </span>
-                                <button type="submit">
-                                    <FaSearch size={18} color="white" />
-                                </button>
-                            </form>
 
-                            <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                            <h5 className="gap-8 py-5 pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                                 Status filter:
                             </h5>
                             <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">

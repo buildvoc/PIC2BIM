@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
     public function index(Request $request)
     {   
         $filtersVal = ["new","open","data provided","returned","accepted","declined"];
+        $search = $request->search;
         $user = Auth::user();
         $user_id = $user->id;
         $tasks = Task::withCount(['photos' => function ($query) {
@@ -31,7 +32,6 @@ use Illuminate\Support\Facades\DB;
             ]);
         }])
         ->has('photos')
-        // ->select('id', 'task.status', 'type_id', 'name', 'text', 'date_created', 'task_due_date')
         ->select(
             'task.id',
             'task.status',
@@ -76,7 +76,7 @@ use Illuminate\Support\Facades\DB;
                 });
             }
         }
-        $sortColumn = 'status_sortorder.sortorder';$sortOrder='asc';
+        $sortColumn = 'status';$sortOrder='asc';
         
         if($request->sortColumn && $request->sortOrder){
             $sortColumn = $request->sortColumn;
@@ -128,7 +128,7 @@ use Illuminate\Support\Facades\DB;
                 'photos' => $photos->toArray(),
             ];
         });
-        return Inertia::render('Farmers/Index',compact('tasks','sortColumn','sortOrder','selectedStatuses','filtersVal'));
+        return Inertia::render('Farmers/Index',compact('tasks','search','sortColumn','sortOrder','selectedStatuses','filtersVal'));
     }
 
 
