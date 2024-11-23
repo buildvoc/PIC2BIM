@@ -14,14 +14,15 @@ import ButtonMap from "@/Components/Map/ButtonMap";
 export function Index({ auth }: PageProps) {
 
     
-    const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors,filtersVal  } = usePage<{
+    const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors,filtersVal,split  } = usePage<{
         tasks: PaginatedData<Tasks>;
         sortColumn : string;
         sortOrder : 'asc' | 'desc';
         search : string;
         selectedStatuses : string[],
         errors : string[],
-        filtersVal : string[]
+        filtersVal : string[],
+        split : string
       }>().props;
       const {
         data,
@@ -34,10 +35,12 @@ export function Index({ auth }: PageProps) {
 
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
+    
     const [splitView, setSplitView] = useState<SplitViewState>({
-        split: true,
-        single: false,
+        split: split == 'split' ? true : false,
+        single: split == 'split' ? false : true,
     });
+
     const previousTasksRef = useRef<any>([]);
     for (let task of tasks.data) {
         let tasks_data: Task = {
@@ -99,7 +102,10 @@ export function Index({ auth }: PageProps) {
         applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder, filters : selectedStatus});
     }
     function reset(){
-        router.get(route('user_task.index'));
+        const queryString = new URLSearchParams({
+            splitView : splitView.split ? 'split' : ''
+        }).toString();
+        router.get(route('user_task.index')+'?'+queryString);
       }
 
     async function applyFilters(params : {search : string;sortColumn : string;sortOrder : string;filters : string[]}){
@@ -107,7 +113,8 @@ export function Index({ auth }: PageProps) {
             search: params.search || '',
             sortColumn: params.sortColumn || '',
             sortOrder: params.sortOrder || '',
-            status : params.filters.join(",")
+            status : params.filters.join(","),
+            splitView : splitView.split ? 'split' : ''
         }).toString();
         router.get(route('user_task.index')+'?'+queryString);
     }
@@ -128,8 +135,8 @@ export function Index({ auth }: PageProps) {
                 <div className="max-w mx-auto sm:px-4 ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg ">
                         <div
-                            className={`h-3/4-screen mt-4 ${
-                                splitView.split ? "overflow-y-auto" : ""
+                            className={`mt-4 ${
+                                splitView.split ? "h-3/4-screen overflow-y-auto" : ""
                             } `}
                         >
                             <Table

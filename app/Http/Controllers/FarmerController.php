@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 {
     public function index(Request $request)
     {   
+        $split = $request->has('splitView') ? $request->splitView : 'split';
         $filtersVal = ["new","open","data provided","returned","accepted","declined"];
         $search = $request->search;
         $user = Auth::user();
@@ -128,7 +129,7 @@ use Illuminate\Support\Facades\DB;
                 'photos' => $photos->toArray(),
             ];
         });
-        return Inertia::render('Farmers/Index',compact('tasks','search','sortColumn','sortOrder','selectedStatuses','filtersVal'));
+        return Inertia::render('Farmers/Index',compact('tasks','search','sortColumn','sortOrder','selectedStatuses','filtersVal','split'));
     }
 
 
