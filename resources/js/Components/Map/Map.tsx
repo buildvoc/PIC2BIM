@@ -57,7 +57,7 @@ function Map({
         mapRef.current.addControl(toggleControl, "top-left");
         mapRef.current.addControl(new mapboxgl.NavigationControl());
 
-        if (paths && data && paths.length > 0) {
+        if (paths && data && paths.length > 0 ) {
             const coordintates = paths.map((path: any) => {
                 let coordsArray = path.points.map((coord: any) => [
                     coord.lng,
@@ -67,6 +67,7 @@ function Map({
             });
 
             let bounds = calculateBoundingBox(coordintates.flat());
+            if(bounds)
             mapRef.current.fitBounds(bounds, {
                 padding: { top: 60, bottom: 60, left: 20, right: 20 },
                 duration: 0,
@@ -94,7 +95,7 @@ function Map({
             if (isSelected) {
                 insertMarkers();
             }
-            if (data.length == 1) {
+            if (data.length == 1 && bounds) {
                 mapRef.current?.fitBounds(bounds, {
                     padding: { top: 60, bottom: 60, left: 20, right: 20 },
                     duration: 0,
@@ -104,7 +105,7 @@ function Map({
 
                 insertMarkers();
             } else {
-                if (data.length > 0) {
+                if (data.length > 0 && bounds) {
                     mapRef.current?.fitBounds(bounds, {
                         padding: { top: 60, bottom: 200, left: 60, right: 60 },
                         duration: 0,
@@ -118,9 +119,7 @@ function Map({
                 });
             }
             mapRef.current?.on("zoom", () => {
-                console.log("zoom---");
                 const zoomLevel = mapRef.current?.getZoom();
-                console.log("zoom ---", zoomLevel);
                 updateUnclusteredIcon();
             });
 
@@ -324,13 +323,18 @@ function Map({
         } catch (err) {}
     }
     const calculateBoundingBox = (coordinates: any) => {
-        let bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
-        coordinates.forEach((coord: any) => {
-            if (coord[1] >= -90 && coord[0] >= -180 && coord[0] <= 180) {
+        if (coordinates[0][1] >= -90 && coordinates[0][1]  <= 90 && coordinates[0][0] >= -180 && coordinates[0][0] <= 180) {
+            
+            let bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
+                  coordinates.forEach((coord: any) => {
+            if (coord[1] >= -90 && coord[1] <= 90 && coord[0] >= -180 && coord[0] <= 180) {
             bounds.extend(coord);
             }
         });
         return bounds;
+        }
+        return null
+  
     };
 
     async function filterData() {
@@ -573,12 +577,15 @@ function Map({
             textBox.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)"; // Subtle shadow
 
             // Create a marker using the custom HTML element
+            if (firstPoint[1] >= -90 && firstPoint[1] <= 90 && firstPoint[0] >= -180 && firstPoint[0] <= 180) {
+
             const marker = new mapboxgl.Marker({
                 element: textBox, // Use the custom div element
                 anchor: "bottom", // Position marker relative to the element
             })
                 .setLngLat(firstPoint) // Position at the first point
                 .addTo(mapRef.current!); // Add to the map
+            }
         });
     };
 

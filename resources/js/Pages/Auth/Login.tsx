@@ -23,7 +23,7 @@ export default function Login({ status, canResetPassword }: { status?: string, c
     };
 
     return (
-        <GuestLayout>
+        <GuestLayout >
             <Head title="Log in" />
 
             {status && <div className="mb-4 font-medium text-sm text-green-600">{status}</div>}
@@ -34,7 +34,7 @@ export default function Login({ status, canResetPassword }: { status?: string, c
 
                     <TextInput
                         id="username"
-                        type="username"
+                        type="text"
                         name="username"
                         value={data.username}
                         className="mt-1 block w-full"
