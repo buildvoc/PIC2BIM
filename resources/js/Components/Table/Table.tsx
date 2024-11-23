@@ -57,6 +57,12 @@ export default function Table<T>({
             onSort(columnName, order);
         }
     };
+    const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch(searchValue);
+        }
+    };
+
     const handleSearch = (q: string) => {
         if (onSearch) {
             onSearch(q);
@@ -87,6 +93,7 @@ export default function Table<T>({
                         <TextInput
                             name="search"
                             value={searchValue}
+                            onKeyDown={handleKeyPress}
                             onChange={(e) => setSearchValue(e.target.value)}
                             style={{
                                 background: "transparent",
