@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\DB;
             'task_id'
             ]);
         }])
-        ->has('photos')
+        // ->has('photos')
         ->select(
             'task.id',
             'task.status',
