@@ -1,0 +1,39 @@
+.js_hidden_ekf span.close_popup {
+    position: absolute;
+    top: -2px;
+    right: -8px;
+    font-size: 20px;
+    color: black;
+    width: 30px;
+    cursor: pointer;
+  }
+  .js_hidden_ekf {
+    border: 1px solid;
+    padding: 5px 10px;
+    background: #fff;
+    border-radius: 7px;
+    bottom: 40px;
+    display: none;
+    position: fixed;
+    z-index: 900;
+    left: 50%;
+    transform: translate(-50%, 0);
+    max-width: 98%;
+    overflow: auto;
+  }
+  .js_hidden_ekf td {
+    padding: 2px 5px;
+    width: 100px;
+  }
+  .js_hidden_ekf td.bold {
+    font-weight: bold;
+  }
+  .js_hidden_ekf span.close_popup {
+    position: absolute;
+    top: -2px;
+    right: -8px;
+    font-size: 20px;
+    color: black;
+    width: 30px;
+    cursor: pointer;
+  }

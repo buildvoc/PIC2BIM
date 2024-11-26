@@ -97,7 +97,7 @@ class OfficerController extends Controller implements HasMiddleware
     {
         $request->validate([
             'login' => 'required',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)->ignore($id)],
         ]);
 
         $user = User::find($id)->update([

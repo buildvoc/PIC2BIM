@@ -8,7 +8,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard({ auth }: PageProps) {
-
   const { agency } = usePage<{
     agency: Agency;
   }>().props;
