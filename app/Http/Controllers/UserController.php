@@ -186,9 +186,9 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'login' => ['required', Rule::unique(User::class)],
+            'login' => ['required', Rule::unique(User::class)->ignore($user->id)],
             'password' => 'required',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
         ]);
 
         $user->update([
