@@ -85,8 +85,8 @@ export function Paths({ auth, paths }: PageProps) {
                 <div className="max-w mx-auto ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div
-                            className={`h-3/4-screen ${
-                                splitView.split ? "overflow-y-auto" : ""
+                            className={` ${
+                                splitView.split ? "h-3/4-screen overflow-y-auto" : ""
                             } `}
                         >
                             <Table
