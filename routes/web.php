@@ -26,64 +26,52 @@ Route::get('/api-docs', function () {
 Route::get('/', function () {
     return to_route('dashboard');
 });
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+    Route::get('/user_task', [FarmerController::class, 'index'])
+        ->name('user_task.index');
+    Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
+        ->name('task');
+    Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
+        ->name('photo_gallery');
+    Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
+        ->name('photo_gallery.destroy');
+    Route::get('/user_paths', [FarmerPathsController::class, 'index'])
+        ->name('user_paths');
+    Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
+        ->name('photo_detail');
+    Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
+        ->name('pdf_preview');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-Route::get('/user_task', [FarmerController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('user_task.index');
-Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('task');
-Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('photo_gallery');
-Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
-    ->middleware(['auth', 'verified'])
-    ->name('photo_gallery.destroy');
-Route::get('/user_paths', [FarmerPathsController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('user_paths');
-Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('photo_detail');
-Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('pdf_preview');
-
-
-Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
-    Route::get('/', [AgencyController::class, 'index'])->name('index');
-    Route::get('/create', [AgencyController::class, 'create'])->name('create');
-    Route::post('/create', [AgencyController::class, 'store'])->name('store');
-    Route::get('/{agency}', [AgencyController::class, 'edit'])->name('edit');
-    Route::get('/officer/{agency}', [AgencyController::class, 'show'])->name('show');
-    Route::patch('/{agency}', [AgencyController::class, 'update'])->name('update');
-    Route::delete('/{agency}', [AgencyController::class, 'destroy'])->name('destroy');
-    Route::resource('/officers', OfficerController::class);
-    Route::get('/invite/{id}/officer', [OfficerController::class, 'invite'])->name('officers.invite');
-    Route::post('/invite/officer', [OfficerController::class, 'sendInvite'])->name('officer.invite');
-})->middleware(['auth', 'verified']);
-
-
-
-Route::resource('/tasks/types', TaskTypeController::class)->middleware(['auth', 'verified']);
-Route::resource('/users', UserController::class)->middleware(['auth', 'verified']);
-Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
-Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
-Route::resource('/tasks', TasksController::class)->middleware(['auth', 'verified']);
-Route::post('/tasks/bulk-accept', [TasksController::class, 'acceptTaskPhotos'])->name('tasks.bulkAccept');
-Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
-Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
-Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
-
-Route::middleware('auth')->group(function () {
+    Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
+        Route::get('/', [AgencyController::class, 'index'])->name('index');
+        Route::get('/create', [AgencyController::class, 'create'])->name('create');
+        Route::post('/create', [AgencyController::class, 'store'])->name('store');
+        Route::get('/{agency}', [AgencyController::class, 'edit'])->name('edit');
+        Route::get('/officer/{agency}', [AgencyController::class, 'show'])->name('show');
+        Route::patch('/{agency}', [AgencyController::class, 'update'])->name('update');
+        Route::delete('/{agency}', [AgencyController::class, 'destroy'])->name('destroy');
+        Route::resource('/officers', OfficerController::class);
+        Route::get('/invite/{id}/officer', [OfficerController::class, 'invite'])->name('officers.invite');
+        Route::post('/invite/officer', [OfficerController::class, 'sendInvite'])->name('officer.invite');
+    });
+    
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
 
+    
+    Route::resource('/tasks/types', TaskTypeController::class);
+    Route::resource('/users', UserController::class);
+    Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
+    Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
+    Route::resource('/tasks', TasksController::class);
+    Route::post('/tasks/bulk-accept', [TasksController::class, 'acceptTaskPhotos'])->name('tasks.bulkAccept');
+    Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
+    Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
+    Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
+});
 
 Route::post('/comm_login', [UserController::class, 'createToken']);
 
