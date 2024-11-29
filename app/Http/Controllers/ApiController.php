@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Land;
 use App\Models\Path;
 use App\Models\Photo;
 use App\Models\Task;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PDO;
@@ -337,7 +339,7 @@ class ApiController extends Controller
         $res = deletePath($uid);
 
         $output['status'] = $res > 0 ? 'ok' : 'error';
-        $output['error_msg'] = $res > 0 ? null : 'No record deleted or record not found';
+        $output['error_msg'] = $res > 0 ? null : 'Record deleted or record not found';
 
         return response()->json($output);
     }
@@ -350,9 +352,67 @@ class ApiController extends Controller
         $res = deleteUnassignedPhoto($uid);
 
         $output['status'] = $res > 0 ? 'ok' : 'error';
-        $output['error_msg'] = $res > 0 ? null : 'No record deleted or record not found';
+        $output['error_msg'] = $res > 0 ? null : 'Record deleted or record not found';
 
         return response()->json($output);
     }
 
+
+    public function comm_get_lpis(){
+        $lands = Land::whereNotNull('wgs_geometry')->get()->toArray();
+        return response()->json([
+            'status' => 'ok',
+            'lpis' => $lands
+        ]);
+    }
+
+    public function comm_save_lpis(Request $request){
+        try{
+            $request->validate([
+                'wgs_geometry' => 'required',
+                'wgs_max_lat' => 'required',
+                'wgs_min_lat' => 'required',
+                'wgs_max_lng' => 'required',
+                'wgs_min_lng' => 'required'
+            ]);
+            $requestData = $request->all();
+            $land = Land::create([
+                'identificator' => $requestData['identificator'] ?? null,
+                'pa_description' => $requestData['pa_description'] ?? null,
+                'wkt' => $requestData['wkt'] ?? null,
+                'wgs_geometry' => $requestData['wgs_geometry'],
+                'wgs_max_lat' => $requestData['wgs_max_lat'],
+                'wgs_min_lat' => $requestData['wgs_min_lat'],
+                'wgs_max_lng' => $requestData['wgs_max_lng'],
+                'wgs_min_lng' => $requestData['wgs_min_lng']
+            ]);
+    
+            return response()->json([
+                'status' => 'ok',
+                'error_msg' => null,
+                'lpis_id' => $land['id']
+            ]);
+        } catch (Exception $e){
+            return response()->json([
+                'status' => 'error',
+                'error_msg' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function comm_get_lpis_by_id($id){
+        $land = Land::find($id);
+        if($land){
+            return response()->json([
+                'status' => 'ok',
+                'error_msg' => null,
+                'lpis' => $land
+            ]);
+        }else {
+            return response()->json([
+                'status' => 'error',
+                'error_msg' => 'Record deleted or record not found'
+            ]);
+        }
+    }
 }
