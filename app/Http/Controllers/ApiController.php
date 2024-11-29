@@ -400,7 +400,11 @@ class ApiController extends Controller
         }
     }
 
-    public function comm_get_lpis_by_id($id){
+    public function comm_get_lpis_by_id(Request $request){
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $id = $request->id;
         $land = Land::find($id);
         if($land){
             return response()->json([

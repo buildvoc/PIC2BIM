@@ -616,6 +616,151 @@
           }
         }
       }
+    },
+    "/comm_get_lpis": {
+      "get": {
+        "tags": ["LPIS"],
+        "summary": "Get all LPIS",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "example": "application/json"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/comm_lpis": {
+      "post": {
+        "tags": ["LPIS"],
+        "summary": "Save LPIS",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identificator": {
+                    "type": "string",
+                    "example": "identificator"
+                  },
+                  "pa_description": {
+                    "type": "Pa description",
+                    "example": "pa description"
+                  },
+                  "wkt": {
+                    "type": "wkt",
+                    "example": "wkt data"
+                  },
+                  "wgs_geometry": {
+                    "type": "json",
+                    "example": [{"latitude": 37.7749, "longitude": -122.4194}, {"latitude": 34.0522, "longitude": -118.2437}]
+                  },
+                  "wgs_max_lat": {
+                    "type": "float",
+                    "example": "21.22"
+                  },
+                  "wgs_min_lat": {
+                    "type": "float",
+                    "example": "-98.32"
+                  },
+                  "wgs_max_lng": {
+                    "type": "float",
+                    "example": "3.21"
+                  },
+                  "wgs_min_lng": {
+                    "type": "float",
+                    "example": "12.01"
+                  },
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "example": "application/json"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/comm_get_lpis_record": {
+      "get": {
+        "tags": ["LPIS"],
+        "summary": "Get a single LPIS record",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identificator": {
+                    "type": "integer",
+                    "example": "627847"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "example": "application/json"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
     }
   }
 }

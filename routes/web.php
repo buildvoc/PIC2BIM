@@ -88,9 +88,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_task_photos', [ApiController::class, 'comm_task_photos']);
     Route::post('/comm_delete_path', [ApiController::class, 'comm_delete_path']);
     Route::post('/comm_delete_unassigned_photo', [ApiController::class, 'comm_delete_unassigned_photo']);
-    Route::get('/comm_lpis', [ApiController::class, 'comm_get_lpis']);
+    Route::get('/comm_get_lpis', [ApiController::class, 'comm_get_lpis']);
     Route::post('/comm_lpis', [ApiController::class, 'comm_save_lpis']);
-    Route::get('/comm_lpis/{id?}', [ApiController::class, 'comm_get_lpis_by_id']);
+    Route::get('/comm_get_lpis_record', [ApiController::class, 'comm_get_lpis_by_id']);
 });
 
 
