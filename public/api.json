@@ -719,7 +719,7 @@
       }
     },
     "/comm_get_lpis_record": {
-      "get": {
+      "post": {
         "tags": ["LPIS"],
         "summary": "Get a single LPIS record",
         "requestBody": {
