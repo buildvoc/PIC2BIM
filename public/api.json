@@ -728,7 +728,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "identificator": {
+                  "id": {
                     "type": "integer",
                     "example": "627847"
                   }
