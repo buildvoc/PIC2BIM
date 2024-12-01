@@ -1,24 +1,16 @@
 import { PageProps } from "@/types";
-import { memo } from "react";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head } from "@inertiajs/react";
+import { memo, useEffect } from "react";
 
 
-export function PdfPreview({auth}: PageProps) {
-   
+export function PdfPreview({task,photos}: PageProps) {
+    useEffect(()=>{
+        console.log("Photos---",photos)
+        console.log("Task",task)
 
+    },[])
+    
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                    Generating of PDF document
-                </h2>
-            }
-        >
-              <Head title="Identify building data from a photo" />
-
-        </AuthenticatedLayout>
+    <div></div>
     );
 }
 export default memo(PdfPreview);
