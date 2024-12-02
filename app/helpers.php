@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Land;
 use App\Models\Path;
 use App\Models\PathPoint;
 use App\Models\Photo;
@@ -75,8 +76,8 @@ function getShapes($max_lat, $min_lat, $max_lng, $min_lng)
     $max_lng = addslashes($max_lng);
     $min_lng = addslashes($min_lng);
 
-    $results = DB::table('land')
-        ->select('identificator', 'wgs_geometry')
+    $results = Land::
+        select('identificator', 'wgs_geometry')
         ->where('wgs_min_lat', '<', $max_lat)
         ->where('wgs_max_lat', '>', $min_lat)
         ->where('wgs_min_lng', '<', $max_lng)

@@ -358,8 +358,29 @@ class ApiController extends Controller
     }
 
 
-    public function comm_get_lpis(){
-        $lands = Land::whereNotNull('wgs_geometry')->get()->toArray();
+    public function comm_get_lpis(Request $request){
+        
+        $max_lat = trim($request->input('max_lat'));
+        $min_lat = trim($request->input('min_lat'));
+        $max_lng = trim($request->input('max_lng'));
+        $min_lng = trim($request->input('min_lng'));
+
+        $numberOfRecords = $request['numberOfRecords'] ?? 20;
+        $query = Land::whereNotNull('wgs_geometry');
+        
+        if ($request->has('identificator')) {
+            $query->where('identificator', $request->input('identificator'));
+        }
+
+        if($max_lat && $min_lat && $max_lng && $min_lng){
+            $query->where('wgs_min_lat', '<', $max_lat)
+                ->where('wgs_max_lat', '>', $min_lat)
+                ->where('wgs_min_lng', '<', $max_lng)
+                ->where('wgs_max_lng', '>', $min_lng);
+        }
+        
+        $lands = $query->paginate($numberOfRecords);
+
         return response()->json([
             'status' => 'ok',
             'lpis' => $lands

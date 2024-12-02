@@ -620,7 +620,7 @@
     "/comm_get_lpis": {
       "get": {
         "tags": ["LPIS"],
-        "summary": "Get all LPIS",
+        "summary": "Retrieve a list of LPIS records based on filters or bounding box",
         "security": [
           {
             "bearerAuth": []
@@ -630,10 +630,71 @@
           {
             "name": "Accept",
             "in": "header",
+            "required": true,
             "schema": {
               "type": "string"
             },
-            "example": "application/json"
+            "example": "application/json",
+            "description": "Specifies the content type"
+          },
+          {
+            "name": "max_lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Maximum latitude for the bounding box filter"
+          },
+          {
+            "name": "min_lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Minimum latitude for the bounding box filter"
+          },
+          {
+            "name": "max_lng",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Maximum longitude for the bounding box filter"
+          },
+          {
+            "name": "min_lng",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Minimum longitude for the bounding box filter"
+          },
+          {
+            "name": "identificator",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter records by specific identificator"
+          },
+          {
+            "name": "numberOfRecords",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Number of records per page for pagination"
           }
         ],
         "responses": {
