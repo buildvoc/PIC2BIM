@@ -14,7 +14,7 @@ class Land extends Model
     public $timestamps = false;
 
     protected $table = 'land';
-    
+protected $casts =['wgs_geometry'=>'json'];    
     public function getWgsGeometryAttribute($value)
     {
         return json_decode($value, true);
