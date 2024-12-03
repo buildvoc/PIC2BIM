@@ -16,7 +16,9 @@ class PdfPreviewController extends Controller
 
         $ids = $request->has('ids') ? $request->ids : '';
         $task_id = $request->has('task') ? $request->task : '';
-        $task=[];
+        $total = $request->has('total') ? $request->total : '';
+
+        $tasks=[];
         $photos=[];
          if (trim($ids) !== '') {
                 $idsArray = explode(',', $ids);
@@ -33,12 +35,8 @@ class PdfPreviewController extends Controller
             }
         }
         if (trim($task_id) !== '') {
-            $task = DB::select('SELECT * FROM task WHERE id = ?', [$task_id]);
+            $tasks = DB::select('SELECT * FROM task WHERE id = ?', [$task_id]);
     }
-        return Inertia::render('Farmers/PdfPreview',compact('photos','task'));
-    }
-
-    public  function checkTaskPhotos(Task $task){
-        return $task;
+        return Inertia::render('Farmers/PdfPreview',compact('photos','tasks','total'));
     }
 }

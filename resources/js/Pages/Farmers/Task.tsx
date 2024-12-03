@@ -112,7 +112,8 @@ export function Task_({ auth, task, photos }: PageProps) {
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
                                 onClick={() => {
                                     const queryString = new URLSearchParams({
-                                        task:task.id?.toString()!
+                                        task:task.id?.toString()!,
+                                        total:photos.length.toString()
                                     }).toString();
                                     router.get(route("pdf_preview")+'?'+queryString);
                                 }}
@@ -131,7 +132,8 @@ export function Task_({ auth, task, photos }: PageProps) {
                                         const queryString = new URLSearchParams({
                                             selected: 'true',
                                             ids:ids,
-                                            task:task.id?.toString()!
+                                            task:task.id?.toString()!,
+                                            total:photos.length.toString()
                                         }).toString();
                                         router.get(route("pdf_preview")+'?'+queryString);
 

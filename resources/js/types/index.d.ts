@@ -125,7 +125,9 @@ export interface Photo {
   file_name: string;
   digest: string;
   photo: string | null;
-  check:boolean
+  check:boolean;
+  img?:string;
+  mapImg?:string
 }
 
 export interface TaskPhotos extends Task{
@@ -144,6 +146,8 @@ export interface MapProps{
   isUnassigned?:boolean;
   paths?:Array<Path>;
   zoomFilter?:(leaves:Array<String>|undefined) => void;
+  className?:string;
+  style?:any
 }
 
 
@@ -210,5 +214,6 @@ export type PageProps<
   photos:Array<Photo>;
   photo:Photo;
   paths:Array<Path>
+  total:number;
   ziggy: Config & { location: string };
 };

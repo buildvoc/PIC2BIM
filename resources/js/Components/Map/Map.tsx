@@ -8,6 +8,7 @@ import TaskPhoto from "./TaskPhoto";
 import { loadJQuery } from "@/helpers";
 import CustomPopup from "./CustomPopup";
 import { MapProps, Path, TaskPhotos } from "@/types";
+import classNames from "classnames";
 function Map({
     data,
     onClick,
@@ -15,6 +16,8 @@ function Map({
     isUnassigned,
     zoomFilter,
     paths,
+    className,
+    style
 }: MapProps) {
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -626,7 +629,8 @@ function Map({
     return (
         <div
             id="map-container"
-            className={`w-full h-3/4-screen`}
+            className={className}
+            style={style}
             ref={mapContainerRef}
         />
     );
