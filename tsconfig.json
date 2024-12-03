@@ -4,6 +4,7 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "jsx": "react-jsx",
+        "skipLibCheck": true,
         "strict": true,
         "isolatedModules": true,
         "target": "ESNext",
