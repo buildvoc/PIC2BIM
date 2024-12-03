@@ -172,7 +172,7 @@ export function Paths({ auth, paths }: PageProps) {
                 } `}
             >
                 <div className="max-w mx-auto ">
-                    <Map data={[]} paths={filterPaths.data} />
+                    <Map data={[]} paths={filterPaths.data} className="w-full h-3/4-screen"/>
                 </div>
             </div>
         );

@@ -1,9 +1,4 @@
-import {
-    PageProps,
-    TaskPhotos,
-    Photo,
-    SplitViewState
-} from "@/types";
+import { PageProps, TaskPhotos, Photo, SplitViewState } from "@/types";
 import {
     memo,
     useState,
@@ -58,9 +53,10 @@ export function PhotoGallery({ auth, photos }: PageProps) {
                         )
                     );
 
-
                     setPhotos(
-                        photo_.filter((photo) => !ids.includes(photo.id.toString()))
+                        photo_.filter(
+                            (photo) => !ids.includes(photo.id.toString())
+                        )
                     );
                 },
             });
@@ -74,6 +70,27 @@ export function PhotoGallery({ auth, photos }: PageProps) {
 
         setPhotos(filteredPhotos);
     };
+
+    const selectAllPdfHandler = () => {
+        const photosIds = photo_
+            .filter((photo) => photo.check)
+            .map((photo) => photo.id);
+        const ids = photosIds.join(",");
+        if (ids.length > 0) {
+            const queryString = new URLSearchParams({
+                selected: 'true',
+                ids:ids,
+                unassigned:'true',
+                total:photos.length.toString()
+
+            }).toString();
+            router.get(route("pdf_preview")+'?'+queryString);
+        } else {
+            confirm("Please select photo to delete !");
+        }
+    };
+
+    
     const onDeleteHandler = () => {
         const photosIds = photo_
             .filter((photo) => photo.check)
@@ -120,8 +137,11 @@ export function PhotoGallery({ auth, photos }: PageProps) {
     const RightPane = useCallback(
         ({
             onDeleteHandler,
+            selectAllPdfHandler
         }: PropsWithChildren<{
             onDeleteHandler: () => void;
+            selectAllPdfHandler: () => void;
+
         }>) => {
             return (
                 <div
@@ -157,18 +177,24 @@ export function PhotoGallery({ auth, photos }: PageProps) {
                                     </button>
                                 </div>
                                 <div className=" items-center  mb-6   gap-2 dark:text-gray-300  text-lg font-medium flex flex-wrap  justify-end">
-                                    <Link
+                                    <button
                                         className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                        href={""}
+                                        onClick={() => {
+                                            const queryString = new URLSearchParams({
+                                                unassigned: 'true',
+                                                total:photos.length.toString()
+                                            }).toString();
+                                            router.get(route("pdf_preview")+'?'+queryString);
+                                        }}
                                     >
                                         <span>Export To PDF</span>
-                                    </Link>
-                                    <Link
+                                    </button>
+                                    <button
                                         className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
-                                        href={""}
+                                        onClick={selectAllPdfHandler}
                                     >
                                         <span>Export Selected To PDF</span>
-                                    </Link>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -195,11 +221,17 @@ export function PhotoGallery({ auth, photos }: PageProps) {
                 {splitView.split ? (
                     <>
                         <LeftPane />
-                        <RightPane onDeleteHandler={onDeleteHandler} />
+                        <RightPane
+                            onDeleteHandler={onDeleteHandler}
+                            selectAllPdfHandler={selectAllPdfHandler}
+                        />
                     </>
                 ) : (
                     <>
-                        <RightPane onDeleteHandler={onDeleteHandler} />
+                        <RightPane
+                            onDeleteHandler={onDeleteHandler}
+                            selectAllPdfHandler={selectAllPdfHandler}
+                        />
                         <LeftPane />
                     </>
                 )}

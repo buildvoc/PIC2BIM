@@ -1,7 +1,8 @@
-import { PageProps, Task, TaskPhotos } from "@/types";
+import { PageProps, Task, TaskPhotos, Photo } from "@/types";
 import { memo, useEffect, useState } from "react";
+
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import Table from "@/Components/Table/Table";
 import { FaSignOutAlt } from "react-icons/fa";
 import { Link } from "@inertiajs/react";
@@ -9,6 +10,7 @@ import ButtonMap from "@/Components/Map/ButtonMap";
 import TaskGallery from "@/Components/TaskGallery/TaskGallery";
 
 export function Task_({ auth, task, photos }: PageProps) {
+    const [photo_, setPhotos] = useState<Array<Photo>>([]);
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<
         Array<TaskPhotos>
     >([]);
@@ -28,6 +30,7 @@ export function Task_({ auth, task, photos }: PageProps) {
             tasks_photos_array.push(tasks_photos_data);
         }
         set_filter_tasks_photos(tasks_photos_array);
+        setPhotos(photos);
     }
 
     return (
@@ -51,7 +54,6 @@ export function Task_({ auth, task, photos }: PageProps) {
                                 {
                                     label: "Purpose",
                                     name: "text_reason",
-                   
                                 },
                                 {
                                     label: "Name",
@@ -98,7 +100,7 @@ export function Task_({ auth, task, photos }: PageProps) {
                             ]}
                             rows={[task]}
                         />
-                        <ButtonMap data={filter_tasks_photos} />
+                        {/* <ButtonMap data={filter_tasks_photos} /> */}
                     </div>
                 </div>
             </div>
@@ -106,20 +108,45 @@ export function Task_({ auth, task, photos }: PageProps) {
                 <div className="max-w mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="flex items-center  mb-6 border-gray-200 dark:border-gray-700 p-4 dark:text-gray-300 border-b text-lg font-medium">
-                            <Link
+                            <button
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
-                                href={""}
+                                onClick={() => {
+                                    const queryString = new URLSearchParams({
+                                        task:task.id?.toString()!,
+                                        total:photos.length.toString()
+                                    }).toString();
+                                    router.get(route("pdf_preview")+'?'+queryString);
+                                }}
                             >
                                 <span>Export To PDF</span>
-                            </Link>
-                            <Link
+                            </button>
+                            <button
                                 className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
-                                href={""}
+                                onClick={() => {
+       
+                                    const photosIds = photo_
+                                        .filter((photo) => photo.check)
+                                        .map((photo) => photo.id);
+                                    const ids = photosIds.join(",");
+                                    if (ids.length > 0) {
+                                        const queryString = new URLSearchParams({
+                                            selected: 'true',
+                                            ids:ids,
+                                            task:task.id?.toString()!,
+                                            total:photos.length.toString()
+                                        }).toString();
+                                        router.get(route("pdf_preview")+'?'+queryString);
+
+                                    } else {
+                                        confirm("Please select photo to delete !");
+
+                                    }
+                                }}
                             >
                                 <span>Export Selected To PDF</span>
-                            </Link>
+                            </button>
                         </div>
-                        <TaskGallery  photos={photos} />
+                        <TaskGallery photos={photo_} setPhotos={setPhotos} />
                     </div>
                 </div>
             </div>
