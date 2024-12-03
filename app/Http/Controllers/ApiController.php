@@ -183,14 +183,9 @@ class ApiController extends Controller
         $min_lat = trim($request->input('min_lat'));
         $max_lng = trim($request->input('max_lng'));
         $min_lng = trim($request->input('min_lng'));
+        
 
-        $output = [
-            'status' => 'ok',
-            'error_msg' => null,
-            'shapes' => getShapes($max_lat, $min_lat, $max_lng, $min_lng),
-        ];
-
-        return response()->json($output);
+        return response()->json(getShapes($max_lat, $min_lat, $max_lng, $min_lng));
     }
 
     public function comm_photo(Request $request){
@@ -365,7 +360,7 @@ class ApiController extends Controller
         $max_lng = trim($request->input('max_lng'));
         $min_lng = trim($request->input('min_lng'));
 
-        $numberOfRecords = $request['numberOfRecords'] ?? 20;
+        // $numberOfRecords = $request['numberOfRecords'] ?? 20;
         $query = Land::whereNotNull('wgs_geometry');
         
         if ($request->has('identificator')) {
@@ -379,11 +374,27 @@ class ApiController extends Controller
                 ->where('wgs_max_lng', '>', $min_lng);
         }
         
-        $lands = $query->paginate($numberOfRecords);
+        $lands = $query->get();
+
+        $features = [];
+        foreach ($lands as $land){
+            $features[] = [
+                'id' => $land['id'],
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => $land['wkt'],
+                    'coordinates' => $land['wgs_geometry']
+                ],
+                'properties' => [
+                    'name' => $land['identificator'],
+                    'description' => $land['pa_description']
+                ]
+            ];
+        }
 
         return response()->json([
-            'status' => 'ok',
-            'lpis' => $lands
+            'type' => 'FeatureCollection',
+            'features' => $features
         ]);
     }
 
