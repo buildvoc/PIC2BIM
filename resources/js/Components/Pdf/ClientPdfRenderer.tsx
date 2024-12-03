@@ -1,4 +1,5 @@
 import React, { PropsWithChildren, useEffect } from "react";
+import './style.css'
 import {
     usePDF,
     Document,
@@ -15,6 +16,7 @@ import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import TaskPhoto from "../Map/TaskPhoto";
 import moment from "moment";
+
 import { Photo, Task, User } from "@/types";
 Font.register({
     family: "Open Sans",
@@ -630,6 +632,7 @@ const ClientPdfRenderer = ({
                 try {
                     const url = URL.createObjectURL(blob);
                     window.open(url, "_blank");
+                    setIsGenerated(false)
                     // const response = await fetch("/api/generate-pdf", {
                     //   method: "POST",
                     //   body: formData,
@@ -660,10 +663,10 @@ const ClientPdfRenderer = ({
     return (
         <>
             <div style={{ backgroundColor: "#fffffffc", height: "100vh" }}>
-                <div className="pdf_loader">
+                <div className="pdf_loader ">
                     <div className="inner_cont">
                         <p>{`${photos.length} out of ${photos.length}`}</p>
-                        {/* <img src="/tail-spin.svg" className="my-3" alt="spinner_loader" /> */}
+                        <img src="/tail-spin.svg" className="my-3" alt="spinner_loader" />
                         <p>Wait</p>
                     </div>
                 </div>
