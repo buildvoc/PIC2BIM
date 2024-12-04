@@ -382,7 +382,7 @@ class ApiController extends Controller
                 ->where('wgs_max_lng', '>', $min_lng);
         }
         
-        $lands = $query->limit(20)->get();
+        $lands = $query->get();
 
         $features = [];
         foreach ($lands as $land){
