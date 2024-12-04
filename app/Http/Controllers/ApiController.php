@@ -358,10 +358,10 @@ class ApiController extends Controller
         // https://pic2bim.co.uk/comm_get_lpis?max_lat=51.219908&min_lat=51.212019&max_lng=-0.759859&min_lng=-0.781896
         $bbox = explode(",",$request->bbox);
         
-        $max_lng = $bbox[0] ?? false;
-        $max_lat = $bbox[1] ?? false;
-        $min_lng = $bbox[2] ?? false;
-        $min_lat = $bbox[3] ?? false;
+        $max_lng = $bbox[2] ?? false;
+        $max_lat = $bbox[3] ?? false;
+        $min_lng = $bbox[0] ?? false;
+        $min_lat = $bbox[1] ?? false;
 
         // $max_lat = trim($request->input('max_lat'));
         // $min_lat = trim($request->input('min_lat'));

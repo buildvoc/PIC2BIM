@@ -36,10 +36,10 @@ class ImportSurreyJsonData extends Command
                 'identificator' => $data['id'] ?? null,
                 'wkt' => $data['geometry']['type'] ?? null,
                 'wgs_geometry' => $data['geometry']['coordinates'],
-                'wgs_max_lat' => $data['bbox'][1],
-                'wgs_min_lat' => $data['bbox'][3],
-                'wgs_max_lng' => $data['bbox'][0],
-                'wgs_min_lng' => $data['bbox'][2]
+                'wgs_max_lat' => $data['bbox'][3],
+                'wgs_min_lat' => $data['bbox'][1],
+                'wgs_max_lng' => $data['bbox'][2],
+                'wgs_min_lng' => $data['bbox'][0]
             ];
 
             $landData = Land::create($land);
