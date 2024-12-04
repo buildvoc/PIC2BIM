@@ -34,7 +34,7 @@ class ImportSurreyJsonData extends Command
             $land = [
                 'pa_description' => $data['properties']['parcel_ref'],
                 'identificator' => $data['id'] ?? null,
-                'wkt' => $data['geometry_name'] ?? null,
+                'wkt' => $data['geometry']['type'] ?? null,
                 'wgs_geometry' => $data['geometry']['coordinates'],
                 'wgs_max_lat' => $data['bbox'][1],
                 'wgs_min_lat' => $data['bbox'][3],
