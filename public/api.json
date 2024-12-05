@@ -638,53 +638,14 @@
             "description": "Specifies the content type"
           },
           {
-            "name": "max_lat",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "format": "float"
-            },
-            "description": "Maximum latitude for the bounding box filter"
-          },
-          {
-            "name": "min_lat",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "format": "float"
-            },
-            "description": "Minimum latitude for the bounding box filter"
-          },
-          {
-            "name": "max_lng",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "format": "float"
-            },
-            "description": "Maximum longitude for the bounding box filter"
-          },
-          {
-            "name": "min_lng",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "format": "float"
-            },
-            "description": "Minimum longitude for the bounding box filter"
-          },
-          {
-            "name": "identificator",
+            "name": "bbox",
             "in": "query",
             "required": false,
             "schema": {
               "type": "string"
             },
-            "description": "Filter records by specific identificator"
+            "example": "-0.6000,51.2000,-0.5900,51.2100",
+            "description": "bbox coordinates"
           },
           {
             "name": "numberOfRecords",

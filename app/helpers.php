@@ -69,29 +69,39 @@ function setPath($user_id, $name, $start, $end, $area, $device_manufacture, $dev
 
 function getShapes($max_lat, $min_lat, $max_lng, $min_lng)
 {
-    $output = [];
-
+    
     $max_lat = addslashes($max_lat);
     $min_lat = addslashes($min_lat);
     $max_lng = addslashes($max_lng);
     $min_lng = addslashes($min_lng);
 
     $results = Land::
-        select('identificator', 'wgs_geometry')
-        ->where('wgs_min_lat', '<', $max_lat)
+        where('wgs_min_lat', '<', $max_lat)
         ->where('wgs_max_lat', '>', $min_lat)
         ->where('wgs_min_lng', '<', $max_lng)
         ->where('wgs_max_lng', '>', $min_lng)
         ->get();
 
-    foreach ($results as $rec) {
-        $out = [];
-        $out['identificator'] = $rec->identificator;
-        $out['wgs_geometry'] = $rec->wgs_geometry;
-        $output[] = $out;
+    $features = [];
+    foreach ($results as $land){
+        $features[] = [
+            'id' => $land['id'],
+            'type' => 'Feature',
+            'geometry' => [
+                'type' => $land['wkt'],
+                'coordinates' => $land['wgs_geometry']
+            ],
+            'properties' => [
+                'name' => $land['identificator'],
+                'description' => $land['pa_description']
+            ]
+        ];
     }
 
-    return $output;
+    return [
+        'type' => 'FeatureCollection',
+        'features' => $features
+    ];
 }
 
 function getTaskStatus($task_id)
