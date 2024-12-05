@@ -368,7 +368,7 @@ class ApiController extends Controller
         // $max_lng = trim($request->input('max_lng'));
         // $min_lng = trim($request->input('min_lng'));
 
-        // $numberOfRecords = $request['numberOfRecords'] ?? 20;
+        $numberOfRecords = $request['numberOfRecords'] ?? 20;
         $query = Land::whereNotNull('wgs_geometry');
         
         if ($request->has('identificator')) {
@@ -382,7 +382,7 @@ class ApiController extends Controller
                 ->where('wgs_max_lng', '>', $min_lng);
         }
         
-        $lands = $query->get();
+        $lands = $query->limit($numberOfRecords)->get();
 
         $features = [];
         foreach ($lands as $land){
