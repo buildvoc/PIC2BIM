@@ -25,7 +25,7 @@ const ButtonMap  = ({
                 <Map data={data} zoomFilter={zoomFilter} isUnassigned={isUnassigned} onClick={onClick} className="w-full h-3/4-screen"/>
             </div>
             <button
-                className={`w-full rounded-b-md items-center border border-transparent bg-gray-800 px-4 py-4 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-gray-700 focus:bg-gray-700 focus:outline-none  focus:ring-indigo-500 focus:ring-offset-2 active:bg-gray-900 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white dark:focus:bg-white dark:focus:ring-offset-gray-800 dark:active:bg-gray-300 `}
+                className={`w-full rounded-b-md items-center border border-transparent bg-brand-primary px-4 py-4 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-brand-primaryHover  focus:outline-none  focus:bg-brand-primaryHover focus:ring-offset-2 active:bg-brand-primaryHover dark:bg-brand-primary dark:text-white dark:hover:bg-brand-primaryHover dark:focus:bg-brand-primaryHover dark:focus:ring-offset-brand-primaryHover dark:active:bg-brand-primaryHover `}
                 onClick={handleToggleMapVisibility}
             >
                 <div className="flex items-center justify-center">

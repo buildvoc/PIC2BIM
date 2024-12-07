@@ -37,7 +37,7 @@ export function Task_({ auth, task, photos }: PageProps) {
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight"></h2>
+                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">{`${auth.user.name} ${auth.user.surname} task detail`}</h2>
             }
         >
             <Head title="Task detail" />
@@ -100,7 +100,7 @@ export function Task_({ auth, task, photos }: PageProps) {
                             ]}
                             rows={[task]}
                         />
-                        {/* <ButtonMap data={filter_tasks_photos} /> */}
+                        <ButtonMap data={filter_tasks_photos} />
                     </div>
                 </div>
             </div>
