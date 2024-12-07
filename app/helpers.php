@@ -846,8 +846,8 @@ function getPaths($user_id)
 
 function getPhotoByIds(array $photoIds)
 {
-    $photos = DB::table('photo')
-    ->select([
+    $photos = Photo::
+    select([
         'altitude',
         'vertical_view_angle',
         'distance',

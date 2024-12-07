@@ -35,8 +35,9 @@ class PdfPreviewController extends Controller
             }
         }
         if (trim($task_id) !== '') {
-            $tasks = DB::select('SELECT * FROM task WHERE id = ?', [$task_id]);
-    }
+            $tasks = Task::where('id',$task_id)->get();
+        }
+        
         return Inertia::render('Farmers/PdfPreview',compact('photos','tasks','total'));
     }
 }
