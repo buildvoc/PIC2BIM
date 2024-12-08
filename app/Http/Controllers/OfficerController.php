@@ -100,7 +100,8 @@ class OfficerController extends Controller implements HasMiddleware
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)->ignore($id)],
         ]);
 
-        $user = User::find($id)->update([
+        $user = User::find($id);
+        $user->update([
             'login' => $request->login,
             'name' => $request->name,
             'surname' => $request->surname,
