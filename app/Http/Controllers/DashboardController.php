@@ -67,4 +67,10 @@ class DashboardController extends Controller
 
         return Redirect::to('/');
     }
+
+    public function setSplitModeInSession(){
+        $splitMode = session('splitMode');
+        session(['splitMode' => $splitMode ? 0 : 1]);
+        return response()->json(['splitMode' => session('splitMode')]);
+    }
 }

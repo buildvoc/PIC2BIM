@@ -14,7 +14,7 @@ import { Link } from "@inertiajs/react";
 import { FaTrash } from "react-icons/fa";
 import { router } from "@inertiajs/react";
 
-export function PhotoGallery({ auth, photos }: PageProps) {
+export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<
         Array<TaskPhotos>
     >([]);
@@ -22,8 +22,8 @@ export function PhotoGallery({ auth, photos }: PageProps) {
     const photoIds = [1, 2, 3, 4];
 
     const [splitView, setSplitView] = useState<SplitViewState>({
-        split: true,
-        single: false,
+        split: splitMode ? true : false,
+        single: splitMode ? false : true,
     });
     useEffect(() => {
         loadData();
@@ -106,7 +106,7 @@ export function PhotoGallery({ auth, photos }: PageProps) {
     const LeftPane = () => {
         return (
             <div
-                className={`w-full py-12  ${
+                className={`w-full py-2  ${
                     splitView.split ? "md:w-1/2" : ""
                 } `}
             >
@@ -145,7 +145,7 @@ export function PhotoGallery({ auth, photos }: PageProps) {
         }>) => {
             return (
                 <div
-                    className={`w-full py-12  ${
+                    className={`w-full py-2  ${
                         splitView.split ? "md:w-1/2  " : ""
                     } `}
                 >

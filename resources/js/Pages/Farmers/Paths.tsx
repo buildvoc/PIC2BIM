@@ -8,11 +8,11 @@ import { FaTrash } from "react-icons/fa";
 import Checkbox from "@/Components/Checkbox";
 import Map from "@/Components/Map/Map";
 import { SplitViewState } from "@/types";
-export function Paths({ auth, paths }: PageProps) {
+export function Paths({ auth, paths, splitMode }: PageProps) {
     const [paths_, setPaths] = useState<Array<Path>>([]);
     const [splitView, setSplitView] = useState<SplitViewState>({
-        split: true,
-        single: false,
+        split: splitMode ? true : false,
+        single: splitMode ? false : true,
     });
     const [filterPaths, setFilterPaths] = useState<PathFilter>({
         data: [],
@@ -78,7 +78,7 @@ export function Paths({ auth, paths }: PageProps) {
         };
         return (
             <div
-                className={`w-full py-12 pl-4 pr-2 ${
+                className={`w-full py-2 pl-4 pr-2 ${
                     splitView.split ? "md:w-1/2" : ""
                 } `}
             >
@@ -167,7 +167,7 @@ export function Paths({ auth, paths }: PageProps) {
     const RightPane = useCallback(({filterPaths}:PropsWithChildren<{filterPaths:PathFilter}>) => {
         return (
             <div
-                className={`w-full py-12 pl-4 pr-2 ${
+                className={`w-full py-2 pl-4 pr-2 ${
                     splitView.split ? "md:w-1/2" : ""
                 } `}
             >
