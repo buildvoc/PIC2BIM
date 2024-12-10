@@ -52,6 +52,7 @@ export function Index({ auth }: PageProps) {
             date_created: task.date_created,
             task_due_date: task.task_due_date,
             flag_valid: task.flag_valid,
+            flag_id : task.flag_id
         };
         if (task.photos.length > 0) {
             let tasks_photos_data = {
@@ -147,7 +148,23 @@ export function Index({ auth }: PageProps) {
                                     {
                                         label: "Status",
                                         name: "status",
-                                        sorting : true
+                                        sorting : true,
+                                        renderCell: row => (
+                                            <>
+                                              <button
+                                                className={`w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none
+                                                  ${row.status === 'new' ? 'bg-yellow-500 dark:text-white' :
+                                                    row.status === 'open' ? 'bg-blue-500 dark:text-white' :
+                                                    row.status === 'data checked' && row.flag_id === 2 ? 'bg-red-500 dark:text-white' :
+                                                    row.status === 'data checked' ? 'bg-green-500 dark:text-white' :
+                                                    row.status === 'returned' ? 'bg-purple-500 dark:text-white' :
+                                                    'bg-gray-200 text-gray-800'}`} 
+                                                type='button'
+                                              >
+                                                {row.status}
+                                              </button>
+                                            </>
+                                          )
                                     },
                                     {
                                         label: "Photos taken",

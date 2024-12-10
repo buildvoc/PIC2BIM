@@ -76,7 +76,8 @@ export interface Task {
   text_reason?:string;
   text_returned?:string;
   timestamp?:string;
-  user_id?:number
+  user_id?:number;
+  flag_id?:number
 }
 
 export interface Photo {

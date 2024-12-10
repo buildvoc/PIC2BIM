@@ -125,6 +125,7 @@ use Illuminate\Support\Facades\DB;
                 'photo_taken' => $task->photos->count(),
                 'flag_valid' => $task->flag_valid,
                 'photos' => $photos->toArray(),
+                'flag_id' => $task->flag_id
             ];
         });
         return Inertia::render('Farmers/Index',compact('tasks','search','sortColumn','sortOrder','selectedStatuses','filtersVal'));
