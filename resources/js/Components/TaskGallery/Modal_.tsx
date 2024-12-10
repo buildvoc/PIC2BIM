@@ -47,7 +47,7 @@ const Modal_ = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 rounded-md shadow-lg max-w-2xl w-full mx-4">
+            <div className="w-3/4  bg-white dark:bg-gray-800 rounded-md shadow-lg   xl:max-w-2xl  mx-4 md:w-2/4 sm:w-3/4">
                 {/* Header */}
                 <div className="flex justify-end p-4">
                     <button
@@ -59,17 +59,18 @@ const Modal_ = ({
                 </div>
 
                 {/* Body */}
-                <div className="flex flex-1 justify-center p-4">
+                <div className="flex flex-1 justify-center p-4 items-center">
                     <a
                         onClick={() => {
                             router.get(route("photo_detail", photos[modal.index]?.id));
                         }}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center"
                     >
                         <img
                             src={image!}
-                            className="w-full h-3/4-screen"
+                            className="w-2/4"
                             style={{
                                 transform: `rotate(${
                                     photos[modal.index]?.angle
