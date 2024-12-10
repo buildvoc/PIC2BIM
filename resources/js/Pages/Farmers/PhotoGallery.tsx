@@ -1,4 +1,4 @@
-import { PageProps, TaskPhotos, Photo, SplitViewState } from "@/types";
+import { PageProps, TaskPhotos, Photo, SplitViewState, Tasks, Task } from "@/types";
 import {
     memo,
     useState,
@@ -13,8 +13,19 @@ import TaskGallery from "@/Components/TaskGallery/TaskGallery";
 import { Link } from "@inertiajs/react";
 import { FaTrash } from "react-icons/fa";
 import { router } from "@inertiajs/react";
+import { Dialog } from "@headlessui/react";
+import PrimaryButton from "@/Components/PrimaryButton";
+import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClose } from "@fortawesome/free-solid-svg-icons";
 
 export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
+    const [selectedTask, setSelectedTask] = useState("");     
+    const [photosIds, setPhotosIds] = useState("");    
+   
+    const [unassignedTasks, setUnassignedTasks] = useState<Array<Task>>([]);
+
+    const [isChooseTaskPopupOpen, setIsChooseTaskPopupOpen] = useState(false);
     const [filter_tasks_photos, set_filter_tasks_photos] = useState<
         Array<TaskPhotos>
     >([]);
@@ -79,18 +90,18 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         if (ids.length > 0) {
             const queryString = new URLSearchParams({
                 selected: 'true',
-                ids:ids,
-                unassigned:'true',
-                total:photos.length.toString()
+                ids: ids,
+                unassigned: 'true',
+                total: photos.length.toString()
 
             }).toString();
-            router.get(route("pdf_preview")+'?'+queryString);
+            router.get(route("pdf_preview") + '?' + queryString);
         } else {
             confirm("Please select photo to delete !");
         }
     };
 
-    
+
     const onDeleteHandler = () => {
         const photosIds = photo_
             .filter((photo) => photo.check)
@@ -103,22 +114,69 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         }
     };
 
+    const chooseTask = async () => {
+        const photosIds = photo_
+            .filter((photo) => photo.check)
+            .map((photo) => photo.id);
+        const ids = photosIds.join(",");
+        setPhotosIds(ids);
+        if (ids.length > 0) {
+            const response = await axios.get(route('get-unassigned-task'));
+            const taskData = response.data;
+            setUnassignedTasks(taskData);
+            setIsChooseTaskPopupOpen(true);
+        } else {
+            alert("No photo selected!");
+        }
+    };
+
+    const assignTask = () => {
+        if(selectedTask == '') {
+            alert('Please select a task');
+            return;
+        }
+
+        router.post(route('assign-task'),{
+            photo_ids : photosIds,
+            task_id : selectedTask
+        }, {    
+            onSuccess: () => {
+                const deselectIds = photosIds.split(",");
+                set_filter_tasks_photos(
+                    filter_tasks_photos.filter(
+                        (photo) => !deselectIds.includes(photo.photo.id.toString())
+                    )
+                );
+
+                setPhotos(
+                    photo_.filter(
+                        (photo) => !deselectIds.includes(photo.id.toString())
+                    )
+                );
+                setIsChooseTaskPopupOpen(false);
+            },
+            onError: (errors) => {
+                console.error("Error:", errors);
+                alert("Failed to assign task. Please try again.");
+            }
+        });
+        // router.reload();
+        // setIsChooseTaskPopupOpen(false);
+    }
     const LeftPane = () => {
         return (
             <div
-                className={`w-full py-2  ${
-                    splitView.split ? "md:w-1/2" : ""
-                } `}
+                className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""
+                    } `}
             >
                 {" "}
                 <div className="max-w mx-auto sm:px-4 ">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div
-                            className={` ${
-                                splitView.split
-                                    ? "overflow-y-auto h-3/4-screen"
-                                    : ""
-                            } `}
+                            className={` ${splitView.split
+                                ? "overflow-y-auto h-3/4-screen"
+                                : ""
+                                } `}
                         >
                             {" "}
                             <TaskGallery
@@ -137,17 +195,18 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const RightPane = useCallback(
         ({
             onDeleteHandler,
-            selectAllPdfHandler
+            selectAllPdfHandler,
+            chooseTask
         }: PropsWithChildren<{
             onDeleteHandler: () => void;
             selectAllPdfHandler: () => void;
+            chooseTask: () => void;
 
         }>) => {
             return (
                 <div
-                    className={`w-full py-2  ${
-                        splitView.split ? "md:w-1/2  " : ""
-                    } `}
+                    className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""
+                        } `}
                 >
                     {" "}
                     <div className="max-w mx-auto sm:px-4 ">
@@ -177,12 +236,18 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                     </button>
                                     <button
                                         className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
+                                        onClick={chooseTask}
+                                    >
+                                        <span>Choose Task</span>
+                                    </button>
+                                    <button
+                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={() => {
                                             const queryString = new URLSearchParams({
                                                 unassigned: 'true',
-                                                total:photos.length.toString()
+                                                total: photos.length.toString()
                                             }).toString();
-                                            router.get(route("pdf_preview")+'?'+queryString);
+                                            router.get(route("pdf_preview") + '?' + queryString);
                                         }}
                                     >
                                         <span>Export To PDF</span>
@@ -203,6 +268,41 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         [filter_tasks_photos, splitView.split]
     );
 
+    const ChooseTaskPopup = () => {
+        return (
+            <Dialog
+                open={isChooseTaskPopupOpen}
+                onClose={() => setIsChooseTaskPopupOpen(false)}
+                className="fixed inset-0 z-50 flex items-center justify-center"
+            >
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 overflow-y-auto">
+                    <div className="relative bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+                        <Dialog.Title className="flex justify-between text-lg font-bold text-center sm:text-left">
+                            <div>Choose Task</div>
+                            <FontAwesomeIcon icon={faClose} onClick={() => setIsChooseTaskPopupOpen(false)} className="text-gray cursor-pointer" />
+                        </Dialog.Title>
+                        <Dialog.Description className="mt-2 text-sm">
+                            <select value={selectedTask} onChange={(event) => setSelectedTask(event.target.value)} className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 w-full text-gray-700 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">
+                                <option value="" selected disabled>--Select a task--</option>
+                                {unassignedTasks.map((task:Task) => (
+                                    <option key={task.id} value={task.id}>
+                                        {task.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </Dialog.Description>
+
+                        <div className="flex justify-center my-4">
+                            <PrimaryButton onClick={() => assignTask()}>
+                                Assign Task
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                </div>
+            </Dialog>
+        );
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -222,6 +322,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                         <RightPane
                             onDeleteHandler={onDeleteHandler}
                             selectAllPdfHandler={selectAllPdfHandler}
+                            chooseTask={chooseTask}
                         />
                     </>
                 ) : (
@@ -229,11 +330,13 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                         <RightPane
                             onDeleteHandler={onDeleteHandler}
                             selectAllPdfHandler={selectAllPdfHandler}
+                            chooseTask={chooseTask}
                         />
                         <LeftPane />
                     </>
                 )}
             </div>
+            <ChooseTaskPopup />
         </AuthenticatedLayout>
     );
 }
