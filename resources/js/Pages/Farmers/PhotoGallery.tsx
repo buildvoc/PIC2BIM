@@ -158,27 +158,25 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 isUnassigned={true}
                             />
                             <div className="flex pt-2 px-2">
-                                <div className="flex flex-wrap  items-center  mb-6 gap-y-2 dark:text-gray-300  text-lg font-medium">
-                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md">
+                                <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
+                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3">
                                         <span>Select All</span>
                                     </button>
                                     <Link
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
+                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         href={""}
                                     >
                                         <span>Cancel Selection</span>
                                     </Link>
                                     <button
-                                        className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
+                                        className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={onDeleteHandler}
                                     >
                                         <FaTrash size={16} className="mr-2" />
                                         <span>Delete Selected</span>
                                     </button>
-                                </div>
-                                <div className=" items-center  mb-6   gap-2 dark:text-gray-300  text-lg font-medium flex flex-wrap  justify-end">
                                     <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md"
+                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={() => {
                                             const queryString = new URLSearchParams({
                                                 unassigned: 'true',
@@ -190,7 +188,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                         <span>Export To PDF</span>
                                     </button>
                                     <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
+                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={selectAllPdfHandler}
                                     >
                                         <span>Export Selected To PDF</span>
