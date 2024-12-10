@@ -99,8 +99,9 @@ function getShapes($max_lat, $min_lat, $max_lng, $min_lng)
     }
 
     return [
-        'type' => 'FeatureCollection',
-        'features' => $features
+        "status" => "ok",
+        "error_msg" => null,
+        'shapes' => $features
     ];
 }
 
