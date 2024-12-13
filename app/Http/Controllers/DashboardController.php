@@ -69,7 +69,7 @@ class DashboardController extends Controller
     }
 
     public function setSplitModeInSession(){
-        $splitMode = session('splitMode');
+        $splitMode = session()->has('splitMode') ? session('splitMode') : 1;
         session(['splitMode' => $splitMode ? 0 : 1]);
         return response()->json(['splitMode' => session('splitMode')]);
     }
