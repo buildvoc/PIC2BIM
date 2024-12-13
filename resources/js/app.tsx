@@ -23,6 +23,7 @@ createInertiaApp({
         hydrateRoot(el, <App {...props} />);
     },
     progress: {
-        color: '#4B5563',
+        color: '#29d',
+        showSpinner : true
     },
 });
