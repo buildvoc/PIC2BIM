@@ -258,99 +258,111 @@ export function Index({ auth }: PageProps) {
                                 onClick={handle_toggle_task_details}
                             />
 
-                            <h5 className="gap-8 py-5 pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                            <h5 className="gap-8 pt-5 pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                                 Status filter:
                             </h5>
-                            <div className="lg:flex  sm:flex-grow items-center  pl-5 mt-2 p-4">
-                                <Checkbox
-                                    data-fieldtype="new"
-                                    
-                                    checked={selectedStatus.includes('new')}
-                                    onChange={() => handleSelectedStatus('new')}
-                                    className="sm:mb-1 lg:mb-0"
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    New
-                                </span>
-                                <Checkbox
-                                    className="ml-5 sm:mb-1 lg:mb-0"
-                                    data-field="status"
-                                    data-fieldtype="open"
-                                    checked={selectedStatus.includes('open')}
-                                    onChange={() => handleSelectedStatus('open')}
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    Open
-                                </span>
-                                <Checkbox
-                                    className="ml-5 sm:mb-1 lg:mb-0"
-                                    data-field="status"
-                                    data-fieldtype="data provided"
-                                    checked={selectedStatus.includes('data provided')}
-                                    onChange={() => handleSelectedStatus('data provided')}
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    Data provided
-                                </span>
-                                <Checkbox
-                                    className="ml-5 sm:mb-1 lg:mb-0"
-                                    data-field="status"
-                                    data-fieldtype="returned"
-                                    checked={selectedStatus.includes('returned')}
-                                    onChange={() => handleSelectedStatus('returned')}
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    Returned
-                                </span>
-                                <Checkbox
-                                    className="ml-5 sm:mb-1 lg:mb-0"
-                                    data-field="flag"
-                                    data-fieldtype="accepted"
-                                    checked={selectedStatus.includes('accepted')}
-                                    onChange={() => handleSelectedStatus('accepted')}
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    Accepted
-                                </span>
-                                <Checkbox
-                                    className="ml-5 sm:mb-1 lg:mb-0"
-                                    data-field="flag"
-                                    data-fieldtype="declined"
-                                    checked={selectedStatus.includes('declined')}
-                                    onChange={() => handleSelectedStatus('declined')}
-                                    style={{
-                                        width: "18px",
-                                        height: "18px",
-                                    }}
-                                />
-                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                    Declined
-                                </span>
+                            <div className="flex custom-flex gap-5 flex-wrap items-center  pl-5 p-4">
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        data-fieldtype="new"
+                                        
+                                        checked={selectedStatus.includes('new')}
+                                        onChange={() => handleSelectedStatus('new')}
+                                        className="sm:mb-1 lg:mb-0"
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        New
+                                    </span>
+                                </div>
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        className="sm:mb-1 lg:mb-0"
+                                        data-field="status"
+                                        data-fieldtype="open"
+                                        checked={selectedStatus.includes('open')}
+                                        onChange={() => handleSelectedStatus('open')}
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        Open
+                                    </span>
+                                </div>
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        className="sm:mb-1 lg:mb-0"
+                                        data-field="status"
+                                        data-fieldtype="data provided"
+                                        checked={selectedStatus.includes('data provided')}
+                                        onChange={() => handleSelectedStatus('data provided')}
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        Data provided
+                                    </span>
+                                </div>
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        className="sm:mb-1 lg:mb-0"
+                                        data-field="status"
+                                        data-fieldtype="returned"
+                                        checked={selectedStatus.includes('returned')}
+                                        onChange={() => handleSelectedStatus('returned')}
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        Returned
+                                    </span>
+                                </div>
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        className="sm:mb-1 lg:mb-0"
+                                        data-field="flag"
+                                        data-fieldtype="accepted"
+                                        checked={selectedStatus.includes('accepted')}
+                                        onChange={() => handleSelectedStatus('accepted')}
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        Accepted
+                                    </span>
+                                </div>
+                                <div className="flex-basis-50">
+                                    <Checkbox
+                                        className="sm:mb-1 lg:mb-0"
+                                        data-field="flag"
+                                        data-fieldtype="declined"
+                                        checked={selectedStatus.includes('declined')}
+                                        onChange={() => handleSelectedStatus('declined')}
+                                        style={{
+                                            width: "18px",
+                                            height: "18px",
+                                        }}
+                                    />
+                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                        Declined
+                                    </span>
+                                </div>
                             </div>
                             <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                                 Sort:
                             </h5>
-                            <div className=" p-4">
+                            <div className="p-4">
                                 <Checkbox
                                     className=" sm:mb-1 "
                                     name="remember"
