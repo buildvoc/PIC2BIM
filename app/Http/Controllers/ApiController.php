@@ -357,7 +357,7 @@ class ApiController extends Controller
         // https://api.os.uk/features/ngd/ofa/v1/collections/bld-fts-buildingpart-2/items?bbox=-0.795704,51.215453,-0.795082,51.215748
         // https://pic2bim.co.uk/comm_get_lpis?max_lat=51.219908&min_lat=51.212019&max_lng=-0.759859&min_lng=-0.781896
         $bbox = explode(",",$request->bbox);
-        
+        $requestData = $request->all();
         $max_lng = $bbox[2] ?? false;
         $max_lat = $bbox[3] ?? false;
         $min_lng = $bbox[0] ?? false;
@@ -368,7 +368,7 @@ class ApiController extends Controller
         // $max_lng = trim($request->input('max_lng'));
         // $min_lng = trim($request->input('min_lng'));
 
-        $numberOfRecords = $request['numberOfRecords'] ?? 20;
+        $numberOfRecords = $requestData['numberOfRecords'] ?? 20;
         $query = Land::whereNotNull('wgs_geometry');
         
         if ($request->has('identificator')) {
