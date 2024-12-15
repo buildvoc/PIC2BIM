@@ -95,7 +95,8 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 total: photos.length.toString()
 
             }).toString();
-            router.get(route("pdf_preview") + '?' + queryString);
+            let url = route("pdf_preview") + '?' + queryString;
+            window.open(url,'_blank');
         } else {
             confirm("Please select photo!");
         }
@@ -247,7 +248,8 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                                 unassigned: 'true',
                                                 total: photos.length.toString()
                                             }).toString();
-                                            router.get(route("pdf_preview") + '?' + queryString);
+                                            const exportUrl = route("pdf_preview") + '?' + queryString;
+                                            window.open(exportUrl,'_blank')
                                         }}
                                     >
                                         <span>Export To PDF</span>
