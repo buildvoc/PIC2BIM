@@ -97,7 +97,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
             }).toString();
             router.get(route("pdf_preview") + '?' + queryString);
         } else {
-            confirm("Please select photo to delete !");
+            confirm("Please select photo!");
         }
     };
 
