@@ -115,7 +115,8 @@ export function Task_({ auth, task, photos }: PageProps) {
                                         task:task.id?.toString()!,
                                         total:photos.length.toString()
                                     }).toString();
-                                    router.get(route("pdf_preview")+'?'+queryString);
+                                    const pdfUrl = route("pdf_preview")+'?'+queryString; 
+                                    window.open(pdfUrl,'_blank');
                                 }}
                             >
                                 <span>Export To PDF</span>
@@ -135,10 +136,11 @@ export function Task_({ auth, task, photos }: PageProps) {
                                             task:task.id?.toString()!,
                                             total:photos.length.toString()
                                         }).toString();
-                                        router.get(route("pdf_preview")+'?'+queryString);
+                                        const eUrl = route("pdf_preview")+'?'+queryString;
+                                        window.open(eUrl,'_blank');
 
                                     } else {
-                                        confirm("Please select photo to delete !");
+                                        confirm("Please select a photo!");
 
                                     }
                                 }}
