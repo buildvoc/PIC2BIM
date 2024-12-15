@@ -377,10 +377,14 @@ class ApiController extends Controller
 
         if($max_lat && $min_lat && $max_lng && $min_lng){
             $query
-                ->whereRaw('CAST(wgs_min_lat AS DECIMAL) >= ?', [$max_lat])
-                ->whereRaw('CAST(wgs_max_lat AS DECIMAL) <= ?', [$min_lat])
-                ->whereRaw('CAST(wgs_min_lng AS DECIMAL) >= ?', [$max_lng])
-                ->whereRaw('CAST(wgs_max_lng AS DECIMAL) <= ?', [$min_lng]);
+                ->where('wgs_min_lat', '<', $max_lat)
+                ->where('wgs_max_lat', '>', $min_lat)
+                ->where('wgs_min_lng', '<', $max_lng)
+                ->where('wgs_max_lng', '>', $min_lng);
+                // ->whereRaw('CAST(wgs_min_lat AS DECIMAL) >= ?', [$max_lat])
+                // ->whereRaw('CAST(wgs_max_lat AS DECIMAL) <= ?', [$min_lat])
+                // ->whereRaw('CAST(wgs_min_lng AS DECIMAL) >= ?', [$max_lng])
+                // ->whereRaw('CAST(wgs_max_lng AS DECIMAL) <= ?', [$min_lng]);
         }
         
         $lands = $query->limit($numberOfRecords)->get();
