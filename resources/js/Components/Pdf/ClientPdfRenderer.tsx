@@ -162,6 +162,7 @@ const PdfPage = ({
     task,
     auth,
     exportedPages,
+    key
 }: PropsWithChildren<{
     photo: Photo;
     totalPages: number;
@@ -169,6 +170,7 @@ const PdfPage = ({
     task: Task;
     exportedPages: number;
     auth: { user: User };
+    key : number
 }>) => {
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
     console.log("image--- 1",photo.mapImg)
@@ -201,13 +203,14 @@ const PdfPage = ({
                         Exported {exportedPages} out of {totalPages} photos
                     </Text>
                 </View>
-
-                <Text style={styles.task_title}>
-                    {`${auth.user.name} ${auth.user.surname}`}{" "}
-                    {task
-                        ? `- task detail ${task.name}`
-                        : " Gallery of unassigned photos"}
-                </Text>
+                {key === 0 && (
+                    <Text style={styles.task_title}>
+                        {`${auth.user.name} ${auth.user.surname}`}{" "}
+                        {task
+                            ? `- task detail ${task.name}`
+                            : " Gallery of unassigned photos"}
+                    </Text>
+                )}
                 {!isPhotoGallery && (
                     <View style={styles.task_list_container}>
                         <View style={styles.task_container}>
