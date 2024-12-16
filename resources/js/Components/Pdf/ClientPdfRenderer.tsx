@@ -156,24 +156,25 @@ const styles = StyleSheet.create({
 
 // Page component
 const PdfPage = ({
+    photoKey,
     photo,
     totalPages,
     isPhotoGallery,
     task,
     auth,
     exportedPages,
-    key
 }: PropsWithChildren<{
+    photoKey : number;
     photo: Photo;
     totalPages: number;
     isPhotoGallery: boolean;
     task: Task;
     exportedPages: number;
     auth: { user: User };
-    key : number
 }>) => {
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
-    console.log("image--- 1",photo.mapImg)
+    // console.log("image--- 1",photo.mapImg)
+    console.log("key--- ",photoKey);
     return (
         <Page size="A4" style={styles.page}>
             {/* PDF Header */}
@@ -203,7 +204,7 @@ const PdfPage = ({
                         Exported {exportedPages} out of {totalPages} photos
                     </Text>
                 </View>
-                {key === 0 && (
+                {photoKey == 0 && (
                     <Text style={styles.task_title}>
                         {`${auth.user.name} ${auth.user.surname}`}{" "}
                         {task
@@ -501,11 +502,13 @@ const ClientPdfRenderer = ({
         exportedPages: number,
         task: Task
     ) {
+        console.log(index,'INDEX')
         var photoArray: any = [];
         photoArray[0] = photo;
         return (
             <PdfPage
                 key={index}
+                photoKey={index}
                 photo={photo}
                 totalPages={totalPages}
                 isPhotoGallery={isPhotoGallery}
