@@ -59,7 +59,7 @@ export default function Authenticated({
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
                                     href={route("dashboard")}
-                                    active={route().current("dashboard")}
+                                    active={route().current("dashboard") || route().current("user_task.index")}
                                 >
                                     Home
                                 </NavLink>
@@ -70,7 +70,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("users.unassigned")}
                                             active={route().current(
-                                                "types.index"
+                                                "users.unassigned"
                                             )}
                                         >
                                             Unassigned Farmers
@@ -99,7 +99,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("photo_gallery")}
                                             active={route().current(
-                                                "types.index"
+                                                "photo_gallery"
                                             )}
                                         >
                                             Photo Gallery
@@ -107,7 +107,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("user_paths")}
                                             active={route().current(
-                                                "types.index"
+                                                "user_paths"
                                             )}
                                         >
                                             Show Paths
