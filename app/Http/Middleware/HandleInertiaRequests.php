@@ -32,11 +32,13 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $splitMode = session('splitMode');
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => User::with('roles')->where('id',Auth::id())->first(),
             ],
+            'splitMode' => session()->has('splitMode') ? $splitMode : 1,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

@@ -26,42 +26,33 @@ import {
 } from "@/types";
 import ButtonMap from "@/Components/Map/ButtonMap";
 export function Index({ auth }: PageProps) {
-    const {
-        tasks,
-        sortColumn,
-        sortOrder,
-        search,
-        user,
-        selectedStatuses,
-        errors,
-        filtersVal,
-        split,
-    } = usePage<{
+
+    const { tasks,sortColumn ,sortOrder,search,user,selectedStatuses,errors,filtersVal,splitMode  } = usePage<{
         tasks: PaginatedData<Tasks>;
-        sortColumn: string;
-        sortOrder: "asc" | "desc";
-        search: string;
-        selectedStatuses: string[];
-        errors: string[];
-        filtersVal: string[];
-        split: string;
-    }>().props;
-    const { data, total, links } = tasks;
-    function handleSort(column: string, order: "asc" | "desc") {
-        applyFilters({
-            search: search,
-            sortColumn: column,
-            sortOrder: order,
-            filters: selectedStatus,
-        });
+        sortColumn : string;
+        sortOrder : 'asc' | 'desc';
+        search : string;
+        selectedStatuses : string[],
+        errors : string[],
+        filtersVal : string[],
+        splitMode : boolean
+      }>().props;
+      const {
+        data,
+        total,
+        links
+      } = tasks;
+    function handleSort(column : string, order : 'asc' | 'desc'){
+        applyFilters({search : search, sortColumn : column , sortOrder : order, filters : selectedStatus});
     }
 
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
 
+    console.log(splitMode ,'splitmode')
     const [splitView, setSplitView] = useState<SplitViewState>({
-        split: split == "split" ? true : false,
-        single: split == "split" ? false : true,
+        split: splitMode ? true : false,
+        single: !splitMode ? true : false,
     });
 
     const previousTasksRef = useRef<any>([]);
@@ -75,6 +66,7 @@ export function Index({ auth }: PageProps) {
             date_created: task.date_created,
             task_due_date: task.task_due_date,
             flag_valid: task.flag_valid,
+            flag_id : task.flag_id
         };
         if (task.photos.length > 0) {
             let tasks_photos_data = {
@@ -146,12 +138,10 @@ export function Index({ auth }: PageProps) {
             filters: selectedStatus,
         });
     }
-    function reset() {
-        const queryString = new URLSearchParams({
-            splitView: splitView.split ? "split" : "",
-        }).toString();
-        router.get(route("user_task.index") + "?" + queryString);
-    }
+
+    function reset(){
+        router.get(route('user_task.index'));
+      }
 
     async function applyFilters(params: {
         search: string;
@@ -160,11 +150,10 @@ export function Index({ auth }: PageProps) {
         filters: string[];
     }) {
         const queryString = new URLSearchParams({
-            search: params.search || "",
-            sortColumn: params.sortColumn || "",
-            sortOrder: params.sortOrder || "",
-            status: params.filters.join(","),
-            splitView: splitView.split ? "split" : "",
+            search: params.search || '',
+            sortColumn: params.sortColumn || '',
+            sortOrder: params.sortOrder || '',
+            status : params.filters.join(",")
         }).toString();
         router.get(route("user_task.index") + "?" + queryString);
     }
@@ -190,7 +179,7 @@ export function Index({ auth }: PageProps) {
     const LeftPane = () => {
         return (
             <div
-                className={`w-full py-12  ${
+                className={`w-full py-2  ${
                     splitView.split ? "md:w-1/2  " : ""
                 } `}
             >
@@ -216,7 +205,23 @@ export function Index({ auth }: PageProps) {
                                     {
                                         label: "Status",
                                         name: "status",
-                                        sorting: true,
+                                        sorting : true,
+                                        renderCell: row => (
+                                            <>
+                                              <button
+                                                className={`w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none
+                                                  ${row.status === 'new' ? 'bg-yellow-500 dark:text-white' :
+                                                    row.status === 'open' ? 'bg-blue-500 dark:text-white' :
+                                                    row.status === 'data checked' && row.flag_id === 2 ? 'bg-red-500 dark:text-white' :
+                                                    row.status === 'data checked' ? 'bg-green-500 dark:text-white' :
+                                                    row.status === 'returned' ? 'bg-purple-500 dark:text-white' :
+                                                    'bg-gray-200 text-gray-800'}`} 
+                                                type='button'
+                                              >
+                                                {row.status}
+                                              </button>
+                                            </>
+                                          )
                                     },
                                     {
                                         label: "Photos taken",
@@ -246,24 +251,18 @@ export function Index({ auth }: PageProps) {
                                     {
                                         label: "Acception",
                                         name: "acception",
-                                        sorting: true,
-                                        renderCell: (row: Task) => (
-                                            <>
-                                                <button
-                                                    className={`w-24 ${
-                                                        row.status ==
-                                                        "data provided"
-                                                            ? "bg-blue-500"
-                                                            : "bg-green-500"
-                                                    }  font-semibold text-white   py-1.5 rounded-lg`}
-                                                >{`${
-                                                    row.status ==
-                                                    "data provided"
-                                                        ? "Waiting"
-                                                        : "Accepted"
-                                                }`}</button>
-                                            </>
-                                        ),
+                                        sorting : true,
+                                        renderCell: row => (
+                                          <>
+                                              {row.flag_id === 1 ? (
+                                                <div className="bg-green-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Accepted</div>
+                                              ) : row.flag_id === 2 ? (
+                                                <div className="bg-red-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Declined</div>
+                                              ) : row.status === 'data provided' ? (
+                                                <div className="bg-blue-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Waiting</div>
+                                              ) : null}
+                                          </>
+                                        )
                                     },
                                 ]}
                                 rows={filter_tasks}
@@ -339,6 +338,7 @@ export function Index({ auth }: PageProps) {
                                         onChange={() =>
                                             handleSelectedStatus("new")
                                         }
+
                                         className="sm:mb-1 lg:mb-0"
                                         style={{
                                             width: "18px",
@@ -348,16 +348,15 @@ export function Index({ auth }: PageProps) {
                                     <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
                                         New
                                     </span>
+
+                                </div>
+                                <div className="flex-basis-50">
                                     <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
+                                        className="sm:mb-1 lg:mb-0"
                                         data-field="status"
                                         data-fieldtype="open"
-                                        checked={selectedStatus.includes(
-                                            "open"
-                                        )}
-                                        onChange={() =>
-                                            handleSelectedStatus("open")
-                                        }
+                                        checked={selectedStatus.includes('open')}
+                                        onChange={() => handleSelectedStatus('open')}
                                         style={{
                                             width: "18px",
                                             height: "18px",
@@ -365,19 +364,15 @@ export function Index({ auth }: PageProps) {
                                     />
                                     <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
                                         Open
-                                    </span>
+
+                                </div>
+                                <div className="flex-basis-50">
                                     <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
+                                        className="sm:mb-1 lg:mb-0"
                                         data-field="status"
                                         data-fieldtype="data provided"
-                                        checked={selectedStatus.includes(
-                                            "data provided"
-                                        )}
-                                        onChange={() =>
-                                            handleSelectedStatus(
-                                                "data provided"
-                                            )
-                                        }
+                                        checked={selectedStatus.includes('data provided')}
+                                        onChange={() => handleSelectedStatus('data provided')}
                                         style={{
                                             width: "18px",
                                             height: "18px",
@@ -386,16 +381,15 @@ export function Index({ auth }: PageProps) {
                                     <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
                                         Data provided
                                     </span>
+
+                                </div>
+                                <div className="flex-basis-50">
                                     <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
+                                        className="sm:mb-1 lg:mb-0"
                                         data-field="status"
                                         data-fieldtype="returned"
-                                        checked={selectedStatus.includes(
-                                            "returned"
-                                        )}
-                                        onChange={() =>
-                                            handleSelectedStatus("returned")
-                                        }
+                                        checked={selectedStatus.includes('returned')}
+                                        onChange={() => handleSelectedStatus('returned')}
                                         style={{
                                             width: "18px",
                                             height: "18px",
@@ -404,16 +398,15 @@ export function Index({ auth }: PageProps) {
                                     <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
                                         Returned
                                     </span>
+
+                                </div>
+                                <div className="flex-basis-50">
                                     <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
+                                        className="sm:mb-1 lg:mb-0"
                                         data-field="flag"
                                         data-fieldtype="accepted"
-                                        checked={selectedStatus.includes(
-                                            "accepted"
-                                        )}
-                                        onChange={() =>
-                                            handleSelectedStatus("accepted")
-                                        }
+                                        checked={selectedStatus.includes('accepted')}
+                                        onChange={() => handleSelectedStatus('accepted')}
                                         style={{
                                             width: "18px",
                                             height: "18px",
@@ -422,16 +415,15 @@ export function Index({ auth }: PageProps) {
                                     <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
                                         Accepted
                                     </span>
+
+                                </div>
+                                <div className="flex-basis-50">
                                     <Checkbox
-                                        className="ml-5 sm:mb-1 lg:mb-0"
+                                        className="sm:mb-1 lg:mb-0"
                                         data-field="flag"
                                         data-fieldtype="declined"
-                                        checked={selectedStatus.includes(
-                                            "declined"
-                                        )}
-                                        onChange={() =>
-                                            handleSelectedStatus("declined")
-                                        }
+                                        checked={selectedStatus.includes('declined')}
+                                        onChange={() => handleSelectedStatus('declined')}
                                         style={{
                                             width: "18px",
                                             height: "18px",
@@ -441,36 +433,27 @@ export function Index({ auth }: PageProps) {
                                         Declined
                                     </span>
                                 </div>
-                                <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                                    Sort:
-                                </h5>
-                                <div className=" p-4">
-                                    <Checkbox
-                                        className=" sm:mb-1 "
-                                        name="remember"
-                                        data-field="after deadline"
-                                        data-fieldtype="after deadline"
-                                        checked={sortColumn == "task_due_date"}
-                                        onChange={(e) =>
-                                            e.target.checked
-                                                ? handleSort(
-                                                      "task_due_date",
-                                                      "desc"
-                                                  )
-                                                : handleSort(
-                                                      "status_sortorder.sortorder",
-                                                      "asc"
-                                                  )
-                                        }
-                                        style={{
-                                            width: "18px",
-                                            height: "18px",
-                                        }}
-                                    />
-                                    <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
-                                        After deadline last
-                                    </span>
-                                </div>
+
+                            </div>
+                            <h5 className="pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                                Sort:
+                            </h5>
+                            <div className="p-4">
+                                <Checkbox
+                                    className=" sm:mb-1 "
+                                    name="remember"
+                                    data-field="after deadline"
+                                    data-fieldtype="after deadline"
+                                    checked={sortColumn == 'task_due_date'}
+                                    onChange={(e) => e.target.checked ? handleSort('task_due_date','desc') : handleSort('status_sortorder.sortorder','asc')}
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                    }}
+                                />
+                                <span className="ms-2 text-lg text-gray-600 dark:text-gray-400">
+                                    After deadline last
+                                </span>
                             </div>
                         </div>
                     </div>

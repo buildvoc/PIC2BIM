@@ -193,4 +193,17 @@ class TasksController extends Controller
         }
         return redirect()->back();
     }
+
+    public function getUnassignedTasks(Request $request){
+        $tasks = Task::doesntHave('photos')->where('user_id',Auth::id())->where('flg_deleted',0)->select('name','id')->get();
+        return response()->json($tasks);
+    }
+    public function assignTask(Request $request){
+        $photoIds = explode(",",$request->photo_ids);
+
+        Photo::whereIn('id',$photoIds)->update([
+            'task_id' => $request->task_id
+        ]);
+        // return redirect()->route('photo_gallery');
+    }
 }

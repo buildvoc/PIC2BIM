@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
+import axios from 'axios';
 
 export default function Authenticated({
     user,
@@ -38,8 +39,12 @@ export default function Authenticated({
         document.documentElement.classList.toggle("dark");
         setIsDark(document.documentElement.classList.contains("dark"));
     };
-    // document.documentElement.classList.toggle('dark');
-    // }
+
+    const toggleSplitMode = (data:SplitViewState) => {
+        setSplitView((prevState: any) => (data));
+        axios.post(route('set-split-mode-in-session'));
+    };
+    
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
@@ -54,7 +59,7 @@ export default function Authenticated({
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
                                     href={route("dashboard")}
-                                    active={route().current("dashboard")}
+                                    active={route().current("dashboard") || route().current("user_task.index")}
                                 >
                                     Home
                                 </NavLink>
@@ -65,7 +70,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("users.unassigned")}
                                             active={route().current(
-                                                "types.index"
+                                                "users.unassigned"
                                             )}
                                         >
                                             Unassigned Farmers
@@ -94,7 +99,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("photo_gallery")}
                                             active={route().current(
-                                                "types.index"
+                                                "photo_gallery"
                                             )}
                                         >
                                             Photo Gallery
@@ -102,7 +107,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("user_paths")}
                                             active={route().current(
-                                                "types.index"
+                                                "user_paths"
                                             )}
                                         >
                                             Show Paths
@@ -121,22 +126,18 @@ export default function Authenticated({
                                                 ? "bg-gray-200 dark:bg-gray-600"
                                                 : ""
                                         }  focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md`}
-                                        onClick={() => {
-                                            setSplitView((prevState: any) => ({
-                                                single: false,
-                                                split: true,
-                                            }));
-                                        }}
+                                        onClick={() => toggleSplitMode({
+                                            single: false,
+                                            split: true,
+                                        })}
                                     >
                                         <BsLayoutSplit size={18} />
                                     </div>
                                     <div
-                                        onClick={() => {
-                                            setSplitView((prevState: any) => ({
-                                                single: true,
-                                                split: false,
-                                            }));
-                                        }}
+                                        onClick={() => toggleSplitMode({
+                                            single: true,
+                                            split: false,
+                                        })}
                                         className={`${
                                             splitView?.single
                                                 ? "bg-gray-200 dark:bg-gray-600"

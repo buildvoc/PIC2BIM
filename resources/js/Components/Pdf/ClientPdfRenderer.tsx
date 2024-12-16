@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
 
 // Page component
 const PdfPage = ({
+    photoKey,
     photo,
     totalPages,
     isPhotoGallery,
@@ -163,6 +164,7 @@ const PdfPage = ({
     auth,
     exportedPages,
 }: PropsWithChildren<{
+    photoKey : number;
     photo: Photo;
     totalPages: number;
     isPhotoGallery: boolean;
@@ -171,7 +173,8 @@ const PdfPage = ({
     auth: { user: User };
 }>) => {
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
-    console.log("image--- 1",photo.mapImg)
+    // console.log("image--- 1",photo.mapImg)
+    console.log("key--- ",photoKey);
     return (
         <Page size="A4" style={styles.page}>
             {/* PDF Header */}
@@ -201,13 +204,14 @@ const PdfPage = ({
                         Exported {exportedPages} out of {totalPages} photos
                     </Text>
                 </View>
-
-                <Text style={styles.task_title}>
-                    {`${auth.user.name} ${auth.user.surname}`}{" "}
-                    {task
-                        ? `- task detail ${task.name}`
-                        : " Gallery of unassigned photos"}
-                </Text>
+                {photoKey == 0 && (
+                    <Text style={styles.task_title}>
+                        {`${auth.user.name} ${auth.user.surname}`}{" "}
+                        {task
+                            ? `- task detail ${task.name}`
+                            : " Gallery of unassigned photos"}
+                    </Text>
+                )}
                 {!isPhotoGallery && (
                     <View style={styles.task_list_container}>
                         <View style={styles.task_container}>
@@ -498,11 +502,13 @@ const ClientPdfRenderer = ({
         exportedPages: number,
         task: Task
     ) {
+        console.log(index,'INDEX')
         var photoArray: any = [];
         photoArray[0] = photo;
         return (
             <PdfPage
                 key={index}
+                photoKey={index}
                 photo={photo}
                 totalPages={totalPages}
                 isPhotoGallery={isPhotoGallery}
