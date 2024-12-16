@@ -246,7 +246,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                         <span>Cancel Selection</span>
                                     </Link>
                                     <button
-                                        className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
+                                        className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"
                                         onClick={onDeleteHandler}
                                     >
                                         <FaTrash size={16} className="mr-2" />
