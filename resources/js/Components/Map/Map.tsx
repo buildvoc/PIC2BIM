@@ -357,7 +357,6 @@ function Map({
                 "none"
             );
         } else {
-            !isUnassigned &&
                 mapRef.current?.setLayoutProperty(
                     "unclustered-point",
                     "visibility",
