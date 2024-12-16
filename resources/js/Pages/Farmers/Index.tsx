@@ -195,23 +195,17 @@ export function Index({ auth }: PageProps) {
                                         label: "Acception",
                                         name: "acception",
                                         sorting : true,
-                                        renderCell: (row: Task) => (
-                                            <>
-                                                <button
-                                                    className={`w-24 ${
-                                                        row.status ==
-                                                        "data provided"
-                                                            ? "bg-blue-500"
-                                                            : "bg-green-500"
-                                                    }  font-semibold text-white   py-1.5 rounded-lg`}
-                                                >{`${
-                                                    row.status ==
-                                                    "data provided"
-                                                        ? "Waiting"
-                                                        : "Accepted"
-                                                }`}</button>
-                                            </>
-                                        ),
+                                        renderCell: row => (
+                                          <>
+                                              {row.flag_id === 1 ? (
+                                                <div className="bg-green-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Accepted</div>
+                                              ) : row.flag_id === 2 ? (
+                                                <div className="bg-red-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Declined</div>
+                                              ) : row.status === 'data provided' ? (
+                                                <div className="bg-blue-500 dark:text-white w-full m-auto flex items-center justify-center rounded-md px-4 py-2 focus:outline-none">Waiting</div>
+                                              ) : null}
+                                          </>
+                                        )
                                     },
                                 ]}
                                 rows={filter_tasks}
