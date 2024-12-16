@@ -163,7 +163,21 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         });
         // router.reload();
         // setIsChooseTaskPopupOpen(false);
-    }
+    };
+
+    
+    const selectAll = () => {
+        const allPhotos = photo_;
+        const withCheckUpdate = allPhotos.map((photo) => {
+            let check = !photo.hasOwnProperty("check")
+                ? true
+                : !photo?.check;
+            return { ...photo, check: check };
+        });
+        setPhotos(withCheckUpdate);
+    };
+
+
     const LeftPane = () => {
         return (
             <div
@@ -193,6 +207,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         );
     };
 
+
     const RightPane = useCallback(
         ({
             onDeleteHandler,
@@ -219,7 +234,9 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                             />
                             <div className="flex pt-2 px-2">
                                 <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
-                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3">
+                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
+                                        onClick={selectAll}
+                                    >
                                         <span>Select All</span>
                                     </button>
                                     <Link
