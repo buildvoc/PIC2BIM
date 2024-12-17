@@ -1,5 +1,5 @@
 import { PageProps } from "@/types";
-import { memo, useEffect, useState, useRef, useLayoutEffect } from "react";
+import { memo, useEffect, useState, useRef, useLayoutEffect,useCallback,PropsWithChildren } from "react";
 import { Head, router, useForm, usePage } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import TextInput from "@/Components/Form/TextInput";
@@ -94,6 +94,20 @@ export function Index({ auth }: PageProps) {
     useEffect (() => {
         
     } , [selectedStatus]);
+
+    const handleZoomFilter = (leaves: String[] | undefined) => {
+        const filteredPhotos = tasks_photos_array.filter((photo) =>
+            leaves?.includes(photo.photo.digest)
+        );
+
+        const taskIds = filteredPhotos.map((photo) => photo.id);
+        const filteredTasks = tasks_array.filter((task) =>
+            taskIds?.includes(task.id)
+        );
+
+        set_filter_tasks(filteredTasks);
+        // set_filter_tasks_photos(filteredPhotos);
+    };
     
 
     function handlePageChange(url: string) {
@@ -237,7 +251,14 @@ export function Index({ auth }: PageProps) {
             </div>
         );
     };
-    const RightPane = () => {
+    const RightPane = useCallback(
+        ({
+            handleZoomFilter,
+            handle_toggle_task_details,
+        }: PropsWithChildren<{
+            handleZoomFilter: (leaves: String[] | undefined) => void;
+            handle_toggle_task_details: (askId: number) => void;
+        }>) => {
         return (
             <div
                 className={`w-full py-2  ${
@@ -250,6 +271,8 @@ export function Index({ auth }: PageProps) {
                             <ButtonMap
                                 data={filter_tasks_photos}
                                 onClick={handle_toggle_task_details}
+                                zoomFilter={handleZoomFilter}
+                                isUnassigned={true}
                             />
 
                             <h5 className="gap-8 pt-5 pl-5 font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
@@ -378,7 +401,10 @@ export function Index({ auth }: PageProps) {
                 </div>
             </div>
         );
-    };
+    },
+    []
+);
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -395,12 +421,21 @@ export function Index({ auth }: PageProps) {
                 {splitView.split ? (
                     <>
                         <LeftPane />
-                        <RightPane />
+                        <RightPane
+                             handle_toggle_task_details={
+                                 handle_toggle_task_details
+                             }
+                             handleZoomFilter={handleZoomFilter}
+                         />
                     </>
                 ) : (
                     <>
-                        <RightPane />
-                        <LeftPane />
+                       <RightPane
+                             handle_toggle_task_details={
+                                 handle_toggle_task_details
+                             }
+                             handleZoomFilter={handleZoomFilter}
+                         />                        <LeftPane />
                     </>
                 )}
             </div>
