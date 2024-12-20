@@ -112,6 +112,7 @@ use Illuminate\Support\Facades\DB;
                     'file_name' => $photo->file_name,
                     'digest' => $photo->digest,
                     'photo' => $file ? base64_encode($file) : null,
+                    'link' => $photo->link
                 ];
             });
 
