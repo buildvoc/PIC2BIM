@@ -148,7 +148,7 @@ export default function Table<T>({
                                   onHeaderClick!(column.label)
                               }}
                             >
-                                <span className="flex flex-row items-center">
+                                <span className="flex flex-row justify-center">
                                     <span>{column.label}</span>
                                     {column.sorting && (
                                         <span>
@@ -250,7 +250,7 @@ export default function Table<T>({
                                         >
                                             <span
                                                 tabIndex={-1}
-                                                className="flex items-center px-6 py-4 text-gray-700 dark:text-gray-300 focus:outline-none"
+                                                className="flex p-2 justify-center items-center text-gray-700 dark:text-gray-300 focus:outline-none"
                                             >
                                                 {column.renderCell?.(row) ??
                                                     get(row, column.name) ??
