@@ -76,7 +76,7 @@ const TaskGallery = ({
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {photos?.map((photo, index) => {
-                    const imageSrc = photo?.photo ? `data:image/jpeg;base64,${photo.photo}` : '/images/dummy-image.jpg';
+                    const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
 
                     return (
                         <div className=" p-4" key={index}>
@@ -129,6 +129,10 @@ const TaskGallery = ({
                                 }}
                             >
                                 <img
+                                    onError={(e) => {
+                                        e.currentTarget.src = '/images/dummy-image.jpg'; // Fallback image
+                                        e.currentTarget.onerror = null; // Prevent infinite loop if fallback also fails
+                                    }}
                                     src={imageSrc}
                                     className="max-w-full max-h-full w-auto h-auto m-0 transition-opacity duration-200 hover:opacity-75 object-cover"
                                 />

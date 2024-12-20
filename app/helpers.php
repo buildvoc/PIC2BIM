@@ -543,8 +543,8 @@ function getTaskPhotos($task_id = null, $user_id = null)
     $output = [];
 
     // Build the query based on the conditions
-    $query = DB::table('photo')
-        ->select([
+    $query = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'accuracy',
@@ -643,14 +643,15 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'id' => $photo->id
+            'id' => $photo->id,
+            'link' => $photo->link
         ];
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
-        }
-        $out['photo'] = base64_encode($file);
+        // $file = null;
+        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+        // if (file_exists($filePath)) {
+        //     $file = file_get_contents($filePath);
+        // }
+        // $out['photo'] = base64_encode($file);
         $output[] = $out;
     }
 
@@ -697,8 +698,8 @@ function deleteSelectedUnassignedPhoto(array $uids)
 
 function getPhotosWithoutTask($user_id)
 {
-    $photos = DB::table('photo')
-        ->select([
+    $photos = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'distance',
@@ -792,16 +793,17 @@ function getPhotosWithoutTask($user_id)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'id' => $photo->id
+            'id' => $photo->id,
+            'link' => $photo->link
 
         ];
 
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
-        }
-        $photoData['photo'] = $file ? base64_encode($file) : null;
+        // $file = null;
+        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+        // if (file_exists($filePath)) {
+        //     $file = file_get_contents($filePath);
+        // }
+        // $photoData['photo'] = $file ? base64_encode($file) : null;
         $output[] = $photoData;
     }
 
