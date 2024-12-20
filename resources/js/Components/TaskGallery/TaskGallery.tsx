@@ -129,9 +129,10 @@ const TaskGallery = ({
                                 }}
                             >
                                 <img
+                                    loading="lazy"
                                     onError={(e) => {
-                                        e.currentTarget.src = '/images/dummy-image.jpg'; // Fallback image
-                                        e.currentTarget.onerror = null; // Prevent infinite loop if fallback also fails
+                                        e.currentTarget.src = '/images/dummy-image.jpg';
+                                        e.currentTarget.onerror = null;
                                     }}
                                     src={imageSrc}
                                     className="max-w-full max-h-full w-auto h-auto m-0 transition-opacity duration-200 hover:opacity-75 object-cover"
