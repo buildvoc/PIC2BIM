@@ -6,7 +6,7 @@ import { cnvrtImgUrl } from "@/helpers";
 export function PhotoDetail({auth,photo}: PageProps) {
     
 
-  const imageSrc = cnvrtImgUrl(photo.photo);
+  const imageSrc = photo.link;
   const [image, setImage] = useState<any>(null);
   const [imageWidth, setImageWidth] = useState<any>("auto");
   const [initialWidth, setInitialWidth] = useState(null);

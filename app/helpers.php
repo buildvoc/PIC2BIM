@@ -214,8 +214,8 @@ function setPhoto($photo, $user_id, $task_id)
 
 function getPhoto($photo_id)
 {
-    $photo = DB::table('photo')
-        ->select([
+    $photo = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'distance',
@@ -305,16 +305,8 @@ function getPhoto($photo_id)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'link' => $photo->link
         ];
-
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
-        }
-
-        $output['photo'] = $file ? base64_encode($file) : null;
     }
 
     return $output;
@@ -940,16 +932,9 @@ foreach ($photos as $photo) {
         'photo_heading' => $photo->photo_heading,
         'created' => $photo->created,
         'digest' => $photo->digest,
+        'link' => $photo->link
     ];
-
-    $file = null;
-    $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-
-    if (file_exists($filePath)) {
-        $file = file_get_contents($filePath);
-    }
-
-    $currentPhoto['photo'] = $file ? base64_encode($file) : null;
+    
 
     // Add the photo data to the output array
     $output[] = $currentPhoto;

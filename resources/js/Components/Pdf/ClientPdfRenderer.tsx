@@ -266,7 +266,7 @@ const PdfPage = ({
                 )}
 
                 {photo?.img && (
-                    <Image src={photo.img} style={styles.task_image} />
+                    <Image src={photo.link} style={styles.task_image} />
                 )}
 
                 <View style={styles.bottom_container}>
