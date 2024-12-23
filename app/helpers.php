@@ -184,8 +184,8 @@ function setPhoto($photo, $user_id, $task_id)
                 $image_name = 'image_' . $newPhoto->id . '.jpeg';
                 $path = 'photos4all/' . $pa_id . '/' . $user_id . '/';
 
-                Storage::disk('local')->makeDirectory($path);
-                Storage::disk('local')->put($path . $image_name, $data);
+                Storage::disk('public')->makeDirectory($path);
+                Storage::disk('public')->put($path . $image_name, $data);
 
                 $hash = hash('sha256', 'bfb576892e43b763731a1596c428987893b2e76ce1be10f733_' . hash('sha256', $data) . '_' . $photo['created'] . '_' . $user_id);
                 $flg_original = $hash === $photo['digest'] ? 1 : 0;
