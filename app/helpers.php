@@ -472,7 +472,7 @@ function setPhotos($photos, $user_id, $task_id)
                             Storage::makeDirectory($path);
                         }
 
-                        Storage::put($path . $image_name, $data);
+                        Storage::disk('public')->put($path . $image_name, $data);
 
                         $hash = hash('sha256', 'bfb576892e43b763731a1596c428987893b2e76ce1be10f733_' . hash('sha256', $data) . '_' . $photo['created'] . '_' . $user_id);
                         $flg_original = ($hash == $photo['digest']) ? 1 : 0;
