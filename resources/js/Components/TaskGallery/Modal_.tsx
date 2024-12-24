@@ -71,7 +71,7 @@ const Modal_ = ({
                     >
                         <img
                             src={image!}
-                            className="w-2/4"
+                            className="max-w-full max-h-96 object-contain4"
                             style={{
                                 transform: `rotate(${
                                     photos[modal.index]?.angle
