@@ -3,7 +3,7 @@ import ApplicationLogo from "@/Components/ApplicationLogo";
 import Dropdown from "@/Components/Dropdown";
 import NavLink from "@/Components/NavLink";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { User, SplitViewState } from "@/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun } from "@fortawesome/free-solid-svg-icons";
@@ -23,22 +23,30 @@ export default function Authenticated({
     splitView?: SplitViewState;
     setSplitView?: any;
 }>) {
+
+    const {darkMode} = usePage<{
+        darkMode : boolean;
+    }>().props;
+
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
     const userRoles =
         user && user.roles ? user.roles.map((obj) => obj.role_id) : [];
 
-    const [isDark, setIsDark] = useState(
-        document.documentElement.classList.contains("dark")
-    );
+    const [isDark, setIsDark] = useState(darkMode);
 
-    // function toggleTheme(){
+    const isAlreadyDark = document.documentElement.classList.contains("dark");
+
+    if(isDark && !isAlreadyDark) document.documentElement.classList.add('dark');
+    else if (!isDark && isAlreadyDark) document.documentElement.classList.remove("dark");
 
     const toggleTheme = () => {
         document.documentElement.classList.toggle("dark");
         setIsDark(document.documentElement.classList.contains("dark"));
+        axios.post(route('set-dark-mode-in-session'));
     };
+    
 
     const toggleSplitMode = (data:SplitViewState) => {
         setSplitView((prevState: any) => (data));

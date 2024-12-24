@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
 
     Route::post('/set-split-mode-in-session',[DashboardController::class,'setSplitModeInSession'])->name('set-split-mode-in-session');
+    Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
     Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
     Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
 });
