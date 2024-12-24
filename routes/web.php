@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user_paths');
     Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
         ->name('photo_detail');
+    Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
 

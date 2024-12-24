@@ -7,6 +7,7 @@ import { FaTimesCircle } from "react-icons/fa";
 import { loadJQuery } from "@/helpers";
 import "./style.css";
 import Modal_ from "./Modal_";
+import axios from "axios";
 const TaskGallery = ({
     photos,
     isUnassigned,
@@ -42,9 +43,12 @@ const TaskGallery = ({
     }, []);
 
     const handleRotate = (id: string, direction: string) => {
+        let newAngle = 0;
+        let pId = 0;
         const withAngleUpdate = photos.map((photo) => {
             if (photo.digest === id) {
-                const newAngle = photo?.angle
+                pId = photo.id;
+                newAngle = photo?.angle
                     ? direction === "left"
                         ? photo?.angle - 90
                         : photo?.angle + 90
@@ -56,6 +60,7 @@ const TaskGallery = ({
             return photo;
         });
         setPhotos(withAngleUpdate);
+        axios.post(route('rotate-photo'),{id : pId, angle : newAngle});
     };
     const handleClose = () => setShowModal({ isShow: false, index: -1 });
 

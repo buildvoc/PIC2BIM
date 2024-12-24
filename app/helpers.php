@@ -579,7 +579,8 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'path',
             'file_name',
             'digest',
-            'id'
+            'id',
+            'rotation_correction as angle'
         ])
         ->where('flg_deleted', 0);
 
@@ -636,7 +637,8 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'link' => $photo->link
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
         // $file = null;
         // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
