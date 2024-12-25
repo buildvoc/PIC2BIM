@@ -38,14 +38,14 @@ use Illuminate\Support\Facades\DB;
             'task.text',
             'task.date_created as created',
             'task.task_due_date as due',
-            DB::raw('DATE_FORMAT(task.date_created, "%d-%m-%Y") as date_created'),
-            DB::raw('DATE_FORMAT(task.task_due_date, "%d-%m-%Y") as task_due_date'),
+            DB::raw("to_char(task.date_created, 'DD-MM-YYYY') as date_created"),
+            DB::raw("to_char(task.task_due_date, 'DD-MM-YYYY') as task_due_date"),
             DB::raw('COUNT(photo.id) as photo_taken'),
             'task_flag.flag_id',
             'status_sortorder.sortorder'
         )
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0, "1", "0") AS flag_valid')
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0, "1", "0") AS flag_invalid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0 THEN 1 ELSE 0 END AS flag_valid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0 THEN 1 ELSE 0 END AS flag_invalid')
         ->where('task.user_id', $user_id)
         ->where('task.flg_deleted', 0)
         ->leftJoin('photo', 'task.id', '=', 'photo.task_id')
@@ -53,7 +53,7 @@ use Illuminate\Support\Facades\DB;
         ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status');
 
         if (!empty($search)) {
-            $tasks->where('task.name', 'LIKE', '%' . $search . '%');
+            $tasks->where('task.name', 'ILIKE', '%' . $search . '%');
         }
         
         $selectedStatuses = explode(",",$request->status);
