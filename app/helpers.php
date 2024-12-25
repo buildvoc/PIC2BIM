@@ -656,7 +656,7 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             }
             $out['photo'] = base64_encode($file);
         }else{
-            $out['link'] > $photo->link;
+            $out['link'] = $photo->link;
         }
         
         $output[] = $out;
