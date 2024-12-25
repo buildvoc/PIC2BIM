@@ -212,7 +212,7 @@ function setPhoto($photo, $user_id, $task_id)
     return $status;
 }
 
-function getPhoto($photo_id)
+function getPhoto($photo_id, $wantsbase64Photo=false)
 {
     $photo = Photo
         ::select([
@@ -305,8 +305,18 @@ function getPhoto($photo_id)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'link' => $photo->link
         ];
+
+        if($wantsbase64Photo){
+            $file = null;
+            $filePath = storage_path('app/public/' . $photo->path . $photo->file_name);
+            if (file_exists($filePath)) {
+                $file = file_get_contents($filePath);
+            }
+            $output['photo'] = $file ? base64_encode($file) : null;
+        }else{
+            $output['link'] = $photo->link;
+        }
     }
 
     return $output;
@@ -530,11 +540,10 @@ function checkTaskPhotos($task_id)
     return $photoCount > 0;
 }
 
-function getTaskPhotos($task_id = null, $user_id = null)
+function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false)
 {
     $output = [];
 
-    // Build the query based on the conditions
     $query = Photo
         ::select([
             'altitude',
@@ -637,16 +646,21 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'link' => $photo->link,
             'angle' => $photo->angle
         ];
-        // $file = null;
-        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        // if (file_exists($filePath)) {
-        //     $file = file_get_contents($filePath);
-        // }
-        // $out['photo'] = base64_encode($file);
+        if($wantsBase64Photo){
+            $file = null;
+            $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+            if (file_exists($filePath)) {
+                $file = file_get_contents($filePath);
+            }
+            $out['photo'] = base64_encode($file);
+        }else{
+            $out['link'] > $photo->link;
+        }
+        
         $output[] = $out;
+        
     }
 
     return $output;
