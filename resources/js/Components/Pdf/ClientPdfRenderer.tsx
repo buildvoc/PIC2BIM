@@ -298,7 +298,7 @@ const PdfPage = ({
                             </Text>
                         </View>
                         <View style={styles.photo_details_row}>
-                            <Text>Vertica?l angle</Text>
+                            <Text>Vertical angle</Text>
                             <Text style={styles.photo_details_value}>
                                 {photo?.vertical_view_angle}
                             </Text>
