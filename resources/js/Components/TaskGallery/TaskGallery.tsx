@@ -117,7 +117,7 @@ const TaskGallery = ({
                                 </div>
                             </div>
                             <label
-                                className={`flex flex-1  justify-center mr-[5px] text-center  w-[300px] h-[300px] rounded-sm border-4 ${
+                                className={`flex flex-1  justify-center mr-[5px] text-center  w-[300px] h-[300px] hover:border-indigo-500 cursor-pointer rounded-sm border-4 ${
                                     photo.check
                                         ? "border-indigo-500"
                                         : "dark:border-gray-200"
@@ -130,7 +130,7 @@ const TaskGallery = ({
                                         isShow: true,
                                         index: index,
                                     });
-                                    handlePhotoCheckBox(photo?.digest);
+                                    // handlePhotoCheckBox(photo?.digest);
                                 }}
                             >
                                 <img
