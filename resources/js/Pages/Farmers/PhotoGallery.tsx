@@ -178,7 +178,15 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     };
 
 
-    const LeftPane = () => {
+    const LeftPane = useCallback (({
+        photo_,
+        destroy,
+        setPhotos
+    }:PropsWithChildren<{
+    photo_: Photo[];
+    destroy: (ids: string)=>void;
+    setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
+    }>) => {
         return (
             <div
                 className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""
@@ -205,7 +213,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 </div>
             </div>
         );
-    };
+    },[]);
 
 
     const RightPane = useCallback(
@@ -337,7 +345,12 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
             <div className="flex flex-wrap ">
                 {splitView.split ? (
                     <>
-                        <LeftPane />
+                        <LeftPane 
+                        photo_={photo_}
+                        destroy={destroy}
+                        setPhotos={setPhotos}
+
+                        />
                         <RightPane
                             onDeleteHandler={onDeleteHandler}
                             selectAllPdfHandler={selectAllPdfHandler}
@@ -351,7 +364,11 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                             selectAllPdfHandler={selectAllPdfHandler}
                             chooseTask={chooseTask}
                         />
-                        <LeftPane />
+                        <LeftPane
+                            photo_={photo_}
+                            destroy={destroy}
+                            setPhotos={setPhotos}
+                        />
                     </>
                 )}
             </div>
