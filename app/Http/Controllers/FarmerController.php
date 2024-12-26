@@ -99,11 +99,11 @@ use Illuminate\Support\Facades\DB;
         ->paginate(10)
         ->through(function ($task) {
             $photos = $task->photos->map(function ($photo) {
-                $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+                // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
                 $file = null;
-                if (file_exists($filePath)) {
-                    $file = file_get_contents($filePath);
-                }
+                // if (file_exists($filePath)) {
+                //     $file = file_get_contents($filePath);
+                // }
                 return [
                     'lat' => $photo->lat,
                     'lng' => $photo->lng,
@@ -112,6 +112,7 @@ use Illuminate\Support\Facades\DB;
                     'file_name' => $photo->file_name,
                     'digest' => $photo->digest,
                     'photo' => $file ? base64_encode($file) : null,
+                    'link' => $photo->link
                 ];
             });
 

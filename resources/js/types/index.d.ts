@@ -128,7 +128,8 @@ export interface Photo {
   photo: string | null;
   check:boolean;
   img?:string;
-  mapImg?:string
+  mapImg?:string;
+  link?: string;
 }
 
 export interface TaskPhotos extends Task{

@@ -2,8 +2,8 @@ import styles from "./task_photo.module.css";
 
 const TaskPhoto: any = ({ data, onClick }: any) => {
   const { farmer_name, name, photo, id } = data;
-  const imageSrc: any = photo.photo
-    ? `data:image/jpeg;base64,${photo.photo}`
+  const imageSrc: any = photo.link
+    ? photo.link
     : null;
 
   return (
