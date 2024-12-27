@@ -13,7 +13,25 @@ use Illuminate\Support\Facades\DB;
     public function index(Request $request)
     {   
         $filtersVal = ["new","open","data provided","returned","accepted","declined"];
+
+
         $search = $request->search;
+        $selectedStatuses = explode(",",$request->status);
+        $sortColumn = $request->sortColumn ?? 'status';
+        $sortOrder= $request->sortOrder ?? 'asc';
+
+        if($request->has('sortColumn')) session(['sortColumn' => $sortColumn]);
+        else $sortColumn = session('sortColumn');
+        
+        if($request->has('sortOrder')) session(['sortOrder' => $sortOrder]);
+        else $sortOrder = session('sortOrder');
+
+        if($request->has('search')) session(['search' => $request->search]);
+        else $search = session('search') ?? '';
+
+        if($request->has('status')) session((['status' => $request->status]));
+        else $selectedStatuses = session('status') ?  explode(",",session('status')) : []; 
+        
         $user = Auth::user();
         $user_id = $user->id;
         $tasks = Task::withCount(['photos' => function ($query) {
@@ -54,10 +72,9 @@ use Illuminate\Support\Facades\DB;
 
         if (!empty($search)) {
             $tasks->where('task.name', 'LIKE', '%' . $search . '%');
-        }
+        }     
         
-        $selectedStatuses = explode(",",$request->status);
-        if($request->has('status')) {
+        if($selectedStatuses) {
             $filtersVal = $selectedStatuses;
             if(!in_array('new',$selectedStatuses)) $tasks->where('task.status','!=','new');
             if(!in_array('open',$selectedStatuses)) $tasks->where('task.status','!=','open');
@@ -75,11 +92,8 @@ use Illuminate\Support\Facades\DB;
                 });
             }
         }
-        $sortColumn = 'status';$sortOrder='asc';
         
-        if($request->sortColumn && $request->sortOrder){
-            $sortColumn = $request->sortColumn;
-            $sortOrder = $request->sortOrder;
+        if($sortColumn && $sortOrder){
             $tasks->orderBy($sortColumn,$sortOrder);
         }else{
             $tasks->orderByRaw('status_sortorder.sortorder ASC, created DESC');
@@ -99,11 +113,7 @@ use Illuminate\Support\Facades\DB;
         ->paginate(10)
         ->through(function ($task) {
             $photos = $task->photos->map(function ($photo) {
-                // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
                 $file = null;
-                // if (file_exists($filePath)) {
-                //     $file = file_get_contents($filePath);
-                // }
                 return [
                     'lat' => $photo->lat,
                     'lng' => $photo->lng,
