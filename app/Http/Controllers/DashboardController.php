@@ -73,4 +73,10 @@ class DashboardController extends Controller
         session(['splitMode' => $splitMode ? 0 : 1]);
         return response()->json(['splitMode' => session('splitMode')]);
     }
+
+    public function setDarkModeInSession(){
+        $viewMode = session()->has('darkMode') ? session('darkMode') : 'dark';
+        session(['darkMode' => $viewMode ? 0 : 1]);
+        return response()->json(['darkMode' => session('darkMode')]);
+    }
 }

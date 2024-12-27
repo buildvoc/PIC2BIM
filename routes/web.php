@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user_paths');
     Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
         ->name('photo_detail');
+    Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
 
@@ -73,6 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
 
     Route::post('/set-split-mode-in-session',[DashboardController::class,'setSplitModeInSession'])->name('set-split-mode-in-session');
+    Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
     Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
     Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
 });

@@ -11,7 +11,7 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
     const [isGenerate, setIsGenerated] = useState(false);
 
     const getContent = (photo: Photo, index: number) => {
-        const imageSrc: any = cnvrtImgUrl(photo?.photo);
+        const imageSrc: any = photo?.link;
 
         var photoArray: any = [];
         if (tasks.length > 0) {

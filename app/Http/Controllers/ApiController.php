@@ -239,7 +239,7 @@ class ApiController extends Controller
         $output = [
             'status' => 'ok',
             'error_msg' => null,
-            'photo' => getPhoto($photo_id),
+            'photo' => getPhoto($photo_id, true),
         ];
 
         if (empty($output['photo'])) {
@@ -321,7 +321,7 @@ class ApiController extends Controller
         $output = [
             'status' => 'ok',
             'error_msg' => null,
-            'photos' => getTaskPhotos($task_id, $user_id),
+            'photos' => getTaskPhotos($task_id, $user_id, true),
         ];
     
         return response()->json($output);
