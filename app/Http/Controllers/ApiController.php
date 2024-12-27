@@ -2,11 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CodepointCollection;
+use App\Http\Resources\ShapeCollection;
+use App\Http\Resources\UprnCollection;
+use App\Models\Attr\BuildingPart;
+use App\Models\Attr\Codepoint;
+use App\Models\Attr\Uprn;
+use App\Models\Attr\Shape;
 use App\Models\Land;
 use App\Models\Path;
 use App\Models\Photo;
 use App\Models\Task;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PDO;
@@ -176,16 +184,6 @@ class ApiController extends Controller
 
         return response()->json($output);
  
-    }
-
-    public function comm_shapes(Request $request){
-        $max_lat = trim($request->input('max_lat'));
-        $min_lat = trim($request->input('min_lat'));
-        $max_lng = trim($request->input('max_lng'));
-        $min_lng = trim($request->input('min_lng'));
-        
-
-        return response()->json(getShapes($max_lat, $min_lat, $max_lng, $min_lng));
     }
 
     public function comm_photo(Request $request){
@@ -463,5 +461,96 @@ class ApiController extends Controller
                 'error_msg' => 'Record deleted or record not found'
             ]);
         }
+    }
+
+    public function comm_shapes(Request $request){
+        $maxEasting = $request->max_lng;
+        $maxNorthing = $request->max_lat;
+        $minEasting = $request->min_lng;
+        $minNorthing = $request->min_lat;
+
+        $data = Shape::query()
+        ->when($minEasting, function ($query) use ($minEasting, $minNorthing,$maxEasting, $maxNorthing) {
+            $query->whereRaw("wkb_geometry && ST_Transform(ST_MakeEnvelope($minEasting, $minNorthing,$maxEasting, $maxNorthing, 4326), 27700)");
+        })
+        ->get();
+
+        return new ShapeCollection($data);
+    }
+
+    public function comm_building_part()
+    {
+        $data = BuildingPart::query()->paginate(20);
+        return response()->json([
+            'success' => true,
+            'http_code' => 200,
+            'data' => ['building_part' => $data]
+        ], 200);
+    }
+
+    public function comm_building_part_nearest(Request $request)
+    {
+        $latitude = $request->latitude;
+        $longitude = $request->longitude;
+        $distance = $request->distance ?: 10;
+        $imagedirection = $request->imagedirection ?: 9;
+
+        $expression = DB::raw('with location as (SELECT st_transform(ST_MakeLine(
+            ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geometry,
+            ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geometry, :distance, radians(:imagedirection)), 4326)::geometry
+            ), 3857) AS geom)
+            SELECT st_transform(t1.geometry, 3857) AS geometry_transformed, public.ST_AsGeoJSON(st_transform(t1.geometry, 4326)) AS geometry_json, t1.*
+            FROM bld_fts_buildingpart t1, location t2
+            WHERE st_intersects(t2.geom, st_transform(t1.geometry, 3857))
+            ORDER BY st_transform(t1.geometry, 3857) <-> t2.geom
+            LIMIT 1');
+
+            $string = $expression->getValue(DB::connection()->getQueryGrammar());
+
+            $raw = DB::select( $string, array(
+                'longitude' => $longitude,
+                'latitude' => $latitude,
+                'distance' => $distance,
+                'imagedirection' => $imagedirection
+            )
+        );
+
+        $data = BuildingPart::hydrate($raw);
+
+        return response()->json([
+            'success' => true,
+            'http_code' => 200,
+            'data' => ['building_part' => $data]
+        ], 200);
+    }
+
+    public function comm_codepoint(Request $request)
+    {
+        $postcode = $request->query('postcode');
+
+        $data = Codepoint::query()
+        ->when($postcode, function ($query) use ($postcode) {
+            $query->where('postcode', 'ILIKE', '%'.$postcode.'%');
+        })
+        ->paginate(100);
+
+        $data->appends(array('postcode' => $postcode));
+
+        return new CodepointCollection($data);
+    }
+
+    public function comm_uprn(Request $request)
+    {
+        $uprn = $request->query('uprn');
+
+        $data = Uprn::query()
+        ->when($uprn, function ($query) use ($uprn) {
+            $query->where('uprn', $uprn);
+        })
+        ->paginate(100);
+
+        $data->appends(array('uprn' => $uprn));
+
+        return new UprnCollection($data);
     }
 }
