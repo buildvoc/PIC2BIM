@@ -1,5 +1,4 @@
 import React from 'react';
-import { Inertia } from '@inertiajs/inertia';
 import { FaArrowLeft } from 'react-icons/fa6';
 import { Link } from '@inertiajs/react';
 
@@ -10,7 +9,7 @@ interface BackButtonProps {
 
 const BackButton: React.FC<BackButtonProps> = ({ label = 'Back', className = '' }) => {
     const handleGoBack = () => {
-        Inertia.visit(document.referrer || '/');
+        // Inertia.visit(document.referrer || '/');
     };
 
     return (
