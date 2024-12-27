@@ -9,6 +9,7 @@ import { FaTrash } from "react-icons/fa";
 import Checkbox from "@/Components/Checkbox";
 import Map from "@/Components/Map/Map";
 import { SplitViewState } from "@/types";
+import BackButton from "@/Components/BackButton";
 export function Paths({ auth, paths, splitMode }: PageProps) {
     const [paths_, setPaths] = useState<Array<Path>>([]);
     const [splitView, setSplitView] = useState<SplitViewState>({
@@ -202,6 +203,7 @@ export function Paths({ auth, paths, splitMode }: PageProps) {
             splitView={splitView}
         >
             <Head title="Paths" />
+            <BackButton label="Back" />
             <div className="flex flex-wrap ">
                 {splitView.split ? (
                     <>

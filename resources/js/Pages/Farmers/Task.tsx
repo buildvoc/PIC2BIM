@@ -10,6 +10,7 @@ import ButtonMap from "@/Components/Map/ButtonMap";
 import TaskGallery from "@/Components/TaskGallery/TaskGallery";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faReply, faSignOutAlt, faTimes, faTrash } from "@fortawesome/free-solid-svg-icons";
+import BackButton from "@/Components/BackButton";
 
 interface Tsk {
     id: number;
@@ -108,8 +109,8 @@ export function Task_({ auth, photos }: PageProps) {
             }
         >
             <Head title="Task detail" />
-
-            <div className="py-12">
+            <BackButton label="Back" />
+            <div className="py-4">
                 <div className="max-w mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <Table
