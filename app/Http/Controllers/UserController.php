@@ -95,8 +95,25 @@ class UserController extends Controller
     public function show(Request $request, User $user)
     {
         $filtersVal = ["new","open","data provided","returned","accepted","declined"];
+
         $search = $request->search;
-        $filters = array('new' => 1,'open' => 1,'data provided' => 1, 'data checked' => 1, 'closed' => 1, 'returned' => 1);
+        $selectedStatuses = explode(",",$request->status);
+        $sortColumn = $request->sortColumn ?? 'status_sortorder.sortorder';
+        $sortOrder= $request->sortOrder ?? 'asc';
+
+
+        if($request->has('sortColumn')) session(['sortColumn' => $sortColumn]);
+        else $sortColumn = session('sortColumn');
+        
+        if($request->has('sortOrder')) session(['sortOrder' => $sortOrder]);
+        else $sortOrder = session('sortOrder');
+
+        if($request->has('search')) session(['search' => $request->search]);
+        else $search = session('search') ?? '';
+
+        if($request->has('status')) session((['status' => $request->status]));
+        else $selectedStatuses = session('status') ?  explode(",",session('status')) : []; 
+        
         $tasksQuery = Task::select(
             'task.id',
             'task.status',
@@ -122,9 +139,9 @@ class UserController extends Controller
             $tasksQuery->where('task.name', 'LIKE', '%' . $search . '%');
         }
         
-        $selectedStatuses = explode(",",$request->status);
         
-        if($request->has('status')) {
+        
+        if($selectedStatuses) {
             $filtersVal = $selectedStatuses;
             if(!in_array('new',$selectedStatuses)) $tasksQuery->where('task.status','!=','new');
             if(!in_array('open',$selectedStatuses)) $tasksQuery->where('task.status','!=','open');
@@ -142,11 +159,9 @@ class UserController extends Controller
                 });
             }
         }
-        $sortColumn = 'status_sortorder.sortorder';$sortOrder='asc';
         
-        if($request->sortColumn && $request->sortOrder){
-            $sortColumn = $request->sortColumn;
-            $sortOrder = $request->sortOrder;
+        
+        if($sortColumn && $sortOrder){
             $tasksQuery->orderBy($sortColumn,$sortOrder);
         }else{
             $tasksQuery->orderByRaw('status_sortorder.sortorder ASC, created DESC');
@@ -161,7 +176,7 @@ class UserController extends Controller
             'task_flag.flag_id',
             'status_sortorder.sortorder'
         ]);
-        // dd($tasksQuery->toSql());
+        
         $tasks = $tasksQuery->paginate(10);
 
         foreach($tasks as $task){
