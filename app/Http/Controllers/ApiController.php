@@ -488,7 +488,50 @@ class ApiController extends Controller
      */
     public function comm_building_part()
     {
-        $data = BuildingPart::query()->paginate(20);
+        $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
+        ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
+        ->paginate(20);
+
         return response()->json([
             'success' => true,
             'http_code' => 200,
