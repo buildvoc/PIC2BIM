@@ -13,7 +13,7 @@ class Codepoint extends Model
     protected $table = 'codepoint';
     protected $connection = 'pgsql';
     protected $fillable = [
-        'fid',
+        'ogc_fid',
         'postcode',
         'positional_quality_indicator',
         'country_code',
@@ -27,20 +27,15 @@ class Codepoint extends Model
     protected $spatialFields = ['geometry'];
 
     protected $casts = [
-        'fid' => 'integer',
-        'uprn' => 'integer',
+        'ogc_fid' => 'integer',
         'positional_quality_indicator' => 'integer',
-        'x_coordinate' => 'float',
-        'y_coordinate' => 'float',
-        'latitude' => 'float',
-        'longitude' => 'float',
         'geometry' => 'array',
     ];
 
     public function newQuery()
     {
         return parent::newQuery()->select(
-            'fid',
+            'ogc_fid',
             'postcode', 
             'positional_quality_indicator', 
             'country_code', 
@@ -49,11 +44,6 @@ class Codepoint extends Model
             'admin_county_code', 
             'admin_district_code', 
             'admin_ward_code', 
-            'uprn', 
-            'x_coordinate', 
-            'y_coordinate', 
-            'latitude', 
-            'longitude',
             DB::raw('public.ST_AsGeoJSON(st_transform(geometry, 4326)) as geometry')
         );
     }

@@ -17,9 +17,9 @@ class CodepointFeatureResource extends JsonResource
         return [
             'type' => 'Feature',
             'geometry' => $this->geometry,
-            'id' => $this->fid,
+            'id' => $this->ogc_fid,
             'properties' => [
-                'fid' => $this->fid,
+                'ogc_fid' => $this->ogc_fid,
                 'postcode' => $this->postcode,
                 'positional_quality_indicator' => $this->positional_quality_indicator,
                 'country_code' => $this->country_code,
@@ -28,11 +28,6 @@ class CodepointFeatureResource extends JsonResource
                 'admin_county_code' => $this->admin_county_code,
                 'admin_district_code' => $this->admin_district_code,
                 'admin_ward_code' => $this->admin_ward_code,
-                'uprn' => $this->uprn,
-                'x_coordinate' => $this->x_coordinate,
-                'y_coordinate' => $this->y_coordinate,
-                'latitude' => $this->latitude,
-                'longitude' => $this->longitude,
             ],
         ];
     }
