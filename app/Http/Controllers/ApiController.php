@@ -552,6 +552,46 @@ class ApiController extends Controller
         $imagedirection = $request->imagedirection ?: 9;
 
         $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
         ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
         ->whereRaw("st_intersects(st_transform(ST_MakeLine(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857), st_transform(geometry, 3857))")
         ->orderByRaw("st_transform(geometry, 3857) <-> st_transform(ST_MakeLine( ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857)")
