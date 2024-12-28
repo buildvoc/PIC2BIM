@@ -478,6 +478,14 @@ class ApiController extends Controller
         return new ShapeCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_building_part",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Response(response=200, description="List of building part", @OA\JsonContent()),
+     * )
+     */
     public function comm_building_part()
     {
         $data = BuildingPart::query()->paginate(20);
@@ -488,6 +496,54 @@ class ApiController extends Controller
         ], 200);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_building_part_nearest",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Parameter(
+     *      name="latitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="longitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="distance",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="imagedirection",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Response(
+     *      response=200,
+     *      description="Get nearest building part",
+     *      @OA\JsonContent()
+     * ),
+     * )
+     */
     public function comm_building_part_nearest(Request $request)
     {
         $latitude = $request->latitude;
@@ -509,6 +565,31 @@ class ApiController extends Controller
         ], 200);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_codepoint",
+     * security={{"bearerAuth":{}}},
+     * tags={"Codepoint"},
+     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="postcode",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="BA1 0AH",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
     public function comm_codepoint(Request $request)
     {
         $postcode = $request->query('postcode');
@@ -524,6 +605,31 @@ class ApiController extends Controller
         return new CodepointCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_uprn",
+     * security={{"bearerAuth":{}}},
+     * tags={"UPRN"},
+     * @OA\Response(response=200, description="List of UPRN address", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="uprn",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="1",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
     public function comm_uprn(Request $request)
     {
         $uprn = $request->query('uprn');
