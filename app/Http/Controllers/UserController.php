@@ -33,9 +33,9 @@ class UserController extends Controller
         $search = $request->search;
         if($request->search){
             $users = $users->where(function($q) use($request){
-                $q->orWhere('user.name','LIKE','%'.$request->search.'%')
-                    ->orWhere('user.surname','LIKE','%'.$request->search.'%')
-                    ->orWhere('user.identification_number','LIKE','%'.$request->search.'%');
+                $q->orWhere('user.name','ILIKE','%'.$request->search.'%')
+                    ->orWhere('user.surname','ILIKE','%'.$request->search.'%')
+                    ->orWhere('user.identification_number','ILIKE','%'.$request->search.'%');
             });
         }
 
@@ -104,8 +104,8 @@ class UserController extends Controller
             'task.text',
             'task.date_created as created',
             'task.task_due_date as due',
-            DB::raw('DATE_FORMAT(task.date_created, "%d-%m-%Y") as date_created'),
-            DB::raw('DATE_FORMAT(task.task_due_date, "%d-%m-%Y") as task_due_date'),
+            DB::raw("to_char(task.date_created, 'DD-MM-YYYY') as date_created"),
+            DB::raw("to_char(task.task_due_date, 'DD-MM-YYYY') as task_due_date"),
             DB::raw('COUNT(photo.id) as photo_taken'),
             'task_flag.flag_id',
             'status_sortorder.sortorder'
@@ -287,9 +287,9 @@ class UserController extends Controller
         $search = $request->search;
         if($request->search){
             $users = $users->where(function($q) use($request){
-                $q->orWhere('user.name','LIKE','%'.$request->search.'%')
-                    ->orWhere('user.surname','LIKE','%'.$request->search.'%')
-                    ->orWhere('user.identification_number','LIKE','%'.$request->search.'%');
+                $q->orWhere('user.name','ILIKE','%'.$request->search.'%')
+                    ->orWhere('user.surname','ILIKE','%'.$request->search.'%')
+                    ->orWhere('user.identification_number','ILIKE','%'.$request->search.'%');
             });
         }
 
