@@ -97,6 +97,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/comm_get_lpis', [ApiController::class, 'comm_get_lpis']);
     Route::post('/comm_lpis', [ApiController::class, 'comm_save_lpis']);
     Route::post('/comm_get_lpis_record', [ApiController::class, 'comm_get_lpis_by_id']);
+    Route::get('/comm_building_part', [ApiController::class, 'comm_building_part']);
+    Route::get('/comm_building_part_nearest', [ApiController::class, 'comm_building_part_nearest']);
+    Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
+    //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
 });
 
 

@@ -2,11 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CodepointCollection;
+use App\Http\Resources\ShapeCollection;
+use App\Http\Resources\UprnCollection;
+use App\Models\Attr\BuildingPart;
+use App\Models\Attr\Codepoint;
+use App\Models\Attr\Uprn;
+use App\Models\Attr\Shape;
 use App\Models\Land;
 use App\Models\Path;
 use App\Models\Photo;
 use App\Models\Task;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PDO;
@@ -79,8 +87,8 @@ class ApiController extends Controller
             $query->select('id', 'description');
         }])
         ->select('id', 'task.status','type_id', 'name', 'text', 'text_returned', 'date_created', 'task_due_date', 'note', 'text_reason')
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0, "1", "0") AS flag_valid')
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0, "1", "0") AS flag_invalid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0 THEN 1 ELSE 0 END AS flag_valid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0 THEN 1 ELSE 0 END AS flag_invalid')
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
         ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status')
@@ -176,16 +184,6 @@ class ApiController extends Controller
 
         return response()->json($output);
  
-    }
-
-    public function comm_shapes(Request $request){
-        $max_lat = trim($request->input('max_lat'));
-        $min_lat = trim($request->input('min_lat'));
-        $max_lng = trim($request->input('max_lng'));
-        $min_lng = trim($request->input('min_lng'));
-        
-
-        return response()->json(getShapes($max_lat, $min_lat, $max_lng, $min_lng));
     }
 
     public function comm_photo(Request $request){
@@ -463,5 +461,270 @@ class ApiController extends Controller
                 'error_msg' => 'Record deleted or record not found'
             ]);
         }
+    }
+
+    public function comm_shapes(Request $request){
+        $maxEasting = $request->max_lng;
+        $maxNorthing = $request->max_lat;
+        $minEasting = $request->min_lng;
+        $minNorthing = $request->min_lat;
+
+        $data = Shape::query()
+        ->when($minEasting, function ($query) use ($minEasting, $minNorthing,$maxEasting, $maxNorthing) {
+            $query->whereRaw("wkb_geometry && ST_Transform(ST_MakeEnvelope($minEasting, $minNorthing,$maxEasting, $maxNorthing, 4326), 27700)");
+        })
+        ->get();
+
+        return new ShapeCollection($data);
+    }
+
+    /**
+     * @OA\Get(
+     * path="/comm_building_part",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Response(response=200, description="List of building part", @OA\JsonContent()),
+     * )
+     */
+    public function comm_building_part()
+    {
+        $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
+        ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
+        ->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'http_code' => 200,
+            'data' => ['building_part' => $data]
+        ], 200);
+    }
+
+    /**
+     * @OA\Get(
+     * path="/comm_building_part_nearest",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Parameter(
+     *      name="latitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="longitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="distance",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="imagedirection",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Response(
+     *      response=200,
+     *      description="Get nearest building part",
+     *      @OA\JsonContent()
+     * ),
+     * )
+     */
+    public function comm_building_part_nearest(Request $request)
+    {
+        $latitude = $request->latitude;
+        $longitude = $request->longitude;
+        $distance = $request->distance ?: 10;
+        $imagedirection = $request->imagedirection ?: 9;
+
+        $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
+        ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
+        ->whereRaw("st_intersects(st_transform(ST_MakeLine(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857), st_transform(geometry, 3857))")
+        ->orderByRaw("st_transform(geometry, 3857) <-> st_transform(ST_MakeLine( ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857)")
+        ->limit(1)
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'http_code' => 200,
+            'data' => ['building_part' => $data]
+        ], 200);
+    }
+
+    /**
+     * @OA\Get(
+     * path="/comm_codepoint",
+     * security={{"bearerAuth":{}}},
+     * tags={"Codepoint"},
+     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="postcode",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="BA1 0AH",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
+    public function comm_codepoint(Request $request)
+    {
+        $postcode = $request->query('postcode');
+
+        $data = Codepoint::query()
+        ->when($postcode, function ($query) use ($postcode) {
+            $query->where('postcode', 'ILIKE', '%'.$postcode.'%');
+        })
+        ->paginate(100);
+
+        $data->appends(array('postcode' => $postcode));
+
+        return new CodepointCollection($data);
+    }
+
+    /**
+     * @OA\Get(
+     * path="/comm_uprn",
+     * security={{"bearerAuth":{}}},
+     * tags={"UPRN"},
+     * @OA\Response(response=200, description="List of UPRN address", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="uprn",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="1",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
+    public function comm_uprn(Request $request)
+    {
+        $uprn = $request->query('uprn');
+
+        $data = Uprn::query()
+        ->when($uprn, function ($query) use ($uprn) {
+            $query->where('uprn', $uprn);
+        })
+        ->paginate(100);
+
+        $data->appends(array('uprn' => $uprn));
+
+        return new UprnCollection($data);
     }
 }

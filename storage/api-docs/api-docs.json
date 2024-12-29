@@ -1,0 +1,203 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "PIC2BIM API Documentation",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/comm_building_part": {
+            "get": {
+                "tags": [
+                    "Building Part"
+                ],
+                "operationId": "5b160ea9535ef944ea74a64c86c187d2",
+                "responses": {
+                    "200": {
+                        "description": "List of building part",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_building_part_nearest": {
+            "get": {
+                "tags": [
+                    "Building Part"
+                ],
+                "operationId": "5e2fbb1aa147b8f5f9c7ef22ebf453b7",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "distance",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "imagedirection",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get nearest building part",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_codepoint": {
+            "get": {
+                "tags": [
+                    "Codepoint"
+                ],
+                "operationId": "2ed2aa5f7d39387ccfc3df90c97789c3",
+                "parameters": [
+                    {
+                        "name": "postcode",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "BA1 0AH"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of codepoint",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_uprn": {
+            "get": {
+                "tags": [
+                    "UPRN"
+                ],
+                "operationId": "cbc6dcbd3c7b1d18555b42663a4ca6fc",
+                "parameters": [
+                    {
+                        "name": "uprn",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of UPRN address",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Login to get the authentication token",
+                "name": "Token based Based",
+                "in": "header",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Building Part",
+            "description": "Building Part"
+        },
+        {
+            "name": "Codepoint",
+            "description": "Codepoint"
+        },
+        {
+            "name": "UPRN",
+            "description": "UPRN"
+        }
+    ]
+}
