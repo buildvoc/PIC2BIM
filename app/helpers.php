@@ -266,9 +266,9 @@ function getPhoto($photo_id)
 
     if ($photo) {
         $output = [
-            'altitude' => $photo->altitude,
+            'altitude' => (float) $photo->altitude,
             'vertical_view_angle' => $photo->vertical_view_angle,
-            'accuracy' => $photo->accuracy,
+            'accuracy' => (float) $photo->accuracy,
             'distance' => $photo->distance,
             'nmea_distance' => $photo->nmea_distance,
             'device_manufacture' => $photo->device_manufacture,
