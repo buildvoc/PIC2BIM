@@ -302,7 +302,7 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'note' => $photo->note,
             'lat' => rtrim($photo->lat,0),
             'lng' => rtrim($photo->lng,0),
-            'photo_heading' => $photo->photo_heading,
+            'photo_heading' => (float) $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
         ];
