@@ -305,6 +305,7 @@ function getPhoto($photo_id)
             'photo_heading' => (float) $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'link' => $photo->link,
         ];
 
         $file = null;
