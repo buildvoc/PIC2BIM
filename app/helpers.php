@@ -749,9 +749,8 @@ function getPhotosWithoutTask($user_id)
             'path',
             'file_name',
             'digest',
-            'id'
-
-
+            'id',
+            'rotation_correction as angle'
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -802,8 +801,8 @@ function getPhotosWithoutTask($user_id)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'link' => $photo->link
-
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
 
         // $file = null;
