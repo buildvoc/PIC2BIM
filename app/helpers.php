@@ -256,7 +256,8 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'created',
             'path',
             'file_name',
-            'digest'
+            'digest',
+            'rotation_correction as angle'
         ])
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
@@ -305,6 +306,7 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'angle' => $photo->angle
         ];
 
         if($wantsbase64Photo){

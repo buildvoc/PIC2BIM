@@ -81,7 +81,11 @@ export function PhotoDetail({auth,photo}: PageProps) {
         style={{
           maxWidth:'none'
           ,
-          width: imageWidth !== "auto" ? `${imageWidth}px` : undefined }}
+          width: imageWidth !== "auto" ? `${imageWidth}px` : undefined ,
+            transform: `rotate(${
+              photo.angle
+          }deg)`,
+        }}
         onLoad={handleImageLoad}
         src={image}
       />
