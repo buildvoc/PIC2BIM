@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Auth;
 {
     public function index(Request $request)
     {  
-        return Inertia::render('BuildingHeight/Index');
+        $user = Auth::user();
+        $photos =  getPhotosWithoutTask($user->id);
+        return Inertia::render('BuildingHeight/Index',compact('photos'));
     }
 
 

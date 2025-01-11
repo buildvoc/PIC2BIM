@@ -1,12 +1,13 @@
 import { PageProps } from "@/types";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { memo } from "react";
-export function Index({ auth }: PageProps) {
-    return (
-        <AuthenticatedLayout
-            user={auth.user}
+import App from "./App/App";
 
-        ></AuthenticatedLayout>
+import { memo } from "react";
+export function Index({ auth,photos }: PageProps) {
+    return (
+        <AuthenticatedLayout user={auth.user}>
+            <App photos={photos}/>
+        </AuthenticatedLayout>
     );
 }
 export default memo(Index);
