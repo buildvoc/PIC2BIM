@@ -9,6 +9,8 @@ import { loadJQuery } from "@/helpers";
 import CustomPopup from "./CustomPopup";
 import { MapProps, Path, TaskPhotos } from "@/types";
 import classNames from "classnames";
+import axios from 'axios';
+
 function Map({
     data,
     onClick,
@@ -624,6 +626,100 @@ function Map({
             }
         });
     }
+
+    const debounce = (func: (...args: any[]) => void, wait: number) => {
+        let timeout: NodeJS.Timeout;
+        return (...args: any[]) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
+    useEffect(() => {
+        if (mapRef.current) {
+            const debouncedMoveEnd = debounce(() => {
+                if (mapRef.current && mapRef.current.getZoom() > 16) {
+                    let bounds = getBoundingBox();
+                    if (bounds) showPolygons(bounds);
+                }
+            }, 2000);
+    
+            mapRef.current.on('moveend', debouncedMoveEnd);
+    
+            return () => {
+                mapRef.current?.off('moveend', debouncedMoveEnd);
+            };
+        }
+    }, []);
+
+    const showPolygons = async ({maxLat, minLat, maxLng, minLng}: {maxLat: number|undefined, minLat: number|undefined, maxLng: number|undefined, minLng: number|undefined}) => {
+        try {
+            const response = await axios.post(route('comm_shapes'), {
+                method: 'post',
+                data: { max_lat: maxLat, min_lat: minLat, max_lng: maxLng, min_lng: minLng },
+            });
+            const polygons = response.data.data.features;
+
+            polygons.forEach((polygon: any) => {
+                const coordinates = polygon.geometry.coordinates[0];
+
+                mapRef.current?.addSource(`polygon_${polygon.id}`, {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Polygon',
+                            coordinates: coordinates,
+                        },
+                        properties: {},
+                    },
+                });
+
+                mapRef.current?.addLayer({
+                    id: `polygon_${polygon.id}`,
+                    type: 'fill',
+                    source: `polygon_${polygon.id}`,
+                    layout: {},
+                    paint: {
+                        'fill-color': '#ea3122',
+                        'fill-opacity': 0.0,
+                    },
+                });
+
+                mapRef.current?.addLayer({
+                    id: `outline_${polygon.id}`,
+                    type: 'line',
+                    source: `polygon_${polygon.id}`,
+                    layout: {},
+                    paint: {
+                        'line-color': '#ea3122',
+                        'line-width': 2,
+                    },
+                });
+            });
+        } catch (error) {
+            console.error('Error fetching polygons:', error);
+        }
+    };
+
+    const getBoundingBox = () => {
+        if (mapRef.current) {
+            const bounds = mapRef.current.getBounds();
+            const maxLat = bounds?.getNorth();
+            const minLat = bounds?.getSouth();
+            const maxLng = bounds?.getEast();
+            const minLng = bounds?.getWest();
+            
+    
+            return {
+                maxLat,
+                minLat,
+                maxLng,
+                minLng
+            };
+        }
+        return null;
+    };
 
     return (
         <div
