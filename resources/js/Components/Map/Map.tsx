@@ -638,11 +638,11 @@ function Map({
     useEffect(() => {
         if (mapRef.current) {
             const debouncedMoveEnd = debounce(() => {
-                if (mapRef.current && mapRef.current.getZoom() > 16) {
+                if (mapRef.current && mapRef.current.getZoom() > 9) {
                     let bounds = getBoundingBox();
                     if (bounds) showPolygons(bounds);
                 }
-            }, 2000);
+            }, 1000);
     
             mapRef.current.on('moveend', debouncedMoveEnd);
     
@@ -655,8 +655,7 @@ function Map({
     const showPolygons = async ({maxLat, minLat, maxLng, minLng}: {maxLat: number|undefined, minLat: number|undefined, maxLng: number|undefined, minLng: number|undefined}) => {
         try {
             const response = await axios.post(route('comm_shapes'), {
-                method: 'post',
-                data: { max_lat: maxLat, min_lat: minLat, max_lng: maxLng, min_lng: minLng },
+                max_lat: maxLat, min_lat: minLat, max_lng: maxLng, min_lng: minLng,
             });
             const polygons = response.data.data.features;
 
