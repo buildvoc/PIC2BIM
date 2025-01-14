@@ -1,5 +1,6 @@
 import { toRadians } from "@math.gl/core";
-import { polygon, area, centerOfMass } from "@turf/turf";
+import { polygon, area } from "@turf/turf";
+import centerOfMass from "@turf/center-of-mass";
 
 const round = (number: number): number => {
   return parseFloat(number.toFixed(2));
