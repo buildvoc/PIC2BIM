@@ -3,11 +3,13 @@ import { memo, useState, useEffect, useCallback, PropsWithChildren } from "react
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
 import Table from "@/Components/Table/Table";
-import { Link } from "@inertiajs/react";
+import axios from 'axios';
+import {router} from "@inertiajs/react";
 import { FaTrash } from "react-icons/fa";
 import Checkbox from "@/Components/Checkbox";
 import Map from "@/Components/Map/Map";
 import { SplitViewState } from "@/types";
+import BackButton from "@/Components/BackButton";
 export function Paths({ auth, paths, splitMode }: PageProps) {
     const [paths_, setPaths] = useState<Array<Path>>([]);
     const [splitView, setSplitView] = useState<SplitViewState>({
@@ -41,6 +43,18 @@ export function Paths({ auth, paths, splitMode }: PageProps) {
             platform != null && device_version != null ? "-" : ""
         }${ifNullThenString(device_version)}`;
     const ifNullThenString = (data: string | null) => (data ? data : "");
+
+    const deletePath = async (id : number) => {
+        if (confirm("Are you sure with deleting path?")) {
+            const response = await axios.post(route('delete_path'),{path_id : id});
+            if(response.data.status == 'error') {
+                alert(response.data.error_msg);
+            }
+            else{
+                router.get(route('user_paths'));
+            }
+        }
+    }
 
 
 
@@ -142,16 +156,16 @@ export function Paths({ auth, paths, splitMode }: PageProps) {
                                         name: "action",
 
                                         renderCell: (row: Path) => (
-                                            <Link
-                                                className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md ml-3"
-                                                href={""}
+                                            <button
+                                                className="focus:outline-none flex items-center border border-red-600 text-red-600 dark:text-red-600 px-4 py-2 rounded-md ml-3"
+                                                onClick={() => deletePath(row.id)}
                                             >
                                                 <FaTrash
                                                     size={16}
                                                     className="mr-2"
                                                 />
-                                                <span>Delete Selected</span>
-                                            </Link>
+                                                <span>Delete Path</span>
+                                            </button>
                                         ),
                                     },
                                 ]}
@@ -189,6 +203,7 @@ export function Paths({ auth, paths, splitMode }: PageProps) {
             splitView={splitView}
         >
             <Head title="Paths" />
+            <BackButton label="Back" />
             <div className="flex flex-wrap ">
                 {splitView.split ? (
                     <>

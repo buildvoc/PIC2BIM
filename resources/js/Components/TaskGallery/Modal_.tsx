@@ -12,7 +12,8 @@ const Modal_ = ({
     rotateLeft,
     rotateRight,
 }: GalleryModalProps) => {
-    const imageSrc = cnvrtImgUrl(photos[modal.index]?.photo);
+    // const imageSrc = cnvrtImgUrl(photos[modal.index]?.link);
+    const imageSrc = photos[modal.index]?.link;
     const [image, setImage] = useState(imageSrc);
 
     useEffect(() => {
@@ -27,7 +28,7 @@ const Modal_ = ({
                 ...prevData,
                 index: indexCheck,
             }));
-            setImage(cnvrtImgUrl(image?.photo));
+            setImage(image.link);
         }
     };
 
@@ -39,7 +40,7 @@ const Modal_ = ({
                 ...prevData,
                 index: indexCheck,
             }));
-            setImage(cnvrtImgUrl(image?.photo));
+            setImage(image.link);
         }
     };
 
@@ -70,7 +71,7 @@ const Modal_ = ({
                     >
                         <img
                             src={image!}
-                            className="w-2/4"
+                            className="max-w-full max-h-96 object-contain cursor-pointer"
                             style={{
                                 transform: `rotate(${
                                     photos[modal.index]?.angle

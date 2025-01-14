@@ -18,6 +18,7 @@ import PrimaryButton from "@/Components/PrimaryButton";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
+import BackButton from "@/Components/BackButton";
 
 export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const [selectedTask, setSelectedTask] = useState("");     
@@ -342,6 +343,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
             splitView={splitView}
         >
             <Head title="Photo gallery" />
+            <BackButton label="Back" className="" />
             <div className="flex flex-wrap ">
                 {splitView.split ? (
                     <>

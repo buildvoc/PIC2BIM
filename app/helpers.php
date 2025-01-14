@@ -184,8 +184,8 @@ function setPhoto($photo, $user_id, $task_id)
                 $image_name = 'image_' . $newPhoto->id . '.jpeg';
                 $path = 'photos4all/' . $pa_id . '/' . $user_id . '/';
 
-                Storage::disk('local')->makeDirectory($path);
-                Storage::disk('local')->put($path . $image_name, $data);
+                Storage::disk('public')->makeDirectory($path);
+                Storage::disk('public')->put($path . $image_name, $data);
 
                 $hash = hash('sha256', 'bfb576892e43b763731a1596c428987893b2e76ce1be10f733_' . hash('sha256', $data) . '_' . $photo['created'] . '_' . $user_id);
                 $flg_original = $hash === $photo['digest'] ? 1 : 0;
@@ -212,10 +212,10 @@ function setPhoto($photo, $user_id, $task_id)
     return $status;
 }
 
-function getPhoto($photo_id)
+function getPhoto($photo_id, $wantsbase64Photo=false)
 {
-    $photo = DB::table('photo')
-        ->select([
+    $photo = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'distance',
@@ -256,7 +256,8 @@ function getPhoto($photo_id)
             'created',
             'path',
             'file_name',
-            'digest'
+            'digest',
+            'rotation_correction as angle'
         ])
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
@@ -266,9 +267,9 @@ function getPhoto($photo_id)
 
     if ($photo) {
         $output = [
-            'altitude' => $photo->altitude,
+            'altitude' => (float) $photo->altitude,
             'vertical_view_angle' => $photo->vertical_view_angle,
-            'accuracy' => $photo->accuracy,
+            'accuracy' => (float) $photo->accuracy,
             'distance' => $photo->distance,
             'nmea_distance' => $photo->nmea_distance,
             'device_manufacture' => $photo->device_manufacture,
@@ -302,19 +303,23 @@ function getPhoto($photo_id)
             'note' => $photo->note,
             'lat' => rtrim($photo->lat,0),
             'lng' => rtrim($photo->lng,0),
-            'photo_heading' => $photo->photo_heading,
+            'photo_heading' => (float) $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
 
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
+        if($wantsbase64Photo){
+            $file = null;
+            $filePath = storage_path('app/public/' . $photo->path . $photo->file_name);
+            if (file_exists($filePath)) {
+                $file = file_get_contents($filePath);
+            }
+            $output['photo'] = $file ? base64_encode($file) : null;
+        }else{
+            $output['link'] = $photo->link;
         }
-
-        $output['photo'] = $file ? base64_encode($file) : null;
     }
 
     return $output;
@@ -480,7 +485,7 @@ function setPhotos($photos, $user_id, $task_id)
                             Storage::makeDirectory($path);
                         }
 
-                        Storage::put($path . $image_name, $data);
+                        Storage::disk('public')->put($path . $image_name, $data);
 
                         $hash = hash('sha256', 'bfb576892e43b763731a1596c428987893b2e76ce1be10f733_' . hash('sha256', $data) . '_' . $photo['created'] . '_' . $user_id);
                         $flg_original = ($hash == $photo['digest']) ? 1 : 0;
@@ -538,13 +543,12 @@ function checkTaskPhotos($task_id)
     return $photoCount > 0;
 }
 
-function getTaskPhotos($task_id = null, $user_id = null)
+function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false)
 {
     $output = [];
 
-    // Build the query based on the conditions
-    $query = DB::table('photo')
-        ->select([
+    $query = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'accuracy',
@@ -587,7 +591,8 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'path',
             'file_name',
             'digest',
-            'id'
+            'id',
+            'rotation_correction as angle'
         ])
         ->where('flg_deleted', 0);
 
@@ -643,15 +648,22 @@ function getTaskPhotos($task_id = null, $user_id = null)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'id' => $photo->id
+            'id' => $photo->id,
+            'angle' => $photo->angle
         ];
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
+        if($wantsBase64Photo){
+            $file = null;
+            $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+            if (file_exists($filePath)) {
+                $file = file_get_contents($filePath);
+            }
+            $out['photo'] = base64_encode($file);
+        }else{
+            $out['link'] = $photo->link;
         }
-        $out['photo'] = base64_encode($file);
+        
         $output[] = $out;
+        
     }
 
     return $output;
@@ -697,8 +709,8 @@ function deleteSelectedUnassignedPhoto(array $uids)
 
 function getPhotosWithoutTask($user_id)
 {
-    $photos = DB::table('photo')
-        ->select([
+    $photos = Photo
+        ::select([
             'altitude',
             'vertical_view_angle',
             'distance',
@@ -740,9 +752,8 @@ function getPhotosWithoutTask($user_id)
             'path',
             'file_name',
             'digest',
-            'id'
-
-
+            'id',
+            'rotation_correction as angle'
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -792,16 +803,17 @@ function getPhotosWithoutTask($user_id)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'id' => $photo->id
-
+            'id' => $photo->id,
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
 
-        $file = null;
-        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        if (file_exists($filePath)) {
-            $file = file_get_contents($filePath);
-        }
-        $photoData['photo'] = $file ? base64_encode($file) : null;
+        // $file = null;
+        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+        // if (file_exists($filePath)) {
+        //     $file = file_get_contents($filePath);
+        // }
+        // $photoData['photo'] = $file ? base64_encode($file) : null;
         $output[] = $photoData;
     }
 
@@ -938,16 +950,9 @@ foreach ($photos as $photo) {
         'photo_heading' => $photo->photo_heading,
         'created' => $photo->created,
         'digest' => $photo->digest,
+        'link' => $photo->link
     ];
-
-    $file = null;
-    $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-
-    if (file_exists($filePath)) {
-        $file = file_get_contents($filePath);
-    }
-
-    $currentPhoto['photo'] = $file ? base64_encode($file) : null;
+    
 
     // Add the photo data to the output array
     $output[] = $currentPhoto;

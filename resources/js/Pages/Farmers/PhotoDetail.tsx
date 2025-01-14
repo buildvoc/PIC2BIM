@@ -6,7 +6,7 @@ import { cnvrtImgUrl } from "@/helpers";
 export function PhotoDetail({auth,photo}: PageProps) {
     
 
-  const imageSrc = cnvrtImgUrl(photo.photo);
+  const imageSrc = photo.link;
   const [image, setImage] = useState<any>(null);
   const [imageWidth, setImageWidth] = useState<any>("auto");
   const [initialWidth, setInitialWidth] = useState(null);
@@ -81,7 +81,11 @@ export function PhotoDetail({auth,photo}: PageProps) {
         style={{
           maxWidth:'none'
           ,
-          width: imageWidth !== "auto" ? `${imageWidth}px` : undefined }}
+          width: imageWidth !== "auto" ? `${imageWidth}px` : undefined ,
+            transform: `rotate(${
+              photo.angle
+          }deg)`,
+        }}
         onLoad={handleImageLoad}
         src={image}
       />

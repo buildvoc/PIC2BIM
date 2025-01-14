@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user_paths');
     Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
         ->name('photo_detail');
+    Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
     Route::get('/building_height', [BuildingHeightController::class, 'index'])
@@ -76,6 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
 
     Route::post('/set-split-mode-in-session',[DashboardController::class,'setSplitModeInSession'])->name('set-split-mode-in-session');
+    Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
     Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
     Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
 });
@@ -88,16 +90,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_tasks', [ApiController::class, 'comm_tasks']);
     Route::post('/comm_status', [ApiController::class, 'comm_status']);
     Route::post('/comm_path', [ApiController::class, 'comm_path']);
-    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes']);
+    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes'])->name('comm_shapes');
     Route::post('/comm_photo', [ApiController::class, 'comm_photo']);
     Route::post('/comm_get_photo', [ApiController::class, 'comm_get_photo']);
     Route::post('/comm_update', [ApiController::class, 'comm_update']);
     Route::post('/comm_task_photos', [ApiController::class, 'comm_task_photos']);
-    Route::post('/comm_delete_path', [ApiController::class, 'comm_delete_path']);
+    Route::post('/comm_delete_path', [ApiController::class, 'comm_delete_path'])->name('delete_path');
     Route::post('/comm_delete_unassigned_photo', [ApiController::class, 'comm_delete_unassigned_photo']);
     Route::get('/comm_get_lpis', [ApiController::class, 'comm_get_lpis']);
     Route::post('/comm_lpis', [ApiController::class, 'comm_save_lpis']);
     Route::post('/comm_get_lpis_record', [ApiController::class, 'comm_get_lpis_by_id']);
+    Route::get('/comm_building_part', [ApiController::class, 'comm_building_part']);
+    Route::get('/comm_building_part_nearest', [ApiController::class, 'comm_building_part_nearest']);
+    Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
+    //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
 });
 
 

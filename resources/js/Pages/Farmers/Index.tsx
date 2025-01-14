@@ -29,6 +29,9 @@ export function Index({ auth }: PageProps) {
         total,
         links
       } = tasks;
+    
+    const [showingCount, setShowingCount] = useState<number>(data.length);
+
     function handleSort(column : string, order : 'asc' | 'desc'){
         applyFilters({search : search, sortColumn : column , sortOrder : order, filters : selectedStatus});
     }
@@ -106,6 +109,7 @@ export function Index({ auth }: PageProps) {
         );
 
         set_filter_tasks(filteredTasks);
+        setShowingCount(filteredTasks.length)
         // set_filter_tasks_photos(filteredPhotos);
     };
     
@@ -228,7 +232,7 @@ export function Index({ auth }: PageProps) {
                                 }}
                             />
                             <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
-                                <span>Showing {data.length} out of {total}</span>
+                                <span>Showing {showingCount} out of {total}</span>
                             </div>
                             <div className="flex items-center justify-center mt-4 mb-4">
                                 {links.map((link, index) => (

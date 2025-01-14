@@ -13,7 +13,25 @@ use Illuminate\Support\Facades\DB;
     public function index(Request $request)
     {   
         $filtersVal = ["new","open","data provided","returned","accepted","declined"];
+
+
         $search = $request->search;
+        $selectedStatuses = explode(",",$request->status);
+        $sortColumn = $request->sortColumn ?? 'status';
+        $sortOrder= $request->sortOrder ?? 'asc';
+
+        if($request->has('sortColumn')) session(['sortColumn' => $sortColumn]);
+        else $sortColumn = session('sortColumn');
+        
+        if($request->has('sortOrder')) session(['sortOrder' => $sortOrder]);
+        else $sortOrder = session('sortOrder');
+
+        if($request->has('search')) session(['search' => $request->search]);
+        else $search = session('search') ?? '';
+
+        if($request->has('status')) session((['status' => $request->status]));
+        else $selectedStatuses = session('status') ?  explode(",",session('status')) : []; 
+        
         $user = Auth::user();
         $user_id = $user->id;
         $tasks = Task::withCount(['photos' => function ($query) {
@@ -38,14 +56,14 @@ use Illuminate\Support\Facades\DB;
             'task.text',
             'task.date_created as created',
             'task.task_due_date as due',
-            DB::raw('DATE_FORMAT(task.date_created, "%d-%m-%Y") as date_created'),
-            DB::raw('DATE_FORMAT(task.task_due_date, "%d-%m-%Y") as task_due_date'),
+            DB::raw("to_char(task.date_created, 'DD-MM-YYYY') as date_created"),
+            DB::raw("to_char(task.task_due_date, 'DD-MM-YYYY') as task_due_date"),
             DB::raw('COUNT(photo.id) as photo_taken'),
             'task_flag.flag_id',
             'status_sortorder.sortorder'
         )
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0, "1", "0") AS flag_valid')
-        ->selectRaw('IF((SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0, "1", "0") AS flag_invalid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0 THEN 1 ELSE 0 END AS flag_valid')
+        ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0 THEN 1 ELSE 0 END AS flag_invalid')
         ->where('task.user_id', $user_id)
         ->where('task.flg_deleted', 0)
         ->leftJoin('photo', 'task.id', '=', 'photo.task_id')
@@ -53,11 +71,10 @@ use Illuminate\Support\Facades\DB;
         ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status');
 
         if (!empty($search)) {
-            $tasks->where('task.name', 'LIKE', '%' . $search . '%');
+            $tasks->where('task.name', 'ILIKE', '%' . $search . '%');
         }
         
-        $selectedStatuses = explode(",",$request->status);
-        if($request->has('status')) {
+        if($selectedStatuses) {
             $filtersVal = $selectedStatuses;
             if(!in_array('new',$selectedStatuses)) $tasks->where('task.status','!=','new');
             if(!in_array('open',$selectedStatuses)) $tasks->where('task.status','!=','open');
@@ -75,11 +92,8 @@ use Illuminate\Support\Facades\DB;
                 });
             }
         }
-        $sortColumn = 'status';$sortOrder='asc';
         
-        if($request->sortColumn && $request->sortOrder){
-            $sortColumn = $request->sortColumn;
-            $sortOrder = $request->sortOrder;
+        if($sortColumn && $sortOrder){
             $tasks->orderBy($sortColumn,$sortOrder);
         }else{
             $tasks->orderByRaw('status_sortorder.sortorder ASC, created DESC');
@@ -99,11 +113,7 @@ use Illuminate\Support\Facades\DB;
         ->paginate(10)
         ->through(function ($task) {
             $photos = $task->photos->map(function ($photo) {
-                $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
                 $file = null;
-                if (file_exists($filePath)) {
-                    $file = file_get_contents($filePath);
-                }
                 return [
                     'lat' => $photo->lat,
                     'lng' => $photo->lng,
@@ -112,6 +122,7 @@ use Illuminate\Support\Facades\DB;
                     'file_name' => $photo->file_name,
                     'digest' => $photo->digest,
                     'photo' => $file ? base64_encode($file) : null,
+                    'link' => $photo->link
                 ];
             });
 
