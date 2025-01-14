@@ -85,7 +85,7 @@ export const MapViewSelect = ({ view, onViewSet }: MapViewSelectProps) => {
               onClick={() => onViewSelect("orthographic")}
             >
               <Badge
-                color={view === "orthographic" ? "primary" : "disabled"}
+                color={view === "orthographic" ? "primary" : "secondary"}
                 badgeContent={"T"}
                 anchorOrigin={{
                   vertical: "bottom",
@@ -98,7 +98,7 @@ export const MapViewSelect = ({ view, onViewSet }: MapViewSelectProps) => {
             </IconButton>
             <IconButton size="medium" onClick={() => onViewSelect("map")}>
               <Badge
-                color={view === "map" ? "primary" : "disabled"}
+                color={view === "map" ? "primary" : "secondary"}
                 badgeContent={"P"}
                 anchorOrigin={{
                   vertical: "bottom",
@@ -114,7 +114,7 @@ export const MapViewSelect = ({ view, onViewSet }: MapViewSelectProps) => {
               onClick={() => onViewSelect("firstPerson")}
             >
               <Badge
-                color={view === "firstPerson" ? "primary" : "disabled"}
+                color={view === "firstPerson" ? "primary" : "secondary"}
                 badgeContent={"D"}
                 anchorOrigin={{
                   vertical: "bottom",

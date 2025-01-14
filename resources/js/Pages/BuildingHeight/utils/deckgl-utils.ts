@@ -1,7 +1,6 @@
 import { Layer } from "@deck.gl/core";
 import { GeoJsonLayer, IconLayer, PolygonLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
-import { FeatureCollection } from "@turf/turf";
 
 export const createBuilding = (
   building: any,
