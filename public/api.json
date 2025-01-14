@@ -950,48 +950,6 @@
           }
         ]
       }
-    },
-    "/comm_uprn": {
-      "get": {
-        "tags": [
-          "UPRN"
-        ],
-        "operationId": "cbc6dcbd3c7b1d18555b42663a4ca6fc",
-        "parameters": [
-          {
-            "name": "uprn",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "1"
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of UPRN address",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
     }
   }
 }

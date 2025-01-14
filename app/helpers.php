@@ -267,9 +267,9 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
 
     if ($photo) {
         $output = [
-            'altitude' => $photo->altitude,
+            'altitude' => (float) $photo->altitude,
             'vertical_view_angle' => $photo->vertical_view_angle,
-            'accuracy' => $photo->accuracy,
+            'accuracy' => (float) $photo->accuracy,
             'distance' => $photo->distance,
             'nmea_distance' => $photo->nmea_distance,
             'device_manufacture' => $photo->device_manufacture,
@@ -303,9 +303,10 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'note' => $photo->note,
             'lat' => rtrim($photo->lat,0),
             'lng' => rtrim($photo->lng,0),
-            'photo_heading' => $photo->photo_heading,
+            'photo_heading' => (float) $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'link' => $photo->link,
             'angle' => $photo->angle
         ];
 
