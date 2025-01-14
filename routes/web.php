@@ -10,6 +10,7 @@ use App\Http\Controllers\TaskTypeController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FarmerController;
+use App\Http\Controllers\BuildingHeightController;
 use App\Http\Controllers\FarmerTaskController;
 use App\Http\Controllers\FarmerPathsController;
 use App\Http\Controllers\PhotoGalleryController;
@@ -44,6 +45,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
+    Route::get('/building_height', [BuildingHeightController::class, 'index'])
+    ->name('building_height');
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
         Route::get('/', [AgencyController::class, 'index'])->name('index');

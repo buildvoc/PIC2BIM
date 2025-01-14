@@ -16,7 +16,8 @@ export default function Authenticated({
     header,
     children,
     splitView,
-    setSplitView,
+    setSplitView
+    
 }: PropsWithChildren<{
     user: User;
     header?: ReactNode;
@@ -120,6 +121,42 @@ export default function Authenticated({
                                         >
                                             Show Paths
                                         </NavLink>
+                                        {
+                                        header ? (
+                                            <NavLink
+                                            href={route("building_height")}
+                                            active={route().current(
+                                                "user_paths"
+                                            )}
+                                        >
+                                            Building height
+                                        </NavLink>
+                                        )
+                                        :
+                                        (
+                                            <>
+                                                                           <NavLink
+                                            href={route("building_height")}
+                                            active={route().current(
+                                                "user_paths"
+                                            )}
+                                        >
+                                            Take photo again
+                                        </NavLink>  
+                                        <NavLink
+                                            href={route("building_height")}
+                                            active={route().current(
+                                                "user_paths"
+                                            )}
+                                        >
+                                            Upload photo again 
+                                        </NavLink>               
+                                            </>
+
+                                        
+                                        )
+                                        }
+
                                     </div>
                                 </>
                             )}
