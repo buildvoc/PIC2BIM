@@ -42,7 +42,7 @@ const TaskGallery = ({
         }
     }, []);
 
-    const handleRotate = (id: string, direction: string) => {
+    const handleRotate = async (id: string, direction: string) => {
         let newAngle = 0;
         let pId = 0;
         const withAngleUpdate = photos.map((photo) => {
@@ -60,7 +60,8 @@ const TaskGallery = ({
             return photo;
         });
         setPhotos(withAngleUpdate);
-        axios.post(route('rotate-photo'),{id : pId, angle : newAngle});
+        await axios.post(route('rotate-photo'),{id : pId, angle : newAngle});
+        alert('Photo rotated successfully.')
     };
     const handleClose = () => setShowModal({ isShow: false, index: -1 });
 
