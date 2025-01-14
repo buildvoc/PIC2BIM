@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('user', 'id');
             $table->foreignId('created_id')->constrained('user', 'id');
             $table->foreignId('type_id')->nullable()->constrained('task_type', 'id');
-            $table->enum('status', ['new', 'open', 'returned', 'data provided', 'data checked', 'closed'])->default('new');
+            $table->string('status', 255)->default('new');
             $table->string('name', 255)->nullable();
             $table->text('text')->nullable();
             $table->text('text_returned')->nullable();

@@ -256,7 +256,8 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'created',
             'path',
             'file_name',
-            'digest'
+            'digest',
+            'rotation_correction as angle'
         ])
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
@@ -266,9 +267,9 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
 
     if ($photo) {
         $output = [
-            'altitude' => $photo->altitude,
+            'altitude' => (float) $photo->altitude,
             'vertical_view_angle' => $photo->vertical_view_angle,
-            'accuracy' => $photo->accuracy,
+            'accuracy' => (float) $photo->accuracy,
             'distance' => $photo->distance,
             'nmea_distance' => $photo->nmea_distance,
             'device_manufacture' => $photo->device_manufacture,
@@ -302,9 +303,11 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'note' => $photo->note,
             'lat' => rtrim($photo->lat,0),
             'lng' => rtrim($photo->lng,0),
-            'photo_heading' => $photo->photo_heading,
+            'photo_heading' => (float) $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
 
         if($wantsbase64Photo){
@@ -749,9 +752,8 @@ function getPhotosWithoutTask($user_id)
             'path',
             'file_name',
             'digest',
-            'id'
-
-
+            'id',
+            'rotation_correction as angle'
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -802,8 +804,8 @@ function getPhotosWithoutTask($user_id)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'link' => $photo->link
-
+            'link' => $photo->link,
+            'angle' => $photo->angle
         ];
 
         // $file = null;

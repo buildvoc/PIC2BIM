@@ -76,8 +76,8 @@ class TasksController extends Controller
             'task.text',
             'task.date_created as created',
             'task.task_due_date as due',
-            DB::raw('DATE_FORMAT(task.date_created, "%d-%m-%Y") as date_created'),
-            DB::raw('DATE_FORMAT(task.task_due_date, "%d-%m-%Y") as task_due_date'),
+            DB::raw("to_char(task.date_created, 'DD-MM-YYYY') as date_created"),
+            DB::raw("to_char(task.task_due_date, 'DD-MM-YYYY') as task_due_date"),
             'task_flag.flag_id',
             'status_sortorder.sortorder',
             'task_type.name as purpose'

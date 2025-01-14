@@ -105,8 +105,8 @@ class ApiController extends Controller
                 'task_due_date' => $task->task_due_date,
                 'note' => $task->note,
                 'number_of_photos' => $task->photos->count(),
-                'flag_valid' => $task->flag_valid,
-                'flag_invalid' => $task->flag_invalid,
+                'flag_valid' => (string) $task->flag_valid,
+                'flag_invalid' => (string) $task->flag_invalid,
                 'reopen_reason' => $task->text_reason,
                 'purpose' => $task->taskType->description ?? null,
                 'photos_ids' => $task->photos->pluck('id')->toArray(),
@@ -478,9 +478,60 @@ class ApiController extends Controller
         return new ShapeCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_building_part",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Response(response=200, description="List of building part", @OA\JsonContent()),
+     * )
+     */
     public function comm_building_part()
     {
-        $data = BuildingPart::query()->paginate(20);
+        $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
+        ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
+        ->paginate(20);
+
         return response()->json([
             'success' => true,
             'http_code' => 200,
@@ -488,6 +539,54 @@ class ApiController extends Controller
         ], 200);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_building_part_nearest",
+     * security={{"bearerAuth":{}}},
+     * tags={"Building Part"},
+     * @OA\Parameter(
+     *      name="latitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="longitude",
+     *      in="query",
+     *      required=true,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="distance",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Parameter(
+     *      name="imagedirection",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *           type="number",
+     *           format="double"
+     *      )
+     * ),
+     * @OA\Response(
+     *      response=200,
+     *      description="Get nearest building part",
+     *      @OA\JsonContent()
+     * ),
+     * )
+     */
     public function comm_building_part_nearest(Request $request)
     {
         $latitude = $request->latitude;
@@ -496,6 +595,46 @@ class ApiController extends Controller
         $imagedirection = $request->imagedirection ?: 9;
 
         $data = BuildingPart::query()
+        ->select(
+        'osid',
+        'toid',
+        'versiondate',
+        'versionavailablefromdate',
+        'versionavailabletodate',
+        'firstdigitalcapturedate',
+        'changetype',
+        'geometry_area',
+        'geometry_evidencedate',
+        'geometry_updatedate',
+        'geometry_source',
+        'theme',
+        'description',
+        'description_evidencedate',
+        'description_updatedate',
+        'description_source',
+        'oslandcovertiera',
+        'oslandcovertierb',
+        'oslandcover_evidencedate',
+        'oslandcover_updatedate',
+        'oslandcover_source',
+        'oslandusetiera',
+        'oslandusetierb',
+        'oslanduse_evidencedate',
+        'oslanduse_updatedate',
+        'oslanduse_source',
+        'absoluteheightroofbase',
+        'relativeheightroofbase',
+        'absoluteheightmaximum',
+        'relativeheightmaximum',
+        'absoluteheightminimum',
+        'heightconfidencelevel',
+        'height_evidencedate',
+        'height_updatedate',
+        'height_source',
+        'associatedstructure',
+        'isobscured',
+        'physicallevel',
+        'capturespecification')
         ->selectRaw("st_transform(geometry,3857) as geometry_transformed, ST_AsGeoJSON(st_transform(geometry,4326)) as geometry_json")
         ->whereRaw("st_intersects(st_transform(ST_MakeLine(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857), st_transform(geometry, 3857))")
         ->orderByRaw("st_transform(geometry, 3857) <-> st_transform(ST_MakeLine( ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857)")
@@ -509,6 +648,31 @@ class ApiController extends Controller
         ], 200);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_codepoint",
+     * security={{"bearerAuth":{}}},
+     * tags={"Codepoint"},
+     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="postcode",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="BA1 0AH",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
     public function comm_codepoint(Request $request)
     {
         $postcode = $request->query('postcode');
@@ -524,6 +688,31 @@ class ApiController extends Controller
         return new CodepointCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_uprn",
+     * security={{"bearerAuth":{}}},
+     * tags={"UPRN"},
+     * @OA\Response(response=200, description="List of UPRN address", @OA\JsonContent()),
+     *   @OA\Parameter(
+     *      name="uprn",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      ),
+     *      example="1",
+     *   ),
+     *   @OA\Parameter(
+     *      name="page",
+     *      in="query",
+     *      required=false,
+     *      @OA\Schema(
+     *          type="string"
+     *      )
+     *   ),
+     * )
+     */
     public function comm_uprn(Request $request)
     {
         $uprn = $request->query('uprn');

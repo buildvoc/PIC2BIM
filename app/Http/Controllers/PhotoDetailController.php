@@ -15,7 +15,8 @@ use Illuminate\Http\Request;
     }
 
     public function rotatePhoto(Request $request){
-        $photo = Photo::find($request->id)->update(['rotation_correction' => $request->angle]);
-        return 1;
+        $photo = Photo::find($request->id);
+        $photo->update(['rotation_correction' => $request->angle]);
+        return $photo->rotation_correction;
     }
 }

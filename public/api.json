@@ -20,7 +20,9 @@
   "paths": {
     "/comm_login": {
       "post": {
-        "tags": ["Authorization"],
+        "tags": [
+          "Authorization"
+        ],
         "summary": "Get Bearer Token",
         "requestBody": {
           "content": {
@@ -63,7 +65,9 @@
     },
     "/comm_unassigned": {
       "post": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Get unassigned photo IDs by user ID",
         "requestBody": {
           "content": {
@@ -107,7 +111,9 @@
     },
     "/comm_status": {
       "post": {
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "summary": "Update task status",
         "requestBody": {
           "content": {
@@ -159,7 +165,9 @@
     },
     "/comm_tasks": {
       "post": {
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "summary": "Get tasks by user ID",
         "requestBody": {
           "content": {
@@ -193,7 +201,9 @@
     },
     "/comm_get_paths": {
       "post": {
-        "tags": ["Paths"],
+        "tags": [
+          "Paths"
+        ],
         "summary": "Get paths by user ID",
         "requestBody": {
           "content": {
@@ -227,7 +237,9 @@
     },
     "/comm_path": {
       "post": {
-        "tags": ["Paths"],
+        "tags": [
+          "Paths"
+        ],
         "summary": "Create a new path",
         "requestBody": {
           "content": {
@@ -307,7 +319,9 @@
     },
     "/comm_shapes": {
       "post": {
-        "tags": ["Shapes"],
+        "tags": [
+          "Shapes"
+        ],
         "summary": "Get shapes by coordinates",
         "requestBody": {
           "content": {
@@ -363,7 +377,9 @@
     },
     "/comm_photo": {
       "post": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Upload a photo",
         "requestBody": {
           "content": {
@@ -419,7 +435,9 @@
     },
     "/comm_get_photo": {
       "post": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Get photo by ID",
         "requestBody": {
           "content": {
@@ -463,7 +481,9 @@
     },
     "/comm_update": {
       "post": {
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "summary": "Submit task photos and update task status",
         "requestBody": {
           "content": {
@@ -513,7 +533,9 @@
     },
     "/comm_task_photos": {
       "post": {
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "summary": "Get task photos",
         "requestBody": {
           "content": {
@@ -551,7 +573,9 @@
     },
     "/comm_delete_path": {
       "post": {
-        "tags": ["Paths"],
+        "tags": [
+          "Paths"
+        ],
         "summary": "Delete a path",
         "requestBody": {
           "content": {
@@ -585,7 +609,9 @@
     },
     "/comm_delete_unassigned_photo": {
       "post": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Delete unassigned photo",
         "requestBody": {
           "content": {
@@ -619,7 +645,9 @@
     },
     "/comm_get_lpis": {
       "get": {
-        "tags": ["LPIS"],
+        "tags": [
+          "LPIS"
+        ],
         "summary": "Retrieve a list of LPIS records based on filters or bounding box",
         "security": [
           {
@@ -670,7 +698,9 @@
     },
     "/comm_lpis": {
       "post": {
-        "tags": ["LPIS"],
+        "tags": [
+          "LPIS"
+        ],
         "summary": "Save LPIS",
         "requestBody": {
           "content": {
@@ -692,7 +722,16 @@
                   },
                   "wgs_geometry": {
                     "type": "json",
-                    "example": [{"latitude": 37.7749, "longitude": -122.4194}, {"latitude": 34.0522, "longitude": -118.2437}]
+                    "example": [
+                      {
+                        "latitude": 37.7749,
+                        "longitude": -122.4194
+                      },
+                      {
+                        "latitude": 34.0522,
+                        "longitude": -118.2437
+                      }
+                    ]
                   },
                   "wgs_max_lat": {
                     "type": "float",
@@ -742,7 +781,9 @@
     },
     "/comm_get_lpis_record": {
       "post": {
-        "tags": ["LPIS"],
+        "tags": [
+          "LPIS"
+        ],
         "summary": "Get a single LPIS record",
         "requestBody": {
           "content": {
@@ -782,6 +823,132 @@
             }
           }
         }
+      }
+    },
+    "/comm_building_part": {
+      "get": {
+        "tags": [
+          "Building Part"
+        ],
+        "operationId": "5b160ea9535ef944ea74a64c86c187d2",
+        "responses": {
+          "200": {
+            "description": "List of building part",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/comm_building_part_nearest": {
+      "get": {
+        "tags": [
+          "Building Part"
+        ],
+        "operationId": "5e2fbb1aa147b8f5f9c7ef22ebf453b7",
+        "parameters": [
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "distance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "imagedirection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get nearest building part",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/comm_codepoint": {
+      "get": {
+        "tags": [
+          "Codepoint"
+        ],
+        "operationId": "2ed2aa5f7d39387ccfc3df90c97789c3",
+        "parameters": [
+          {
+            "name": "postcode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "BA1 0AH"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of codepoint",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     }
   }
