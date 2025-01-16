@@ -34,6 +34,10 @@ export function PhotoDetail({auth,photo}: PageProps) {
     }
   };
 
+  const handleBack = () => {
+    window.history.back();
+  };
+
   const handleZoomOut = () => {
     setImageWidth((prevWidth:any) => {
       if (prevWidth === "auto") {
@@ -60,6 +64,9 @@ export function PhotoDetail({auth,photo}: PageProps) {
 
     }}
     >
+      <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomin" onClick={handleBack}>
+        Back
+      </button>
       <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomin" onClick={handleZoomIn}>
         Zoom in
       </button>
