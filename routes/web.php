@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FarmerController;
 use App\Http\Controllers\FarmerTaskController;
 use App\Http\Controllers\FarmerPathsController;
+use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PdfPreviewController;
@@ -100,6 +101,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
     //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
 });
+
+Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');
 
 
 require __DIR__ . '/auth.php';

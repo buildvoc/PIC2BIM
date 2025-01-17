@@ -697,13 +697,19 @@ function Map({
                 });
 
                 const label = document.createElement('div');
-                //label.style.backgroundImage = `url(/landNameGenerator.php?land=${polygon.properties.wd24nm}&zoom=${mapRef.current?.getZoom()})`;
-                label.textContent = polygon.properties.wd24nm;
+                label.style.backgroundImage = `url(/land_name_generator?land=${encodeURIComponent(polygon.properties.wd24nm)}&zoom=${mapRef.current?.getZoom()})`;
+                // label.textContent = polygon.properties.wd24nm;
                 label.className = 'polygon-label';
                 label.style.backgroundColor = 'white';
                 label.style.border = '1px solid black';
                 label.style.padding = '2px';
                 label.style.borderRadius = '3px';
+                label.style.backgroundSize = 'contain';
+                label.style.backgroundPosition = 'center';
+                label.style.backgroundRepeat = 'no-repeat';
+                label.style.width= '100px';
+                label.style.height= '30px';
+                label.style.cursor= 'pointer';
 
                 const centroid = calculateCentroid(coordinates[0]);
 
