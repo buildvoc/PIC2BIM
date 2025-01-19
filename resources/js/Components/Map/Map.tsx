@@ -10,6 +10,7 @@ import CustomPopup from "./CustomPopup";
 import { MapProps, Path, TaskPhotos } from "@/types";
 import classNames from "classnames";
 import axios from "axios";
+
 function Map({
     data,
     onClick,
