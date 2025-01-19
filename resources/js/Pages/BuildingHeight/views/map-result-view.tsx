@@ -44,6 +44,8 @@ interface MapResultViewProps {
   onShowcaseClick: () => void;
   setExtractedDrawerOpen: (value: boolean) => void;
   extractedDrawerOpen: boolean;
+  isUploadTriggered: boolean;
+  isMetadataResultsTriggered:boolean;
 
 }
 
@@ -60,7 +62,9 @@ export const MapResultView = ({
   setExtractedDrawerOpen,
   onShowcaseClick,
   onImageChange,
-  extractedDrawerOpen
+  extractedDrawerOpen,
+  isUploadTriggered,
+  isMetadataResultsTriggered 
 
 
 
@@ -261,6 +265,8 @@ export const MapResultView = ({
         onShowcaseClick={onShowcaseClick}
         setExtractedDrawerOpen={setExtractedDrawerOpen}
         extractedDrawerOpen={extractedDrawerOpen}
+        isUploadTriggered={isUploadTriggered}
+        isMetadataResultsTriggered={isMetadataResultsTriggered}
       />
       
       <MapWrapper component="main">

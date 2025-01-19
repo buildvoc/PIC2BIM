@@ -21,6 +21,7 @@ import {
   computeGeoMatrics,
   getOffsetBehindCamera,
 } from "../utils/geo-operations";
+import { InfoButton } from "../components/info-button";
 import { BuildingAttributes } from "../components/building-attributes";
 import { MultiviewMapViewState } from "../types/map-view-state";
 import { NginxFile } from "../types/nginx";
@@ -47,8 +48,10 @@ interface MapShowcaseViewProps {
   setExtractedDrawerOpen: (value: boolean) => void;
   extractedDrawerOpen: boolean;
   drawLaz: boolean;
-  bearerToken: string
-  photos:Array<Photo>
+  bearerToken: string;
+  photos:Array<Photo>;
+  isUploadTriggered:boolean;
+  isMetadataResultsTriggered:boolean
 }
 
 export const MapShowcaseView = ({
@@ -66,7 +69,9 @@ export const MapShowcaseView = ({
   setExtractedDrawerOpen,
   extractedDrawerOpen,
   bearerToken,
-  photos
+  photos,
+  isUploadTriggered,
+  isMetadataResultsTriggered
 }: MapShowcaseViewProps) => {
   const [galleryData, setGalleryData] = useState<Gallery | null>(null);
   const [buildingLayers, setBuldingLayer] = useState<Layer[]>([]);
@@ -163,14 +168,13 @@ export const MapShowcaseView = ({
       var map_unassigned_array = [];
       let photos_ids = await get_unassigned_photos(3,bearerToken);
       for (let photo of photos) {
-
         // photos_array.push(result)
         if (photos.length > 0) {
           task_photo_data = {
             id: photo.id,
             exif_data_latitude: photo?.lat,
             exif_data_longitude: photo?.lng,
-            photo: `data:image/jpeg;base64,${photo.photo}`,
+            photo: photo.link,
             exif_data_taken_at: photo.created,
             long_description: photo.note,
             exif_data_altitude: photo.altitude,
@@ -428,8 +432,12 @@ export const MapShowcaseView = ({
         onShowcaseClick={onShowcaseClick}
         setExtractedDrawerOpen={setExtractedDrawerOpen}
         extractedDrawerOpen={extractedDrawerOpen}
+        isUploadTriggered = {isUploadTriggered}
+        isMetadataResultsTriggered={isMetadataResultsTriggered}
+
 
       />
+    
       <MapWrapper component="main">
         <Backdrop
           sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}

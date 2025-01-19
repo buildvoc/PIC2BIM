@@ -8,10 +8,10 @@ import { MainView } from "../views/main-view";
 import { PropsWithChildren } from "react";
 import { Photo } from "@/types";
 
-function App({photos}:PropsWithChildren<{photos:Array<Photo>}>) {
+function App({photos,isUploadTriggered,isMetadataResultsTriggered}:PropsWithChildren<{photos:Array<Photo>,isUploadTriggered:boolean,isMetadataResultsTriggered:boolean}>) {
   return (
     <div className="App" data-testid="App">
-      <MainView photos={photos} />
+      <MainView photos={photos} isUploadTriggered={isUploadTriggered} isMetadataResultsTriggered={isMetadataResultsTriggered} />
     </div>
   );
 }

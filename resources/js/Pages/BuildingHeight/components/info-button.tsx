@@ -7,12 +7,12 @@ interface InfoButtonProps {
 
 export const InfoButton = ({ toggleInfo }: InfoButtonProps) => {
   return (
-    <AppBar elevation={0} color="transparent" position="absolute">
       <Toolbar
         sx={{
-          direction: "row",
-          justifyContent: "flex-end",
-          alignItems: "center",
+          width:"10px",
+          height:"10px",
+          right:"10px",
+          position:"absolute",
         }}
       >
         <IconButton
@@ -24,6 +24,5 @@ export const InfoButton = ({ toggleInfo }: InfoButtonProps) => {
           <Info />
         </IconButton>
       </Toolbar>
-    </AppBar>
   );
 };

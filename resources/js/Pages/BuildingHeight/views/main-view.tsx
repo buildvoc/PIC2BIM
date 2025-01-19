@@ -17,7 +17,7 @@ import { PropsWithChildren } from "react";
 import { Photo } from "@/types";
 
 
-export const MainView = ({photos}:PropsWithChildren<{photos:Array<Photo>}>) => {
+export const MainView = ({photos,isUploadTriggered,isMetadataResultsTriggered}:PropsWithChildren<{photos:Array<Photo>,isUploadTriggered:boolean,isMetadataResultsTriggered:boolean}>) => {
   const [activeLayout, setActiveLayout] = React.useState(LAYOUT.SHOWCASE);
   const ref = React.useRef<HTMLDivElement>(null);
   const [selectedImg, setSelectedImg] = useState<File | null | undefined>(
@@ -165,7 +165,7 @@ export const MainView = ({photos}:PropsWithChildren<{photos:Array<Photo>}>) => {
     setActiveLayout(LAYOUT.SHOWCASE)
   };
   return (
-    <Box sx={{ display: "flex", height: "100vh" }} ref={ref}>
+    <Box sx={{ display: "flex", height: "100vh",paddingRight:"10px" }} ref={ref}>
       
       <CssBaseline />
       {activeLayout === LAYOUT.PHOTO && (
@@ -193,6 +193,8 @@ export const MainView = ({photos}:PropsWithChildren<{photos:Array<Photo>}>) => {
           onShowcaseClick={() => setActiveLayout(LAYOUT.SHOWCASE)}
           setExtractedDrawerOpen={setExtractedDrawerOpen}
           extractedDrawerOpen={extractedDrawerOpen}
+          isUploadTriggered={isUploadTriggered}
+          isMetadataResultsTriggered={isMetadataResultsTriggered}
           />
       )}
       {activeLayout === LAYOUT.SHOWCASE && <MapShowcaseView photos={photos} view={view} 
@@ -209,7 +211,8 @@ export const MainView = ({photos}:PropsWithChildren<{photos:Array<Photo>}>) => {
                 extractedDrawerOpen={extractedDrawerOpen}
                 drawLaz={drawLaz}
                 bearerToken={bearerToken}
-
+                isUploadTriggered = {isUploadTriggered}
+                isMetadataResultsTriggered={isMetadataResultsTriggered}
 
       />}
 

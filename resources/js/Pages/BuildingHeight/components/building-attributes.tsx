@@ -23,7 +23,7 @@ import {
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CollectionsIcon from "@mui/icons-material/Collections";
 import MetricDisplay from "./metric-display/metric-display";
-import { useState, useEffect,useMemo } from "react";
+import { useState, useEffect,useMemo,useRef } from "react";
 import { NginxFile } from "../types/nginx";
 import { LAZ_FILES_LIST_URL } from "../constants";
 import {
@@ -34,7 +34,6 @@ import {
   CameraAlt,
   DocumentScanner
 } from "@mui/icons-material";
-
 import { FileContents } from "../types/file";
 import heritageTrail from "../data/heritage-trail";
 import { Metrics } from "../types/metrics";
@@ -93,7 +92,7 @@ interface BuildingAttributesProps {
   onShowcaseClick: () => void;
   extractedDrawerOpen: boolean;
   setExtractedDrawerOpen: (value: boolean) => void;
-
+  isUploadTriggered:boolean
   lazFile: NginxFile | null;
   metrics: Metrics;
   handleFileRead: (
@@ -102,7 +101,7 @@ interface BuildingAttributesProps {
   ) => void;
   onLazChange: (url: NginxFile) => void;
   drawLaz_: () => void;
-}
+  isMetadataResultsTriggered:boolean}
 // Secondary drawer
 // Secondary drawer
 const SecondaryDrawer = styled(Drawer)(({ theme }) => ({
@@ -113,6 +112,7 @@ const SecondaryDrawer = styled(Drawer)(({ theme }) => ({
     position: "absolute", // Ensure it overlaps the main drawer
     height: "100vh", // Make it cover the full screen height
     backgroundColor: "rgb(50, 173, 230)",
+    
   },
 }));
 
@@ -129,17 +129,39 @@ export const BuildingAttributes = ({
   extractedDrawerOpen,
   drawLaz_,
   onLazChange,
+  isUploadTriggered,
+  isMetadataResultsTriggered
 }: BuildingAttributesProps) => {
   const [open, setOpen] = useState(true);
   const toggleDrawer = () => {
     setOpen(!open);
   };
-
   const [fileName, setFileName] = useState<string>("");
   const [lazList, setLazList] = useState<NginxFile[]>([]);
   const [secondaryDrawerOpen, setSecondaryDrawerOpen] = useState(false);
-
   const { landArea, buildingArea, volume, buildingHeight } = metrics;
+  const [hasMounted, setHasMounted] = useState(false);
+  const fileInputRef = useRef<any>(null);
+  const metaDataBtnRef = useRef<any>(null);
+
+  useEffect(()=>{
+    if (!hasMounted) {
+      setHasMounted(true);
+      return;
+    }
+    fileInputRef.current.click()
+  },[isUploadTriggered])
+
+  useEffect(()=>{
+    if (!hasMounted) {
+      setHasMounted(true);
+      return;
+    }
+    previewImg && tags ?  metaDataBtnRef.current.click():alert('Please Upload Photo!');
+
+
+  },[isMetadataResultsTriggered])
+
 
   useEffect(() => {
     const getLazFilesList = async () => {
@@ -241,9 +263,9 @@ export const BuildingAttributes = ({
                 px: [1],
               }}
             >
-              <IconButton onClick={toggleSecondaryDrawer}>
+              {/* <IconButton onClick={toggleSecondaryDrawer}>
                 <MenuIcon />
-              </IconButton>
+              </IconButton> */}
               {open && "Building attributes"}
             </Toolbar>
             <Divider />
@@ -430,6 +452,7 @@ export const BuildingAttributes = ({
                 />
               </Button>
               <Button
+                ref={fileInputRef}
                 component="label"
                 variant="outlined"
                 sx={{color:"white",borderColor:"white"}}
@@ -445,6 +468,7 @@ export const BuildingAttributes = ({
    
               {previewImg && tags && (
                 <Button
+                  ref={metaDataBtnRef}
                   component="label"
                   variant="outlined"
                   sx={{color:"white",borderColor:"white"}}
