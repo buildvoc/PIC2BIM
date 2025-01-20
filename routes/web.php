@@ -46,7 +46,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
-    Route::get('/building_height', [BuildingHeightController::class, 'index'])
+    Route::get('/building-height', [BuildingHeightController::class, 'index'])
     ->name('building_height');
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
