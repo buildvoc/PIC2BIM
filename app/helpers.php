@@ -808,12 +808,12 @@ function getPhotosWithoutTask($user_id)
             'angle' => $photo->angle
         ];
 
-        // $file = null;
-        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        // if (file_exists($filePath)) {
-        //     $file = file_get_contents($filePath);
-        // }
-        // $photoData['photo'] = $file ? base64_encode($file) : null;
+        $file = null;
+        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+        if (file_exists($filePath)) {
+            $file = file_get_contents($filePath);
+        }
+        $photoData['photo'] = $file ? base64_encode($file) : null;
         $output[] = $photoData;
     }
 
