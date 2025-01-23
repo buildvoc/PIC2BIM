@@ -649,7 +649,8 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'link' => $photo->link,
         ];
         if($wantsBase64Photo){
             $file = null;
