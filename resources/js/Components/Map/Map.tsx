@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, memo } from "react";
-import mapboxgl from "mapbox-gl";
+import mapboxgl, { LngLat, LngLatLike } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./map.css";
 import ToggleControl from "./ToggleControl";
@@ -9,6 +9,7 @@ import { loadJQuery } from "@/helpers";
 import CustomPopup from "./CustomPopup";
 import { MapProps, Path, TaskPhotos } from "@/types";
 import classNames from "classnames";
+import axios from "axios";
 function Map({
     data,
     onClick,
@@ -624,6 +625,129 @@ function Map({
             }
         });
     }
+
+    const debounce = (func: (...args: any[]) => void, wait: number) => {
+        let timeout: NodeJS.Timeout;
+        return (...args: any[]) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
+    useEffect(() => {
+        if (mapRef.current) {
+            const debouncedMoveEnd = debounce(() => {
+                if (mapRef.current && mapRef.current.getZoom() > 9) {
+                    let bounds = getBoundingBox();
+                    if (bounds) showPolygons(bounds);
+                }
+            }, 1000);
+    
+            mapRef.current.on('moveend', debouncedMoveEnd);
+    
+            return () => {
+                mapRef.current?.off('moveend', debouncedMoveEnd);
+            };
+        }
+    }, []);
+
+    const showPolygons = async ({maxLat, minLat, maxLng, minLng}: {maxLat: number|undefined, minLat: number|undefined, maxLng: number|undefined, minLng: number|undefined}) => {
+        try {
+            const response = await axios.post(route('comm_shapes'), {
+                max_lat: maxLat, min_lat: minLat, max_lng: maxLng, min_lng: minLng,
+            });
+            const polygons = response.data.data.features;
+
+            polygons.forEach((polygon: any) => {
+                const coordinates = polygon.geometry.coordinates[0];
+
+                mapRef.current?.addSource(`polygon_${polygon.id}`, {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Polygon',
+                            coordinates: coordinates,
+                        },
+                        properties: {},
+                    },
+                });
+
+                mapRef.current?.addLayer({
+                    id: `polygon_${polygon.id}`,
+                    type: 'fill',
+                    source: `polygon_${polygon.id}`,
+                    layout: {},
+                    paint: {
+                        'fill-color': '#ea3122',
+                        'fill-opacity': 0.0,
+                    },
+                });
+
+                mapRef.current?.addLayer({
+                    id: `outline_${polygon.id}`,
+                    type: 'line',
+                    source: `polygon_${polygon.id}`,
+                    layout: {},
+                    paint: {
+                        'line-color': '#ea3122',
+                        'line-width': 2,
+                    },
+                });
+
+                const label = document.createElement('div');
+                label.style.backgroundImage = `url(/land_name_generator?land=${encodeURIComponent(polygon.properties.wd24nm)}&zoom=${mapRef.current?.getZoom()})`;
+                // label.textContent = polygon.properties.wd24nm;
+                label.className = 'polygon-label';
+                label.style.backgroundColor = 'white';
+                label.style.border = '1px solid black';
+                label.style.padding = '2px';
+                label.style.borderRadius = '3px';
+                label.style.backgroundSize = 'contain';
+                label.style.backgroundPosition = 'center';
+                label.style.backgroundRepeat = 'no-repeat';
+                label.style.width= '100px';
+                label.style.height= '30px';
+                label.style.cursor= 'pointer';
+
+                const centroid = calculateCentroid(coordinates[0]);
+
+                new mapboxgl.Marker(label)
+                .setLngLat(centroid as LngLatLike)
+                .addTo(mapRef.current!);
+            });
+        } catch (error) {
+            console.error('Error fetching polygons:', error);
+        }
+    };
+
+    const getBoundingBox = () => {
+        if (mapRef.current) {
+            const bounds = mapRef.current.getBounds();
+            const maxLat = bounds?.getNorth();
+            const minLat = bounds?.getSouth();
+            const maxLng = bounds?.getEast();
+            const minLng = bounds?.getWest();
+            
+    
+            return {
+                maxLat,
+                minLat,
+                maxLng,
+                minLng
+            };
+        }
+        return null;
+    };
+
+    const calculateCentroid = (coordinates: number[][]) => {
+        let x = 0, y = 0, n = coordinates.length;
+        coordinates.forEach(coord => {
+            x += coord[0];
+            y += coord[1];
+        });
+        return [x / n, y / n];
+    };
 
     return (
         <div
