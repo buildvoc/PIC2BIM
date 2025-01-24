@@ -11,7 +11,7 @@ export const InfoButton = ({ toggleInfo }: InfoButtonProps) => {
         sx={{
           width:"10px",
           height:"10px",
-          right:"10px",
+          right:"25px",
           position:"absolute",
         }}
       >

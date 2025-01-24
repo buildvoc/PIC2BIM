@@ -33,6 +33,8 @@ export const MainView = ({photos,isUploadTriggered,isMetadataResultsTriggered}:P
 
   useEffect(() => {
     (ref.current as HTMLDivElement).ownerDocument.body.scrollTop = 0;
+    (ref.current as HTMLDivElement).ownerDocument.body.style.overflow = 'hidden';
+
   }, [activeLayout]);
 
   const [extractedDrawerOpen, setExtractedDrawerOpen] =
