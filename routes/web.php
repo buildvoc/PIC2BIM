@@ -16,7 +16,6 @@ use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PdfPreviewController;
-use App\Http\Controllers\SearchController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -64,7 +63,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::resource('/tasks/types', TaskTypeController::class);
     Route::resource('/users', UserController::class);
-    Route::resource('/search', SearchController::class);
     Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
     Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
     Route::resource('/tasks', TasksController::class);
