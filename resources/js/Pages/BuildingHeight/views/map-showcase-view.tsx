@@ -327,7 +327,7 @@ export const MapShowcaseView = ({
           const currentLayers = createBuilding(
             buildingData.geojson,
             buildingData.cameraGPSData,
-            image.filename
+            image.filename ? image.filename:i.toString()
           );
           // console.log("New layers Show case---",newLayers);
           newLayers = newLayers.concat(currentLayers);
