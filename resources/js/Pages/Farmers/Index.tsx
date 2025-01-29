@@ -43,7 +43,9 @@ export function Index({ auth }: PageProps) {
         split: splitMode ? true : false,
         single: !splitMode ? true : false,
     });
-
+    useEffect(()=>{
+        console.log("SplitView---",splitView)
+    },[splitView])
     const previousTasksRef = useRef<any>([]);
     for (let task of tasks.data) {
         let tasks_data: Task = {
@@ -406,7 +408,7 @@ export function Index({ auth }: PageProps) {
             </div>
         );
     },
-    []
+    [splitView.split]
 );
 
     return (

@@ -214,7 +214,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 </div>
             </div>
         );
-    },[]);
+    },[splitView.split]);
 
 
     const RightPane = useCallback(

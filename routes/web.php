@@ -16,7 +16,6 @@ use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PdfPreviewController;
-use App\Http\Controllers\SearchController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
