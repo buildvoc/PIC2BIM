@@ -28,7 +28,24 @@ class ShapeFeatureResource extends JsonResource
                 'globalid' => $this->globalid,
                 'latitude' => $this->latitude,
                 'longitude' => $this->longitude,
+                'color' => $this->stringToColour($this->wd24cd),
             ],
         ];
+    }
+
+    function stringToColour($str) {
+        $hash = 0;
+        $chars = str_split($str);
+        foreach ($chars as $char) {
+            $hash = ord($char) + (($hash << 5) - $hash);
+        }
+    
+        $colour = '#';
+        for ($i = 0; $i < 3; $i++) {
+            $value = ($hash >> ($i * 8)) & 0xff;
+            $colour .= str_pad(dechex($value), 2, '0', STR_PAD_LEFT);
+        }
+    
+        return $colour;
     }
 }

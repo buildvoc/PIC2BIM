@@ -43,6 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
+    Route::get('/search', [SearchController::class, 'index'])
+        ->name('search.index');
+    Route::get('/search/{slug}', [SearchController::class, 'show'])
+        ->name('search.show');
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
         Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -64,7 +68,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::resource('/tasks/types', TaskTypeController::class);
     Route::resource('/users', UserController::class);
-    Route::resource('/search', SearchController::class);
     Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
     Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
     Route::resource('/tasks', TasksController::class);
