@@ -41,6 +41,8 @@
         "@fortawesome/react-fontawesome": "^0.2.2",
         "@loaders.gl/core": "^4.3.3",
         "@loaders.gl/las": "^4.3.3",
+        "@loaders.gl/loader-utils": "^4.3.3",
+        "@loaders.gl/pmtiles": "^4.3.3",
         "@math.gl/core": "^3.6.2",
         "@math.gl/proj4": "^3.6.2",
         "@mui/icons-material": "^5.14.9",
