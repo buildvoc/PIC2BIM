@@ -1,10 +1,10 @@
 FROM php:8.2-fpm-alpine
 
-ARG UID
-ARG GID
+ARG USER_ID
+ARG GROUP_ID
 
-ENV UID=${UID}
-ENV GID=${GID}
+ENV USER_ID=${USER_ID}
+ENV GROUP_ID=${GROUP_ID}
 
 RUN mkdir -p /var/www/html
 
@@ -15,8 +15,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 # MacOS staff group's
 RUN delgroup dialout
 
-RUN addgroup -g ${GID} --system laravel
-RUN adduser -G laravel --system -D -s /bin/sh -u ${UID} laravel
+RUN addgroup -g ${GROUP_ID} --system laravel
+RUN adduser -G laravel --system -D -s /bin/sh -u ${USER_ID} laravel
 
 RUN sed -i "s/user = www-data/user = laravel/g" /usr/local/etc/php-fpm.d/www.conf
 RUN sed -i "s/group = www-data/group = laravel/g" /usr/local/etc/php-fpm.d/www.conf
@@ -48,6 +48,9 @@ RUN mkdir -p /usr/src/php/ext/redis \
     && echo 'redis' >> /usr/src/php-available-exts \
     && docker-php-ext-install redis
 
+RUN chown -R laravel:laravel /var/www/html
+
 USER laravel
 
 CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
+
