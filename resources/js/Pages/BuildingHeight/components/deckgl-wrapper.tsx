@@ -13,10 +13,6 @@ import { MultiviewMapViewState } from "../types/map-view-state";
 import { ViewStateChangeParameters } from "@deck.gl/core";
 import { useEffect, useMemo, useState } from "react";
 import { TerrainLayer } from "@deck.gl/geo-layers";
-import {createDataSource} from '@loaders.gl/core';
-import {PMTilesSource} from '@loaders.gl/pmtiles';
-import {_GeoJSONLoader as GeoJSONLoader} from '@loaders.gl/json';
-import type {VectorTileSource, ImageTileSource} from '@loaders.gl/loader-utils';
 
 import { FullscreenWidget,ZoomWidget, CompassWidget} from '@deck.gl/widgets';
 import '@deck.gl/widgets/stylesheet.css';
@@ -108,29 +104,6 @@ export const DeckglWrapper = ({
     setCommonLayers([deckglTerrainLayer]);
   }, []);
 
-  function createTileSource(): VectorTileSource | ImageTileSource {
-    const url = '';
-    return createDataSource(
-      url,
-      [PMTilesSource],
-      {
-        core: {
-          attributions: example.attributions,
-          loaders: [GeoJSONLoader],
-          // Make the Schema more presentable by limiting the number of values per column the field metadata
-          loadOptions: {
-            tilejson: {maxValues: 10}
-          }
-        },
-        pmtiles: {
-        },
-        table: {
-          generateId: true,
-        },
-        mvt: {}
-      }
-    );
-  }
 
   const onViewStateChangeHandler = (parameters: ViewStateChangeParameters) => {
     const { viewState: deckViewState } = parameters;
