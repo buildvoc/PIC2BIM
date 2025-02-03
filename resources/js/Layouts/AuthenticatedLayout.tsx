@@ -9,7 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
-import axios from 'axios';
+import axios from "axios";
 
 export default function Authenticated({
     user,
@@ -17,15 +17,19 @@ export default function Authenticated({
     children,
     splitView,
     setSplitView,
+    uploadPhotoHandler,
+    metadataResultsHandler
+    
 }: PropsWithChildren<{
     user: User;
     header?: ReactNode;
     splitView?: SplitViewState;
     setSplitView?: any;
+    uploadPhotoHandler?: any;
+    metadataResultsHandler?: any;
 }>) {
-
-    const {darkMode} = usePage<{
-        darkMode : boolean;
+    const { darkMode } = usePage<{
+        darkMode: boolean;
     }>().props;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
@@ -120,6 +124,38 @@ export default function Authenticated({
                                         >
                                             Show Paths
                                         </NavLink>
+                                        {header ? (
+                                            <NavLink
+                                                href={route("building_height")}
+                                                active={route().current(
+                                                    "user_paths"
+                                                )}
+                                            >
+                                                Building height
+                                            </NavLink>
+                                        ) : (
+                                            <>
+                                                <button className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none  border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
+                                                    Take photo again
+                                                </button>
+                                                <button
+                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none  border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                    onClick={() =>
+                                                        uploadPhotoHandler()
+                                                    }
+                                                >
+                                                    Upload photo again
+                                                </button>
+                                                <button
+                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none  border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                    onClick={() =>
+                                                        metadataResultsHandler()
+                                                    }
+                                                >
+                                                    Metadata results 
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </>
                             )}
