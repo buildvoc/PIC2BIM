@@ -28,7 +28,6 @@ services:
         entrypoint: ["/bin/sh", "-c", "chown -R laravel:laravel /var/www/html && exec nginx -g 'daemon off;'"]
         depends_on:
             - php
-            - redis
             - postgresql17
         networks:
             - laravel
@@ -146,7 +145,6 @@ services:
             - ./src:/var/www/html:delegated
         depends_on:
             - postgresql17
-            - redis
         entrypoint: ["php", "/var/www/html/artisan"]
         networks:
             - laravel
@@ -155,8 +153,6 @@ volumes:
   postgresql:
     driver: local
   pgadmin:
-    driver: local
-  redis:
     driver: local
 
 networks:
