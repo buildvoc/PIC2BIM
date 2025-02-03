@@ -720,6 +720,15 @@ function Map({
         return null;
     };
 
+    const calculateCentroid = (coordinates: number[][]) => {
+        let x = 0, y = 0, n = coordinates.length;
+        coordinates.forEach(coord => {
+            x += coord[0];
+            y += coord[1];
+        });
+        return [x / n, y / n];
+    };
+
     return (
         <div
             id="map-container"

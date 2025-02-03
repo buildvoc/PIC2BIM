@@ -649,7 +649,8 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'created' => $photo->created,
             'digest' => $photo->digest,
             'id' => $photo->id,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'link' => $photo->link,
         ];
         if($wantsBase64Photo){
             $file = null;
@@ -808,12 +809,12 @@ function getPhotosWithoutTask($user_id)
             'angle' => $photo->angle
         ];
 
-        // $file = null;
-        // $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
-        // if (file_exists($filePath)) {
-        //     $file = file_get_contents($filePath);
-        // }
-        // $photoData['photo'] = $file ? base64_encode($file) : null;
+        $file = null;
+        $filePath = storage_path('app/private/' . $photo->path . $photo->file_name);
+        if (file_exists($filePath)) {
+            $file = file_get_contents($filePath);
+        }
+        $photoData['photo'] = $file ? base64_encode($file) : null;
         $output[] = $photoData;
     }
 

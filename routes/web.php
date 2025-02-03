@@ -18,9 +18,6 @@ use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PdfPreviewController;
 
-
-
-
 Route::get('/api-docs', function () {
     return view('api-docs');
 });
