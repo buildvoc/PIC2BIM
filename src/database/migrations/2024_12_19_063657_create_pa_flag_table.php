@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('flag', 45);
             $table->timestamp('timestamp');
+            $table->integer('task_id')->nullable();
+            $table->integer('flag_id')->nullable();
         });
     }
 

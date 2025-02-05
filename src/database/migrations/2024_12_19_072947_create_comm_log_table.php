@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('status', 45)->nullable();
             $table->text('error_msg');
-            $table->dateTime('timestamp');
+            $table->timestamp('timestamp');
         });
     }
 

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,19 +13,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('pa_id')->index('idx_pa_id');
+            $table->bigIncrements('id');
+            $table->bigInteger('pa_id')->nullable(false);
             $table->string('login', 255);
-            $table->string('pswd');
+            $table->string('pswd', 255);
             $table->string('name', 255)->nullable();
             $table->string('surname', 255)->nullable();
             $table->integer('identification_number')->nullable();
             $table->string('email', 255)->nullable();
             $table->string('vat', 45)->nullable();
-            $table->timestamp('timestamp');
-            $table->tinyInteger('active')->default(1);
+            $table->timestamp('timestamp')->useCurrent();
+            $table->smallInteger('active')->default(1);
             $table->timestamp('email_verified_at')->nullable();
-            $table->rememberToken();
+            $table->string('remember_token', 100)->nullable();
+            $table->string('created_at', 50)->nullable();
+            $table->string('updated_at', 50)->nullable();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('task', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('user', 'id');
-            $table->foreignId('created_id')->constrained('user', 'id');
-            $table->foreignId('type_id')->nullable()->constrained('task_type', 'id');
+            $table->bigIncrements('id');
+            $table->bigInteger('user_id')->unsigned();
+            $table->bigInteger('created_id')->unsigned();
+            $table->bigInteger('type_id')->unsigned()->nullable();
             $table->string('status', 255)->default('new');
             $table->string('name', 255)->nullable();
             $table->text('text')->nullable();
@@ -24,8 +24,16 @@ return new class extends Migration
             $table->timestamp('date_created')->nullable();
             $table->timestamp('task_due_date')->nullable();
             $table->text('note')->nullable();
-            $table->timestamp('timestamp');
+            $table->timestamp('timestamp')->useCurrent();
             $table->integer('flg_deleted')->default(0);
+            $table->integer('task_id')->nullable();
+            $table->integer('flag_id')->nullable();
+
+            // Foreign keys
+            $table->foreign('user_id')->references('id')->on('user')->onDelete('NO ACTION')->onUpdate('NO ACTION');
+            $table->foreign('created_id')->references('id')->on('user')->onDelete('NO ACTION')->onUpdate('NO ACTION');
+            $table->foreign('type_id')->references('id')->on('task_type')->onDelete('NO ACTION')->onUpdate('NO ACTION');
+        
         });
     }
 
