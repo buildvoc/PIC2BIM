@@ -16,7 +16,6 @@ import { useEffect, useMemo, useState,useRef } from "react";
 import { BitmapLayer } from "@deck.gl/layers";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { PMTiles } from "pmtiles";
-
 // Basemap
 import maplibregl from 'maplibre-gl';
 import { Protocol } from "pmtiles";
@@ -32,7 +31,7 @@ interface DeckglWrapperProps {
 }
 
 const PMTILES_URL =
-  "https://r2-public.protomaps.com/protomaps-sample-datasets/terrarium_z9.pmtiles";
+  "https://pic2bim.co.uk//storage/photos4all/7/3/output.pmtiles";
 
 export const DeckglWrapper = ({
   parentViewState,
@@ -62,6 +61,8 @@ export const DeckglWrapper = ({
   //BaseMap
   const mapRef = useRef<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const [commonLayers, setCommonLayers] = useState<Layer[]>([]);
+
   useEffect(() => {
     if (parentViewState !== null) {
       setViewState(parentViewState);
@@ -140,18 +141,20 @@ export const DeckglWrapper = ({
         maxPitch: 85,
         maxZoom: 20
       });
-      console.log("Map call ----------->")
       mapRef.current.on("load", () => {
         mapRef.current?.addSource('terrainSource', {
           type: "raster-dem",
           url: "pmtiles://" + PMTILES_URL,
           tileSize: 256,
-          encoding:"terrarium"
       });
       mapRef.current?.addSource('hillshadeSource', {
         type: "raster-dem",
         url: "pmtiles://" + PMTILES_URL,
         tileSize: 256,
+      });
+      mapRef.current?.setTerrain({
+        source: "terrainSource",
+        exaggeration: 1
       });
 
   
