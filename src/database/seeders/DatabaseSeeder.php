@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PaSeeder::class,
+            TasksSeeder::class,
+            PhotosSeeder::class,
+            PathsSeeder::class
         ]);
     }
 }

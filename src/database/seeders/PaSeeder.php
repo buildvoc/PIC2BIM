@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\UserRole;
+use Carbon\Carbon;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +61,7 @@ class PaSeeder extends Seeder
             'pa_id' => $pa->id,
             'pswd' => '89e495e7941cf9e40e6980d14a16bf023ccd4c91',
             'name' => 'Officer',
-            'email' => 'officer@mock.co.uk',
+            'email' => env('TEST_OFFICER_EMAIL'),
             'active' => 1,
             'timestamp' => now(),
             'email_verified_at' => now()
@@ -71,7 +73,7 @@ class PaSeeder extends Seeder
             'pa_id' => 1,
             'pswd' => '89e495e7941cf9e40e6980d14a16bf023ccd4c91',
             'name' => 'Farmer',
-            'email' => 'farmer@mock.co.uk',
+            'email' => env('TEST_FARMER_EMAIL'),
             'active' => 1,
             'timestamp' => now(),
             'email_verified_at' => now()
@@ -100,5 +102,7 @@ class PaSeeder extends Seeder
             'role_id' => $farmerRole->id,
             'timestamp' => now()
         ]);
+
+        
     }
 }
