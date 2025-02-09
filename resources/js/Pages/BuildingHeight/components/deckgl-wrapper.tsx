@@ -8,16 +8,15 @@ import {
   MapView,
   PickingInfo,
 } from "@deck.gl/core";
-import Map from 'react-map-gl';
 import { DeckGL } from "@deck.gl/react";
 import { MultiviewMapViewState } from "../types/map-view-state";
 import { ViewStateChangeParameters } from "@deck.gl/core";
 import { useEffect, useMemo, useState,useRef } from "react";
-import { BitmapLayer } from "@deck.gl/layers";
-import { TileLayer } from "@deck.gl/geo-layers";
-import { PMTiles } from "pmtiles";
+import maplibregl from "maplibre-gl";
+
+import Map, {MapRef} from 'react-map-gl/maplibre';
+
 // Basemap
-import maplibregl from 'maplibre-gl';
 import { Protocol } from "pmtiles";
 import { FullscreenWidget,ZoomWidget, CompassWidget} from '@deck.gl/widgets';
 import '@deck.gl/widgets/stylesheet.css';
@@ -32,6 +31,7 @@ interface DeckglWrapperProps {
 
 const PMTILES_URL =
   "https://pic2bim.co.uk//storage/photos4all/7/3/output.pmtiles";
+  const NEW_STYLE = "https://tiles.openfreemap.org/styles/liberty"; // New style to switch
 
 export const DeckglWrapper = ({
   parentViewState,
@@ -59,8 +59,8 @@ export const DeckglWrapper = ({
 
 
   //BaseMap
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapRef>(null);
+  const mapContainerRef = useRef<any>(null);
   const [commonLayers, setCommonLayers] = useState<Layer[]>([]);
 
   useEffect(() => {
@@ -93,72 +93,26 @@ export const DeckglWrapper = ({
     // eslint-disable-next-line
   }, [view]);
 
-  // useEffect(() => {
-  //   const layer = new TileLayer({
-  //     id: 'TileLayer',
-  //     data: 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  //     maxZoom: 19,
-  //     minZoom: 0,
-    
-  //     renderSubLayers: props => {
-  //       const {boundingBox} = props.tile;
-    
-  //       return new BitmapLayer(props, {
-  //         data: null,
-  //         image: props.data,
-  //         bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
-  //       });
-  //     },
-  //     pickable: true
-  //   });
-  //     setCommonLayers((res)=>[...res,layer]);
-  // }, []);
-
-
-  // useEffect(()=>{
-  //   const URL = "https://r2-public.protomaps.com/protomaps-sample-datasets/terrarium_z9.pmtiles"
-  //   let tileSource = createDataSource(URL
-  //     ,
-  //     [PMTilesSource, MVTSource], {}
-  // )
-  // const tileLayer = new TileSourceLayer({ tileSource });
-  // setTerrainLayer([tileLayer])
-  // },[])
-
-
   useEffect(() => {
-    if(mapContainerRef.current)
-    {
-      let protocol = new Protocol();
-      maplibregl.addProtocol("pmtiles", protocol.tile);
-       mapRef.current = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: "https://tiles.openfreemap.org/styles/liberty",
-        center: [-0.7960, 51.2140], 
-        zoom: 16,
-        pitch: 61,
-        bearing: 0,
-        maxPitch: 85,
-        maxZoom: 20
-      });
-      mapRef.current.on("load", () => {
-        mapRef.current?.addSource('terrainSource', {
+    if (mapRef.current) {
+      const protocol = new Protocol()
+      maplibregl.addProtocol('pmtiles', protocol.tile)
+      const map = mapRef.current.getMap();
+      map.addSource('terrainSource', {
           type: "raster-dem",
           url: "pmtiles://" + PMTILES_URL,
           tileSize: 256,
       });
-      mapRef.current?.addSource('hillshadeSource', {
+      map.addSource('hillshadeSource', {
         type: "raster-dem",
         url: "pmtiles://" + PMTILES_URL,
         tileSize: 256,
       });
-      mapRef.current?.setTerrain({
+      map.setTerrain({
         source: "terrainSource",
         exaggeration: 1
       });
-
-  
-      mapRef.current?.addLayer({
+      map.addLayer({
             id: 'hillshadeLayer',
             type: 'hillshade',
             source: 'terrainSource',
@@ -168,26 +122,11 @@ export const DeckglWrapper = ({
                 'hillshade-accent-color': '#888888'
             }
         });
-      });
-
-      mapRef.current?.addControl(
-        new maplibregl.NavigationControl({
-          visualizePitch: true,
-          showZoom: true,
-          showCompass: true,
-        })
-      );
-
-      mapRef.current?.addControl(
-        new maplibregl.TerrainControl({
-          source: "terrainSource",
-          exaggeration: 1
-        }))
     }
-
-
-    return () => mapRef.current?.remove();
-  }, [mapContainerRef.current]);
+    return () => {
+      maplibregl.removeProtocol("pmtiles");
+    };
+  }, [mapRef.current]); 
 
 
   const onViewStateChangeHandler = (parameters: ViewStateChangeParameters) => {
@@ -292,9 +231,11 @@ export const DeckglWrapper = ({
       layers={[ ...layers]}
 
     >
-
-<div ref={mapContainerRef} style={{ width: "100vw", height: "100vh" }}  />
-      </DeckGL>
+      <Map 
+            ref={mapRef}
+            mapStyle={NEW_STYLE}
+      />
+      </DeckGL> 
   
   );
 };
