@@ -23,6 +23,7 @@ class PhotosSeeder extends Seeder
         $sourcePath = public_path('images/img1.jpeg');
         $destinationPath = 'photos4all/'.$farmer->pa_id.'/'.$farmer->id.'/';
 
+
         if (file_exists($sourcePath)) {
             Storage::disk('public')->makeDirectory($destinationPath);
             copy($sourcePath, storage_path('app/public/'.$destinationPath.'img1.jpeg'));
@@ -63,7 +64,7 @@ class PhotosSeeder extends Seeder
             'distance' => null,
             'flg_checked_location' => null,
             'path' => $destinationPath,
-            'file_name' => 'image_'.$task->id.'.jpeg',
+            'file_name' => 'img1.jpeg',
             'timestamp' => '2024-12-26 17:15:33',
             'digest' => '3bedc70c654b942b40a55c2bd39260700eefd0f715d744ff0c25add4f9f69dc1',
             'flg_original' => 1,
