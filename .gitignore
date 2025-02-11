@@ -4,6 +4,6 @@ ssl/private/
 src/.vite/
 bootstrap/
 node_modules/
-public/
-storage/
-vendor/
+# public/
+# storage/
+# vendor/
