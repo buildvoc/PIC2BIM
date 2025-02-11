@@ -1,7 +1,5 @@
----
-title: TypeScript PHP
-description: Web Console it’s possible to connect and check the data uploaded from the smartphone (Android and iOS).
----
+# PIC2BIM
+
 ### Hosting and installing the web console
 
 
