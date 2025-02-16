@@ -39,7 +39,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => User::with('roles')->where('id',Auth::id())->first(),
             ],
-            'splitMode' => session()->has('splitMode') ? $splitMode : 1,
+            'splitMode' => session()->has('splitMode') ? $splitMode : 0,
             'darkMode' => session()->has('darkMode') ? $darkMode : 0,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
