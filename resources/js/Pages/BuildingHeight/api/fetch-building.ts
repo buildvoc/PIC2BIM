@@ -1,4 +1,4 @@
-const API_URL = "https://api.buildingshistory.co.uk";
+const API_URL = "https://pic2bim.co.uk/";
 
 export const fetchBuilding = async (
   lat: string,
@@ -14,7 +14,7 @@ export const fetchBuilding = async (
 
   const response = await fetch(
     // prettier-ignore
-    `${API_URL}/api/v1/building-part/nearest?latitude=${parseFloat(lat)}&longitude=${lng}&imagedirection=${camDirection}`
+    `${API_URL}comm_building_part_nearest?latitude=${parseFloat(lat)}&longitude=${lng}&imagedirection=${camDirection}`
   );
   const data = await response.json();
 

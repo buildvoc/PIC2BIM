@@ -11,17 +11,27 @@ import {
 import { DeckGL } from "@deck.gl/react";
 import { MultiviewMapViewState } from "../types/map-view-state";
 import { ViewStateChangeParameters } from "@deck.gl/core";
-import { useEffect, useMemo, useState } from "react";
-import { TerrainLayer } from "@deck.gl/geo-layers";
+import { useEffect, useMemo, useState,useRef } from "react";
+import maplibregl from "maplibre-gl";
 
+import Map, {MapRef} from 'react-map-gl/maplibre';
+
+// Basemap
+import { Protocol } from "pmtiles";
 import { FullscreenWidget,ZoomWidget, CompassWidget} from '@deck.gl/widgets';
 import '@deck.gl/widgets/stylesheet.css';
+import { sample } from "turf";
+import { map } from "jquery";
 interface DeckglWrapperProps {
   parentViewState: MultiviewMapViewState | null;
   view: "firstPerson" | "map" | "orthographic";
   layers: Layer[];
   onHover: (info: PickingInfo) => void;
 }
+
+const PMTILES_URL =
+  "https://pic2bim.co.uk//storage/photos4all/7/3/output.pmtiles";
+  const NEW_STYLE = "https://tiles.openfreemap.org/styles/liberty"; // New style to switch
 
 export const DeckglWrapper = ({
   parentViewState,
@@ -46,6 +56,11 @@ export const DeckglWrapper = ({
       bearing: 0,
     },
   });
+
+
+  //BaseMap
+  const mapRef = useRef<MapRef>(null);
+  const mapContainerRef = useRef<any>(null);
   const [commonLayers, setCommonLayers] = useState<Layer[]>([]);
 
   useEffect(() => {
@@ -79,30 +94,39 @@ export const DeckglWrapper = ({
   }, [view]);
 
   useEffect(() => {
-    const deckglTerrainLayer = new TerrainLayer({
-      id: "terrain",
-      maxZoom: 21,
-      elevationDecoder: {
-        rScaler: 6553.6,
-        gScaler: 25.6,
-        bScaler: 0.1,
-        offset: -10000,
-      },
-      loadOptions: {
-        terrain: {
-          tesselator: "martini",
-          skirtHeight: 50,
-        },
-      },
-      // Digital elevation model from https://www.usgs.gov/
-      elevationData:
-        "https://tiles.buildingshistory.co.uk/geoserver/gwc/service/tms/1.0.0/dem%3ARGB_Terrain@WebMercatorQuad@png/{z}/{x}/{y}.png?flipY=true",
-      texture:
-        "https://tiles.buildingshistory.co.uk/geoserver/gwc/service/tms/1.0.0/buildings%3AOutdoor_3857@WebMercatorQuad@png/{z}/{x}/{y}.png?flipY=true",
-      meshMaxError: 0.6,
-    });
-    setCommonLayers([deckglTerrainLayer]);
-  }, []);
+    if (mapRef.current) {
+      const protocol = new Protocol()
+      maplibregl.addProtocol('pmtiles', protocol.tile)
+      const map = mapRef.current.getMap();
+      map.addSource('terrainSource', {
+          type: "raster-dem",
+          url: "pmtiles://" + PMTILES_URL,
+          tileSize: 256,
+      });
+      map.addSource('hillshadeSource', {
+        type: "raster-dem",
+        url: "pmtiles://" + PMTILES_URL,
+        tileSize: 256,
+      });
+      map.setTerrain({
+        source: "terrainSource",
+        exaggeration: 1
+      });
+      map.addLayer({
+            id: 'hillshadeLayer',
+            type: 'hillshade',
+            source: 'terrainSource',
+            paint: {
+                'hillshade-shadow-color': '#000000', 
+                'hillshade-highlight-color': '#ffffff',
+                'hillshade-accent-color': '#888888'
+            }
+        });
+    }
+    return () => {
+      maplibregl.removeProtocol("pmtiles");
+    };
+  }, [mapRef.current]); 
 
 
   const onViewStateChangeHandler = (parameters: ViewStateChangeParameters) => {
@@ -130,7 +154,7 @@ export const DeckglWrapper = ({
         },
         firstPersonView: deckViewState,
       };
-    }
+    } 
     setViewState(newViewState);
   };
 
@@ -149,6 +173,7 @@ export const DeckglWrapper = ({
               altitude: 10,
               orthographic: view === "orthographic",
             }),
+
           ]
         : [
             new FirstPersonView({
@@ -170,8 +195,8 @@ export const DeckglWrapper = ({
       }
       onViewStateChange={onViewStateChangeHandler}
       onHover={onHover}
-      layers={[...commonLayers, ...layers]}
       views={VIEWS}
+      controller={true}
       widgets={view !== "firstPerson"? [
         new FullscreenWidget({
           placement:"top-right",
@@ -191,8 +216,10 @@ export const DeckglWrapper = ({
           placement:"top-right",
           style:{top:"150px",position:"absolute",right:"5px" }
         })
+
       ]:[]}
-      
+      style={{ width: "100vw", height: "100vh" }}
+
       effects={[
         new LightingEffect({
           ambientLight: new AmbientLight({
@@ -201,6 +228,14 @@ export const DeckglWrapper = ({
           }),
         }),
       ]}
-    />
+      layers={[ ...layers]}
+
+    >
+      <Map 
+            ref={mapRef}
+            mapStyle={NEW_STYLE}
+      />
+      </DeckGL> 
+  
   );
 };
