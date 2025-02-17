@@ -1,0 +1,1 @@
+export const FILTERS_DATA = ['new','open','data provided','returned','accepted','declined'];

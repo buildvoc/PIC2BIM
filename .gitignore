@@ -1,0 +1,9 @@
+.env
+ssl/certs/
+ssl/private/
+src/.vite/
+bootstrap/
+node_modules/
+# public/
+# storage/
+# vendor/
