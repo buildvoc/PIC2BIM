@@ -12,7 +12,6 @@ const Modal_ = ({
     rotateLeft,
     rotateRight,
 }: GalleryModalProps) => {
-    // const imageSrc = cnvrtImgUrl(photos[modal.index]?.link);
     const imageSrc = photos[modal.index]?.link;
     const [image, setImage] = useState(imageSrc);
 

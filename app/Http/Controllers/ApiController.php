@@ -352,19 +352,13 @@ class ApiController extends Controller
 
 
     public function comm_get_lpis(Request $request){
-        // https://api.os.uk/features/ngd/ofa/v1/collections/bld-fts-buildingpart-2/items?bbox=-0.795704,51.215453,-0.795082,51.215748
-        // https://pic2bim.co.uk/comm_get_lpis?max_lat=51.219908&min_lat=51.212019&max_lng=-0.759859&min_lng=-0.781896
+        
         $bbox = explode(",",$request->bbox);
         $requestData = $request->all();
         $max_lng = $bbox[2] ?? false;
         $max_lat = $bbox[3] ?? false;
         $min_lng = $bbox[0] ?? false;
         $min_lat = $bbox[1] ?? false;
-
-        // $max_lat = trim($request->input('max_lat'));
-        // $min_lat = trim($request->input('min_lat'));
-        // $max_lng = trim($request->input('max_lng'));
-        // $min_lng = trim($request->input('min_lng'));
 
         $numberOfRecords = $requestData['numberOfRecords'] ?? 20;
         $query = Land::whereNotNull('wgs_geometry');
@@ -379,10 +373,6 @@ class ApiController extends Controller
                 ->where('wgs_max_lat', '>', $min_lat)
                 ->where('wgs_min_lng', '<', $max_lng)
                 ->where('wgs_max_lng', '>', $min_lng);
-                // ->whereRaw('CAST(wgs_min_lat AS DECIMAL) >= ?', [$max_lat])
-                // ->whereRaw('CAST(wgs_max_lat AS DECIMAL) <= ?', [$min_lat])
-                // ->whereRaw('CAST(wgs_min_lng AS DECIMAL) >= ?', [$max_lng])
-                // ->whereRaw('CAST(wgs_max_lng AS DECIMAL) <= ?', [$min_lng]);
         }
         
         $lands = $query->limit($numberOfRecords)->get();

@@ -439,18 +439,6 @@ const ClientPdfRenderer = ({
         const processedPages = await Promise.all(
             photoData.map(async (photo, index: any) => {
                 var img = null;
-                if (photo?.photo) {
-                    //Compress task image
-                    // const compressedImage = await compressImageFromUrl(
-                    //   photo.photo.photo,
-                    //   {
-                    //     resize: 300,
-                    //     rotate: 90,
-                    //     quality: 80,
-                    //   }
-                    // );
-                    // img = `data:image/jpeg;base64,${compressedImage}`;
-                }
                 img = `data:image/jpeg;base64,${photo?.photo}`;
                 const tasks_photo: tasksPhoto = {
                     farmer_name: `${auth.user.name} ${auth.user.surname}`,
@@ -615,17 +603,6 @@ const ClientPdfRenderer = ({
                     const url = URL.createObjectURL(blob);
                     window.open(url, "_blank");
                     setIsGenerated(false)
-                    // const response = await fetch("/api/generate-pdf", {
-                    //   method: "POST",
-                    //   body: formData,
-                    // });
-
-                    // setIsGenerated((values: any) => ({ ...values, generate: false }));
-                    // if (!response.ok) {
-                    //   throw new Error("Failed to rename PDF");
-                    // }
-                    // const data = await response.json();
-                    // window.open(`/test/${data.name}/pdf`);
                 } catch (error) {
                     console.error(error);
                 }

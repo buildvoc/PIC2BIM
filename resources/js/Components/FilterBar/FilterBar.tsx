@@ -31,7 +31,7 @@ export default function FilterBar() {
   }
 
   useEffect(() => {
-    // https://reactjs.org/docs/hooks-faq.html#how-to-get-the-previous-props-or-state
+    
     if (prevValues) {
       const query = Object.keys(pickBy(values)).length ? pickBy(values) : {};
 

@@ -1,5 +1,4 @@
 import React, { useState, useRef, ComponentProps } from 'react';
-// import { fileSize } from '@/utils';
 import { Omit } from 'lodash';
 
 interface FileInputProps extends Omit<ComponentProps<'input'>, 'onChange'> {
@@ -18,8 +17,6 @@ export default function FileInput({ name, error, onChange }: FileInputProps) {
   function handleRemove() {
     setFile(null);
     onChange?.(null);
-
-    // fileInput?.current?.value = '';
   }
 
   function handleChange(e: React.FormEvent<HTMLInputElement>) {

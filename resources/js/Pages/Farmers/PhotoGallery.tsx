@@ -162,8 +162,6 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 alert("Failed to assign task. Please try again.");
             }
         });
-        // router.reload();
-        // setIsChooseTaskPopupOpen(false);
     };
 
     

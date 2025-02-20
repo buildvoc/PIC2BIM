@@ -16,13 +16,6 @@ const TaskGallery = ({
 }: GalleryProps) => {
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
     const [ekfIndex, setEkfIndex] = useState(-1);
-
-
-    // const [photos_, setPhotos] = useState(photos);
-    // useEffect(() => {
-    //     setPhotos(photos);
-    // }, [photos]);
-
     useEffect(() => {
         const initJQuery = async () => {
             const $ = await loadJQuery();
@@ -131,7 +124,6 @@ const TaskGallery = ({
                                         isShow: true,
                                         index: index,
                                     });
-                                    // handlePhotoCheckBox(photo?.digest);
                                 }}
                             >
                                 <img
