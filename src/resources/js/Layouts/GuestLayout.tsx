@@ -31,56 +31,8 @@ export default function Guest({ children }: PropsWithChildren) {
                         </Dialog.Title>
                         <Dialog.Description className="mt-2 text-sm">
                             <p className="text-justify sm:text-left">
-                                Building-Height is a system that can determine the attributes of historical buildings in England. The building part can be defined just by uploading a photo.
+                                PIC2BIM connects building information to authenticated and accurate geotagged photos using Galileo satellites.
                             </p>
-                            <ul className="list-decimal mt-4 pl-4 space-y-3">
-                                <li>
-                                    <b>Upload an Image</b>
-                                    <p className="text-justify sm:text-left">
-                                        You can upload or capture from your camera with active GPS.
-                                    </p>
-                                </li>
-                                <li>
-                                    <b>Image metadata will be displayed</b>
-                                    <p className="text-justify sm:text-left">
-                                        Extracted metadata from the image you uploaded will be displayed.
-                                    </p>
-                                </li>
-                                <li>
-                                    <b>Building height will be identified</b>
-                                    <p className="text-justify sm:text-left">
-                                        The building height, map location of the building, and its attributes will be displayed.
-                                    </p>
-                                </li>
-                            </ul>
-                            <p className="font-bold text-xl sm:text-2xl mt-4">3D Navigation</p>
-                            <div className="overflow-x-auto">
-                                <table className="table-auto w-full border-collapse">
-                                    <tbody>
-                                        {[
-                                            ["Pan", "Mouse Left"],
-                                            ["Rotate", "Mouse Right"],
-                                            ["", "Shift + Mouse Left"],
-                                            ["Top-down Camera", "T"],
-                                            ["Perspective Camera", "P"],
-                                            ["Driver Camera", "D"],
-                                            ["Recenter Camera", "R"],
-                                        ].map(([action, key], index) => (
-                                            <tr
-                                                key={index}
-                                                className="border-b last:border-0"
-                                            >
-                                                <td className="px-4 py-2 text-left font-normal text-[0.83rem]">
-                                                    {action}
-                                                </td>
-                                                <td className="px-4 py-2 text-left font-normal text-[0.83rem]">
-                                                    {key}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
                         </Dialog.Description>
 
                         <div className="flex justify-end my-4">
