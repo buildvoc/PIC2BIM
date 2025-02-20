@@ -18,7 +18,7 @@ class PathsSeeder extends Seeder
         $farmer = User::where('email',env('TEST_FARMER_EMAIL'))->first();
         $path = Path::create([
             'user_id' => $farmer->id,
-            'name' => 'Untitled',
+            'name' => 'heritage trail 02',
             'device_manufacture' => 'Samsung',
             'device_model' => 'gactive3',
             'device_platform' => 'Android',
