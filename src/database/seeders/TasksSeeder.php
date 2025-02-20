@@ -22,7 +22,7 @@ class TasksSeeder extends Seeder
             'created_id' => $officer->id,
             'type_id' => null,
             'name' => 'active-travel-heritage-trail',
-            'description' => 'On the circular walking Heritage Trail you can discover more about Farnham’s historic treasures, from the unusual groups of seven steps leading to the castle built for the blind bishop in 1524 from where King Charles I stayed on West Street to William Cobbett’s tomb at St Andrew’s Church.',
+            'text' => 'On the circular walking Heritage Trail you can discover more about Farnham’s historic treasures, from the unusual groups of seven steps leading to the castle built for the blind bishop in 1524 from where King Charles I stayed on West Street to William Cobbett’s tomb at St Andrew’s Church.',
             'date_created' => Carbon::now()->format('Y-m-d H:i:s'),
             'task_due_date' => Carbon::now()->addDays(5)->format('Y-m-d H:i:s'),
             'timestamp' => now(),
