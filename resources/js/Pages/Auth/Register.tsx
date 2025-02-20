@@ -21,7 +21,6 @@ export default function Register() {
         vat : '',
         agency_id : agency
     });
-    console.log(data);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();

@@ -85,7 +85,6 @@ export function Paths({ auth, paths, splitMode }: PageProps) {
                         data: parmData,
                         filterIds: arrayData,
                     };
-                    console.log("Updated data ---", updateData)
                     return updateData;
                 });
             }

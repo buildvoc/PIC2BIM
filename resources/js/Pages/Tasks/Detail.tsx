@@ -53,7 +53,7 @@ export default function Dashboard({ auth }: PageProps) {
             onSuccess : ((res) =>{
             }),
             onError :((err) => {
-                console.log(err);
+              
             })
         })
     }
@@ -71,10 +71,10 @@ export default function Dashboard({ auth }: PageProps) {
     if(textNote && textNote.length > 0){
         router.post(route('tasks.return'),{id : task.id, reason : textNote},{
             onSuccess : ((res) =>{
-                console.log(res);
+              
             }),
             onError :((err) => {
-                console.log(err);
+              
             })
         })
     }

@@ -5,9 +5,6 @@ import Map from "@/Components/Map/Map";
 import ClientPdfRenderer from "@/Components/Pdf/ClientPdfRenderer";
 import styles from "./pdf_preview.module.css";
 export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
-    useEffect(() => {
-        console.log("Total---", total);
-    }, []);
     const [isGenerate, setIsGenerated] = useState(false);
 
     const getContent = (photo: Photo, index: number) => {

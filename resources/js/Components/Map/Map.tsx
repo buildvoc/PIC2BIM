@@ -597,31 +597,17 @@ function Map({
         let previousZoom: any;
         let previousCenter: any;
         mapRef.current?.on("movestart", () => {
-            console.log("Map movement started");
             previousZoom = mapRef.current?.getZoom();
             previousCenter = mapRef.current?.getCenter();
         });
 
         mapRef.current?.on("moveend", () => {
-            console.log("Map movement ended");
             const currentZoom = mapRef.current?.getZoom();
             const currentCenter = mapRef.current?.getCenter();
             if (previousZoom && Math.abs(currentZoom! - previousZoom) > 2) {
-                console.log(
-                    "Sudden zoom change detected!",
-                    Math.abs(currentZoom! - previousZoom)
-                );
                 if (Math.abs(currentZoom! - previousZoom) > 12) {
                     insertMarkers();
                 }
-            }
-
-            if (
-                previousCenter &&
-                (Math.abs(currentCenter!.lng - previousCenter.lng) > 0.1 ||
-                    Math.abs(currentCenter!.lat - previousCenter.lat) > 0.1)
-            ) {
-                console.log("Sudden center change detected!");
             }
         });
     }
