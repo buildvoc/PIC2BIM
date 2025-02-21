@@ -220,7 +220,7 @@ export default function Table<T>({
                     {rows?.length === 0 && (
                         <tr>
                             <td
-                                className="px-6 py-24 border-t text-center"
+                                className="px-6 py-24 border-t text-center  break-words whitespace-normal"
                                 colSpan={columns.length}
                             >
                                 No data found.
@@ -241,7 +241,7 @@ export default function Table<T>({
                                     return (
                                         <td
                                             key={column.name}
-                                            className="border-t"
+                                            className="border-t break-words whitespace-normal"
                                             onClick={() => {
                                                 if (!isLastColumn) {
                                                     handleRowClick(row);
