@@ -31,8 +31,8 @@ class TasksSeeder extends Seeder
         ]);
 
 
-        DB::table('pa_flag')->insert(['flag'=> 'VALID']);
-        DB::table('pa_flag')->insert(['flag'=> 'INVALID']);
-        DB::table('pa_flag')->insert(['flag'=> 'RETURNED']);
+        DB::table('pa_flag')->insert(['flag'=> 'VALID','timestamp' => now()]);
+        DB::table('pa_flag')->insert(['flag'=> 'INVALID','timestamp' => now()]);
+        DB::table('pa_flag')->insert(['flag'=> 'RETURNED','timestamp' => now()]);
     }
 }
