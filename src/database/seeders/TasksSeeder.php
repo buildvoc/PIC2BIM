@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class TasksSeeder extends Seeder
 {
@@ -28,5 +29,10 @@ class TasksSeeder extends Seeder
             'timestamp' => now(),
             'flg_deleted' => 0
         ]);
+
+
+        DB::table('pa_flag')->insert(['flag'=> 'VALID']);
+        DB::table('pa_flag')->insert(['flag'=> 'INVALID']);
+        DB::table('pa_flag')->insert(['flag'=> 'RETURNED']);
     }
 }
