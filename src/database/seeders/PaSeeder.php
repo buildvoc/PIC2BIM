@@ -70,7 +70,7 @@ class PaSeeder extends Seeder
         $farmer = User::updateOrCreate([
             'login' => 'farmer'
         ],[
-            'pa_id' => 1,
+            'pa_id' => $pa->id,
             'pswd' => '89e495e7941cf9e40e6980d14a16bf023ccd4c91',
             'name' => 'Farmer',
             'email' => env('TEST_FARMER_EMAIL'),
