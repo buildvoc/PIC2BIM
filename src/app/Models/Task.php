@@ -14,7 +14,7 @@ class Task extends Model
     protected $guarded = [];
     public $timestamps = false;
 
-    public const STATUS = array('NEW', 'OPEN', 'DATA PROVIDED', 'DATA CHECKED', 'CLOSED', 'RETURNED');
+    public const STATUS = array('new', 'open', 'data provided', 'data checked', 'closed', 'returned');
     public const VALID = 1;
     public const INVALID = 2;
     public const RETURNED = 3;
