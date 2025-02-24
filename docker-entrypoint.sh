@@ -17,6 +17,8 @@ php artisan cache:clear
 php artisan config:clear
 php artisan migrate --force
 php artisan db:seed
+php artisan storage:link
+chown -R www-data:www-data storage/
 
 sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 

@@ -3,7 +3,7 @@ FROM php:8.2-apache
 
 # Install required dependencies
 RUN apt-get update && apt-get install -y \
-    git curl unzip zip libpq-dev libzip-dev \
+    git bash curl unzip zip libpq-dev libzip-dev \
     postgresql postgresql-contrib postgresql-15-postgis-3 postgresql-15-postgis-3-scripts \
     && docker-php-ext-install pdo pdo_pgsql zip
 
