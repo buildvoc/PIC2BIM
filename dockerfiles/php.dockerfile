@@ -13,7 +13,8 @@ WORKDIR /var/www/html
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # MacOS staff group's
-RUN delgroup dialout
+#RUN delgroup dialout
+RUN getent group dialout && delgroup dialout || echo "Group dialout does not exist, skipping..."
 
 RUN addgroup -g ${GROUP_ID} --system laravel
 RUN adduser -G laravel --system -D -s /bin/sh -u ${USER_ID} laravel
