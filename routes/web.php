@@ -82,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
     Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
     Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
+    Route::get('/laz-files-list', [BuildingHeightController::class, 'lazFiles']);
 });
 
 Route::post('/comm_login', [UserController::class, 'createToken']);

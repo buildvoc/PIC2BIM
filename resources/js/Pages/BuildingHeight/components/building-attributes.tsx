@@ -25,7 +25,7 @@ import CollectionsIcon from "@mui/icons-material/Collections";
 import MetricDisplay from "./metric-display/metric-display";
 import { useState, useEffect,useMemo,useRef } from "react";
 import { NginxFile } from "../types/nginx";
-import { LAZ_FILES_LIST_URL } from "../constants";
+import { LAZ_FILES_DIRECTORY } from "../constants";
 import {
   Menu as MenuIcon,
   Close as CloseIcon,
@@ -165,7 +165,7 @@ export const BuildingAttributes = ({
 
   useEffect(() => {
     const getLazFilesList = async () => {
-      const response = await fetch(LAZ_FILES_LIST_URL);
+      const response = await fetch(LAZ_FILES_DIRECTORY);
       const result = await response.json();
       setLazList(result as NginxFile[]);
     };

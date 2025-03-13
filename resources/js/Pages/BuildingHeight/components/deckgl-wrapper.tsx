@@ -30,7 +30,7 @@ interface DeckglWrapperProps {
 }
 
 const PMTILES_URL =
-  "https://pic2bim.co.uk//storage/photos4all/7/3/output.pmtiles";
+  "/output.pmtiles";
   const NEW_STYLE = "https://tiles.openfreemap.org/styles/liberty"; // New style to switch
 
 export const DeckglWrapper = ({
