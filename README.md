@@ -19,6 +19,9 @@ Create a database named PIC2BIM using adminer or any other database tool
 - Import the provided database file into PIC2BIM
 - Open bld_fts_buildingpart database table and import the data dump of that table
 
+## Photos4all 
+
+Unzip the provided photos4all folder in storage/app/public directory
 
 ## Installation Guide
 Follow these steps to set up PIC2BIM locally:
