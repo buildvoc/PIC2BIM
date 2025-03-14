@@ -68,12 +68,17 @@ npm install --save
 php artisan key:generate
 ```
 
-### Step 6: Run the Application
+### Step 6: Generate Application Key
+```sh
+php artisan storage:link
+```
+
+### Step 7: Run the Application
 ```sh
 php artisan serve
 ```
 
-### Step 7: Build Frontend Assets
+### Step 8: Build Frontend Assets
 ```sh
 npm run build
 ```
