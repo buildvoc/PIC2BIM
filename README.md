@@ -13,6 +13,13 @@ Ensure you have the following installed before proceeding:
 - Laravel 11
 - Git
 
+## Database Import
+
+Create a database named PIC2BIM using adminer or any other database tool
+- Import the provided database file into PIC2BIM
+- Open bld_fts_buildingpart database table and import the data dump of that table
+
+
 ## Installation Guide
 Follow these steps to set up PIC2BIM locally:
 
