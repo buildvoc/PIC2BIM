@@ -30,7 +30,7 @@ interface DeckglWrapperProps {
 }
 
 const PMTILES_URL =
-  "/output.pmtiles";
+  "https://pic2bim.co.uk/storage/photos4all/7/3/output.pmtiles";
   const NEW_STYLE = "https://tiles.openfreemap.org/styles/liberty"; // New style to switch
 
 export const DeckglWrapper = ({
@@ -94,39 +94,57 @@ export const DeckglWrapper = ({
   }, [view]);
 
   useEffect(() => {
-    if (mapRef.current) {
-      const protocol = new Protocol()
-      maplibregl.addProtocol('pmtiles', protocol.tile)
-      const map = mapRef.current.getMap();
-      map.addSource('terrainSource', {
-          type: "raster-dem",
-          url: "pmtiles://" + PMTILES_URL,
-          tileSize: 256,
-      });
-      map.addSource('hillshadeSource', {
+    if (!mapRef.current) return;
+  
+    const protocol = new Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+    
+    const map = mapRef.current.getMap();
+  
+    // Wait for the style to load before adding sources
+    const onStyleLoad = () => {
+      map.addSource("terrainSource", {
         type: "raster-dem",
         url: "pmtiles://" + PMTILES_URL,
         tileSize: 256,
       });
+  
+      map.addSource("hillshadeSource", {
+        type: "raster-dem",
+        url: "pmtiles://" + PMTILES_URL,
+        tileSize: 256,
+      });
+  
       map.setTerrain({
         source: "terrainSource",
-        exaggeration: 1
+        exaggeration: 1,
       });
+  
       map.addLayer({
-            id: 'hillshadeLayer',
-            type: 'hillshade',
-            source: 'terrainSource',
-            paint: {
-                'hillshade-shadow-color': '#000000', 
-                'hillshade-highlight-color': '#ffffff',
-                'hillshade-accent-color': '#888888'
-            }
-        });
+        id: "hillshadeLayer",
+        type: "hillshade",
+        source: "terrainSource",
+        paint: {
+          "hillshade-shadow-color": "#000000",
+          "hillshade-highlight-color": "#ffffff",
+          "hillshade-accent-color": "#888888",
+        },
+      });
+    };
+  
+    if (map.isStyleLoaded()) {
+      // If style is already loaded, run immediately
+      onStyleLoad();
+    } else {
+      // Otherwise, wait for 'style.load' event
+      map.on("style.load", onStyleLoad);
     }
+  
     return () => {
       maplibregl.removeProtocol("pmtiles");
+      map.off("style.load", onStyleLoad); // Cleanup event listener
     };
-  }, [mapRef.current]); 
+  }, [mapRef.current]);
 
 
   const onViewStateChangeHandler = (parameters: ViewStateChangeParameters) => {

@@ -5,7 +5,7 @@ export const get_photo = async (photo_id: number, bearerToken:string) => {
 
   try {
     const response = await fetch(
-      `${endpoint}comm_get_photo?photo_id=${photo_id}`,
+      `/comm_get_photo?photo_id=${photo_id}`,
       {
         method: "POST",
         headers: {
@@ -35,7 +35,7 @@ export const get_unassigned_photos = async (user_id: number,bearerToken:string) 
   console.log("Bearer token applied ---",bearerToken)
   try {
     const response = await fetch(
-      `${endpoint}comm_unassigned?user_id=${user_id}`,
+      `/comm_unassigned?user_id=${user_id}`,
       {
         method: "POST",
         headers: {

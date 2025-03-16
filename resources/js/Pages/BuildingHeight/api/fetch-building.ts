@@ -14,7 +14,7 @@ export const fetchBuilding = async (
 
   const response = await fetch(
     // prettier-ignore
-    `${API_URL}comm_building_part_nearest?latitude=${parseFloat(lat)}&longitude=${lng}&imagedirection=${camDirection}`
+    `/comm_building_part_nearest?latitude=${parseFloat(lat)}&longitude=${lng}&imagedirection=${camDirection}`
   );
   const data = await response.json();
 
