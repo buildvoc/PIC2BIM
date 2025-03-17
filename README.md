@@ -17,12 +17,18 @@ Ensure you have the following installed before proceeding:
 
 Create a database named PIC2BIM using adminer or any other database tool
 - Import the provided database file into PIC2BIM
+- Execute the following query in the editor
+
+    ```sh
+    CREATE EXTENSION POSTGIS;
+    ```
 - Open bld_fts_buildingpart database table and import the data dump of that table
 - Drop codepoint table and import the provided codepoint dump file
 - Execute the following query in the editor
-```sh
-DELETE from personal_access_tokens where id > 0
-```
+
+    ```sh
+    DELETE from personal_access_tokens where id > 0
+    ```
 
 
 ## Photos4all 
