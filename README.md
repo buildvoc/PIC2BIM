@@ -95,6 +95,12 @@ Once the server is running, you can access the application via:
 http://127.0.0.1:8000
 ```
 
+
+## PMTILES
+
+PMTILES is placed in the public folder and can be accessed at http://127.0.0.1:8000/output.pmtiles
+
+
 ## Contributing
 We welcome contributions to improve PIC2BIM! To contribute:
 1. Fork the repository.
