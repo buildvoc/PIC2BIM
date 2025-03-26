@@ -98,35 +98,46 @@ export const DeckglWrapper = ({
       const protocol = new Protocol()
       maplibregl.addProtocol('pmtiles', protocol.tile)
       const map = mapRef.current.getMap();
-      map.addSource('terrainSource', {
+  
+      const onLoad = () => {
+        map.addSource('terrainSource', {
           type: "raster-dem",
           url: "pmtiles://" + PMTILES_URL,
           tileSize: 256,
-      });
-      map.addSource('hillshadeSource', {
-        type: "raster-dem",
-        url: "pmtiles://" + PMTILES_URL,
-        tileSize: 256,
-      });
-      map.setTerrain({
-        source: "terrainSource",
-        exaggeration: 1
-      });
-      map.addLayer({
-            id: 'hillshadeLayer',
-            type: 'hillshade',
-            source: 'terrainSource',
-            paint: {
-                'hillshade-shadow-color': '#000000', 
-                'hillshade-highlight-color': '#ffffff',
-                'hillshade-accent-color': '#888888'
-            }
         });
+        map.addSource('hillshadeSource', {
+          type: "raster-dem",
+          url: "pmtiles://" + PMTILES_URL,
+          tileSize: 256,
+        });
+        map.setTerrain({
+          source: "terrainSource",
+          exaggeration: 1
+        });
+        map.addLayer({
+          id: 'hillshadeLayer',
+          type: 'hillshade',
+          source: 'terrainSource',
+          paint: {
+            'hillshade-shadow-color': '#000000', 
+            'hillshade-highlight-color': '#ffffff',
+            'hillshade-accent-color': '#888888'
+          }
+        });
+      };
+  
+      if (!map.isStyleLoaded()) {
+        map.once('load', onLoad);
+      } else {
+        onLoad();
+      }
+  
+      return () => {
+        maplibregl.removeProtocol("pmtiles");
+        map.off('load', onLoad);
+      };
     }
-    return () => {
-      maplibregl.removeProtocol("pmtiles");
-    };
-  }, [mapRef.current]); 
+  }, [mapRef.current]);
 
 
   const onViewStateChangeHandler = (parameters: ViewStateChangeParameters) => {
