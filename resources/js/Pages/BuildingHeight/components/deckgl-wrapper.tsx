@@ -13,7 +13,7 @@ import { MultiviewMapViewState } from "../types/map-view-state";
 import { ViewStateChangeParameters } from "@deck.gl/core";
 import { useEffect, useMemo, useState,useRef } from "react";
 import maplibregl from "maplibre-gl";
-
+import { ColumnLayer } from '@deck.gl/layers';
 import Map, {MapRef} from 'react-map-gl/maplibre';
 
 // Basemap
@@ -30,7 +30,7 @@ interface DeckglWrapperProps {
 }
 
 const PMTILES_URL =
-  "/output.pmtiles";
+  "https://pic2bim.co.uk//storage/photos4all/7/3/output.pmtiles";
   const NEW_STYLE = "https://tiles.openfreemap.org/styles/liberty"; // New style to switch
 
 export const DeckglWrapper = ({
@@ -172,6 +172,7 @@ export const DeckglWrapper = ({
               farZMultiplier: 2.02,
               altitude: 10,
               orthographic: view === "orthographic",
+              interleaved: true,
             }),
 
           ]
@@ -181,10 +182,30 @@ export const DeckglWrapper = ({
               controller: {
                 type: FirstPersonController,
               },
+              interleaved: true,
             }),
           ],
     [view]
   );
+
+  const cubeLayer = new ColumnLayer({
+    id: 'red-cube',
+    data: [
+      {
+        position: [-0.8013357346147122, 51.212834405074766],
+        value: 100
+      }
+    ],
+    diskResolution: 12,
+    radius: 50,
+    elevationScale: 1,
+    extruded: true,
+    pickable: true,
+    getPosition: d => d.position,
+    getFillColor: [255, 0, 0],
+    getElevation: d => d.value
+  });
+  
 
   return (
     <DeckGL
@@ -228,7 +249,7 @@ export const DeckglWrapper = ({
           }),
         }),
       ]}
-      layers={[ ...layers]}
+      layers={[...layers, cubeLayer]}
 
     >
       <Map 
