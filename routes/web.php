@@ -16,6 +16,7 @@ use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PdfPreviewController;
+use App\Http\Middleware\EnsureUserHasRole;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -27,21 +28,27 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
-    Route::get('/user_task', [FarmerController::class, 'index'])
+
+    Route::middleware(EnsureUserHasRole::class.':FARMER')->group(function (){
+        Route::get('/user_task', [FarmerController::class, 'index'])
         ->name('user_task.index');
-    Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
-        ->name('task');
-    Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
-        ->name('photo_gallery');
-    Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
-        ->name('photo_gallery.destroy');
-    Route::get('/user_paths', [FarmerPathsController::class, 'index'])
-        ->name('user_paths');
-    Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
-        ->name('photo_detail');
-    Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
-    Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
+        Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
+            ->name('task');
+        Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
+            ->name('photo_gallery');
+        Route::delete('/photo_gallery/{id}', [PhotoGalleryController::class, 'destroy'])
+            ->name('photo_gallery.destroy');
+        Route::get('/user_paths', [FarmerPathsController::class, 'index'])
+            ->name('user_paths');
+        Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
+            ->name('photo_detail');
+        Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
+        Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
+        Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
+        Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
+    });
+    
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
         Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -54,27 +61,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('/officers', OfficerController::class);
         Route::get('/invite/{id}/officer', [OfficerController::class, 'invite'])->name('officers.invite');
         Route::post('/invite/officer', [OfficerController::class, 'sendInvite'])->name('officer.invite');
-    });
+    })->middleware(EnsureUserHasRole::class.':SUPERADMIN');
     
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::middleware(EnsureUserHasRole::class.':SUPERADMIN')->group(function (){
+        Route::resource('/tasks/types', TaskTypeController::class);
+    });
+
+    Route::middleware(EnsureUserHasRole::class.':OFFICER')->group(function (){
+        Route::resource('/users', UserController::class);
+        Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
+        Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
+        Route::resource('/tasks', TasksController::class);
+        Route::post('/tasks/bulk-accept', [TasksController::class, 'acceptTaskPhotos'])->name('tasks.bulkAccept');
+        Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
+        Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
+        Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
+    });
     
-    Route::resource('/tasks/types', TaskTypeController::class);
-    Route::resource('/users', UserController::class);
-    Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
-    Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
-    Route::resource('/tasks', TasksController::class);
-    Route::post('/tasks/bulk-accept', [TasksController::class, 'acceptTaskPhotos'])->name('tasks.bulkAccept');
-    Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
-    Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
-    Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
+    
+    
 
     Route::post('/set-split-mode-in-session',[DashboardController::class,'setSplitModeInSession'])->name('set-split-mode-in-session');
     Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
-    Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
-    Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
+    
 });
 
 Route::post('/comm_login', [UserController::class, 'createToken']);
