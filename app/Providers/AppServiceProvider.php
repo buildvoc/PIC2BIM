@@ -28,8 +28,6 @@ class AppServiceProvider extends ServiceProvider
         Auth::provider('sha1', function (Application $app, array $config) {
             return new Sha1UserProvider();
         });
-        
-        // Vite::prefetch(concurrency: 3);
     }
 
  

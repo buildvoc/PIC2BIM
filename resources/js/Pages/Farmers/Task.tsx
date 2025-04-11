@@ -74,7 +74,7 @@ export function Task_({ auth, photos }: PageProps) {
                 onSuccess: ((res) => {
                 }),
                 onError: ((err) => {
-                    console.log(err);
+                    
                 })
             })
         }
@@ -92,10 +92,10 @@ export function Task_({ auth, photos }: PageProps) {
         if (textNote && textNote.length > 0) {
             router.post(route('tasks.return'), { id: task.id, reason: textNote }, {
                 onSuccess: ((res) => {
-                    console.log(res);
+                    
                 }),
                 onError: ((err) => {
-                    console.log(err);
+                    
                 })
             })
         }

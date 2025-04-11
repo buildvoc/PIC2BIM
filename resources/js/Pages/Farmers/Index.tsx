@@ -38,14 +38,10 @@ export function Index({ auth }: PageProps) {
 
     const tasks_array: Array<Task> = [];
     const tasks_photos_array: Array<TaskPhotos> = [];
-    console.log(splitMode ,'splitmode')
     const [splitView, setSplitView] = useState<SplitViewState>({
         split: splitMode ? true : false,
         single: !splitMode ? true : false,
     });
-    useEffect(()=>{
-        console.log("SplitView---",splitView)
-    },[splitView])
     const previousTasksRef = useRef<any>([]);
     for (let task of tasks.data) {
         let tasks_data: Task = {
@@ -84,7 +80,6 @@ export function Index({ auth }: PageProps) {
       setSelectedStatus(prevSelectedStatus => {
         if (prevSelectedStatus.includes(status)) {
           const return1 =  prevSelectedStatus.filter(selectedStatus => selectedStatus !== status);
-          console.log(return1,'1');
           applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return1});
           return return1;
         } 

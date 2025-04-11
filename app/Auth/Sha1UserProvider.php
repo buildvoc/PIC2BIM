@@ -26,9 +26,12 @@ class Sha1UserProvider implements UserProvider
 
     public function retrieveByCredentials(#[\SensitiveParameter] array $credentials)
     {
+        if (isset($credentials['email'])) {
+            return User::where('email', $credentials['email'])->first();
+        }
+
         return User::where('login', Arr::get($credentials, 'username'))->first();
     }
-
     public function validateCredentials(Authenticatable $user, #[\SensitiveParameter] array $credentials)
     {
         return sha1(Arr::get($credentials, 'password')) == $user->pswd;

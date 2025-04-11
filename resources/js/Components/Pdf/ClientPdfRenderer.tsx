@@ -173,8 +173,6 @@ const PdfPage = ({
     auth: { user: User };
 }>) => {
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
-    // console.log("image--- 1",photo.mapImg)
-    console.log("key--- ",photoKey);
     return (
         <Page size="A4" style={styles.page}>
             {/* PDF Header */}
@@ -435,27 +433,12 @@ const ClientPdfRenderer = ({
     auth: { user: User };
 }>) => {
     const [pdfInstance, updatePdfInstance] = usePDF();
-    useEffect(() => {
-        console.log("Auth---");
-    }, []);
     const processPhotos = async () => {
         let photoData = photos;
         // Compress images for each photo
         const processedPages = await Promise.all(
             photoData.map(async (photo, index: any) => {
                 var img = null;
-                if (photo?.photo) {
-                    //Compress task image
-                    // const compressedImage = await compressImageFromUrl(
-                    //   photo.photo.photo,
-                    //   {
-                    //     resize: 300,
-                    //     rotate: 90,
-                    //     quality: 80,
-                    //   }
-                    // );
-                    // img = `data:image/jpeg;base64,${compressedImage}`;
-                }
                 img = `data:image/jpeg;base64,${photo?.photo}`;
                 const tasks_photo: tasksPhoto = {
                     farmer_name: `${auth.user.name} ${auth.user.surname}`,
@@ -465,18 +448,9 @@ const ClientPdfRenderer = ({
                 task&& (tasks_photo["name"] = task?.name)
    
                 let image = await generateMapboxImage(tasks_photo, 350, 400);
-                //   const compressedMapImg = await compressImageFromUrl(image, {
-                //     resize: 430,
-                //     rotate: 0,
-                //     quality: 80,
-                //   });
-                console.log("image--- 2",image)
+                
 
-                  const mapImg = `data:image/png;base64,${image}`;
-                // const mapImg: any = [];
-
-                //Take coordinate and fetch image from map canvas with comporession
-                // var mapImg = null;
+                const mapImg = `data:image/png;base64,${image}`;
 
                 return getContent(
                     { ...photo, img, mapImg },
@@ -502,7 +476,6 @@ const ClientPdfRenderer = ({
         exportedPages: number,
         task: Task
     ) {
-        console.log(index,'INDEX')
         var photoArray: any = [];
         photoArray[0] = photo;
         return (
@@ -600,15 +573,6 @@ const ClientPdfRenderer = ({
         };
 
         createPdfDocument();
-        // Example usage
-
-        // (async () => {
-        //   let image = await generateMapboxImage(selectedTaskPhotos[0], 400, 400);
-        //   const compressedImage = await compressImageFromUrl(image,{resize:430,rotate:0,quality:80});
-        //   const compressedSrc = `data:image/jpeg;base64,${compressedImage}`;
-        //   console.log(compressedImage)
-        //   setPdfUrl(compressedSrc);
-        // })();
     }, []);
 
     useEffect(() => {
@@ -639,17 +603,6 @@ const ClientPdfRenderer = ({
                     const url = URL.createObjectURL(blob);
                     window.open(url, "_blank");
                     setIsGenerated(false)
-                    // const response = await fetch("/api/generate-pdf", {
-                    //   method: "POST",
-                    //   body: formData,
-                    // });
-
-                    // setIsGenerated((values: any) => ({ ...values, generate: false }));
-                    // if (!response.ok) {
-                    //   throw new Error("Failed to rename PDF");
-                    // }
-                    // const data = await response.json();
-                    // window.open(`/test/${data.name}/pdf`);
                 } catch (error) {
                     console.error(error);
                 }

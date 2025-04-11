@@ -12,7 +12,7 @@ export function Edit({ auth }: PageProps) {
 
 
   const { user } = usePage<{ user: Officer }>().props;
-  console.log(user,"OFFICER")
+  
   const { data, setData, errors, patch, processing } = useForm({
     login: user.login || '',
     password : user.password || '',
