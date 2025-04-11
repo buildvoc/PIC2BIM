@@ -111,7 +111,7 @@ class OfficerController extends Controller implements HasMiddleware
             'pa_id' => $request->agencyId,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
-        if($request->password) $user->update(['pswd' =>  sha1($request->password) ]);
+        if($request->password && !empty($request->password)) $user->update(['pswd' =>  sha1($request->password) ]);
 
         return redirect()->route('dashboard.agencies.show',$request->agencyId);
     }

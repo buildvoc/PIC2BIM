@@ -202,7 +202,6 @@ class UserController extends Controller
     {
         $request->validate([
             'login' => ['required', Rule::unique(User::class)->ignore($user->id)],
-            'password' => 'required',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
         ]);
 
@@ -215,7 +214,7 @@ class UserController extends Controller
             'vat' => $request->vat,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
-        if($request->password) $user->update(['pswd' =>  sha1($request->password) ]);
+        if($request->password && !empty($request->password)) $user->update(['pswd' =>  sha1($request->password) ]);
         return redirect()->route('users.index');
     }
 
