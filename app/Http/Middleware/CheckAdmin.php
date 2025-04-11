@@ -17,7 +17,7 @@ class CheckAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if(Auth::check() && !in_array(3, Auth::user()->roles->pluck('role_id')->toArray()) ){
-            return redirect(route('profile.edit'));
+            abort(403);
         }
         return $next($request);
     }
