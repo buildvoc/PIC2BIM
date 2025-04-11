@@ -42,6 +42,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
     Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
         ->name('pdf_preview');
+    Route::get('/search', [SearchController::class, 'index'])
+        ->name('search.index');
+    Route::get('/search/{slug}', [SearchController::class, 'show'])
+        ->name('search.show');
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
         Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -85,7 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_tasks', [ApiController::class, 'comm_tasks']);
     Route::post('/comm_status', [ApiController::class, 'comm_status']);
     Route::post('/comm_path', [ApiController::class, 'comm_path']);
-    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes']);
+    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes'])->name('comm_shapes');
     Route::post('/comm_photo', [ApiController::class, 'comm_photo']);
     Route::post('/comm_get_photo', [ApiController::class, 'comm_get_photo']);
     Route::post('/comm_update', [ApiController::class, 'comm_update']);
