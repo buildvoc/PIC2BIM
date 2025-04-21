@@ -14,7 +14,6 @@ const Modal_ = ({
 }: GalleryModalProps) => {
     const imageSrc = photos[modal.index]?.link;
     const [image, setImage] = useState(imageSrc);
-    const [ekfIndex, setEkfIndex] = useState(-1);
     const [buildingData, setBuildingData] = useState(null);
 
     useEffect(() => {
@@ -152,7 +151,7 @@ const Modal_ = ({
                         <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.altitude ? Number(photo.altitude).toFixed(2) : ''}</div>
                         
                         <div className="text-gray-500 dark:text-gray-400">Azimuth</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.photo_heading ? Number(photo.photo_heading).toFixed(2) : ''}</div>
+                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.photo_heading ? Number(photo.photo_heading).toFixed(3) : ''}</div>
                         
                         <div className="text-gray-500 dark:text-gray-400">OS Land Cover Tier A</div>
                         <div className="text-right font-medium text-gray-700 dark:text-gray-200">
@@ -191,86 +190,19 @@ const Modal_ = ({
                         <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
                         
                         <div className="text-gray-500 dark:text-gray-400">Note</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note || 'null null'}</div>
+                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
                     </div>
                     
-                    <div className="mt-4 text-center">
+                    {/* <div className="mt-4 text-center">
                         <button 
                             className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-xs font-medium js_open_ekf"
                             onClick={() => setEkfIndex(modal.index)}
                         >
                             Show EKF metadata
                         </button>
-                    </div>
+                    </div> */}
                 </div>
             </div>
-            {ekfIndex > -1 && (
-                <div className="js_hidden_ekf">
-                    <span className="close_popup py-2 mb-2">
-                        <FaTimesCircle />
-                    </span>
-                    <table className="my-4">
-                        <tbody>
-                            <tr>
-                                <td></td>
-                                <td className="bold">GPS L1</td>
-                                <td className="bold">GPS L5</td>
-                                <td className="bold">GPS Iono Free (L1/L5)</td>
-                                <td className="bold">Galileo E1</td>
-                                <td className="bold">Galileo E5a</td>
-                                <td className="bold">
-                                    Galileo Iono Free (E1/E5a)
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Latitude</td>
-                                <td>{photos[ekfIndex].efkLatGpsL1}</td>
-                                <td>{photos[ekfIndex].efkLatGpsL5}</td>
-                                <td>{photos[ekfIndex].efkLatGpsIf}</td>
-                                <td>{photos[ekfIndex].efkLatGalE1}</td>
-                                <td>{photos[ekfIndex].efkLatGalE5}</td>
-                                <td>{photos[ekfIndex].efkLatGalIf}</td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Longitude</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Altitude</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Reference</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Time</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            )}
         </div>
     );
 };
