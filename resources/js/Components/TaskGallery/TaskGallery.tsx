@@ -147,7 +147,7 @@ const TaskGallery = ({
                         {photos?.map((photo, index) => {
                             const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
                             return (
-                                <div className="slide-item px-2" key={index}>
+                                <div className="slide-item px-2 mt-3" key={index}>
                                     <div className={`bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden p-3 mx-2 h-full group ${
                                         photo.check ? 'ring-2 ring-blue-500' : ''
                                     } ${isSplitView ? 'split-view-item' : ''}`}>
