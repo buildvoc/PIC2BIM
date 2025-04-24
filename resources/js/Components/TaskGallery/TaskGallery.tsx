@@ -3,19 +3,87 @@ import { GalleryProps } from "@/types";
 import { FaTrash } from "react-icons/fa";
 import { FaSync } from "react-icons/fa";
 import { FaCheck } from "react-icons/fa";
-import { FaTimesCircle } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaEye } from "react-icons/fa";
 import { loadJQuery } from "@/helpers";
 import "./style.css";
 import Modal_ from "./Modal_";
 import axios from "axios";
+import { router } from "@inertiajs/react";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
 const TaskGallery = ({
     photos,
     isUnassigned,
     destroy,
     setPhotos,
+    isSplitView,
 }: GalleryProps) => {
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
     const [ekfIndex, setEkfIndex] = useState(-1);
+
+    const NextArrow = (props: any) => {
+        const { onClick } = props;
+        return (
+            <div
+                className="absolute -right-8 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg"
+                onClick={onClick}
+            >
+                <FaChevronRight className="text-gray-600 dark:text-gray-400" />
+            </div>
+        );
+    };
+
+    const PrevArrow = (props: any) => {
+        const { onClick } = props;
+        return (
+            <div
+                className="absolute -left-8 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg"
+                onClick={onClick}
+            >
+                <FaChevronLeft className="text-gray-600 dark:text-gray-400" />
+            </div>
+        );
+    };
+
+    const settings = {
+        dots: true,
+        infinite: false,
+        speed: 500,
+        slidesToShow: isSplitView ? 2 : 4,
+        slidesToScroll: 1,
+        nextArrow: <NextArrow />,
+        prevArrow: <PrevArrow />,
+        responsive: [
+            {
+                breakpoint: 1280,
+                settings: {
+                    slidesToShow: isSplitView ? 1 : 3,
+                    slidesToScroll: 1,
+                    dots: true
+                }
+            },
+            {
+                breakpoint: 1024,
+                settings: {
+                    slidesToShow: isSplitView ? 1 : 2,
+                    slidesToScroll: 1,
+                    dots: true
+                }
+            },
+            {
+                breakpoint: 640,
+                settings: {
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                    dots: true,
+                    arrows: false
+                }
+            }
+        ]
+    };
+
     useEffect(() => {
         const initJQuery = async () => {
             const $ = await loadJQuery();
@@ -73,260 +141,113 @@ const TaskGallery = ({
 
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {photos?.map((photo, index) => {
-                    const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
-
-                    return (
-                        <div className=" p-4" key={index}>
-                            <div className="flex gap-2 mb-4">
-                                {isUnassigned && (
-                                    <FaTrash
-                                        className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                        onClick={() =>
-                                            destroy!([photo.id].join(","))
-                                        }
-                                    />
-                                )}
-                                <FaSync
-                                    className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                    style={{ transform: "scaleX(-1)" }}
-                                    onClick={() => {
-                                        return handleRotate(
-                                            photo.digest,
-                                            "left"
-                                        );
-                                    }}
-                                />
-                                <div>
-                                    <FaSync
-                                        className="text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                                        onClick={() => {
-                                            return handleRotate(
-                                                photo.digest,
-                                                "right"
-                                            );
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            <label
-                                className={`flex flex-1  justify-center mr-[5px] text-center  w-[300px] h-[300px] hover:border-indigo-500 cursor-pointer rounded-sm border-4 ${
-                                    photo.check
-                                        ? "border-indigo-500"
-                                        : "dark:border-gray-200"
-                                }`}
-                                style={{
-                                    transform: `rotate(${photo?.angle}deg)`,
-                                }}
-                                onClick={() => {
-                                    setShowModal({
-                                        isShow: true,
-                                        index: index,
-                                    });
-                                }}
-                            >
-                                <img
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        e.currentTarget.src = '/images/dummy-image.jpg';
-                                        e.currentTarget.onerror = null;
-                                    }}
-                                    src={imageSrc}
-                                    className="max-w-full max-h-full w-auto h-auto m-0 transition-opacity duration-200 hover:opacity-75 object-cover"
-                                />
-                            </label>
-
-                            <button
-                                onClick={() =>
-                                    handlePhotoCheckBox(photo?.digest)
-                                }
-                                className="flex flex-1 items-center gap-2 my-4 text-gray-800 dark:text-gray-200 transition-opacity duration-200 hover:opacity-75"
-                            >
-                                <FaCheck />
-                                <p className="font-semibold text- ">Select</p>
-                            </button>
-
-                            <div className="  rounded-md border-2 border-[#dee2e6]  ">
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Latitude</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.lat}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Longitude</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.lng}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Altitude</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.altitude}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Azimut</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.photo_heading}</p>
+            <div className={`mx-auto px-3 py-6 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
+                <div className={`slider-container mb-4 px-4 relative mx-auto ${isSplitView ? 'max-w-full' : 'max-w-[90%]'}`}>
+                    <Slider {...settings} className={`gallery-slider py-2 ${isSplitView ? 'split-view-slider' : ''}`}>
+                        {photos?.map((photo, index) => {
+                            const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
+                            return (
+                                <div className="slide-item px-2 mt-3" key={index}>
+                                    <div className={`bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden p-3 mx-2 h-full group ${
+                                        photo.check ? 'ring-2 ring-blue-500' : ''
+                                    } ${isSplitView ? 'split-view-item' : ''}`}>
+                                        {/* Image Section */}
+                                        <div className="relative">
+                                            <div className={`w-full aspect-square relative overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-700 ${isSplitView ? 'split-view-image-container' : ''}`}>
+                                                <img
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        e.currentTarget.src = '/images/dummy-image.jpg';
+                                                        e.currentTarget.onerror = null;
+                                                    }}
+                                                    src={imageSrc}
+                                                    className={`absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90 ${isSplitView ? 'split-view-image' : ''}`}
+                                                    style={{
+                                                        transform: `rotate(${photo?.angle}deg)`,
+                                                    }}
+                                                    onClick={() => {
+                                                        setShowModal({
+                                                            isShow: true,
+                                                            index: index, 
+                                                        });
+                                                    }}
+                                                />
+                                                
+                                                <div 
+                                                    className={`absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer ${isSplitView ? 'split-view-overlay' : ''}`}
+                                                    onClick={() => {
+                                                        setShowModal({
+                                                            isShow: true,
+                                                            index: index, 
+                                                        });
+                                                    }}
+                                                >
+                                                    <div 
+                                                        className={`flex gap-3 p-2 rounded-lg bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 ${isSplitView ? 'split-view-buttons' : ''}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {isUnassigned && (
+                                                            <FaTrash
+                                                                className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-base sm:text-lg"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    destroy!([photo.id].join(","));
+                                                                }}
+                                                                title="Delete photo"
+                                                            />
+                                                        )}
+                                                        <FaSync
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
+                                                            style={{ transform: "scaleX(-1)" }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRotate(photo.digest, "left");
+                                                            }}
+                                                            title="Rotate left"
+                                                        />
+                                                        <FaSync
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRotate(photo.digest, "right");
+                                                            }}
+                                                            title="Rotate right"
+                                                        />
+                                                        <FaCheck 
+                                                            className={`text-base sm:text-lg cursor-pointer transition-colors ${
+                                                                photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
+                                                            }`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handlePhotoCheckBox(photo?.digest);
+                                                            }}
+                                                            title="Select photo"
+                                                        />
+                                                        <FaEye 
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                router.get(route("photo_detail", photo.id));
+                                                            }}
+                                                            title="View photo details"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {photo.check && (
+                                            <div className="flex justify-center mt-2">
+                                                <div className="bg-blue-500 h-1.5 w-1/3 rounded-full"></div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Vectical angle</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.vertical_view_angle}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Note</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.note}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Device</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{`${photo.device_platform} ${photo.device_model} ${photo.device_version} ${photo.device_manufacture}`}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Accuracy</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.accuracy}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Distance</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.distance}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Distance (GNSS)</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.distance}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Timestamp</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.timestamp}</p>
-                                    </div>
-                                </div>
-                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
-                                    <div className="flex-1 ">
-                                        <p>Created (UTC)</p>
-                                    </div>
-                                    <div className="flex flex-1  justify-end ">
-                                        <p>{photo.created}</p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end p-4 text-indigo-600 dark:text-indigo-400">
-                                    <label
-                                        className="js_open_ekf"
-                                        data-id="123"
-                                        onClick={() => {
-                                            setEkfIndex(index);
-                                        }}
-                                    >
-                                        Show EKF metadata
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            {ekfIndex > -1 && (
-                <div className="js_hidden_ekf">
-                    <span className="close_popup py-2 mb-2">
-                        <FaTimesCircle />
-                    </span>
-                    <table className="my-4">
-                        <tbody>
-                            <tr>
-                                <td></td>
-                                <td className="bold">GPS L1</td>
-                                <td className="bold">GPS L5</td>
-                                <td className="bold">GPS Iono Free (L1/L5)</td>
-                                <td className="bold">Galileo E1</td>
-                                <td className="bold">Galileo E5a</td>
-                                <td className="bold">
-                                    Galileo Iono Free (E1/E5a)
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Latitude</td>
-                                <td>{photos[ekfIndex].efkLatGpsL1}</td>
-                                <td>{photos[ekfIndex].efkLatGpsL5}</td>
-                                <td>{photos[ekfIndex].efkLatGpsIf}</td>
-                                <td>{photos[ekfIndex].efkLatGalE1}</td>
-                                <td>{photos[ekfIndex].efkLatGalE5}</td>
-                                <td>{photos[ekfIndex].efkLatGalIf}</td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Longitude</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Altitude</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Reference</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="bold">Time</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                            );
+                        })}
+                    </Slider>
                 </div>
-            )}
+            </div>
 
             <Modal_
                 modal={showModal}

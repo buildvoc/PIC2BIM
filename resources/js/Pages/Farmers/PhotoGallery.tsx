@@ -206,6 +206,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 isUnassigned={true}
                                 destroy={destroy}
                                 setPhotos={setPhotos}
+                                isSplitView={splitView.split}
                             />
                         </div>
                     </div>
