@@ -111,6 +111,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/comm_building_part', [ApiController::class, 'comm_building_part']);
     Route::get('/comm_building_part_nearest', [ApiController::class, 'comm_building_part_nearest']);
     Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
+
+    //Codepoint API
+    Route::get('/comm_codepoint2', [ApiController::class, 'comm_codepoint2']);
     //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
 });
 
