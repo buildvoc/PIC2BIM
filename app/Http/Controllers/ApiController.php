@@ -678,6 +678,38 @@ class ApiController extends Controller
         return new CodepointCollection($data);
     }
 
+    public function comm_codepoint2(Request $request)
+    {
+        $postcode = $request->query('postcode');
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = Codepoint::query();
+        
+        if ($postcode) {
+            $query->where('postcode', 'ILIKE', '%'.$postcode.'%');
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'postcode' => $postcode,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
+        
+        return new CodepointCollection($data);
+    }
+
     /**
      * @OA\Get(
      * path="/comm_uprn",

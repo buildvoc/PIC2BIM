@@ -15,12 +15,16 @@ const Modal_ = ({
     const imageSrc = photos[modal.index]?.link;
     const [image, setImage] = useState(imageSrc);
     const [buildingData, setBuildingData] = useState<any>(null);
+    const [shapeData, setShapeData] = useState<any>(null);
+    const [codepointData, setCodepointData] = useState<any>(null);
 
     useEffect(() => {
         setImage(imageSrc);
     }, [imageSrc]);
 
     useEffect(() => {
+        const distance = 0.0005;
+
         const fetchBuildingData = async () => {
             if (modal.isShow && photos[modal.index]) {
                 const photo = photos[modal.index];
@@ -37,7 +41,6 @@ const Modal_ = ({
                         
                         if (response.data.success && response.data.data.building_part.length > 0) {
                             setBuildingData(response.data.data.building_part[0].geojson.features[0].properties);
-                            console.log(response.data.data.building_part[0].geojson.features[0].properties);
                         } else {
                             setBuildingData(null);
                         }
@@ -49,7 +52,120 @@ const Modal_ = ({
             }
         };
         
+        const fetchShapeData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            max_lat: (lat + distance).toString(),
+                            min_lat: (lat - distance).toString(),
+                            max_lng: (lng + distance).toString(),
+                            min_lng: (lng - distance).toString()
+                        };
+                        
+                        const response = await axios.post("/comm_shapes", params);
+
+                        if (response.data && response.data.data.features && response.data.data.features.length > 0) {
+                            setShapeData(response.data.data.features[0].properties);
+                        } else {
+                            setShapeData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching shape data:", error);
+                        setShapeData(null);
+                    }
+                }
+            }
+        };
+
+        const fetchCodepointData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_codepoint2", { params });
+                        console.log(response.data);
+                        
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+
+                            if (features.length === 1) {
+                                setCodepointData(features[0].properties);
+                            } else {
+                                let closestFeature = features[0];
+                                let minDistance = calculateDistance(
+                                    lat, 
+                                    lng, 
+                                    features[0].geometry.coordinates[1], 
+                                    features[0].geometry.coordinates[0]
+                                );
+                                
+                                for (let i = 1; i < features.length; i++) {
+                                    const feature = features[i];
+                                    const distance = calculateDistance(
+                                        lat, 
+                                        lng, 
+                                        feature.geometry.coordinates[1], 
+                                        feature.geometry.coordinates[0]
+                                    );
+                                    
+                                    if (distance < minDistance) {
+                                        minDistance = distance;
+                                        closestFeature = feature;
+                                    }
+                                }
+                                
+                                setCodepointData(closestFeature.properties);
+                            }
+                        } else {
+                            setCodepointData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching codepoint data:", error);
+                        setCodepointData(null);
+                    }
+                }
+            }
+        };
+        
+        const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+            const R = 6371e3; // radius of Earth in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            return R * c; // distance in meters
+        };
+        
         fetchBuildingData();
+        fetchShapeData();
+        fetchCodepointData();
     }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {
@@ -187,6 +303,12 @@ const Modal_ = ({
                             
                             <div className="text-gray-500 dark:text-gray-400">Accuracy</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.accuracy ? Number(photo.accuracy).toFixed(2) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Codepoint</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Shape</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Created (UTC)</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
