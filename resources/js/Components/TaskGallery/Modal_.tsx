@@ -210,7 +210,7 @@ const Modal_ = ({
                 </div>
                 
                 {/* Action buttons row */}
-                <div className="flex px-5 gap-4 -mt-1 flex-shrink-0">
+                <div className="flex px-5 gap-4 -mt-1 flex-shrink-0 mb-4">
                     <FaSync className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer transition-colors text-lg" 
                            style={{ transform: "scaleX(-1)" }}
                            onClick={() => rotateLeft(photo.digest, "left")}
