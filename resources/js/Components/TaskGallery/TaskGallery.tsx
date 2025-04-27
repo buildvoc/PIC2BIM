@@ -23,6 +23,15 @@ const TaskGallery = ({
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
     const [ekfIndex, setEkfIndex] = useState(-1);
 
+    // Add CSS styles for single image mode
+    const singleImageStyles = photos.length === 1 ? {
+        maxWidth: '300px',
+        maxHeight: '300px',
+        minWidth: '200px',
+        minHeight: '200px',
+        margin: '0 auto'
+    } : {};
+
     const NextArrow = (props: any) => {
         const { onClick } = props;
         return (
@@ -51,7 +60,7 @@ const TaskGallery = ({
         dots: true,
         infinite: false,
         speed: 500,
-        slidesToShow: isSplitView ? 2 : 4,
+        slidesToShow: Math.min(photos.length, isSplitView ? 2 : 4),
         slidesToScroll: 1,
         nextArrow: <NextArrow />,
         prevArrow: <PrevArrow />,
@@ -59,7 +68,7 @@ const TaskGallery = ({
             {
                 breakpoint: 1280,
                 settings: {
-                    slidesToShow: isSplitView ? 1 : 3,
+                    slidesToShow: Math.min(photos.length, isSplitView ? 1 : 3),
                     slidesToScroll: 1,
                     dots: true
                 }
@@ -67,7 +76,7 @@ const TaskGallery = ({
             {
                 breakpoint: 1024,
                 settings: {
-                    slidesToShow: isSplitView ? 1 : 2,
+                    slidesToShow: Math.min(photos.length, isSplitView ? 1 : 2),
                     slidesToScroll: 1,
                     dots: true
                 }
@@ -75,7 +84,7 @@ const TaskGallery = ({
             {
                 breakpoint: 640,
                 settings: {
-                    slidesToShow: 1,
+                    slidesToShow: Math.min(photos.length, 1),
                     slidesToScroll: 1,
                     dots: true,
                     arrows: false
@@ -142,18 +151,24 @@ const TaskGallery = ({
     return (
         <>
             <div className={`mx-auto px-3 py-6 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
-                <div className={`slider-container mb-4 px-4 relative mx-auto ${isSplitView ? 'max-w-full' : 'max-w-[90%]'}`}>
-                    <Slider {...settings} className={`gallery-slider py-2 ${isSplitView ? 'split-view-slider' : ''}`}>
+                <div className={`slider-container mb-4 px-4 relative mx-auto ${isSplitView ? 'max-w-full' : 'max-w-[90%]'} ${photos.length === 1 ? 'single-image-container' : ''}`}>
+                    <Slider {...settings} className={`gallery-slider py-2 ${isSplitView ? 'split-view-slider' : ''} ${photos.length === 1 ? 'single-image-slider' : ''}`}>
                         {photos?.map((photo, index) => {
                             const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
                             return (
                                 <div className="slide-item px-2 mt-3" key={index}>
-                                    <div className={`bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden p-3 mx-2 h-full group ${
-                                        photo.check ? 'ring-2 ring-blue-500' : ''
-                                    } ${isSplitView ? 'split-view-item' : ''}`}>
+                                    <div 
+                                        className={`bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden p-3 mx-2 h-full group ${
+                                            photo.check ? 'ring-2 ring-blue-500' : ''
+                                        } ${isSplitView ? 'split-view-item' : ''} ${photos.length === 1 ? 'single-image-item' : ''}`}
+                                        style={photos.length === 1 ? singleImageStyles : {}}
+                                    >
                                         {/* Image Section */}
                                         <div className="relative">
-                                            <div className={`w-full aspect-square relative overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-700 ${isSplitView ? 'split-view-image-container' : ''}`}>
+                                            <div 
+                                                className={`w-full aspect-square relative overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-700 ${isSplitView ? 'split-view-image-container' : ''} ${photos.length === 1 ? 'single-image-container' : ''}`}
+                                                style={photos.length === 1 ? { maxWidth: '300px', maxHeight: '300px', minWidth: '200px', minHeight: '200px' } : {}}
+                                            >
                                                 <img
                                                     loading="lazy"
                                                     onError={(e) => {
@@ -161,9 +176,10 @@ const TaskGallery = ({
                                                         e.currentTarget.onerror = null;
                                                     }}
                                                     src={imageSrc}
-                                                    className={`absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90 ${isSplitView ? 'split-view-image' : ''}`}
+                                                    className={`absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90 ${isSplitView ? 'split-view-image' : ''} ${photos.length === 1 ? 'single-image' : ''}`}
                                                     style={{
                                                         transform: `rotate(${photo?.angle}deg)`,
+                                                        ...(photos.length === 1 ? { maxWidth: '300px', maxHeight: '300px' } : {})
                                                     }}
                                                     onClick={() => {
                                                         setShowModal({
