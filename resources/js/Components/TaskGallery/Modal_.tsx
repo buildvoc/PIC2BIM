@@ -259,6 +259,12 @@ const Modal_ = ({
                                 {buildingData?.TOID}
                             </div>
                             
+                            <div className="text-gray-500 dark:text-gray-400">Postcode</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">UPRN</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData?.uprn || ''}</div>
+                            
                             <div className="text-gray-500 dark:text-gray-400">Latitude</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>
                             
@@ -296,6 +302,11 @@ const Modal_ = ({
                                 {buildingData?.relativeheightmaximum}
                             </div>
                             
+                            <div className="text-gray-500 dark:text-gray-400">Height Absolute Min</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.absoluteheightminimum}
+                            </div>
+                            
                             <div className="text-gray-500 dark:text-gray-400">Physical Level</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">
                                 {buildingData?.physicallevel}
@@ -304,14 +315,17 @@ const Modal_ = ({
                             <div className="text-gray-500 dark:text-gray-400">Accuracy</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.accuracy ? Number(photo.accuracy).toFixed(2) : ''}</div>
                             
-                            <div className="text-gray-500 dark:text-gray-400">Codepoint</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
+                            <div className="text-gray-500 dark:text-gray-400">Created (UTC)</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Shape</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
-                            <div className="text-gray-500 dark:text-gray-400">Created (UTC)</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
+                            <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData?.parcel_ref || ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">OSNMA Validated</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{(photo as any)?.['OSNMA Validated'] || 'False'}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Note</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
