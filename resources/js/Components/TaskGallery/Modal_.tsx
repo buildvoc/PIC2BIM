@@ -318,7 +318,7 @@ const Modal_ = ({
                             <div className="text-gray-500 dark:text-gray-400">Created (UTC)</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
                             
-                            <div className="text-gray-500 dark:text-gray-400">Shape</div>
+                            <div className="text-gray-500 dark:text-gray-400">WD24NM</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
