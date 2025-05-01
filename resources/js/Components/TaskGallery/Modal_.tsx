@@ -193,7 +193,7 @@ const Modal_ = ({
                                         
                                         if (distance < minDistance) {
                                             minDistance = distance;
-                                            closestUprn = feature.properties.uprn;
+                                            closestUprn = feature.properties;
                                         }
                                     }
                                 }
@@ -326,7 +326,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">UPRN</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData || ''}</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData?.uprn ? uprnData.uprn : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Latitude</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>
