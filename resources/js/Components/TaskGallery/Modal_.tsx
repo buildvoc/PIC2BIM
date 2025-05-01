@@ -148,6 +148,72 @@ const Modal_ = ({
             }
         };
         
+        const fetchUprnData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_uprn", { params });
+                        
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+                            
+                            // Find the closest UPRN
+                            if (features.length === 1) {
+                                setBuildingData((prev: any) => ({
+                                    ...(prev || {}),
+                                    uprn: features[0].properties.uprn
+                                }));
+                            } else {
+                                let closestUprn = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        const distance = calculateDistance(
+                                            lat, 
+                                            lng, 
+                                            feature.geometry.coordinates[1], // latitude 
+                                            feature.geometry.coordinates[0]  // longitude
+                                        );
+                                        
+                                        if (distance < minDistance) {
+                                            minDistance = distance;
+                                            closestUprn = feature.properties.uprn;
+                                        }
+                                    }
+                                }
+                                
+                                if (closestUprn) {
+                                    setBuildingData((prev: any) => ({
+                                        ...(prev || {}),
+                                        uprn: closestUprn
+                                    }));
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Error fetching UPRN data:", error);
+                    }
+                }
+            }
+        };
+        
         const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
             const R = 6371e3; // radius of Earth in meters
             const φ1 = lat1 * Math.PI / 180;
@@ -166,6 +232,7 @@ const Modal_ = ({
         fetchBuildingData();
         fetchShapeData();
         fetchCodepointData();
+        fetchUprnData();
     }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {

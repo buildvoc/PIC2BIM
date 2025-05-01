@@ -738,14 +738,31 @@ class ApiController extends Controller
     public function comm_uprn(Request $request)
     {
         $uprn = $request->query('uprn');
-
-        $data = Uprn::query()
-        ->when($uprn, function ($query) use ($uprn) {
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = Uprn::query();
+        
+        if ($uprn) {
             $query->where('uprn', $uprn);
-        })
-        ->paginate(100);
-
-        $data->appends(array('uprn' => $uprn));
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'uprn' => $uprn,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
 
         return new UprnCollection($data);
     }

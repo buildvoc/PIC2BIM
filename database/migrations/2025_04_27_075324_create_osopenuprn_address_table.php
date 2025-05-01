@@ -13,8 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('pgsql')->create('osopenuprn_address', function (Blueprint $table) {
-            $table->id();
-            $table->integer('fid');
+            $table->integer('fid')->autoIncrement()->primary();
             $table->bigInteger('uprn');
             $table->double('x_coordinate');
             $table->double('y_coordinate');
