@@ -17,6 +17,7 @@ const Modal_ = ({
     const [buildingData, setBuildingData] = useState<any>(null);
     const [shapeData, setShapeData] = useState<any>(null);
     const [codepointData, setCodepointData] = useState<any>(null);
+    const [uprnData, setUprnData] = useState<any>(null);
 
     useEffect(() => {
         setImage(imageSrc);
@@ -175,10 +176,8 @@ const Modal_ = ({
                             
                             // Find the closest UPRN
                             if (features.length === 1) {
-                                setBuildingData((prev: any) => ({
-                                    ...(prev || {}),
-                                    uprn: features[0].properties.uprn
-                                }));
+                                setUprnData(features[0].properties);
+
                             } else {
                                 let closestUprn = null;
                                 let minDistance = Number.MAX_VALUE;
@@ -198,16 +197,13 @@ const Modal_ = ({
                                         }
                                     }
                                 }
+
+                                setUprnData(closestUprn);
                                 
-                                if (closestUprn) {
-                                    setBuildingData((prev: any) => ({
-                                        ...(prev || {}),
-                                        uprn: closestUprn
-                                    }));
-                                }
                             }
                         }
                     } catch (error) {
+                        setUprnData(null);
                         console.error("Error fetching UPRN data:", error);
                     }
                 }
@@ -330,7 +326,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">UPRN</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData?.uprn || ''}</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData || ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Latitude</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>
