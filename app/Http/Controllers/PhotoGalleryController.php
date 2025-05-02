@@ -13,8 +13,6 @@ class PhotoGalleryController extends Controller
 {
     public function index(Request $request)
     {
-        Artisan::queue('app:cron-check-location');
-        Log::info("QUEUED THE COMMAND");
         $user = Auth::user();
         $photos =  getPhotosWithoutTask($user->id);
         return Inertia::render('Farmers/PhotoGallery', compact('photos'));

@@ -16,6 +16,7 @@ use App\Models\Task;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use PDO;
 
@@ -210,6 +211,8 @@ class ApiController extends Controller
                     $photo = json_decode($photo_json, true);
                     if (json_last_error() === JSON_ERROR_NONE) {
                         $output = setPhoto($photo, $user_id, $task_id);
+                        Artisan::queue('app:pom-locate-by-nmea');
+                        Artisan::queue('app:cron-check-location');
                     } else {
                         $output['status'] = 'error';
                         $output['error_msg'] = 'photo json decode error';
