@@ -361,7 +361,9 @@ class ApiController extends Controller
         $min_lat = $bbox[1] ?? false;
 
         $numberOfRecords = $requestData['numberOfRecords'] ?? 20;
-        $query = Land::whereNotNull('wgs_geometry');
+        $query = Land::select('id', 'identificator', 'pa_description', 'wkt', 'wgs_max_lat', 'wgs_min_lat', 'wgs_max_lng', 'wgs_min_lng')
+            ->selectRaw("ST_AsGeoJSON(wgs_geometry) as geometry_json")
+            ->whereNotNull('wgs_geometry');
         
         if ($request->has('identificator')) {
             $query->where('identificator', $request->input('identificator'));
@@ -379,16 +381,18 @@ class ApiController extends Controller
 
         $features = [];
         foreach ($lands as $land){
+            $geometryJson = json_decode($land->geometry_json, true);
+            
             $features[] = [
-                'id' => $land['id'],
+                'id' => $land->id,
                 'type' => 'Feature',
-                'geometry' => [
-                    'type' => $land['wkt'],
-                    'coordinates' => $land['wgs_geometry']
+                'geometry' => $geometryJson ?? [
+                    'type' => $land->wkt,
+                    'coordinates' => null
                 ],
                 'properties' => [
-                    'name' => $land['identificator'],
-                    'description' => $land['pa_description']
+                    'name' => $land->identificator,
+                    'description' => $land->pa_description
                 ]
             ];
         }

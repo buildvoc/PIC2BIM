@@ -18,6 +18,7 @@ const Modal_ = ({
     const [shapeData, setShapeData] = useState<any>(null);
     const [codepointData, setCodepointData] = useState<any>(null);
     const [uprnData, setUprnData] = useState<any>(null);
+    const [landData, setLandData] = useState<any>(null);
 
     useEffect(() => {
         setImage(imageSrc);
@@ -210,6 +211,74 @@ const Modal_ = ({
             }
         };
         
+        const fetchLandData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const bbox = `${lng - distance},${lat - distance},${lng + distance},${lat + distance}`;
+                        const params = { bbox };
+                        
+                        const response = await axios.get("/comm_get_lpis", { params });
+                        
+                        if (response.data && 
+                            response.data.features && 
+                            response.data.features.length > 0) {
+                            
+                            const features = response.data.features;
+                            
+                            // Find the closest land feature
+                            if (features.length === 1) {
+                                setLandData(features[0]);
+                            } else {
+                                let closestLand = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        // For Point geometries
+                                        if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
+                                            const distance = calculateDistance(
+                                                lat, 
+                                                lng, 
+                                                feature.geometry.coordinates[1], // latitude 
+                                                feature.geometry.coordinates[0]  // longitude
+                                            );
+                                            
+                                            if (distance < minDistance) {
+                                                minDistance = distance;
+                                                closestLand = feature;
+                                            }
+                                        }
+                                        // For Polygon geometries, use the first coordinate of the first ring
+                                        else if ((feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') 
+                                                && feature.geometry.coordinates && feature.geometry.coordinates.length > 0) {
+                                            // Get center of bbox instead
+                                            setLandData(feature);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!landData) {
+                                    setLandData(closestLand);
+                                }
+                            }
+                        } else {
+                            setLandData(null);
+                        }
+                    } catch (error) {
+                        setLandData(null);
+                        console.error("Error fetching land data:", error);
+                    }
+                }
+            }
+        };
+        
         const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
             const R = 6371e3; // radius of Earth in meters
             const φ1 = lat1 * Math.PI / 180;
@@ -229,6 +298,7 @@ const Modal_ = ({
         fetchShapeData();
         fetchCodepointData();
         fetchUprnData();
+        fetchLandData();
     }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {
@@ -385,7 +455,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData?.parcel_ref || ''}</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.parcel_ref || ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">OSNMA Validated</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{(photo as any)?.['OSNMA Validated'] || 'False'}</div>
