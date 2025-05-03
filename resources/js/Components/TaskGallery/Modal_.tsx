@@ -455,7 +455,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.parcel_ref || ''}</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.properties?.description || ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">OSNMA Validated</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{(photo as any)?.['OSNMA Validated'] || 'False'}</div>
