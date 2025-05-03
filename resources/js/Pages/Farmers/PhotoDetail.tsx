@@ -36,6 +36,7 @@ export function PhotoDetail({auth,photo}: PageProps) {
   };
 
   const handleBack = () => {
+    localStorage.setItem("map_from_photo_detail", "true");
     window.history.back();
   };
 
