@@ -328,7 +328,7 @@ function Map({
     }
     const calculateBoundingBox = (coordinates: any) => {
         if (coordinates[0][1] >= -90 && coordinates[0][1]  <= 90 && coordinates[0][0] >= -180 && coordinates[0][0] <= 180) {
-            
+
             let bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
                   coordinates.forEach((coord: any) => {
             if (coord[1] >= -90 && coord[1] <= 90 && coord[0] >= -180 && coord[0] <= 180) {
@@ -338,7 +338,7 @@ function Map({
         return bounds;
         }
         return null
-  
+
     };
 
     async function filterData() {
@@ -628,9 +628,9 @@ function Map({
                     if (bounds) showPolygons(bounds);
                 }
             }, 1000);
-    
+
             mapRef.current.on('moveend', debouncedMoveEnd);
-    
+
             return () => {
                 mapRef.current?.off('moveend', debouncedMoveEnd);
             };
@@ -714,8 +714,8 @@ function Map({
             const minLat = bounds?.getSouth();
             const maxLng = bounds?.getEast();
             const minLng = bounds?.getWest();
-            
-    
+
+
             return {
                 maxLat,
                 minLat,

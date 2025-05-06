@@ -30,6 +30,9 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const staticCardItems = Array.from({ length: 5 });
     const [openCardId, setOpenCardId] = useState(null);
 
+    // Show & Hide MAP
+    const [showMap, setShowMap] = useState(true);
+
     const [selectedTask, setSelectedTask] = useState("");
     const [photosIds, setPhotosIds] = useState("");
 
@@ -248,7 +251,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                     <div className={`photo-gallery-map-view`}>
                     {" "}
                     <div className={`photo-gallery-map-view-container`}>
-                        <PhotoGalleryMap data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
+                        <PhotoGalleryMap showMap={showMap} data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
                     </div>
                     {/*<div className="max-w mx-auto sm:px-4 ">*/}
                     {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
@@ -360,7 +363,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         >
             <Head title="Photo gallery" />
             {/*<BackButton label="Back" className="" />*/}
-            <Filter />
+            <Filter showMap={showMap} setShowMap={setShowMap} />
             <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>
