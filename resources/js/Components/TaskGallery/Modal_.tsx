@@ -19,7 +19,7 @@ const Modal_ = ({
     const [codepointData, setCodepointData] = useState<any>(null);
     const [uprnData, setUprnData] = useState<any>(null);
     const [landData, setLandData] = useState<any>(null);
-
+    const [nhleData, setNhleData] = useState<any>(null);
     useEffect(() => {
         setImage(imageSrc);
     }, [imageSrc]);
@@ -279,6 +279,67 @@ const Modal_ = ({
             }
         };
         
+        const fetchNhleData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_nhle", { params });
+
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+
+                            if (features.length === 1) {
+                                setNhleData(features[0].properties);
+                            } else {
+                                let closestNhle = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        const distance = calculateDistance(
+                                            lat, 
+                                            lng, 
+                                            feature.geometry.coordinates[1], // latitude 
+                                            feature.geometry.coordinates[0]  // longitude
+                                        );
+                                        
+                                        if (distance < minDistance) {
+                                            minDistance = distance;
+                                            closestNhle = feature.properties;
+                                        }
+                                    }
+                                }
+                                
+                                console.log(closestNhle);
+                                setNhleData(closestNhle);
+                            }
+                        } else {
+                            setNhleData(null);
+                        }
+                    } catch (error) {
+                        setNhleData(null);
+                        console.error("Error fetching NHLE data:", error);
+                    }
+                }
+            }
+        };
+        
         const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
             const R = 6371e3; // radius of Earth in meters
             const φ1 = lat1 * Math.PI / 180;
@@ -299,6 +360,7 @@ const Modal_ = ({
         fetchCodepointData();
         fetchUprnData();
         fetchLandData();
+        fetchNhleData();
     }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {
@@ -397,6 +459,27 @@ const Modal_ = ({
                             
                             <div className="text-gray-500 dark:text-gray-400">UPRN</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData?.uprn ? uprnData.uprn : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Name</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {nhleData?.name 
+                                    ? (nhleData.name.length > 30 
+                                        ? nhleData.name.substring(0, 27) + '...' 
+                                        : nhleData.name) 
+                                    : ''}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Grade</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{nhleData?.grade ? nhleData.grade : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Hyperlink</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {nhleData?.hyperlink ? (
+                                    <a href={nhleData.hyperlink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                        view
+                                    </a>
+                                ) : ''}
+                            </div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Latitude</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>

@@ -1114,6 +1114,170 @@
                     }
                 ]
             }
+        },
+        "/comm_nhle": {
+            "get": {
+                "tags": [
+                    "NHLE"
+                ],
+                "operationId": "cbc6dcbd3c7b1d18555b42663a4ca6fc",
+                "parameters": [
+                    {
+                        "name": "nhle_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1"
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.5"  
+                    },
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.2"
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.2"
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.6"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of NHLE records",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_spatial_boundaries": {
+            "get": {
+                "tags": [
+                    "Spatial Boundaries"
+                ],
+                "operationId": "ab64d78e9c2f1e39d5a7b8d0c3e6f4a1",
+                "parameters": [
+                    {
+                        "name": "inspire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "31444717"
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.5"  
+                    },
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.2"
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.2"
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.6"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of spatial boundary records",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
   }
 }

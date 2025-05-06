@@ -2,22 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CodepointCollection;
-use App\Http\Resources\ShapeCollection;
-use App\Http\Resources\UprnCollection;
-use App\Models\Attr\BuildingPart;
-use App\Models\Attr\Codepoint;
+use PDO;
+use Exception;
+use App\Models\Land;
+use App\Models\NHLE;
+use App\Models\Path;
+use App\Models\Task;
+use App\Models\Photo;
 use App\Models\Attr\Uprn;
 use App\Models\Attr\Shape;
-use App\Models\Land;
-use App\Models\Path;
-use App\Models\Photo;
-use App\Models\Task;
-use Exception;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Models\Attr\Codepoint;
+use App\Models\Attr\BuildingPart;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use PDO;
+use App\Http\Resources\NhleCollection;
+use App\Http\Resources\UprnCollection;
+use App\Http\Resources\ShapeCollection;
+use App\Http\Resources\CodepointCollection;
 
 class ApiController extends Controller
 {
@@ -769,5 +771,37 @@ class ApiController extends Controller
         ]);
 
         return new UprnCollection($data);
+    }
+
+    public function comm_nhle(Request $request)
+    {
+        $nhle_id = $request->query('nhle_id');
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = NHLE::query();
+        
+        if ($nhle_id) {
+            $query->where('gid', $nhle_id);
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'nhle_id' => $nhle_id,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
+
+        return new NhleCollection($data);
     }
 }
