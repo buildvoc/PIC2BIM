@@ -19,11 +19,20 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
+import Filter from "@/Components/PhotoGallery/Filter";
+import PhotoGalleryMap from "@/Components/PhotoGallery/PhotoGalleryMap";
+import Pagination from "@/Components/PhotoGallery/Pagination";
+import PhotoItem from "@/Components/PhotoGallery/PhotoItem";
 
 export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
-    const [selectedTask, setSelectedTask] = useState("");     
-    const [photosIds, setPhotosIds] = useState("");    
-   
+
+    // Static card count
+    const staticCardItems = Array.from({ length: 5 });
+    const [openCardId, setOpenCardId] = useState(null);
+
+    const [selectedTask, setSelectedTask] = useState("");
+    const [photosIds, setPhotosIds] = useState("");
+
     const [unassignedTasks, setUnassignedTasks] = useState<Array<Task>>([]);
 
     const [isChooseTaskPopupOpen, setIsChooseTaskPopupOpen] = useState(false);
@@ -141,7 +150,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         router.post(route('assign-task'),{
             photo_ids : photosIds,
             task_id : selectedTask
-        }, {    
+        }, {
             onSuccess: () => {
                 const deselectIds = photosIds.split(",");
                 set_filter_tasks_photos(
@@ -164,7 +173,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         });
     };
 
-    
+
     const selectAll = () => {
         const allPhotos = photo_;
         const withCheckUpdate = allPhotos.map((photo) => {
@@ -187,29 +196,37 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
     }>) => {
         return (
-            <div
-                className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""
-                    } `}
-            >
+
+            //<div className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""} `}>
+                <div className={`photo-gallery-card-view`}>
                 {" "}
-                <div className="max-w mx-auto sm:px-4 ">
-                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        <div
-                            className={` ${splitView.split
-                                ? "overflow-y-auto h-3/4-screen"
-                                : ""
-                                } `}
-                        >
-                            {" "}
-                            <TaskGallery
-                                photos={photo_}
-                                isUnassigned={true}
-                                destroy={destroy}
-                                setPhotos={setPhotos}
-                            />
-                        </div>
+                <div className={`photo-gallery-card-view-container`}>
+                    <div className={`photo-gallery-cards`}>
+                        {staticCardItems.map((_, index)=>(
+                            <PhotoItem key={index} isOpen={openCardId === index} onOpen={() => setOpenCardId(index)} onClose={() => setOpenCardId(null)} />
+                        ))}
+
                     </div>
+                    <Pagination />
                 </div>
+                {/*<div className="max-w mx-auto sm:px-4 ">*/}
+                {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
+                {/*        <div*/}
+                {/*            className={` ${splitView.split*/}
+                {/*                ? "overflow-y-auto h-3/4-screen"*/}
+                {/*                : ""*/}
+                {/*                } `}*/}
+                {/*        >*/}
+                {/*            {" "}*/}
+                {/*            <TaskGallery*/}
+                {/*                photos={photo_}*/}
+                {/*                isUnassigned={true}*/}
+                {/*                destroy={destroy}*/}
+                {/*                setPhotos={setPhotos}*/}
+                {/*            />*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
             </div>
         );
     },[splitView.split]);
@@ -227,67 +244,68 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
 
         }>) => {
             return (
-                <div
-                    className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""
-                        } `}
-                >
+                // <div className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""} `}>
+                    <div className={`photo-gallery-map-view`}>
                     {" "}
-                    <div className="max-w mx-auto sm:px-4 ">
-                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                            <ButtonMap
-                                data={filter_tasks_photos}
-                                zoomFilter={handleZoomFilter}
-                                isUnassigned={true}
-                            />
-                            <div className="flex pt-2 px-2">
-                                <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
-                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAll}
-                                    >
-                                        <span>Select All</span>
-                                    </button>
-                                    <Link
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        href={""}
-                                    >
-                                        <span>Cancel Selection</span>
-                                    </Link>
-                                    <button
-                                        className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={onDeleteHandler}
-                                    >
-                                        <FaTrash size={16} className="mr-2" />
-                                        <span>Delete Selected</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={chooseTask}
-                                    >
-                                        <span>Choose Task</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={() => {
-                                            const queryString = new URLSearchParams({
-                                                unassigned: 'true',
-                                                total: photos.length.toString()
-                                            }).toString();
-                                            const exportUrl = route("pdf_preview") + '?' + queryString;
-                                            window.open(exportUrl,'_blank')
-                                        }}
-                                    >
-                                        <span>Export To PDF</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAllPdfHandler}
-                                    >
-                                        <span>Export Selected To PDF</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                    <div className={`photo-gallery-map-view-container`}>
+                        <PhotoGalleryMap data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
                     </div>
+                    {/*<div className="max-w mx-auto sm:px-4 ">*/}
+                    {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
+                    {/*        <ButtonMap*/}
+                    {/*            data={filter_tasks_photos}*/}
+                    {/*            zoomFilter={handleZoomFilter}*/}
+                    {/*            isUnassigned={true}*/}
+                    {/*        />*/}
+                    {/*        <div className="flex pt-2 px-2">*/}
+                    {/*            <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">*/}
+                    {/*                <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={selectAll}*/}
+                    {/*                >*/}
+                    {/*                    <span>Select All</span>*/}
+                    {/*                </button>*/}
+                    {/*                <Link*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    href={""}*/}
+                    {/*                >*/}
+                    {/*                    <span>Cancel Selection</span>*/}
+                    {/*                </Link>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={onDeleteHandler}*/}
+                    {/*                >*/}
+                    {/*                    <FaTrash size={16} className="mr-2" />*/}
+                    {/*                    <span>Delete Selected</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={chooseTask}*/}
+                    {/*                >*/}
+                    {/*                    <span>Choose Task</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={() => {*/}
+                    {/*                        const queryString = new URLSearchParams({*/}
+                    {/*                            unassigned: 'true',*/}
+                    {/*                            total: photos.length.toString()*/}
+                    {/*                        }).toString();*/}
+                    {/*                        const exportUrl = route("pdf_preview") + '?' + queryString;*/}
+                    {/*                        window.open(exportUrl,'_blank')*/}
+                    {/*                    }}*/}
+                    {/*                >*/}
+                    {/*                    <span>Export To PDF</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={selectAllPdfHandler}*/}
+                    {/*                >*/}
+                    {/*                    <span>Export Selected To PDF</span>*/}
+                    {/*                </button>*/}
+                    {/*            </div>*/}
+                    {/*        </div>*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
                 </div>
             );
         },
@@ -332,20 +350,21 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     return (
         <AuthenticatedLayout
             user={auth.user}
-            header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                    Photo Gallery
-                </h2>
-            }
+            // header={
+            //     <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            //         Photo Gallery
+            //     </h2>
+            // }
             setSplitView={setSplitView}
             splitView={splitView}
         >
             <Head title="Photo gallery" />
-            <BackButton label="Back" className="" />
-            <div className="flex flex-wrap ">
+            {/*<BackButton label="Back" className="" />*/}
+            <Filter />
+            <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>
-                        <LeftPane 
+                        <LeftPane
                         photo_={photo_}
                         destroy={destroy}
                         setPhotos={setPhotos}
