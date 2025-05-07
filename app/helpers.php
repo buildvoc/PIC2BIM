@@ -354,7 +354,7 @@ function get_distance_from_coordinates($a_lat, $a_lng, $b_lat, $b_lng)
     $const_p = pi() / 180;
     $const_r = 12742;
 
-    $a = 0.5 - cos(($b_lat - $a_lat) * $const_p) / 2 + cos($a_lat * $const_p) * cos($b_lat * $const_p) * (1 - cos(($b_lng - $a_lng) * $const_p)) / 2;
+    $a = 0.5 - cos(($b_lat - $a_lat) * $const_p) / 2 + cos($a_lat * $const_p) * cos($b_lat * $const_p) * (1 - cos((null) * $const_p)) / 2;
 
     $distance = $const_r * sin(sqrt($a));
 
