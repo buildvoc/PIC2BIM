@@ -122,6 +122,12 @@ Route::middleware('auth:sanctum')->group(function () {
     //Codepoint API
     Route::get('/comm_codepoint2', [ApiController::class, 'comm_codepoint2']);
     Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
+
+    //NHLE API
+    Route::get('/comm_nhle', [ApiController::class, 'comm_nhle']);
+
+    //Spatial Boundaries API
+    Route::get('/comm_land_registry_inspire', [ApiController::class, 'comm_land_registry_inspire']);
 });
 
 Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');

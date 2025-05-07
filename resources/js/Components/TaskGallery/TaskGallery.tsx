@@ -243,6 +243,7 @@ const TaskGallery = ({
                                                             className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                localStorage.setItem("map_from_photo_detail", "true");
                                                                 router.get(route("photo_detail", photo.id));
                                                             }}
                                                             title="View photo details"
