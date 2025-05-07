@@ -1,7 +1,12 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+interface FilterProps {
+    isPhotoMap: boolean;
+    setPhotoMap: () => void;
+}
 
-const Filter: React.FC = ({ showMap, setShowMap }) => {
+const Filter: React.FC<FilterProps> = ({ isPhotoMap, setPhotoMap }) => {
+    //const [isPhotoMap, setPhotoMap] = useState(true);
     return (
         <div className={`photo-gallery-filter`}>
             <div className={`photo-gallery-filter-container`}>
@@ -55,13 +60,13 @@ const Filter: React.FC = ({ showMap, setShowMap }) => {
                             </MenuItem>
                         </MenuItems>
                     </Menu>
-                    <button onClick={() => setShowMap(!showMap)} className={`photo-gallery-filter-map-switch`} type={`button`}>
+                    <button onClick={setPhotoMap} className={`photo-gallery-filter-map-switch`} type={`button`}>
                         <span>
                             <svg width="16" height="13" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M15.1484 0.679688C15.4492 0.542969 15.75 0.789062 15.75 1.0625V10.5508C15.75 10.9062 15.5312 11.2344 15.1758 11.3438L11.0469 12.793C10.6914 12.9297 10.3086 12.9023 9.95312 12.793L5.25 11.125L0.601562 12.8477C0.273438 12.9844 0 12.7383 0 12.4375V2.97656C0 2.62109 0.21875 2.29297 0.546875 2.15625L4.70312 0.734375C4.86719 0.652344 5.05859 0.625 5.22266 0.625C5.41406 0.625 5.60547 0.679688 5.79688 0.734375L10.5 2.375L15.1484 0.679688ZM6.125 2.23828V10.0586L9.625 11.2891V3.46875L6.125 2.23828ZM1.3125 11.1797L4.78516 9.89453H4.8125V2.07422L1.3125 3.30469V11.1797ZM14.4375 10.2227V2.32031L10.9375 3.60547V3.63281V11.4531L14.4375 10.2227Z" fill="white"/>
                             </svg>
                         </span>
-                        <span>{showMap ? 'Hide MAP' : 'Show MAP'}</span>
+                        <span>{isPhotoMap ? 'Hide MAP' : 'Show MAP'}</span>
                     </button>
                 </div>
             </div>

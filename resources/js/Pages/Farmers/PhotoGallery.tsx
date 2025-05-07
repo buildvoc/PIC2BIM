@@ -5,6 +5,7 @@ import {
     useEffect,
     useCallback,
     PropsWithChildren,
+    useRef,
 } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
@@ -31,7 +32,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const [openCardId, setOpenCardId] = useState(null);
 
     // Show & Hide MAP
-    const [showMap, setShowMap] = useState(true);
+    const [isPhotoMap, setPhotoMap] = useState(true);
 
     const [selectedTask, setSelectedTask] = useState("");
     const [photosIds, setPhotosIds] = useState("");
@@ -208,7 +209,6 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                         {staticCardItems.map((_, index)=>(
                             <PhotoItem key={index} isOpen={openCardId === index} onOpen={() => setOpenCardId(index)} onClose={() => setOpenCardId(null)} />
                         ))}
-
                     </div>
                     <Pagination />
                 </div>
@@ -250,9 +250,11 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 // <div className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""} `}>
                     <div className={`photo-gallery-map-view`}>
                     {" "}
-                    <div className={`photo-gallery-map-view-container`}>
-                        <PhotoGalleryMap showMap={showMap} data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
-                    </div>
+                    {isPhotoMap && (
+                        <div className={`photo-gallery-map-view-container`}>
+                            <PhotoGalleryMap data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
+                        </div>
+                    )}
                     {/*<div className="max-w mx-auto sm:px-4 ">*/}
                     {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
                     {/*        <ButtonMap*/}
@@ -363,7 +365,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         >
             <Head title="Photo gallery" />
             {/*<BackButton label="Back" className="" />*/}
-            <Filter showMap={showMap} setShowMap={setShowMap} />
+            <Filter isPhotoMap={isPhotoMap} setPhotoMap={() => setPhotoMap(prev => !prev)} />
             <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>

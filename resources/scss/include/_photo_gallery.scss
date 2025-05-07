@@ -507,3 +507,144 @@
         }
     }
 }
+.site-content{
+    &.dark-content{
+        .photo-gallery-filter{
+            background-color: #1F2937;
+            .photo-gallery-filter-container{
+                .photo-gallery-filter-heading{
+                    h1{
+                        color: white;
+                    }
+                }
+                .photo-gallery-filter-actions{
+                    .photo-gallery-filter-update-dropdown{
+                        .photo-gallery-filter-update-dropdown-menu{
+                            background-color: #1F2937;
+                            border-color: #374151;
+                            &:before{
+                                background-color: #1F2937;
+                                border-color: #374151;
+                            }
+                            button{
+                                color: white;
+                                &:not(:last-of-type){
+                                    border-color: #374151;
+                                }
+                            }
+                        }
+                    }
+                    .photo-gallery-filter-dropdown{
+                        .photo-gallery-filter-dropdown-toggle{
+                            background-color: transparent;
+                            border-color: white;
+                            color: white;
+                            span{
+                                svg{
+                                    path{
+                                        fill: white;
+                                    }
+                                }
+                            }
+                        }
+                        .photo-gallery-filter-dropdown-menu{
+                            background-color: #1F2937;
+                            border-color: #374151;
+                            &:before{
+                                background-color: #1F2937;
+                                border-color: #374151;
+                            }
+                            button{
+                                color: white;
+                                &.delete-item{
+                                    color: #DC2626;
+                                }
+                                &:not(:last-of-type){
+                                    border-color: #374151;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .photo_gallery_page{
+            .photo-gallery-card-view{
+                .photo-gallery-card-view-container{
+                    .pb-pagination{
+                        .pb-pagination-container{
+                            .pb-pagination-item{
+                                &.more-items{
+                                    svg{
+                                        path{
+                                            fill: white;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .photo-card-item-popups{
+            .photo-card-item-popups-container{
+                background-color: #111827;
+                border: 1px solid #374151;
+                .photo-card-item-popups-header{
+                    border-bottom: 1px solid #374151;
+                    .photo-card-item-popups-header-title{
+                        color: white;
+                        svg{
+                            path{
+                                fill: white;
+                            }
+                        }
+                    }
+                    button{
+                        svg{
+                            path{
+                                fill: white;
+                            }
+                        }
+                    }
+                }
+                .photo-card-item-popups-body{
+                    .photo-card-item-popups-actions{
+                        button{
+                            background-color: transparent;
+                            border: 1px solid white;
+                            svg{
+                                path{
+                                    fill: white;
+                                }
+                            }
+                        }
+                    }
+                    .photo-card-item-popups-image{
+                        background-color: #1F2937;
+                    }
+                    .photo-card-item-popups-details{
+                        .photo-card-item-popups-details-table{
+                            border: 1px solid #374151;
+                            .photo-card-item-popups-details-table-row{
+                                &:not(:last-of-type){
+                                    border-bottom: 1px solid #374151;
+                                }
+                                .photo-card-item-popups-details-table-item{
+                                    color: #9CA3AF;
+                                    &:not(:last-of-type){
+                                        border-right: 1px solid #374151;
+                                    }
+                                    &:first-of-type{
+                                        color: white;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

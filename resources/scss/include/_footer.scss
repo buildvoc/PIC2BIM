@@ -15,4 +15,13 @@
             line-height: calc(17 / 14);
         }
     }
+    &.dark-footer{
+        background-color: #111827;
+        border-top: 1px solid #374151;
+        .site-footer-container{
+            p{
+                color: #9CA3AF;
+            }
+        }
+    }
 }
