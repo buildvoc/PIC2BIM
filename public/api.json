@@ -1197,10 +1197,10 @@
                 ]
             }
         },
-        "/comm_spatial_boundaries": {
+        "/comm_land_registry_inspire": {
             "get": {
                 "tags": [
-                    "Spatial Boundaries"
+                    "Land Registry Inspire"
                 ],
                 "operationId": "ab64d78e9c2f1e39d5a7b8d0c3e6f4a1",
                 "parameters": [

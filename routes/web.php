@@ -118,6 +118,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //NHLE API
     Route::get('/comm_nhle', [ApiController::class, 'comm_nhle']);
+
+    //Spatial Boundaries API
+    Route::get('/comm_land_registry_inspire', [ApiController::class, 'comm_land_registry_inspire']);
 });
 
 Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');

@@ -20,6 +20,7 @@ const Modal_ = ({
     const [uprnData, setUprnData] = useState<any>(null);
     const [landData, setLandData] = useState<any>(null);
     const [nhleData, setNhleData] = useState<any>(null);
+    const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
     useEffect(() => {
         setImage(imageSrc);
     }, [imageSrc]);
@@ -339,7 +340,75 @@ const Modal_ = ({
                 }
             }
         };
-        
+
+        const fetchLandRegistryInspire = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_land_registry_inspire", { params });
+
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+
+                            if (features.length === 1) {
+                                setLandRegistryInspireData(features[0].properties);
+                            } else {
+                                let closestInspire = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        if (feature.geometry.type === 'MultiPolygon') {
+                                            for (const polygon of feature.geometry.coordinates) {
+                                                for (const ring of polygon) {
+                                                    for (const point of ring) {
+                                                        const distance = calculateDistance(
+                                                            lat,
+                                                            lng,
+                                                            point[1], // latitude
+                                                            point[0]  // longitude
+                                                        );
+                                                        
+                                                        if (distance < minDistance) {
+                                                            minDistance = distance;
+                                                            closestInspire = feature.properties;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                setLandRegistryInspireData(closestInspire);
+                            }
+                        } else {
+                            setLandRegistryInspireData(null);
+                        }
+                    } catch (error) {
+                        setLandRegistryInspireData(null);
+                        console.error("Error fetching Land Registry Inspire data:", error);
+                    }
+                }
+            }
+        };
+
         const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
             const R = 6371e3; // radius of Earth in meters
             const φ1 = lat1 * Math.PI / 180;
@@ -361,6 +430,7 @@ const Modal_ = ({
         fetchUprnData();
         fetchLandData();
         fetchNhleData();
+        fetchLandRegistryInspire();
     }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {
@@ -459,6 +529,9 @@ const Modal_ = ({
                             
                             <div className="text-gray-500 dark:text-gray-400">UPRN</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData?.uprn ? uprnData.uprn : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Land Registry Inspire</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landRegistryInspireData?.inspire_id ? landRegistryInspireData.inspire_id : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Name</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">

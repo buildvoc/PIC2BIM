@@ -16,10 +16,12 @@ use App\Models\Attr\Codepoint;
 use App\Models\Attr\BuildingPart;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Http\Resources\NhleCollection;
 use App\Http\Resources\UprnCollection;
 use App\Http\Resources\ShapeCollection;
 use App\Http\Resources\CodepointCollection;
+use App\Http\Resources\NhleCollection;
+use App\Models\LandRegistryInspire;
+use App\Http\Resources\LandRegistryInspireCollection;
 
 class ApiController extends Controller
 {
@@ -803,5 +805,37 @@ class ApiController extends Controller
         ]);
 
         return new NhleCollection($data);
+    }
+
+    public function comm_land_registry_inspire(Request $request)
+    {
+        $inspire_id = $request->query('inspire_id');
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = LandRegistryInspire::query();
+        
+        if ($inspire_id) {
+            $query->where('INSPIREID', $inspire_id);
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'inspire_id' => $inspire_id,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
+
+        return new LandRegistryInspireCollection($data);
     }
 }
