@@ -26,7 +26,7 @@ const Modal_ = ({
     }, [imageSrc]);
 
     useEffect(() => {
-        const distance = 0.0005;
+        const distance = 0.0009;
 
         const fetchBuildingData = async () => {
             if (modal.isShow && photos[modal.index]) {
@@ -43,7 +43,91 @@ const Modal_ = ({
                         });
                         
                         if (response.data.success && response.data.data.building_part.length > 0) {
-                            setBuildingData(response.data.data.building_part[0].geojson.features[0].properties);
+                            const features = response.data.data.building_part[0].geojson.features;
+                            
+                            if (features.length === 1) {
+                                setBuildingData(features[0].properties);
+                            } else {
+                                const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                                const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                                
+                                let closestBuilding = features[0];
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        // Handle MultiPoint geometry
+                                        if (feature.geometry.type === 'MultiPoint' && feature.geometry.coordinates.length > 0) {
+                                            for (const point of feature.geometry.coordinates) {
+                                                const distance = calculateDistance(
+                                                    lat,
+                                                    lng,
+                                                    point[1], // latitude
+                                                    point[0]  // longitude
+                                                );
+                                                
+                                                if (distance < minDistance) {
+                                                    minDistance = distance;
+                                                    closestBuilding = feature;
+                                                }
+                                            }
+                                        }
+                                        // For MultiPolygon geometry, check each polygon's first point
+                                        else if (feature.geometry.type === 'MultiPolygon' && feature.geometry.coordinates.length > 0) {
+                                            for (const polygon of feature.geometry.coordinates) {
+                                                if (polygon.length > 0 && polygon[0].length > 0) {
+                                                    const point = polygon[0][0];
+                                                    const distance = calculateDistance(
+                                                        lat,
+                                                        lng,
+                                                        point[1], // latitude
+                                                        point[0]  // longitude
+                                                    );
+                                                    
+                                                    if (distance < minDistance) {
+                                                        minDistance = distance;
+                                                        closestBuilding = feature;
+                                                    }
+                                                }
+                                            }
+                                        } 
+                                        // For Polygon geometry
+                                        else if (feature.geometry.type === 'Polygon' && feature.geometry.coordinates.length > 0) {
+                                            if (feature.geometry.coordinates[0].length > 0) {
+                                                const point = feature.geometry.coordinates[0][0];
+                                                const distance = calculateDistance(
+                                                    lat,
+                                                    lng,
+                                                    point[1], // latitude
+                                                    point[0]  // longitude
+                                                );
+                                                
+                                                if (distance < minDistance) {
+                                                    minDistance = distance;
+                                                    closestBuilding = feature;
+                                                }
+                                            }
+                                        }
+                                        // For Point geometry
+                                        else if (feature.geometry.type === 'Point') {
+                                            const point = feature.geometry.coordinates;
+                                            const distance = calculateDistance(
+                                                lat,
+                                                lng,
+                                                point[1], // latitude
+                                                point[0]  // longitude
+                                            );
+                                            
+                                            if (distance < minDistance) {
+                                                minDistance = distance;
+                                                closestBuilding = feature;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                setBuildingData(closestBuilding.properties);
+                            }
                         } else {
                             setBuildingData(null);
                         }
@@ -313,21 +397,41 @@ const Modal_ = ({
                                 
                                 for (const feature of features) {
                                     if (feature.geometry && feature.geometry.coordinates) {
-                                        const distance = calculateDistance(
-                                            lat, 
-                                            lng, 
-                                            feature.geometry.coordinates[1], // latitude 
-                                            feature.geometry.coordinates[0]  // longitude
-                                        );
-                                        
-                                        if (distance < minDistance) {
-                                            minDistance = distance;
-                                            closestNhle = feature.properties;
+                                        // Handle MultiPoint geometry type
+                                        if (feature.geometry.type === 'MultiPoint' && feature.geometry.coordinates.length > 0) {
+                                            for (const point of feature.geometry.coordinates) {
+                                                const distance = calculateDistance(
+                                                    lat, 
+                                                    lng, 
+                                                    point[1], // latitude
+                                                    point[0]  // longitude
+                                                );
+                                                
+                                                if (distance < minDistance) {
+                                                    minDistance = distance;
+                                                    closestNhle = feature.properties;
+                                                }
+                                            }
+                                        }
+                                        // Handle other geometry types if needed
+                                        else if (feature.geometry.type === 'Point') {
+                                            const point = feature.geometry.coordinates;
+                                            const distance = calculateDistance(
+                                                lat, 
+                                                lng, 
+                                                point[1], // latitude
+                                                point[0]  // longitude
+                                            );
+                                            
+                                            if (distance < minDistance) {
+                                                minDistance = distance;
+                                                closestNhle = feature.properties;
+                                            }
                                         }
                                     }
                                 }
                                 
-                                console.log(closestNhle);
+                                console.log("s", closestNhle);
                                 setNhleData(closestNhle);
                             }
                         } else {
@@ -537,7 +641,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">
                                 {nhleData?.name 
                                     ? (nhleData.name.length > 30 
-                                        ? nhleData.name.substring(0, 27) + '...' 
+                                        ? nhleData.name.substring(0, 27) + '...'   
                                         : nhleData.name) 
                                     : ''}
                             </div>
@@ -554,6 +658,9 @@ const Modal_ = ({
                                 ) : ''}
                             </div>
                             
+                            <div className="text-gray-500 dark:text-gray-400">NGR</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{nhleData?.ngr ? nhleData.ngr : ''}</div>
+
                             <div className="text-gray-500 dark:text-gray-400">Latitude</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>
                             
