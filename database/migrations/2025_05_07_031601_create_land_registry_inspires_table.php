@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,12 +14,12 @@ return new class extends Migration
     {
         Schema::connection('pgsql')->create('land_registry_inspire', function (Blueprint $table) {
             $table->id();
-            $table->string('gml_id')->nullable();
-            $table->integer('INSPIREID')->nullable();
-            $table->integer('LABEL')->nullable();
-            $table->integer('NATIONALCADASTRALREFERENCE')->nullable();
-            $table->timestamp('VALIDFROM')->nullable();
-            $table->timestamp('BEGINLIFESPANVERSION')->nullable();
+            $table->string('gmlId')->nullable();
+            $table->integer('inspireId')->nullable();
+            $table->integer('label')->nullable();
+            $table->integer('nationalCadastralReference')->nullable();
+            $table->timestamp('validFrom')->nullable();
+            $table->timestamp('beginLifespanVersion')->nullable();
             $table->timestamps();
         });
 
