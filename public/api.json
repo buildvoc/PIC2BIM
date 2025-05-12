@@ -396,8 +396,7 @@
                     "example": "4"
                   },
                   "photo": {
-                    "type": "number",
-                    "example": "{\"lat\":\"34.052235\",\"lng\":\"-118.243683\",\"altitude\":\"89.5\",\"bearing\":\"120\",\"magnetic_azimuth\":\"180\",\"photo_heading\":\"45\",\"accuracy\":\"5\",\"orientation\":\"123\",\"pitch\":\"10\",\"roll\":\"5\",\"photo_angle\":\"90\",\"created\":\"2024-10-17 10:00:00\",\"note\":\"This is a sample note\",\"photo\":\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABkAGQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExGhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDEooor0jzQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/9k="
+                    "type": "number"
                   },
                   "digest": {
                     "type": "string",
@@ -1123,28 +1122,9 @@
                 "operationId": "cbc6dcbd3c7b1d18555b42663a4ca6fc",
                 "parameters": [
                     {
-                        "name": "nhle_id",
+                        "name": "latitude",
                         "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "example": "1"
-                    },
-                    {
-                        "name": "min_lng",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "example": "-2.5"  
-                    },
-                    {
-                        "name": "min_lat",
-                        "in": "query",
-                        "required": false,
+                        "required": true,
                         "schema": {
                             "type": "number",
                             "format": "double"
@@ -1152,32 +1132,34 @@
                         "example": "51.2"
                     },
                     {
-                        "name": "max_lng",
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.5"
+                    },
+                    {
+                        "name": "distance",
                         "in": "query",
                         "required": false,
                         "schema": {
                             "type": "number",
                             "format": "double"
                         },
-                        "example": "-2.2"
+                        "example": "10"
                     },
                     {
-                        "name": "max_lat",
+                        "name": "imagedirection",
                         "in": "query",
                         "required": false,
                         "schema": {
                             "type": "number",
                             "format": "double"
                         },
-                        "example": "51.6"
-                    },
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
+                        "example": "9"
                     }
                 ],
                 "responses": {
