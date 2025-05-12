@@ -828,7 +828,7 @@ class ApiController extends Controller
                 ]);
         }
         
-        $data = $query->paginate(100);
+        $data = $query->paginate(1);
         
         $data->appends([
             'latitude' => $latitude,
