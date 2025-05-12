@@ -777,7 +777,10 @@ class ApiController extends Controller
 
     public function comm_nhle(Request $request)
     {
-        $nhle_id = $request->query('nhle_id');
+        $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-90,90']
+        ]);
         $latitude = $request->query('latitude');
         $longitude = $request->query('longitude');
         $distance = $request->query('distance') ?: 5;
