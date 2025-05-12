@@ -828,15 +828,8 @@ class ApiController extends Controller
                 ]);
         }
         
-        $data = $query->paginate(1);
+        $data = $query->limit(1)->get();
         
-        $data->appends([
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'distance' => $distance,
-            'imagedirection' => $imagedirection
-        ]);
-
         return new NhleCollection($data);
     }
 
