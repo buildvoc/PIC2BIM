@@ -780,7 +780,7 @@ class ApiController extends Controller
         $nhle_id = $request->query('nhle_id');
         $latitude = $request->query('latitude');
         $longitude = $request->query('longitude');
-        $distance = $request->query('distance') ?: 10;
+        $distance = $request->query('distance') ?: 5;
         $imagedirection = $request->query('imagedirection') ?: 9;
         
         $query = NHLE::query();
