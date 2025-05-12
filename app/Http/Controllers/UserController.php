@@ -6,6 +6,7 @@ use App\Models\Photo;
 use App\Models\Task;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -86,6 +87,7 @@ class UserController extends Controller
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
         DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => User::FARMER_ROLE,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
+        event(new Registered($user));
         return redirect()->route('users.index');
     }
 
