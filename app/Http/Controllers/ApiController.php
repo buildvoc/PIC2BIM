@@ -778,30 +778,63 @@ class ApiController extends Controller
     public function comm_nhle(Request $request)
     {
         $nhle_id = $request->query('nhle_id');
-        $min_lng = $request->query('min_lng');
-        $min_lat = $request->query('min_lat');
-        $max_lng = $request->query('max_lng');
-        $max_lat = $request->query('max_lat');
+        $latitude = $request->query('latitude');
+        $longitude = $request->query('longitude');
+        $distance = $request->query('distance') ?: 10;
+        $imagedirection = $request->query('imagedirection') ?: 9;
         
         $query = NHLE::query();
         
-        if ($nhle_id) {
-            $query->where('gid', $nhle_id);
-        }
-        
-        if ($min_lng && $min_lat && $max_lng && $max_lat) {
-            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
-                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        if ($latitude && $longitude) {
+            // Calculate target point based on direction
+            $radians = deg2rad($imagedirection);
+            $targetLng = $longitude + (sin($radians) * $distance * 0.00001);
+            $targetLat = $latitude + (cos($radians) * $distance * 0.00001);
+            
+            // Using buffer to create a corridor for intersection
+            $query
+                ->whereRaw("ST_Intersects(
+                    geom,
+                    ST_Transform(
+                        ST_SetSRID(
+                            ST_Buffer(
+                                ST_MakeLine(
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry,
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry
+                                ),
+                                0.0002
+                            ),
+                            4326
+                        ),
+                        ST_SRID(geom)
+                    )
+                )",
+                [
+                    $longitude, $latitude,
+                    $targetLng, $targetLat
+                ])
+                // Just order by the direction the user is facing
+                ->orderByRaw("
+                    ST_Distance(
+                        geom,
+                        ST_Transform(
+                            ST_SetSRID(ST_MakePoint(?, ?), 4326),
+                            ST_SRID(geom)
+                        )
+                    ) ASC
+                ",
+                [
+                    $targetLng, $targetLat
+                ]);
         }
         
         $data = $query->paginate(100);
         
         $data->appends([
-            'nhle_id' => $nhle_id,
-            'min_lng' => $min_lng,
-            'min_lat' => $min_lat,
-            'max_lng' => $max_lng,
-            'max_lat' => $max_lat
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'distance' => $distance,
+            'imagedirection' => $imagedirection
         ]);
 
         return new NhleCollection($data);
