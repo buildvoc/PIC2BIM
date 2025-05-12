@@ -29,7 +29,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
 
     // Static card count
     const staticCardItems = Array.from({ length: 5 });
-    const [openCardId, setOpenCardId] = useState(null);
+    const [openCardId, setOpenCardId] = useState<number | null>(null);
 
     // Show & Hide MAP
     const [isPhotoMap, setPhotoMap] = useState(true);
