@@ -15,16 +15,14 @@ const Filter: React.FC<FilterProps> = ({ isPhotoMap, setPhotoMap }) => {
                 </div>
                 <div className={`photo-gallery-filter-actions`}>
                     <Menu as="div" className={`relative inline-block text-left photo-gallery-filter-update-dropdown`}>
-                        <div>
-                            <MenuButton className={`photo-gallery-filter-update-dropdown-toggle`}>
+                        <MenuButton className={`photo-gallery-filter-update-dropdown-toggle`}>
                             <span>
                                 <svg width="24" height="17" viewBox="0 0 24 17" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M9.96484 10.4297L11.3359 8.77734L11.6523 9.16406V11.0273V14.7891C11.6523 15.5273 11.0547 16.125 10.3164 16.125C10.0352 16.125 9.75391 16.0547 9.50781 15.8789L6.625 13.6641C6.27344 13.3828 6.02734 12.9961 6.02734 12.5391V11.0273L1.35156 5.26172C0.964844 4.80469 0.859375 4.13672 1.14062 3.57422C1.38672 3.01172 1.98438 2.625 2.61719 2.625H6.69531C6.80078 3.04688 6.97656 3.39844 7.22266 3.71484L7.71484 4.3125H2.75781L7.71484 10.4297V12.1523L9.96484 14.1211V10.4297ZM23.3242 1.32422C23.6055 1.88672 23.5 2.55469 23.1133 3.01172L18.4023 8.77734V13.6641C18.4023 14.4023 17.8047 15 17.0664 15C16.7852 15 16.5039 14.9297 16.2578 14.7539L13.375 12.5391C13.0234 12.2578 12.7773 11.8711 12.7773 11.4141V8.77734L8.10156 3.01172C7.71484 2.55469 7.60938 1.88672 7.89062 1.32422C8.13672 0.761719 8.73438 0.375 9.36719 0.375H21.8477C22.4805 0.375 23.0781 0.761719 23.3242 1.32422ZM16.7148 8.17969L21.707 2.0625H9.50781L14.4648 8.17969V11.2383L16.7148 12.9961V8.17969Z" fill="white"/>
                                 </svg>
                             </span>
-                                <span>Update Filter</span>
-                            </MenuButton>
-                        </div>
+                            <span>Update Filter</span>
+                        </MenuButton>
                         <MenuItems transition className={`photo-gallery-filter-update-dropdown-menu absolute right-0 z-10 origin-top-right transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in`}>
                             <MenuItem>
                                 <button type={`button`}>Export To PDF</button>
@@ -35,16 +33,14 @@ const Filter: React.FC<FilterProps> = ({ isPhotoMap, setPhotoMap }) => {
                         </MenuItems>
                     </Menu>
                     <Menu as="div" className={`relative inline-block text-left photo-gallery-filter-dropdown`}>
-                        <div>
-                            <MenuButton className={`photo-gallery-filter-dropdown-toggle`}>
+                        <MenuButton className={`photo-gallery-filter-dropdown-toggle`}>
                             <span>
                                 <svg width="24" height="17" viewBox="0 0 24 17" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M9.96484 10.4297L11.3359 8.77734L11.6523 9.16406V11.0273V14.7891C11.6523 15.5273 11.0547 16.125 10.3164 16.125C10.0352 16.125 9.75391 16.0547 9.50781 15.8789L6.625 13.6641C6.27344 13.3828 6.02734 12.9961 6.02734 12.5391V11.0273L1.35156 5.26172C0.964844 4.80469 0.859375 4.13672 1.14062 3.57422C1.38672 3.01172 1.98438 2.625 2.61719 2.625H6.69531C6.80078 3.04688 6.97656 3.39844 7.22266 3.71484L7.71484 4.3125H2.75781L7.71484 10.4297V12.1523L9.96484 14.1211V10.4297ZM23.3242 1.32422C23.6055 1.88672 23.5 2.55469 23.1133 3.01172L18.4023 8.77734V13.6641C18.4023 14.4023 17.8047 15 17.0664 15C16.7852 15 16.5039 14.9297 16.2578 14.7539L13.375 12.5391C13.0234 12.2578 12.7773 11.8711 12.7773 11.4141V8.77734L8.10156 3.01172C7.71484 2.55469 7.60938 1.88672 7.89062 1.32422C8.13672 0.761719 8.73438 0.375 9.36719 0.375H21.8477C22.4805 0.375 23.0781 0.761719 23.3242 1.32422ZM16.7148 8.17969L21.707 2.0625H9.50781L14.4648 8.17969V11.2383L16.7148 12.9961V8.17969Z" fill="#4F46E5"/>
                                 </svg>
                             </span>
-                                <span>Filter</span>
-                            </MenuButton>
-                        </div>
+                            <span>Filter</span>
+                        </MenuButton>
                         <MenuItems transition className={`photo-gallery-filter-dropdown-menu absolute right-0 z-10 origin-top-right transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in`}>
                             <MenuItem>
                                 <button type={`button`}>Select All</button>
@@ -57,6 +53,12 @@ const Filter: React.FC<FilterProps> = ({ isPhotoMap, setPhotoMap }) => {
                             </MenuItem>
                             <MenuItem>
                                 <button type={`button`}>Choose Task</button>
+                            </MenuItem>
+                            <MenuItem>
+                                <button className={`md:hidden`} type={`button`}>Export To PDF</button>
+                            </MenuItem>
+                            <MenuItem>
+                                <button className={`md:hidden`} type={`button`}>Export Selected To PDF</button>
                             </MenuItem>
                         </MenuItems>
                     </Menu>

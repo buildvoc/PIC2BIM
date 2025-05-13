@@ -20,7 +20,13 @@
             align-items: center;
             column-gap: 24px;
             display: flex;
+            @media (max-width: 767.98px){
+                column-gap: 10px;
+            }
             .photo-gallery-filter-update-dropdown{
+                @media (max-width: 767.98px){
+                    display: none;
+                }
                 .photo-gallery-filter-update-dropdown-toggle{
                     align-items: center;
                     background-color: #4F46E5;
@@ -93,6 +99,11 @@
                     outline: none;
                     padding: 8px 16px;
                     text-decoration: none;
+                    @media (max-width: 767.98px){
+                        font-size: 14px;
+                        height: auto;
+                        padding: 5px 10px;
+                    }
                     &:hover,
                     &:focus{
                         outline: none;
@@ -136,6 +147,11 @@
                         &.delete-item{
                             color: #DC2626;
                         }
+                        &.md\:hidden{
+                            @media (min-width: 768px){
+                                display: none;
+                            }
+                        }
                     }
                 }
             }
@@ -150,6 +166,12 @@
                 gap: 10px;
                 height: 40px;
                 width: 136px;
+                @media (max-width: 767.98px){
+                    font-size: 14px;
+                    height: 33px;
+                    padding: 5px 10px;
+                    width: 115px;
+                }
             }
         }
     }
@@ -562,6 +584,18 @@
                                 &:not(:last-of-type){
                                     border-color: #374151;
                                 }
+                            }
+                        }
+                    }
+                }
+                .photo-gallery-filter-mobile-toggle{
+                    background-color: transparent;
+                    border-color: white;
+                    color: white;
+                    span{
+                        svg{
+                            path{
+                                fill: white;
                             }
                         }
                     }
