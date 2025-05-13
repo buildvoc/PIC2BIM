@@ -10,6 +10,7 @@ import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
 import axios from 'axios';
+import Footer from "@/Components/Footer";
 
 export default function Authenticated({
     user,
@@ -46,30 +47,35 @@ export default function Authenticated({
         setIsDark(document.documentElement.classList.contains("dark"));
         axios.post(route('set-dark-mode-in-session'));
     };
-    
+
 
     const toggleSplitMode = (data:SplitViewState) => {
         setSplitView((prevState: any) => (data));
         axios.post(route('set-split-mode-in-session'));
     };
-    
+
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <div className="shrink-0 flex items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
+                                <Link className={`brand-image`} href="/">
+                                    {/*<ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />*/}
+                                    {isDark ? (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`images/pic2bim_logo_white.png`} />
+                                    ) : (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`images/pic2bim_logo.png`} />
+                                    )}
+
                                 </Link>
                             </div>
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
                                     href={route("dashboard")}
-                                    active={route().current("dashboard") || route().current("user_task.index")}
-                                >
-                                    Home
+                                    active={route().current("dashboard") || route().current("user_task.index")}>
+                                    Tasks
                                 </NavLink>
                             </div>
                             {userRoles.includes(2) && userRoles.length > 0 && (
@@ -128,31 +134,35 @@ export default function Authenticated({
                         <div className="hidden sm:flex sm:items-center sm:ms-6">
                             {splitView && (
                                 <>
-                                    <div
-                                        className={`${
-                                            splitView?.split
-                                                ? "bg-gray-200 dark:bg-gray-600"
-                                                : ""
-                                        }  focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md`}
-                                        onClick={() => toggleSplitMode({
-                                            single: false,
-                                            split: true,
-                                        })}
-                                    >
-                                        <BsLayoutSplit size={18} />
-                                    </div>
-                                    <div
-                                        onClick={() => toggleSplitMode({
-                                            single: true,
-                                            split: false,
-                                        })}
-                                        className={`${
-                                            splitView?.single
-                                                ? "bg-gray-200 dark:bg-gray-600"
-                                                : ""
-                                        }  focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md`}
-                                    >
-                                        <BsSquare />
+                                    <div className={`flex items-center gap-x-2`}>
+                                        <button
+                                            className={`${
+                                                splitView?.split
+                                                    ? "bg-gray-200 dark:bg-gray-600"
+                                                    : ""
+                                            }  focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-2 py-2 rounded-md cursor-pointer`}
+                                            onClick={() => toggleSplitMode({
+                                                single: false,
+                                                split: true,
+                                            })}
+                                            type={`button`}
+                                        >
+                                            <BsLayoutSplit size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => toggleSplitMode({
+                                                single: true,
+                                                split: false,
+                                            })}
+                                            className={`${
+                                                splitView?.single
+                                                    ? "bg-gray-200 dark:bg-gray-600"
+                                                    : ""
+                                            }  focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-2 py-2 rounded-md cursor-pointer`}
+                                            type={`button`}
+                                        >
+                                            <BsSquare />
+                                        </button>
                                     </div>
                                 </>
                             )}
@@ -340,7 +350,8 @@ export default function Authenticated({
                 </header>
             )}
 
-            <main>{children}</main>
+            <main className={`site-content ${isDark ? "dark-content" : ""}`}>{children}</main>
+            <Footer isDark={isDark} />
         </div>
     );
 }
