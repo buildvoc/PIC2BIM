@@ -102,7 +102,7 @@ const Modal_ = ({
                             max_lng: (lng + distance).toString()
                         };
                         
-                        const response = await axios.get("/comm_codepoint2", { params });
+                        const response = await axios.get("/comm_codepoint", { params });
                         console.log(response.data);
                         
                         if (response.data && 
