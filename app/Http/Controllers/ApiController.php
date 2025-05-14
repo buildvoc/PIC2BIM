@@ -646,47 +646,7 @@ class ApiController extends Controller
         ], 200);
     }
 
-    /**
-     * @OA\Get(
-     * path="/comm_codepoint",
-     * security={{"bearerAuth":{}}},
-     * tags={"Codepoint"},
-     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
-     *   @OA\Parameter(
-     *      name="postcode",
-     *      in="query",
-     *      required=false,
-     *      @OA\Schema(
-     *          type="string"
-     *      ),
-     *      example="BA1 0AH",
-     *   ),
-     *   @OA\Parameter(
-     *      name="page",
-     *      in="query",
-     *      required=false,
-     *      @OA\Schema(
-     *          type="string"
-     *      )
-     *   ),
-     * )
-     */
     public function comm_codepoint(Request $request)
-    {
-        $postcode = $request->query('postcode');
-
-        $data = Codepoint::query()
-        ->when($postcode, function ($query) use ($postcode) {
-            $query->where('postcode', 'ILIKE', '%'.$postcode.'%');
-        })
-        ->paginate(100);
-
-        $data->appends(array('postcode' => $postcode));
-
-        return new CodepointCollection($data);
-    }
-
-    public function comm_codepoint2(Request $request)
     {
         $postcode = $request->query('postcode');
         $min_lng = $request->query('min_lng');
