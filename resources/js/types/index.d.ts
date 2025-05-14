@@ -184,6 +184,7 @@ export interface GalleryProps{
   isUnassigned?:boolean;
   setPhotos?:any
   destroy?:(id:string)=>void
+  isSplitView?:boolean
 }
 
 export interface GalleryModalProps{
