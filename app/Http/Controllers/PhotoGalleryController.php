@@ -14,6 +14,9 @@ class PhotoGalleryController extends Controller
     {
         $user = Auth::user();
         $photos =  getPhotosWithoutTask($user->id);
+        
+        if($request->has('showStatic')) return Inertia::render('Farmers/PhotoGalleryStatic', compact('photos'));
+
         return Inertia::render('Farmers/PhotoGallery', compact('photos'));
     }
 
