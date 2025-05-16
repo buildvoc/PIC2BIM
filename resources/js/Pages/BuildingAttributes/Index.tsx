@@ -8,6 +8,7 @@ import { DeckGL } from '@deck.gl/react';
 import { GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
 import axios from 'axios';
 import { createRoot } from 'react-dom/client';
+import { Protocol } from 'pmtiles';
 
 type FeatureProperties = {
   name?: string;
@@ -433,6 +434,11 @@ export default function Index({ auth }: PageProps) {
   useEffect(() => {
     const initializeMap = () => {
       if (mapContainer.current && !map.current) {
+        // Add PMTiles protocol
+        const protocol = new Protocol();
+        maplibregl.addProtocol('pmtiles', protocol.tile);
+        const PMTILES_URL = 'https://pic2bim.co.uk/output.pmtiles'; // Use the PMTiles file in your public directory
+        
         const mapInstance = new maplibregl.Map({
           style: 'https://tiles.openfreemap.org/styles/liberty',
           container: mapContainer.current,
@@ -447,12 +453,49 @@ export default function Index({ auth }: PageProps) {
         map.current = mapInstance;
         
         mapInstance.on('load', () => {
+          // Add terrain sources and setup
+          mapInstance.addSource('terrainSource', {
+            type: "raster-dem",
+            url: "pmtiles://" + PMTILES_URL,
+            tileSize: 256
+          });
+          
+          mapInstance.addSource('hillshadeSource', {
+            type: "raster-dem",
+            url: "pmtiles://" + PMTILES_URL,
+            tileSize: 256,
+          });
+          
+          mapInstance.setTerrain({
+            source: "terrainSource",
+            exaggeration: 1
+          });
+          
+          mapInstance.addLayer({
+            id: 'hillshadeLayer',
+            type: 'hillshade',
+            source: 'terrainSource',
+            paint: {
+              'hillshade-shadow-color': '#000000', 
+              'hillshade-highlight-color': '#ffffff',
+              'hillshade-accent-color': '#888888'
+            }
+          });
+          
           // Add navigation controls
           mapInstance.addControl(
             new maplibregl.NavigationControl({
               visualizePitch: true,
               showZoom: true,
               showCompass: true,
+            })
+          );
+          
+          // Add terrain control - this is what was missing
+          mapInstance.addControl(
+            new maplibregl.TerrainControl({
+              source: "terrainSource",
+              exaggeration: 1
             })
           );
           
