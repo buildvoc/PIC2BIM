@@ -1,23 +1,24 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\AgencyController;
-use App\Http\Controllers\ApiController;
-use App\Http\Controllers\OfficerController;
-use App\Http\Controllers\TasksController;
-use App\Http\Controllers\TaskTypeController;
-use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\TasksController;
+use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\FarmerController;
-use App\Http\Controllers\BuildingHeightController;
-use App\Http\Controllers\FarmerTaskController;
-use App\Http\Controllers\FarmerPathsController;
-use App\Http\Controllers\LandNameGeneratorController;
-use App\Http\Controllers\PhotoGalleryController;
-use App\Http\Controllers\PhotoDetailController;
-use App\Http\Controllers\PdfPreviewController;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Controllers\OfficerController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TaskTypeController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FarmerTaskController;
+use App\Http\Controllers\PdfPreviewController;
+use App\Http\Controllers\FarmerPathsController;
+use App\Http\Controllers\PhotoDetailController;
+use App\Http\Controllers\PhotoGalleryController;
+use App\Http\Controllers\BuildingHeightController;
+use App\Http\Controllers\LandNameGeneratorController;
+use App\Http\Controllers\BuildingAttributesController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -54,6 +55,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('building_height');
         Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
         Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
+
+        Route::get('/building-attributes', [BuildingAttributesController::class, 'index'])
+        ->name('building_attributes');
     });
     
 

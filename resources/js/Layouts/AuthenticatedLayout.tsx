@@ -156,6 +156,14 @@ export default function Authenticated({
                                                 </button>
                                             </>
                                         )}
+                                        <NavLink
+                                            href={route("building_attributes")}
+                                            active={route().current(
+                                                "building_attributes"
+                                            )}
+                                        >
+                                            Building attributes
+                                        </NavLink>
                                     </div>
                                 </>
                             )}
