@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class BuildingAttributesController extends Controller
 {
     public function index()
     {
-        return Inertia::render('BuildingAttributes/Index');
+        $user = Auth::user();
+        $photos =  getPhotosWithoutTask($user->id);
+        return Inertia::render('BuildingAttributes/Index',compact('photos'));
     }
 }
