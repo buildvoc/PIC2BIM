@@ -1,5 +1,5 @@
 import Map from "@/Components/Map/Map";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapProps } from "@/types";
 import { FaRegMap } from "react-icons/fa6";
 const ButtonMap  = ({
@@ -8,11 +8,17 @@ const ButtonMap  = ({
     isSelected,
     isUnassigned,
     zoomFilter,
+    isMapVisible,
+    setIsMapVisible
 }: MapProps) => {
-    const [isMapVisible, setIsMapVisible] = useState(true);
-    const handleToggleMapVisibility = () => {
-        setIsMapVisible((prevVisibility) => !prevVisibility);
-    };
+    // const [isMapVisible, setIsMapVisible] = useState(true);
+    // const handleToggleMapVisibility = () => {
+    //     setIsMapVisible((prevVisibility) => !prevVisibility);
+    // };
+
+    useEffect(() => {
+        console.log("Button Mao", isMapVisible);
+        }, [isMapVisible]);
     return (
         <>
             <div
@@ -24,7 +30,7 @@ const ButtonMap  = ({
             >
                 <Map data={data} zoomFilter={zoomFilter} isUnassigned={isUnassigned} onClick={onClick} className="w-full h-3/4-screen"/>
             </div>
-            <button
+            {/* <button
                 className={`w-full rounded-b-md items-center border border-transparent bg-brand-primary px-4 py-4 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-brand-primaryHover  focus:outline-none  focus:bg-brand-primaryHover focus:ring-offset-2 active:bg-brand-primaryHover dark:bg-brand-primary dark:text-white dark:hover:bg-brand-primaryHover dark:focus:bg-brand-primaryHover dark:focus:ring-offset-brand-primaryHover dark:active:bg-brand-primaryHover `}
                 onClick={handleToggleMapVisibility}
             >
@@ -34,7 +40,7 @@ const ButtonMap  = ({
                     </span>
                     {isMapVisible ? "HIDE MAP" : "SHOW MAP"}
                 </div>
-            </button>
+            </button> */}
         </>
     );
 };
