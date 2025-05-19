@@ -60,8 +60,17 @@ export default function Authenticated({
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <div className="shrink-0 flex items-center">
-                                <Link href="/">
+                                {/* <Link href="/">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
+                                </Link> */}
+                                <Link className={`brand-image`} href="/">
+                                    {/*<ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />*/}
+                                    {isDark ? (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`images/pic2bim_logo_white.png`} />
+                                    ) : (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`images/pic2bim_logo.png`} />
+                                    )}
+
                                 </Link>
                             </div>
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">

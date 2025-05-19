@@ -1,18 +1,22 @@
 import React, {useState} from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { Link } from '@inertiajs/react';
 interface FilterProps {
     isMapVisible: boolean;
     setIsMapVisible: () => void;
     exportToPdf: () => void;
+    selectAll: () => void;
+    onDeleteHandler: () => void;
+    selectAllPdfHandler: () => void;
 }
 
-const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportToPdf }) => {
+const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportToPdf, selectAll, onDeleteHandler, selectAllPdfHandler }) => {
     //const [isPhotoMap, setPhotoMap] = useState(true);
     return (
-        <div className={`photo-gallery-filter`}>
+        <div className={`photo-gallery-filter dark:bg-gray-800`}>
             <div className={`photo-gallery-filter-container`}>
                 <div className={`photo-gallery-filter-heading`}>
-                    <h1>Photo Gallery</h1>
+                    <h1 className='dark:text-white'>Photo Gallery</h1>
                 </div>
                 <div className={`photo-gallery-filter-actions`}>
                     <Menu as="div" className={`relative inline-block text-left photo-gallery-filter-update-dropdown`}>
@@ -26,10 +30,10 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                         </MenuButton>
                         <MenuItems transition className={`photo-gallery-filter-update-dropdown-menu absolute right-0 z-10 origin-top-right transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in`}>
                             <MenuItem>
-                                <button type={`button`}>Export To PDF</button>
+                                <button  onClick={exportToPdf} type={`button`}>Export To PDF</button>
                             </MenuItem>
                             <MenuItem>
-                                <button type={`button`}>Export Selected To PDF</button>
+                                <button type={`button`} onClick={selectAllPdfHandler}>Export Selected To PDF</button>
                             </MenuItem>
                         </MenuItems>
                     </Menu>
@@ -44,13 +48,13 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                         </MenuButton>
                         <MenuItems transition className={`photo-gallery-filter-dropdown-menu absolute right-0 z-10 origin-top-right transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in`}>
                             <MenuItem>
-                                <button type={`button`}>Select All</button>
+                                <button type={`button`} onClick={selectAll}>Select All</button>
                             </MenuItem>
                             <MenuItem>
-                                <button type={`button`}>Cancel Selection</button>
+                                <button type={`button`}  onClick={selectAll}>Cancel Selection</button>
                             </MenuItem>
                             <MenuItem>
-                                <button className={`delete-item`} type={`button`}>Delete Selected</button>
+                                <button className={`delete-item`} type={`button`} onClick={onDeleteHandler}>Delete Selected</button>
                             </MenuItem>
                             <MenuItem>
                                 <button type={`button`}>Choose Task</button>
@@ -59,7 +63,7 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                                 <button onClick={exportToPdf} type={`button`}>Export To PDF</button>
                             </MenuItem>
                             <MenuItem>
-                                <button type={`button`}>Export Selected To PDF</button>
+                                <button type={`button`}  onClick={selectAllPdfHandler}>Export Selected To PDF</button>
                             </MenuItem>
                         </MenuItems>
                     </Menu>

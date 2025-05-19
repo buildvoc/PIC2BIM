@@ -206,7 +206,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     }>) => {
         return (
             <div
-                className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""
+                className={`w-full py-2  ${splitView.split ? "md:w-1/4" : ""
                     } `}
             >
                 {" "}
@@ -247,7 +247,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         }>) => {
             return (
                 <div
-                    className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""
+                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-3/4  " : ""
                         } `}
                 >
                     {" "}
@@ -358,7 +358,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
             splitView={splitView}
         >
             <Head title="Photo gallery" />
-            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} />
+            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} />
             {/* <BackButton label="Back" className="" /> */}
             <div className="flex flex-wrap ">
                 {splitView.split ? (
