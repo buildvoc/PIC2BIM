@@ -206,12 +206,12 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     }>) => {
         return (
             <div
-                className={`w-full py-2  ${splitView.split ? "md:w-1/4" : ""
+                className={`w-full py-2  ${splitView.split ? "md:w-[20%]" : ""
                     } `}
             >
                 {" "}
                 <div className="max-w mx-auto sm:px-4 ">
-                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="overflow-hidden sm:rounded-lg">
                         <div
                             className={` ${splitView.split
                                 ? "overflow-y-auto h-3/4-screen"
@@ -247,18 +247,19 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         }>) => {
             return (
                 <div
-                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-3/4  " : ""
+                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-[80%]  " : ""
                         } `}
                 >
                     {" "}
-                    <div className="max-w mx-auto sm:px-4 ">
-                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="max-w mx-auto">
+                        <div className="overflow-hidden sm:rounded-lg">
                             <ButtonMap
                                 data={filter_tasks_photos}
                                 zoomFilter={handleZoomFilter}
                                 isUnassigned={true}
                                 isMapVisible={isMapVisible}
                                 setIsMapVisible={setMapVisibility}
+                                splitView={splitView.split}
                             />
                             {/* <div className="flex pt-2 px-2">
                                 <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">

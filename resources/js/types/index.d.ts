@@ -152,6 +152,7 @@ export interface MapProps{
   style?:any;
   isMapVisible?:boolean;
   setIsMapVisible?:() => void;
+  splitView ?: boolean;
 }
 
 

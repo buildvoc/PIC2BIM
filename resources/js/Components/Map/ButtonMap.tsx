@@ -9,24 +9,21 @@ const ButtonMap  = ({
     isUnassigned,
     zoomFilter,
     isMapVisible,
-    setIsMapVisible
+    setIsMapVisible,
+    splitView
 }: MapProps) => {
     // const [isMapVisible, setIsMapVisible] = useState(true);
     // const handleToggleMapVisibility = () => {
     //     setIsMapVisible((prevVisibility) => !prevVisibility);
     // };
-
-    useEffect(() => {
-        console.log("Button Mao", isMapVisible);
-        }, [isMapVisible]);
     return (
         <>
             <div
                 className={`overflow-hidden transition-all duration-500 ease ${
                     isMapVisible
-                        ? "h-[50vh] opacity-100 visible"
+                        ?  splitView ? "grow opacity-100 opacity-100 visible" : "h-[50vh] opacity-100 visible"
                         : "h-0 opacity-0 invisible"
-                }`}
+                }  `}
             >
                 <Map data={data} zoomFilter={zoomFilter} isUnassigned={isUnassigned} onClick={onClick} className="w-full h-3/4-screen"/>
             </div>
