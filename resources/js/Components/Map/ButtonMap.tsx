@@ -21,7 +21,7 @@ const ButtonMap  = ({
             <div
                 className={`overflow-hidden transition-all duration-500 ease ${
                     isMapVisible
-                        ?  splitView ? "grow opacity-100 opacity-100 visible" : "h-[50vh] opacity-100 visible"
+                        ?  splitView ? "grow opacity-100 visible" : "h-[50vh] opacity-100 visible"
                         : "h-0 opacity-0 invisible"
                 }  `}
             >

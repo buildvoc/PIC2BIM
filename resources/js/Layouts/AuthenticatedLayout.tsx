@@ -10,6 +10,7 @@ import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
 import axios from 'axios';
+import Footer from "@/Components/Footer";
 
 export default function Authenticated({
     user,
@@ -54,7 +55,7 @@ export default function Authenticated({
     };
     
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen bg-white dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <div className="w-100 mx-auto px-8 sm:px-8 lg:px-[8rem]">
                     <div className="flex justify-between h-16">
@@ -350,6 +351,7 @@ export default function Authenticated({
             )}
 
             <main>{children}</main>
+            <Footer isDark={isDark} />
         </div>
     );
 }
