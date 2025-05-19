@@ -149,7 +149,10 @@ export interface MapProps{
   paths?:Array<Path>;
   zoomFilter?:(leaves:Array<String>|undefined) => void;
   className?:string;
-  style?:any
+  style?:any;
+  isMapVisible?:boolean;
+  setIsMapVisible?:() => void;
+  splitView ?: boolean;
 }
 
 
