@@ -158,7 +158,14 @@ const TaskGallery = ({
                             const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
                             return (
                                 <div className={`photo-card-item`} key={index}>
-                                    <div className={`photo-card-item-container`}>
+                                    <div className={`photo-card-item-container`} 
+                                        onClick={() => {
+                                            setShowModal({
+                                                isShow: true,
+                                                index: index, 
+                                            });
+                                        }}
+                                    >
                                         <div className={`photo-card-item-image`}>
                                             <img alt={`Image name`} className={`w-auto block`} src={imageSrc}
                                                 onError={(e) => {
@@ -168,12 +175,7 @@ const TaskGallery = ({
                                                 style={{
                                                         transform: `rotate(${photo?.angle}deg)`
                                                     }}
-                                                    onClick={() => {
-                                                        setShowModal({
-                                                            isShow: true,
-                                                            index: index, 
-                                                        });
-                                                    }}
+                                                    
                                             />
                                         </div>
                                         <div className={`photo-card-item-mask ${photo.check ? 'item-selected' : ''}`}>
