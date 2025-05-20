@@ -296,6 +296,77 @@ const simplifyPolygon = (coordinates: number[][], tolerance: number = 0.00001): 
     .map(index => coordinates[index]);
 };
 
+// Add altitude classification constants
+const ALTITUDE_CLASSIFICATION = {
+  LOWLAND: { max: 200, factor: 1.0 },    // 0-200m: normal extrusion
+  MIDLAND: { max: 500, factor: 1.2 },    // 201-500m: 20% more extrusion
+  HIGHLAND: { min: 501, factor: 1.5 }    // >500m: 50% more extrusion
+};
+
+// Add function to get altitude classification
+const getAltitudeClassification = (altitude: number) => {
+  if (altitude <= ALTITUDE_CLASSIFICATION.LOWLAND.max) {
+    return 'lowland';
+  } else if (altitude <= ALTITUDE_CLASSIFICATION.MIDLAND.max) {
+    return 'midland';
+  } else {
+    return 'highland';
+  }
+};
+
+// Add function to calculate altitude factor
+const getAltitudeFactor = (altitude: number) => {
+  if (altitude <= ALTITUDE_CLASSIFICATION.LOWLAND.max) {
+    return ALTITUDE_CLASSIFICATION.LOWLAND.factor;
+  } else if (altitude <= ALTITUDE_CLASSIFICATION.MIDLAND.max) {
+    return ALTITUDE_CLASSIFICATION.MIDLAND.factor;
+  } else {
+    return ALTITUDE_CLASSIFICATION.HIGHLAND.factor;
+  }
+};
+
+// Add height calculation types and interfaces
+interface HeightMeasurements {
+  absoluteMax: number;    // Height above sea level (MASL)
+  absoluteRoofbase: number;
+  absoluteMin: number;
+  relativeMax: number;    // Total building height
+  relativeRoofbase: number;
+  roofHeight: number;     // Height of roof only
+}
+
+// Function to safely convert to number
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+// Function to calculate height measurements
+const calculateHeightMeasurements = (feature: any): HeightMeasurements => {
+  // Safely convert all height values to numbers
+  const absoluteMax = toNumber(feature.properties?.absoluteheightmaximum);
+  const absoluteRoofbase = toNumber(feature.properties?.absoluteheightroofbase);
+  const absoluteMin = toNumber(feature.properties?.absoluteheightminimum);
+  
+  // Calculate relative heights
+  const relativeMax = Math.max(0, absoluteMax - absoluteMin);
+  const relativeRoofbase = Math.max(0, absoluteRoofbase - absoluteMin);
+  const roofHeight = Math.max(0, absoluteMax - absoluteRoofbase);
+  
+  return {
+    absoluteMax,
+    absoluteRoofbase,
+    absoluteMin,
+    relativeMax,
+    relativeRoofbase,
+    roofHeight
+  };
+};
+
 export default function Index({ auth, photos }: PageProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -532,6 +603,11 @@ export default function Index({ auth, photos }: PageProps) {
       const selectedPhoto = photoInfos.find(photo => photo.id === selectedPhotoId);
       
       if (selectedPhoto?.buildingFeatures && selectedPhoto.buildingFeatures.length > 0) {
+        // Get altitude classification and factor
+        const altitude = selectedPhoto.altitude || 0;
+        const altitudeClass = getAltitudeClassification(altitude);
+        const altitudeFactor = getAltitudeFactor(altitude);
+        
         // Add a base GeoJSON layer for ground outlines
         const groundLayer = new GeoJsonLayer({
           id: `ground-layer`,
@@ -556,19 +632,26 @@ export default function Index({ auth, photos }: PageProps) {
         selectedPhoto.buildingFeatures.forEach((feature: any, index: number) => {
           if (!feature.properties) return;
           
-          const baseHeight = feature.properties.absoluteheightminimum || 0;
-          const roofBaseHeight = feature.properties.absoluteheightroofbase || 0;
-          const maxHeight = feature.properties.absoluteheightmaximum || 0;
+          // Calculate all height measurements
+          const heights = calculateHeightMeasurements(feature);
+          
+          // Apply altitude factor to relative heights
+          const baseExtrusion = heights.relativeRoofbase * altitudeFactor;
+          const roofExtrusion = heights.roofHeight * altitudeFactor;
           
           // Base to roof base (Part A)
-          if (roofBaseHeight > baseHeight && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
+          if (heights.relativeRoofbase > 0 && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
             const partAData = {
               contour: feature.geometry.coordinates[0],
-              baseHeight: baseHeight,
-              height: roofBaseHeight - baseHeight,
+              baseHeight: heights.absoluteMin,
+              height: baseExtrusion,
               color: [249, 180, 45, 200],
               name: feature.properties.description || `Building ${index + 1}`,
-              info: `Base to Roof Base: ${baseHeight}m to ${roofBaseHeight}m`
+              info: `
+                Base to Roof Base: ${heights.absoluteMin.toFixed(2)}m to ${heights.absoluteRoofbase.toFixed(2)}m
+                Relative Height: ${heights.relativeRoofbase.toFixed(2)}m
+                Area: ${altitudeClass}
+              `
             };
             
             const partALayer = new PolygonLayer({
@@ -593,14 +676,18 @@ export default function Index({ auth, photos }: PageProps) {
           }
           
           // Roof base to max height (Part B)
-          if (maxHeight > roofBaseHeight && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
+          if (heights.roofHeight > 0 && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
             const partBData = {
               contour: feature.geometry.coordinates[0],
-              baseHeight: roofBaseHeight,
-              height: maxHeight - roofBaseHeight,
+              baseHeight: heights.absoluteRoofbase,
+              height: roofExtrusion,
               color: [66, 135, 245, 200],
               name: feature.properties.description || `Building ${index + 1}`,
-              info: `Roof Base to Max: ${roofBaseHeight}m to ${maxHeight}m`
+              info: `
+                Roof Base to Max: ${heights.absoluteRoofbase.toFixed(2)}m to ${heights.absoluteMax.toFixed(2)}m
+                Roof Height: ${heights.roofHeight.toFixed(2)}m
+                Area: ${altitudeClass}
+              `
             };
             
             const partBLayer = new PolygonLayer({
