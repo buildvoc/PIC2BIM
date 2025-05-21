@@ -350,7 +350,7 @@ export default function Authenticated({
                 </header>
             )}
 
-            <main className={`site-content ${isDark ? "dark-content" : ""}`}>{children}</main>
+            <main className={`site-content pb-[50px] ${isDark ? "dark-content" : ""}`}>{children}</main>
             <Footer isDark={isDark} />
         </div>
     );

@@ -9,7 +9,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
-import axios from "axios";
+import axios from 'axios';
+import Footer from "@/Components/Footer";
 
 export default function Authenticated({
     user,
@@ -58,14 +59,23 @@ export default function Authenticated({
     };
     
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen bg-white dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="w-100 mx-auto px-8 sm:px-8 lg:px-[8rem]">
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <div className="shrink-0 flex items-center">
-                                <Link href="/">
+                                {/* <Link href="/">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
+                                </Link> */}
+                                <Link className={`brand-image`} href="/">
+                                    {/*<ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />*/}
+                                    {isDark ? (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`/images/pic2bim_logo_white.png`} />
+                                    ) : (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`/images/pic2bim_logo.png`} />
+                                    )}
+
                                 </Link>
                             </div>
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
@@ -384,7 +394,8 @@ export default function Authenticated({
                 </header>
             )}
 
-            <main>{children}</main>
+            <main className="pb-[50px]">{children}</main>
+            <Footer isDark={isDark} />
         </div>
     );
 }

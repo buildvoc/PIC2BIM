@@ -19,8 +19,12 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
+import Filter from "@/Components/PhotoGallery/Filter";
+import Pagination from "@/Components/Pagination/Pagination";
 
-export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
+export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
+    console.log(paginatedPhotos,"paginatedPhotos")
+    const [isMapVisible, setIsMapVisible] = useState(true);
     const [selectedTask, setSelectedTask] = useState("");     
     const [photosIds, setPhotosIds] = useState("");    
    
@@ -40,6 +44,10 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        console.log("Photo: " , isMapVisible)
+    }, [isMapVisible]);
 
     function loadData() {
         const tasks_photos_array: Array<TaskPhotos> = [];
@@ -73,6 +81,11 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 },
             });
         }
+    }
+
+    function setMapVisibility(){
+        let mapVisibility = isMapVisible;
+        setIsMapVisible(!mapVisibility);
     }
 
     const handleZoomFilter = (leaves: String[] | undefined) => {
@@ -174,6 +187,15 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         }));
     };
 
+    const exportToPdf = () => {
+        const queryString = new URLSearchParams({
+            unassigned: 'true',
+            total: photos.length.toString()
+        }).toString();
+        const exportUrl = route("pdf_preview") + '?' + queryString;
+        window.open(exportUrl,'_blank')
+    }
+
 
     const LeftPane = useCallback (({
         photo_,
@@ -186,12 +208,12 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     }>) => {
         return (
             <div
-                className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""
+                className={`w-full py-2  ${splitView.split ? "md:w-[20%]" : ""
                     } `}
             >
                 {" "}
                 <div className="max-w mx-auto sm:px-4 ">
-                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="overflow-hidden sm:rounded-lg">
                         <div
                             className={` ${splitView.split
                                 ? "overflow-y-auto h-3/4-screen"
@@ -206,6 +228,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 setPhotos={setPhotos}
                                 isSplitView={splitView.split}
                             />
+                            <Pagination pagination={paginatedPhotos}/>
                         </div>
                     </div>
                 </div>
@@ -227,18 +250,21 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         }>) => {
             return (
                 <div
-                    className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""
+                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-[80%]  " : ""
                         } `}
                 >
                     {" "}
-                    <div className="max-w mx-auto sm:px-4 ">
-                        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="max-w mx-auto">
+                        <div className="overflow-hidden sm:rounded-lg">
                             <ButtonMap
                                 data={filter_tasks_photos}
                                 zoomFilter={handleZoomFilter}
                                 isUnassigned={true}
+                                isMapVisible={isMapVisible}
+                                setIsMapVisible={setMapVisibility}
+                                splitView={splitView.split}
                             />
-                            <div className="flex pt-2 px-2">
+                            {/* <div className="flex pt-2 px-2">
                                 <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
                                     <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={selectAll}
@@ -284,13 +310,13 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                         <span>Export Selected To PDF</span>
                                     </button>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 </div>
             );
         },
-        [filter_tasks_photos, splitView.split]
+        [filter_tasks_photos, splitView.split, isMapVisible]
     );
 
     const ChooseTaskPopup = () => {
@@ -331,16 +357,13 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     return (
         <AuthenticatedLayout
             user={auth.user}
-            header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                    Photo Gallery
-                </h2>
-            }
+            
             setSplitView={setSplitView}
             splitView={splitView}
         >
             <Head title="Photo gallery" />
-            <BackButton label="Back" className="" />
+            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} chooseTask={chooseTask} />
+            {/* <BackButton label="Back" className="" /> */}
             <div className="flex flex-wrap ">
                 {splitView.split ? (
                     <>
