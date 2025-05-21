@@ -130,6 +130,11 @@ export interface Photo {
   img?:string;
   mapImg?:string;
   link?: string;
+  network_info?: string | null;
+  provider?: string | null;
+  osnma_enabled?: string | null;
+  osnma_validated?: string | null;
+  validated_sats?: string | null;
 }
 
 export interface TaskPhotos extends Task{

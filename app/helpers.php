@@ -162,7 +162,11 @@ function setPhoto($photo, $user_id, $task_id)
                 'nmea_location' => null,
                 'nmea_distance' => null,
                 'digest' => $photo['digest'],
-                'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+                'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
+                'provider' => $photo['provider'] ?? null,
+                'osnma_enabled' => $photo['osnmaEnabled'] ?? null,
+                'osnma_validated' => $photo['osnmaValidated'] ?? null,
+                'validated_sats' => $photo['validatedSats'] ?? null
             ]);
 
             $status['photo_id'] = $newPhoto->id;
@@ -257,7 +261,12 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'path',
             'file_name',
             'digest',
-            'rotation_correction as angle'
+            'rotation_correction as angle',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
@@ -307,7 +316,12 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'link' => $photo->link,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
 
         if($wantsbase64Photo){
@@ -424,6 +438,10 @@ function setPhotos($photos, $user_id, $task_id)
                 $efkLngGpsIf = $photo['efkLngGpsIf'] ?? null;
                 $efkAltGpsIf = $photo['efkAltGpsIf'] ?? null;
                 $efkTimeGpsIf = isset($photo['efkTimeGpsIf']) ? gmdate('Y-m-d H:i:s', strtotime($photo['efkTimeGpsIf'])) : null;
+                $provider = isset($photo['provider']) ? $photo['provider'] : null;
+                $osnmaEnabled = isset($photo['osnmaEnabled']) ? $photo['osnmaEnabled'] : null;
+                $osnmaValidated = isset($photo['osnmaValidated']) ? $photo['osnmaValidated'] : null;
+                $validatedSats = isset($photo['validatedSats']) ? $photo['validatedSats'] : null;
 
                 $existing_photo = DB::table('photo')->where('digest', $digest)->first();
 
@@ -472,6 +490,10 @@ function setPhotos($photos, $user_id, $task_id)
                         'efkLngGpsIf' => $efkLngGpsIf,
                         'efkAltGpsIf' => $efkAltGpsIf,
                         'efkTimeGpsIf' => $efkTimeGpsIf,
+                        'provider' => $provider,
+                        'osnma_enabled' => $osnmaEnabled,
+                        'osnma_validated' => $osnmaValidated,
+                        'validated_sats' => $validatedSats
                     ]);
                     if (isset($photo['photo'])) {
                         $sql_path = DB::table('user')->select('pa_id')->where('id', $user_id)->first();
@@ -594,7 +616,12 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'id',
             'rotation_correction as angle',
             'flg_checked_location',
-            'flg_original'
+            'flg_original',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('flg_deleted', 0);
 
@@ -653,6 +680,11 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'id' => $photo->id,
             'angle' => $photo->angle,
             'link' => $photo->link,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
         if($wantsBase64Photo){
             $file = null;
@@ -762,7 +794,12 @@ function getPhotosWithoutTask($user_id)
             'id',
             'rotation_correction as angle',
             'flg_checked_location',
-            'flg_original'
+            'flg_original',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
@@ -814,7 +851,12 @@ function getPhotosWithoutTask($user_id)
             'digest' => $photo->digest,
             'id' => $photo->id,
             'link' => $photo->link,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
 
         $file = null;
@@ -917,7 +959,12 @@ function getPhotoByIds(array $photoIds)
         'created',
         'path',
         'file_name',
-        'digest'
+        'digest',
+        'network_info',
+        'provider',
+        'osnma_enabled',
+        'osnma_validated',
+        'validated_sats'
     ])
     ->where('flg_deleted', 0)
     ->whereIn('id', $photoIds)
@@ -966,7 +1013,12 @@ function getPhotoByIds(array $photoIds)
             'photo_heading' => $photo->photo_heading,
             'created' => $photo->created,
             'digest' => $photo->digest,
-            'link' => $photo->link
+            'link' => $photo->link,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
         
 

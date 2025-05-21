@@ -394,6 +394,34 @@ const PdfPage = ({
                                 Photo is original{" "}
                             </Text>
                         </View>
+                        
+                        <View style={styles.photo_details_row}>
+                            <Text>Network status </Text>
+                            <Text style={styles.photo_details_value}>
+                                {photo?.network_info ? 'Online' : '-'}
+                            </Text>
+                        </View>
+
+                        <View style={styles.photo_details_row}>
+                            <Text>OSNMA validation </Text>
+                            {photo?.osnma_enabled == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Enabled</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Disabled</Text>}
+                        </View>
+
+                        {photo.osnma_enabled == "1" && 
+                        <View style={styles.photo_details_row}>
+                            <Text>Validated satellites </Text>
+                            <Text style={styles.photo_details_value}>{photo.validated_sats}</Text>
+                        </View>}
+
+                        <View
+                            style={[
+                                styles.photo_details_row,
+                                { justifyContent: "flex-end" },
+                            ]}
+                        >
+                            {photo?.osnma_validated == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Photo location is OSNMA validated</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Photo location is not validated</Text>}
+                        </View>
+
                     </View>
                 </View>
             </View>
