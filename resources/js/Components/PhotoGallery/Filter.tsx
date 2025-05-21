@@ -8,9 +8,10 @@ interface FilterProps {
     selectAll: () => void;
     onDeleteHandler: () => void;
     selectAllPdfHandler: () => void;
+    chooseTask: () => void;
 }
 
-const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportToPdf, selectAll, onDeleteHandler, selectAllPdfHandler }) => {
+const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportToPdf, selectAll, onDeleteHandler, selectAllPdfHandler, chooseTask }) => {
     //const [isPhotoMap, setPhotoMap] = useState(true);
     return (
         <div className={`photo-gallery-filter dark:bg-gray-800`}>
@@ -57,7 +58,7 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                                 <button className={`delete-item`} type={`button`} onClick={onDeleteHandler}>Delete Selected</button>
                             </MenuItem>
                             <MenuItem>
-                                <button type={`button`}>Choose Task</button>
+                                <button type={`button`} onClick={chooseTask}>Choose Task</button>
                             </MenuItem>
                             <MenuItem>
                                 <button onClick={exportToPdf} type={`button`}>Export To PDF</button>
