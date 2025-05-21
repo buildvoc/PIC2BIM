@@ -20,8 +20,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
 import Filter from "@/Components/PhotoGallery/Filter";
+import Pagination from "@/Components/Pagination/Pagination";
 
-export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
+export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
+    console.log(paginatedPhotos,"paginatedPhotos")
     const [isMapVisible, setIsMapVisible] = useState(true);
     const [selectedTask, setSelectedTask] = useState("");     
     const [photosIds, setPhotosIds] = useState("");    
@@ -226,6 +228,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 setPhotos={setPhotos}
                                 isSplitView={splitView.split}
                             />
+                            <Pagination pagination={paginatedPhotos}/>
                         </div>
                     </div>
                 </div>
