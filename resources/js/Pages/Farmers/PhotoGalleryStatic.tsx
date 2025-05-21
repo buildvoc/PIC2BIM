@@ -365,7 +365,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         >
             <Head title="Photo gallery" />
             {/*<BackButton label="Back" className="" />*/}
-            <Filter isMapVisible={true} setIsMapVisible={() => {console.log('setismapvisisble')}} exportToPdf={() => {console.log('exportToPdf')}} selectAll={() => {console.log('selectAll')}} onDeleteHandler={() => {console.log('onDeleteHandler')}} selectAllPdfHandler={() => {console.log('selectAllPdfHandler')}} />
+            <Filter isMapVisible={true} setIsMapVisible={() => {console.log('setismapvisisble')}} exportToPdf={() => {console.log('exportToPdf')}} selectAll={() => {console.log('selectAll')}} onDeleteHandler={() => {console.log('onDeleteHandler')}} selectAllPdfHandler={() => {console.log('selectAllPdfHandler')} } chooseTask={()=>{console.log("CHOSE TASK")}} />
             <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>
