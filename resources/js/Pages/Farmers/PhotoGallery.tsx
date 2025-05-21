@@ -359,7 +359,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
             splitView={splitView}
         >
             <Head title="Photo gallery" />
-            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} />
+            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} chooseTask={chooseTask} />
             {/* <BackButton label="Back" className="" /> */}
             <div className="flex flex-wrap ">
                 {splitView.split ? (
