@@ -14,11 +14,13 @@ class PhotoGalleryController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $photos =  getPhotosWithoutTask($user->id);
+        $paginatedPhotos =  getPhotosWithoutTask($user->id, true);
+        
+        $photos = $paginatedPhotos->items();
         
         if($request->has('showStatic')) return Inertia::render('Farmers/PhotoGalleryStatic', compact('photos'));
 
-        return Inertia::render('Farmers/PhotoGallery', compact('photos'));
+        return Inertia::render('Farmers/PhotoGallery', compact('photos','paginatedPhotos'));
     }
 
     public function destroy(Request $request, String $ids): RedirectResponse

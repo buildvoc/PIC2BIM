@@ -222,4 +222,5 @@ export type PageProps<
   paths:Array<Path>
   total:number;
   ziggy: Config & { location: string };
+  paginatedPhotos : PaginatedData
 };

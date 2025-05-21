@@ -394,7 +394,7 @@ export default function Authenticated({
                 </header>
             )}
 
-            <main>{children}</main>
+            <main className="pb-[50px]">{children}</main>
             <Footer isDark={isDark} />
         </div>
     );
