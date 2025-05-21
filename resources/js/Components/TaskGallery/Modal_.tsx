@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { FaSync, FaArrowLeft, FaArrowRight } from "react-icons/fa";
-import { cnvrtImgUrl } from "@/helpers";
+import {FaSync, FaTimes, FaEye } from "react-icons/fa";
 import { GalleryModalProps } from "@/types";
 import { router } from "@inertiajs/react";
+import axios from "axios";
 
 const Modal_ = ({
     modal,
@@ -14,10 +14,400 @@ const Modal_ = ({
 }: GalleryModalProps) => {
     const imageSrc = photos[modal.index]?.link;
     const [image, setImage] = useState(imageSrc);
-
+    const [buildingData, setBuildingData] = useState<any>(null);
+    const [shapeData, setShapeData] = useState<any>(null);
+    const [codepointData, setCodepointData] = useState<any>(null);
+    const [uprnData, setUprnData] = useState<any>(null);
+    const [landData, setLandData] = useState<any>(null);
+    const [nhleData, setNhleData] = useState<any>(null);
+    const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
     useEffect(() => {
         setImage(imageSrc);
     }, [imageSrc]);
+
+    useEffect(() => {
+        const distance = 0.0009;
+
+        const fetchBuildingData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const response = await axios.get("/comm_building_part_nearest", {
+                            params: {
+                                latitude: photo.lat,
+                                longitude: photo.lng,
+                                imagedirection: photo.photo_heading || 0
+                            }
+                        });
+                        
+                        if (response.data.success && response.data.data.building_part.length > 0) {
+                            setBuildingData(response.data.data.building_part[0].geojson.features[0].properties);
+                        } else {
+                            setBuildingData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching building data:", error);
+                        setBuildingData(null);
+                    }
+                }
+            }
+        };
+        
+        const fetchShapeData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            max_lat: (lat + distance).toString(),
+                            min_lat: (lat - distance).toString(),
+                            max_lng: (lng + distance).toString(),
+                            min_lng: (lng - distance).toString()
+                        };
+                        
+                        const response = await axios.post("/comm_shapes", params);
+
+                        if (response.data && response.data.data.features && response.data.data.features.length > 0) {
+                            setShapeData(response.data.data.features[0].properties);
+                        } else {
+                            setShapeData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching shape data:", error);
+                        setShapeData(null);
+                    }
+                }
+            }
+        };
+
+        const fetchCodepointData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_codepoint", { params });
+                        console.log(response.data);
+                        
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+
+                            if (features.length === 1) {
+                                setCodepointData(features[0].properties);
+                            } else {
+                                let closestFeature = features[0];
+                                let minDistance = calculateDistance(
+                                    lat, 
+                                    lng, 
+                                    features[0].geometry.coordinates[1], 
+                                    features[0].geometry.coordinates[0]
+                                );
+                                
+                                for (let i = 1; i < features.length; i++) {
+                                    const feature = features[i];
+                                    const distance = calculateDistance(
+                                        lat, 
+                                        lng, 
+                                        feature.geometry.coordinates[1], 
+                                        feature.geometry.coordinates[0]
+                                    );
+                                    
+                                    if (distance < minDistance) {
+                                        minDistance = distance;
+                                        closestFeature = feature;
+                                    }
+                                }
+                                
+                                setCodepointData(closestFeature.properties);
+                            }
+                        } else {
+                            setCodepointData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching codepoint data:", error);
+                        setCodepointData(null);
+                    }
+                }
+            }
+        };
+        
+        const fetchUprnData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_uprn", { params });
+                        
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+                            
+                            // Find the closest UPRN
+                            if (features.length === 1) {
+                                setUprnData(features[0].properties);
+
+                            } else {
+                                let closestUprn = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        const distance = calculateDistance(
+                                            lat, 
+                                            lng, 
+                                            feature.geometry.coordinates[1], // latitude 
+                                            feature.geometry.coordinates[0]  // longitude
+                                        );
+                                        
+                                        if (distance < minDistance) {
+                                            minDistance = distance;
+                                            closestUprn = feature.properties;
+                                        }
+                                    }
+                                }
+
+                                setUprnData(closestUprn);
+                                
+                            }
+                        }
+                    } catch (error) {
+                        setUprnData(null);
+                        console.error("Error fetching UPRN data:", error);
+                    }
+                }
+            }
+        };
+        
+        const fetchLandData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const bbox = `${lng - distance},${lat - distance},${lng + distance},${lat + distance}`;
+                        const params = { bbox };
+                        
+                        const response = await axios.get("/comm_get_lpis", { params });
+                        
+                        if (response.data && 
+                            response.data.features && 
+                            response.data.features.length > 0) {
+                            
+                            const features = response.data.features;
+                            
+                            // Find the closest land feature
+                            if (features.length === 1) {
+                                setLandData(features[0]);
+                            } else {
+                                let closestLand = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        // For Point geometries
+                                        if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
+                                            const distance = calculateDistance(
+                                                lat, 
+                                                lng, 
+                                                feature.geometry.coordinates[1], // latitude 
+                                                feature.geometry.coordinates[0]  // longitude
+                                            );
+                                            
+                                            if (distance < minDistance) {
+                                                minDistance = distance;
+                                                closestLand = feature;
+                                            }
+                                        }
+                                        // For Polygon geometries, use the first coordinate of the first ring
+                                        else if ((feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') 
+                                                && feature.geometry.coordinates && feature.geometry.coordinates.length > 0) {
+                                            // Get center of bbox instead
+                                            setLandData(feature);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!landData) {
+                                    setLandData(closestLand);
+                                }
+                            }
+                        } else {
+                            setLandData(null);
+                        }
+                    } catch (error) {
+                        setLandData(null);
+                        console.error("Error fetching land data:", error);
+                    }
+                }
+            }
+        };
+        
+        const fetchNhleData = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const response = await axios.get("/comm_nhle", {
+                            params: {
+                                latitude: photo.lat,
+                                longitude: photo.lng,
+                                imagedirection: photo.photo_heading || 0
+                            }
+                        });
+                        if (response.data && response.data.data.features.length > 0) {
+                            setNhleData(response.data.data.features[0].properties);
+                        } else {
+                            setNhleData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching nhle data:", error);
+                        setNhleData(null);
+                    }
+                }
+            }
+        };
+
+        const fetchLandRegistryInspire = async () => {
+            if (modal.isShow && photos[modal.index]) {
+                const photo = photos[modal.index];
+                
+                if (photo.lat && photo.lng) {
+                    try {
+                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                        
+                        const params = {
+                            min_lat: (lat - distance).toString(),
+                            max_lat: (lat + distance).toString(),
+                            min_lng: (lng - distance).toString(),
+                            max_lng: (lng + distance).toString()
+                        };
+                        
+                        const response = await axios.get("/comm_land_registry_inspire", { params });
+
+                        if (response.data && 
+                            response.data.data && 
+                            response.data.data.features && 
+                            response.data.data.features.length > 0) {
+                            
+                            const features = response.data.data.features;
+
+                            if (features.length === 1) {
+                                setLandRegistryInspireData(features[0].properties);
+                            } else {
+                                let closestInspire = null;
+                                let minDistance = Number.MAX_VALUE;
+                                
+                                for (const feature of features) {
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                        if (feature.geometry.type === 'MultiPolygon') {
+                                            for (const polygon of feature.geometry.coordinates) {
+                                                for (const ring of polygon) {
+                                                    for (const point of ring) {
+                                                        const distance = calculateDistance(
+                                                            lat,
+                                                            lng,
+                                                            point[1], // latitude
+                                                            point[0]  // longitude
+                                                        );
+                                                        
+                                                        if (distance < minDistance) {
+                                                            minDistance = distance;
+                                                            closestInspire = feature.properties;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                setLandRegistryInspireData(closestInspire);
+                            }
+                        } else {
+                            setLandRegistryInspireData(null);
+                        }
+                    } catch (error) {
+                        setLandRegistryInspireData(null);
+                        console.error("Error fetching Land Registry Inspire data:", error);
+                    }
+                }
+            }
+        };
+
+        const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+            const R = 6371e3; // radius of Earth in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            return R * c; // distance in meters
+        };
+        
+        fetchBuildingData();
+        fetchShapeData();
+        fetchCodepointData();
+        fetchUprnData();
+        fetchLandData();
+        fetchNhleData();
+        fetchLandRegistryInspire();
+        
+        // Reset all data when modal is closed
+        if (!modal.isShow) {
+            setBuildingData(null);
+            setShapeData(null);
+            setCodepointData(null);
+            setUprnData(null);
+            setLandData(null);
+            setNhleData(null);
+            setLandRegistryInspireData(null);
+        }
+    }, [modal.isShow, modal.index, photos]);
 
     const handleImageLeft = () => {
         let indexCheck = modal.index;
@@ -43,102 +433,219 @@ const Modal_ = ({
         }
     };
 
-    if (!modal?.isShow) return null;
+    // Modified handleClose function to reset all data
+    const onCloseModal = () => {
+        setBuildingData(null);
+        setShapeData(null);
+        setCodepointData(null);
+        setUprnData(null);
+        setLandData(null);
+        setNhleData(null);
+        setLandRegistryInspireData(null);
+        handleClose();
+    };
 
+    if (!modal?.isShow) return null;
+    
+    const photo = photos[modal.index];
+    
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="w-3/4  bg-white dark:bg-gray-800 rounded-md shadow-lg   xl:max-w-2xl  mx-4 md:w-2/4 sm:w-3/4">
-                {/* Header */}
-                <div className="flex justify-end p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto p-4">
+            <div className="w-full max-w-xl bg-white dark:bg-gray-900 rounded-3xl shadow-lg overflow-hidden max-h-[90vh] flex flex-col">
+                {/* Header with close button */}
+                <div className="flex justify-end pt-3 pr-3 flex-shrink-0">
                     <button
-                        className=" text-gray-800 dark:text-gray-200 hover:text-gray-400 text-4xl "
-                        onClick={handleClose}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl"
+                        onClick={onCloseModal}
                     >
-                        <span aria-hidden="true">×</span>
+                        <FaTimes />
                     </button>
                 </div>
-
-                {/* Body */}
-                <div className="flex flex-1 justify-center p-4 items-center">
-                    <a
+                
+                {/* Action buttons row */}
+                <div className="flex px-5 gap-4 -mt-1 flex-shrink-0 mb-4">
+                    <FaSync className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer transition-colors text-lg" 
+                           style={{ transform: "scaleX(-1)" }}
+                           onClick={() => rotateLeft(photo.digest, "left")}
+                           title="Rotate left" />
+                    <FaSync className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer transition-colors text-lg"
+                           onClick={() => rotateRight(photo.digest, "right")}
+                           title="Rotate right" />
+                    <div 
+                        className="cursor-pointer"
                         onClick={() => {
                             router.get(route("photo_detail", photos[modal.index]?.id));
                         }}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center"
                     >
-                        <img
-                            src={image!}
-                            className="max-w-full max-h-96 object-contain cursor-pointer"
-                            style={{
-                                transform: `rotate(${
-                                    photos[modal.index]?.angle
-                                }deg)`,
-                            }}
-                        />
-                    </a>
+                        <FaEye className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors text-lg" />
+                    </div>
                 </div>
 
-                {/* Footer */}
-                <div className="flex justify-between items-center p-4">
-                    <button
-                        className={`btn btn-primary ${
-                            modal.index !== 0 ? "opacity-100" : "opacity-0"
-                        }
-                     hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md
-                        `}
-                        onClick={handleImageLeft}
-                        disabled={modal.index === 0}
-                    >
-                        <FaArrowLeft className="" />
-                    </button>
-
-                    <div className="flex space-x-4">
-                        {rotateLeft && (
-                            <div
-                                className="cursor-pointer flex items-center space-x-1  text-gray-800 dark:text-gray-200 hover:text-gray-400"
+                {/* Scrollable content area */}
+                <div className="overflow-y-auto flex-grow scrollbar-hide">
+                    {/* Image section */}
+                    <div className="px-6 py-4">
+                        <div className="relative overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+                            <a
                                 onClick={() => {
-                                    return rotateLeft(
-                                        photos[modal.index].digest,
-                                        "left"
-                                    );
+                                    router.get(route("photo_detail", photos[modal.index]?.id));
                                 }}
+                                className="flex-1 flex items-center justify-center cursor-pointer"
                             >
-                                <FaSync />
-                                <span>Rotate Left</span>
-                            </div>
-                        )}
-
-                        {rotateRight && (
-                            <div
-                                className="cursor-pointer flex items-center space-x-1   text-gray-800 dark:text-gray-200 hover:text-gray-400"
-                                onClick={() => {
-                                    return rotateRight(
-                                        photos[modal.index].digest,
-                                        "right"
-                                    );
-                                }}
-                            >
-                                <FaSync />
-                                <span>Rotate Right</span>
-                            </div>
-                        )}
+                                <img
+                                    src={image!}
+                                    className="max-w-full max-h-96 object-contain"
+                                    style={{
+                                        transform: `rotate(${photos[modal.index]?.angle}deg)`,
+                                    }}
+                                    alt="Photo"
+                                />
+                            </a>
+                        </div>
                     </div>
 
-                    <button
-                        className={`btn btn-primary  ${
-                            modal.index < photos.length - 1
-                                ? "opacity-100"
-                                : "opacity-0"
-                        }
-                     hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none flex items-center text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md
-                        `}
-                        onClick={handleImageRight}
-                        disabled={modal.index >= photos.length - 1}
-                    >
-                        <FaArrowRight />
-                    </button>
+                    {/* Metadata section */}
+                    <div className="px-6 py-4 text-sm bg-gray-50 dark:bg-gray-900">
+                        <div className="grid grid-cols-2 gap-y-2">
+                            <div className="text-gray-500 dark:text-gray-400">TOID</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.TOID}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Postcode</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode ? codepointData.postcode : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">UPRN</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData?.uprn ? uprnData.uprn : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Land Registry Inspire</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landRegistryInspireData?.inspire_id ? landRegistryInspireData.inspire_id : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Name</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {nhleData?.name 
+                                    ? (nhleData.name.length > 30 
+                                        ? nhleData.name.substring(0, 27) + '...'   
+                                        : nhleData.name) 
+                                    : ''}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Grade</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{nhleData?.grade ? nhleData.grade : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Hyperlink</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {nhleData?.hyperlink ? (
+                                    <a href={nhleData.hyperlink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                        view
+                                    </a>
+                                ) : ''}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">NGR</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{nhleData?.ngr ? nhleData.ngr : ''}</div>
+
+                            <div className="text-gray-500 dark:text-gray-400">Latitude</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lat ? Number(photo.lat).toFixed(3) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Longitude</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.lng ? Number(photo.lng).toFixed(3) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Altitude</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.altitude ? Number(photo.altitude).toFixed(2) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Azimuth</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.photo_heading ? Number(photo.photo_heading).toFixed(3) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">OS Land Cover Tier A</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.oslandusetiera}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Height Absolute Roofbase</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.absoluteheightroofbase}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Height Relative Roofbase</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.relativeheightroofbase}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Height Absolute Max</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.absoluteheightmaximum}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Height Relative Max</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.relativeheightmaximum}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Height Absolute Min</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.absoluteheightminimum}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Physical Level</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">
+                                {buildingData?.physicallevel}
+                            </div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Accuracy</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.accuracy ? Number(photo.accuracy).toFixed(2) : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Created (UTC)</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.created}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">WD24NM</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.properties?.description || ''}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">OSNMA Validated</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{(photo as any)?.['OSNMA Validated'] || 'False'}</div>
+                            
+                            <div className="text-gray-500 dark:text-gray-400">Note</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
+
+                            <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>Network status</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        <p>{photo.network_info ? 'Online': '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>OSNMA validation</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        {photo.osnma_enabled == "1" ? <p className="text-green-500">Enabled</p>: <p className="text-red-500">Photo has not been verified yet</p>}
+                                    </div>
+                                </div>
+                                {photo.osnma_enabled == "1" && 
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>Validated satellites</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        <p>{photo.validated_sats}</p>
+                                    </div>
+                                </div>
+                                }
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p></p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        {photo.osnma_validated == "1" ? <p className="text-green-500">Photo location is OSNMA validated</p>: <p className="text-red-500">Photo location is not validated</p>}
+                                    </div>
+                                </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -146,3 +653,24 @@ const Modal_ = ({
 };
 
 export default Modal_;
+
+/* Add these styles at the end of the file */
+/* Hide scrollbar for Chrome, Safari and Opera */
+const scrollbarHideStyles = `
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+`;
+
+// Append styles to head
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = scrollbarHideStyles;
+  document.head.appendChild(styleSheet);
+}
