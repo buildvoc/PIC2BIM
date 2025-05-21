@@ -609,6 +609,41 @@ const Modal_ = ({
                             
                             <div className="text-gray-500 dark:text-gray-400">Note</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
+
+                            <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>Network status</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        <p>{photo.network_info ? 'Online': '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>OSNMA validation</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        {photo.osnma_enabled == "1" ? <p className="text-green-500">Enabled</p>: <p className="text-red-500">Photo has not been verified yet</p>}
+                                    </div>
+                                </div>
+                                {photo.osnma_enabled == "1" && 
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p>Validated satellites</p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        <p>{photo.validated_sats}</p>
+                                    </div>
+                                </div>
+                                }
+                                <div className="flex text-gray-800 dark:text-gray-200 p-4">
+                                    <div className="flex-1 ">
+                                        <p></p>
+                                    </div>
+                                    <div className="flex flex-1  justify-end ">
+                                        {photo.osnma_validated == "1" ? <p className="text-green-500">Photo location is OSNMA validated</p>: <p className="text-red-500">Photo location is not validated</p>}
+                                    </div>
+                                </div>
                         </div>
                     </div>
                 </div>
