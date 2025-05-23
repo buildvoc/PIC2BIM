@@ -359,41 +359,6 @@ const PdfPage = ({
                                 {photo?.created}
                             </Text>
                         </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
-                            <Text style={styles.photo_details_value}>
-                                Photo location has not been{" "}
-                            </Text>
-                        </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
-                            <Text style={styles.photo_details_value}>
-                                verified yet{" "}
-                            </Text>
-                        </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.photo_details_value,
-                                    { color: "#31ba51" },
-                                ]}
-                            >
-                                Photo is original{" "}
-                            </Text>
-                        </View>
                         
                         <View style={styles.photo_details_row}>
                             <Text>Network status </Text>
