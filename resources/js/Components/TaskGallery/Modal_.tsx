@@ -604,11 +604,28 @@ const Modal_ = ({
                             <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.properties?.description || ''}</div>
                             
-                            <div className="text-gray-500 dark:text-gray-400">OSNMA Validated</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{(photo as any)?.['OSNMA Validated'] || 'False'}</div>
-                            
                             <div className="text-gray-500 dark:text-gray-400">Note</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
+
+                            <div className="text-gray-500 dark:text-gray-400">Network status</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo.network_info ? 'Online': '-'}</div>
+
+                            <div className="text-gray-500 dark:text-gray-400">OSNMA validation</div>
+                            {photo.osnma_enabled == "1" ?
+                            <div className="text-right font-medium text-green-700 dark:text-green-200">Enabled</div>:
+                            <div className="text-right font-medium text-red-700 dark:text-red-200">Photo has not been verified yet</div>
+                            }
+
+                            {photo.osnma_enabled == "1" && <>
+                            <div className="text-gray-500 dark:text-gray-400">Validated satellites</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo.validated_sats}</div>
+                            </>}
+
+                            <div className="text-gray-500 dark:text-gray-400"></div>
+                            {photo.osnma_validated == "1" ?
+                            <div className="text-right font-medium text-green-700 dark:text-green-200">Photo location is OSNMA validated</div>:
+                            <div className="text-right font-medium text-red-700 dark:text-red-200">Photo location is not validated</div>
+                            }
                         </div>
                     </div>
                 </div>

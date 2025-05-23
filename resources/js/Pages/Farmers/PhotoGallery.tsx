@@ -166,12 +166,14 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
 
     
     const selectAll = () => {
-        setPhotos(prevPhotos => prevPhotos.map((photo) => {
+        const allPhotos = photo_;
+        const withCheckUpdate = allPhotos.map((photo) => {
             let check = !photo.hasOwnProperty("check")
                 ? true
                 : !photo?.check;
             return { ...photo, check: check };
-        }));
+        });
+        setPhotos(withCheckUpdate);
     };
 
 
@@ -204,7 +206,6 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 isUnassigned={true}
                                 destroy={destroy}
                                 setPhotos={setPhotos}
-                                isSplitView={splitView.split}
                             />
                         </div>
                     </div>

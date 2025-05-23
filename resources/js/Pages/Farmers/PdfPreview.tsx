@@ -50,7 +50,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_lat_title }}"
                                         >
                                             Latitude
                                         </label>
@@ -58,7 +57,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_lat }}"
                                         >
                                             {photo?.lat}
                                         </label>
@@ -68,7 +66,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_lng_title }}"
                                         >
                                             Longitude
                                         </label>
@@ -76,7 +73,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_lng }}"
                                         >
                                             {photo?.lng}
                                         </label>
@@ -86,7 +82,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_alt_title }}"
                                         >
                                             Altitude
                                         </label>
@@ -94,7 +89,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_alt }}"
                                         >
                                             {} m
                                         </label>
@@ -104,7 +98,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_azimuth_title }}"
                                         >
                                             Azimuth
                                         </label>
@@ -112,7 +105,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_azimuth }}"
                                         >
                                             {photo?.photo_heading}
                                         </label>
@@ -122,7 +114,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_angle_title }}"
                                         >
                                             Vertical angle
                                         </label>
@@ -130,7 +121,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_angle }}"
                                         >
                                             {}
                                         </label>
@@ -140,7 +130,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_note_title }}"
                                         >
                                             Note
                                         </label>
@@ -148,7 +137,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_note }}"
                                         >
                                             {photo?.note}
                                         </label>
@@ -158,7 +146,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_device_title }}"
                                         >
                                             Device
                                         </label>
@@ -166,7 +153,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_device }}"
                                         >
                                             {`${
                                                 photo?.device_manufacture
@@ -192,7 +178,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_accuracy_title }}"
                                         >
                                             Accuracy
                                         </label>
@@ -200,7 +185,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_accuracy }}"
                                         >
                                             {" "}
                                             {photo.accuracy} m
@@ -211,7 +195,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_distance_title }}"
                                         >
                                             Distance
                                         </label>
@@ -219,7 +202,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_distance }}"
                                         >
                                             {" "}
                                             {photo.distance} m
@@ -230,7 +212,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_timestamp_title }}"
                                         >
                                             Distance (GNSS)
                                         </label>
@@ -238,7 +219,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_timestamp }}"
                                         >
                                             {photo.nmea_distance}
                                         </label>
@@ -248,7 +228,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_created_date_title }}"
                                         >
                                             Timestamp (UTC)
                                         </label>
@@ -256,7 +235,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_created_date }}"
                                         >
                                             {photo.timestamp}
                                         </label>
@@ -266,7 +244,6 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="dark"
-                                            title="{{ pht_created_date_title }}"
                                         >
                                             Created (UTC)
                                         </label>
@@ -274,13 +251,74 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                                     <td>
                                         <label
                                             className="text-brand-primary"
-                                            title="{{ pht_created_date }}"
                                         >
                                             {" "}
                                             {photo?.created}{" "}
                                         </label>
                                     </td>
                                 </tr>
+                                <tr>
+                                    <td>
+                                        <label
+                                            className="dark"
+                                        >
+                                            Network status
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <label
+                                            className="text-brand-primary"
+                                        >
+                                            {" "}
+                                            {photo?.network_info ? 'Online' : '-'}{" "}
+                                        </label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label
+                                            className="dark"
+                                        >
+                                            OSNMA validation
+                                        </label>
+                                    </td>
+                                    <td>
+                                        {" "}
+                                        {photo?.osnma_enabled == "1" ? <label className="text-green-500">Enabled</label> : <label className="text-red-500">Disabled</label>}{" "}
+                                    </td>
+                                </tr>
+                                {photo.osnma_enabled == "1" && 
+                                <tr>
+                                    <td>
+                                        <label
+                                            className="dark"
+                                        >
+                                            Validated satellites
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <label
+                                            className="text-brand-primary"
+                                        >
+                                            {" "}
+                                            {photo?.validated_sats}{" "}
+                                        </label>
+                                    </td>
+                                </tr>
+                                }
+                                <tr>
+                                    <td>
+                                        <label
+                                            className="dark"
+                                        >
+                                        </label>
+                                    </td>
+                                    <td>
+                                        {" "}
+                                        {photo?.osnma_validated == "1" ? <label className="text-green-500">Photo location is OSNMA validated</label> : <label className="text-red-500">Photo location is not validated</label>}{" "}
+                                    </td>
+                                </tr>
+
                                 <tr>
                                     <td></td>
                                     <td>
