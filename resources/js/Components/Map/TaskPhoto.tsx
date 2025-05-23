@@ -22,7 +22,9 @@ const TaskPhoto: any = ({ data, onClick }: any) => {
           </div>
           <div className={styles.marker_image}>
             {imageSrc && (
-              <img className={styles.marker_image_img} src={imageSrc}></img>
+              <img className={styles.marker_image_img} src={imageSrc}
+                style={{transform: `rotate(${photo?.angle}deg)`}}
+              ></img>
             )}
           </div>
           <img
