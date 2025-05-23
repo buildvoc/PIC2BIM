@@ -179,12 +179,14 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
 
     
     const selectAll = () => {
-        setPhotos(prevPhotos => prevPhotos.map((photo) => {
+        const allPhotos = photo_;
+        const withCheckUpdate = allPhotos.map((photo) => {
             let check = !photo.hasOwnProperty("check")
                 ? true
                 : !photo?.check;
             return { ...photo, check: check };
-        }));
+        });
+        setPhotos(withCheckUpdate);
     };
 
     const exportToPdf = () => {
@@ -226,7 +228,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                                 isUnassigned={true}
                                 destroy={destroy}
                                 setPhotos={setPhotos}
-                                isSplitView={splitView.split}
                             />
                             <Pagination pagination={paginatedPhotos}/>
                         </div>

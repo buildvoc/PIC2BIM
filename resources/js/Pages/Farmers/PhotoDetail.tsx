@@ -1,7 +1,6 @@
 import { PageProps } from "@/types";
 import { memo,useState,useRef,useEffect } from "react";
 import { cnvrtImgUrl } from "@/helpers";
-import { TbZoomReset, TbZoomIn, TbZoomOut, TbArrowLeft } from "react-icons/tb"
 
 
 export function PhotoDetail({auth,photo}: PageProps) {
@@ -36,7 +35,6 @@ export function PhotoDetail({auth,photo}: PageProps) {
   };
 
   const handleBack = () => {
-    localStorage.setItem("map_from_photo_detail", "true");
     window.history.back();
   };
 
@@ -56,41 +54,27 @@ export function PhotoDetail({auth,photo}: PageProps) {
 
     return (
 <div style={{ 
+
   backgroundColor:'#e9ebfc'
 }}>
-  <div className="fixed bottom-4 z-50 flex justify-center w-full">
-    <div className="bg-white bg-opacity-80 p-2 rounded-full flex space-x-2 shadow-md">
-      <button 
-        className="rounded-full p-2 text-gray-700 hover:bg-gray-100 transition-colors"
-        onClick={handleBack}
-        title="Back"
-        aria-label="Go back"
-      >
-        <TbArrowLeft size={20} />
+  <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="bg-white bg-opacity-60 p-5 rounded-t-lg  flex space-x-2"
+    style={{
+      boxShadow: "0 0 3px",
+
+    }}
+    >
+      <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomin" onClick={handleBack}>
+        Back
       </button>
-      <button 
-        className="rounded-full p-2 text-gray-700 hover:bg-gray-100 transition-colors"
-        onClick={handleZoomIn}
-        title="Zoom in"
-        aria-label="Zoom in"
-      >
-        <TbZoomIn size={20} />
+      <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomin" onClick={handleZoomIn}>
+        Zoom in
       </button>
-      <button 
-        className="rounded-full p-2 text-gray-700 hover:bg-gray-100 transition-colors"
-        onClick={handleZoomOut}
-        title="Zoom out"
-        aria-label="Zoom out"
-      >
-        <TbZoomOut size={20} />
+      <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomout" onClick={handleZoomOut}>
+        Zoom out
       </button>
-      <button 
-        className="rounded-full p-2 text-gray-700 hover:bg-gray-100 transition-colors"
-        onClick={handleResetZoom}
-        title="Reset zoom"
-        aria-label="Reset zoom"
-      >
-        <TbZoomReset size={20} />
+      <button className="rounded-md p-[3px_6px] border border-gray-500 bg-white cursor-pointer transition duration-200 ease-in-out user-select-none flex flex-1 whitespace-nowrap text-center mx-1 hover:bg-green-100" id="zoomreset" onClick={handleResetZoom}>
+        Reset zoom
       </button>
     </div>
   </div>

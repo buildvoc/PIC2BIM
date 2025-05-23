@@ -10,12 +10,6 @@ import CustomPopup from "./CustomPopup";
 import { MapProps, Path, TaskPhotos } from "@/types";
 import classNames from "classnames";
 import axios from "axios";
-
-const MAP_ZOOM_KEY = "mapbox_last_zoom";
-const MAP_CENTER_KEY = "mapbox_last_center";
-const MAP_STYLE_KEY = "mapbox_last_style";
-const MAP_FROM_PHOTO_DETAIL = "map_from_photo_detail";
-
 function Map({
     data,
     onClick,
@@ -29,101 +23,43 @@ function Map({
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const markerRef = useRef<any>([]);
-    const [mapStyle, setMapStyle] = useState(() => {
-        // Try to get saved map style from localStorage
-        const savedStyle = localStorage.getItem(MAP_STYLE_KEY);
-        return savedStyle || "mapbox://styles/mapbox/streets-v11";
-    });
+    const [mapStyle, setMapStyle] = useState(
+        "mapbox://styles/mapbox/streets-v11"
+    );
 
     const mapViewClickHandler = () => {
         setMapStyle("mapbox://styles/mapbox/streets-v11");
-        localStorage.setItem(MAP_STYLE_KEY, "mapbox://styles/mapbox/streets-v11");
     };
 
     const satelliteViewClickHandler = () => {
         setMapStyle("mapbox://styles/mapbox/satellite-v9");
-        localStorage.setItem(MAP_STYLE_KEY, "mapbox://styles/mapbox/satellite-v9");
     };
     const toggleControl = new ToggleControl({
         onMapViewClick: mapViewClickHandler,
         onSatelliteViewClick: satelliteViewClickHandler,
     });
 
-    // Function to save current map position and zoom
-    const saveMapPosition = () => {
-        if (mapRef.current) {
-            try {
-                const zoom = mapRef.current.getZoom();
-                const center = mapRef.current.getCenter();
-                
-                if (zoom && center && center.lng && center.lat) {
-                    localStorage.setItem(MAP_ZOOM_KEY, zoom.toString());
-                    localStorage.setItem(MAP_CENTER_KEY, JSON.stringify([center.lng, center.lat]));
-                    console.log("Saved map position:", [center.lng, center.lat], zoom);
-                }
-            } catch (e) {
-                console.error("Error saving map position", e);
-            }
-        }
-    };
-
     useEffect(() => {
         loadMapBox();
         return () => {
-            saveMapPosition();
             mapRef.current?.remove();
         };
     }, [data, mapStyle]);
 
     const loadMapBox = () => {
         mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-        
-        const savedZoom = localStorage.getItem(MAP_ZOOM_KEY);
-        const savedCenter = localStorage.getItem(MAP_CENTER_KEY);
-        const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
-        
-        if (fromPhotoDetail) {
-            console.log("Returning from photo detail, will use saved position");
-        }
-        
-        let initialCenter: [number, number] = [0.166022, 51.288998];
-        let initialZoom = 2.7;
-        
-        if (fromPhotoDetail && savedCenter && savedZoom) {
-            try {
-                initialCenter = JSON.parse(savedCenter);
-                initialZoom = parseFloat(savedZoom);
-            } catch (e) {
-                console.error("Error parsing saved map position", e);
-            }
-        }
-        
-        console.log("Map init:", initialCenter, initialZoom, "fromPhotoDetail:", fromPhotoDetail);
-        
         mapRef.current = new mapboxgl.Map({
             container: mapContainerRef.current!,
             style: mapStyle,
-            center: initialCenter,
-            zoom: initialZoom,
+            center: [0.166022, 51.288998],
+            zoom: 2.7,
             maxBounds: [
                 [-180, -85],
                 [180, 85],
             ],
         });
-        
-        if (fromPhotoDetail) {
-            setTimeout(() => {
-                console.log("Resetting photo detail flag");
-                localStorage.setItem(MAP_FROM_PHOTO_DETAIL, "false");
-            }, 500);
-        }
-        
         mapRef.current.addControl(toggleControl, "top-left");
         mapRef.current.addControl(new mapboxgl.NavigationControl());
-
-        mapRef.current.on("moveend", () => {
-            saveMapPosition();
-        });
 
         if (paths && data && paths.length > 0 ) {
             const coordintates = paths.map((path: any) => {
@@ -134,15 +70,13 @@ function Map({
                 return coordsArray;
             });
 
-            if (!fromPhotoDetail) {
-                let bounds = calculateBoundingBox(coordintates.flat());
-                if(bounds)
-                mapRef.current.fitBounds(bounds, {
-                    padding: { top: 60, bottom: 60, left: 20, right: 20 },
-                    duration: 0,
-                    linear: true,
-                });
-            }
+            let bounds = calculateBoundingBox(coordintates.flat());
+            if(bounds)
+            mapRef.current.fitBounds(bounds, {
+                padding: { top: 60, bottom: 60, left: 20, right: 20 },
+                duration: 0,
+                linear: true,
+            });
 
             paths?.map((path) => {
                 loadPaths(path);
@@ -158,36 +92,31 @@ function Map({
         onSuddenchange();
 
         mapRef.current?.on("load", () => {
+
             data.forEach((task: TaskPhotos) => {
                 addMarkers(task);
             });
             if (isSelected) {
                 insertMarkers();
             }
-            
-            const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
-            
-            if (!fromPhotoDetail) {
-                if (data.length == 1 && bounds) {
+            if (data.length == 1 && bounds) {
+                mapRef.current?.fitBounds(bounds, {
+                    padding: { top: 60, bottom: 60, left: 20, right: 20 },
+                    duration: 0,
+                    linear: true,
+                    zoom: 16,
+                });
+
+                insertMarkers();
+            } else {
+                if (data.length > 0 && bounds) {
                     mapRef.current?.fitBounds(bounds, {
-                        padding: { top: 60, bottom: 60, left: 20, right: 20 },
+                        padding: { top: 60, bottom: 200, left: 60, right: 60 },
                         duration: 0,
                         linear: true,
-                        zoom: 16,
                     });
-    
-                    insertMarkers();
-                } else {
-                    if (data.length > 0 && bounds) {
-                        mapRef.current?.fitBounds(bounds, {
-                            padding: { top: 60, bottom: 200, left: 60, right: 60 },
-                            duration: 0,
-                            linear: true,
-                        });
-                    }
                 }
             }
-            
             if (isUnassigned) {
                 mapRef.current?.on("moveend", async () => {
                     filterData();
@@ -444,11 +373,6 @@ function Map({
 
     const loadPaths = (path: Path) => {
         mapRef.current?.on("load", () => {
-            // Check if we're coming from photo detail
-            const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
-            
-            // We don't reset the flag here anymore - it's handled in loadMapBox
-            
             const coordinates = path?.points.map((point) => [
                 parseFloat(point.lng.toString()),
                 parseFloat(point.lat.toString()),
