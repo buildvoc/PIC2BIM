@@ -611,7 +611,10 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo.network_info ? 'Online': '-'}</div>
 
                             <div className="text-gray-500 dark:text-gray-400">OSNMA validation</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo.osnma_enabled == "1" ? 'Enabled': 'Photo has not been verified yet'}</div>
+                            {photo.osnma_enabled == "1" ?
+                            <div className="text-right font-medium text-green-700 dark:text-green-200">Enabled</div>:
+                            <div className="text-right font-medium text-red-700 dark:text-red-200">Photo has not been verified yet</div>
+                            }
 
                             {photo.osnma_enabled == "1" && <>
                             <div className="text-gray-500 dark:text-gray-400">Validated satellites</div>
@@ -619,7 +622,10 @@ const Modal_ = ({
                             </>}
 
                             <div className="text-gray-500 dark:text-gray-400"></div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo.osnma_validated == "1" ? 'Photo location is OSNMA validated': 'Photo location is not validated'}</div>
+                            {photo.osnma_validated == "1" ?
+                            <div className="text-right font-medium text-green-700 dark:text-green-200">Photo location is OSNMA validated</div>:
+                            <div className="text-right font-medium text-red-700 dark:text-red-200">Photo location is not validated</div>
+                            }
                         </div>
                     </div>
                 </div>
