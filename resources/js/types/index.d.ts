@@ -190,6 +190,7 @@ export interface GalleryProps{
   setPhotos?:any
   destroy?:(id:string)=>void
   isSplitView?:boolean
+  setFilterPhotos?: void
 }
 
 export interface GalleryModalProps{

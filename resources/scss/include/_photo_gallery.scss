@@ -184,17 +184,20 @@
         border-radius: 4px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
         display: flex;
+        justify-content: center;
+        align-items: center;
         height: 330px;
         overflow: hidden;
         position: relative;
+        cursor: pointer;
         .photo-card-item-image{
             position: relative;
             width: 100%;
             img{
-                left: 0;
-                position: absolute;
-                top: 50%;
-                transform: translateY(-50%);
+                // left: 0;
+                // position: absolute;
+                // top: 50%;
+                // transform: translateY(-50%);
             }
         }
         .photo-card-item-mask{

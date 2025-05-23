@@ -19,6 +19,7 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
+import Filter from "@/Components/PhotoGallery/Filter";
 
 export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     const [selectedTask, setSelectedTask] = useState("");     
@@ -37,9 +38,24 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         split: splitMode ? true : false,
         single: splitMode ? false : true,
     });
+
+
     useEffect(() => {
         loadData();
     }, []);
+    
+    useEffect(() => {
+        const tasks_photos_array: Array<TaskPhotos> = [];
+        for (let item of photo_) {
+            let tasks_photos_data = {
+                farmer_name: `${auth.user.name} ${auth.user.surname}`,
+                photo: item,
+                location: [item?.lng, item?.lat],
+            };
+            tasks_photos_array.push(tasks_photos_data);
+        }
+        set_filter_tasks_photos(tasks_photos_array);
+    }, [photo_]);
 
     function loadData() {
         const tasks_photos_array: Array<TaskPhotos> = [];
@@ -176,6 +192,14 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         setPhotos(withCheckUpdate);
     };
 
+    const exportToPdf = () => {
+        const queryString = new URLSearchParams({
+            unassigned: 'true',
+            total: photos.length.toString()
+        }).toString();
+        const exportUrl = route("pdf_preview") + '?' + queryString;
+        window.open(exportUrl,'_blank')
+    }
 
     const LeftPane = useCallback (({
         photo_,
@@ -212,7 +236,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 </div>
             </div>
         );
-    },[splitView.split]);
+    },[splitView.split, photo_]);
 
 
     const RightPane = useCallback(
@@ -239,7 +263,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 zoomFilter={handleZoomFilter}
                                 isUnassigned={true}
                             />
-                            <div className="flex pt-2 px-2">
+                            {/* <div className="flex pt-2 px-2">
                                 <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
                                     <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
                                         onClick={selectAll}
@@ -285,7 +309,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                         <span>Export Selected To PDF</span>
                                     </button>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 </div>
@@ -332,15 +356,16 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
     return (
         <AuthenticatedLayout
             user={auth.user}
-            header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                    Photo Gallery
-                </h2>
-            }
+            // header={
+            //     <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            //         Photo Gallery
+            //     </h2>
+            // }
             setSplitView={setSplitView}
             splitView={splitView}
         >
             <Head title="Photo gallery" />
+            <Filter exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} chooseTask={chooseTask} />
             <BackButton label="Back" className="" />
             <div className="flex flex-wrap ">
                 {splitView.split ? (
