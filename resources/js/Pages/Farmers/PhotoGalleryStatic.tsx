@@ -365,7 +365,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
         >
             <Head title="Photo gallery" />
             {/*<BackButton label="Back" className="" />*/}
-            <Filter isPhotoMap={isPhotoMap} setPhotoMap={() => setPhotoMap(prev => !prev)} />
+            {/* <Filter isPhotoMap={isPhotoMap} setPhotoMap={() => setPhotoMap(prev => !prev)} /> */}
             <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>
