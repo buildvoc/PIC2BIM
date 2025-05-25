@@ -6,8 +6,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
+
 
 class PhotoGalleryController extends Controller
 {

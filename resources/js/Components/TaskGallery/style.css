@@ -37,3 +37,46 @@
     width: 30px;
     cursor: pointer;
   }
+
+/* Add styles for split view mode */
+.split-view-mode {
+    padding: 0.5rem;
+}
+
+.split-view-mode .slider-container {
+    padding: 0 1rem;
+}
+
+.split-view-slider .slick-slide {
+    padding: 0 5px;
+}
+
+.split-view-item {
+    margin: 0.25rem;
+    padding: 0.5rem;
+}
+
+.split-view-image-container {
+    aspect-ratio: 1/1;
+}
+
+/* Make buttons smaller in split view mode */
+.split-view-buttons {
+    gap: 0.5rem;
+    padding: 0.25rem;
+}
+
+.split-view-buttons svg {
+    font-size: 1rem;
+}
+
+/* Responsive adjustments for split view */
+@media (max-width: 1024px) {
+    .split-view-mode {
+        padding: 0.25rem;
+    }
+    
+    .split-view-mode .slider-container {
+        padding: 0 0.5rem;
+    }
+}

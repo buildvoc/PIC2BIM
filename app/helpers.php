@@ -746,7 +746,7 @@ function deleteSelectedUnassignedPhoto(array $uids)
     return $affectedRows;
 }
 
-function getPhotosWithoutTask($user_id)
+function getPhotosWithoutTask($user_id, $paginate = false)
 {
     $photos = Photo
         ::select([
@@ -803,11 +803,11 @@ function getPhotosWithoutTask($user_id)
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
-        ->whereNull('task_id')
-        ->get();
+        ->whereNull('task_id');
 
+    if($paginate) $photos = $photos->paginate(10);
+    else $photos = $photos->get();
     $output = [];
-
     foreach ($photos as $photo) {
         $photoData = [
             'altitude' => $photo->altitude,
@@ -871,11 +871,11 @@ function getPhotosWithoutTask($user_id)
         $photoData['verified'] = $photoVerificationData['verified'];
 
 
-
+        $photo = $photoData;
         $output[] = $photoData;
     }
     
-    return $output;
+    return $photos;
 }
 
 
