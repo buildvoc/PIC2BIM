@@ -1,25 +1,12 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import { PageProps, Photo } from '@/types';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps, Photo } from '@/types';
 import { DeckGL } from '@deck.gl/react';
 import { GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
-import { createRoot } from 'react-dom/client';
 import { Protocol } from 'pmtiles';
+import { createRoot } from 'react-dom/client';
+import maplibregl from 'maplibre-gl';
 
-type FeatureProperties = {
-  name?: string;
-  description?: string;
-  height?: number;
-  absoluteheightminimum?: number;
-  absoluteheightroofbase?: number;
-  absoluteheightmaximum?: number;
-  [key: string]: any;
-};
-
-// Define the view state type
 interface ViewState {
   longitude: number;
   latitude: number;
@@ -43,13 +30,124 @@ interface PhotoInfo {
   processed?: boolean;
 }
 
+interface HeightMeasurements {
+  absoluteMax: number;
+  absoluteRoofbase: number;
+  absoluteMin: number;
+  relativeMax: number;
+  relativeRoofbase: number;
+  roofHeight: number;
+}
+
+const ALTITUDE_CLASSIFICATION = {
+  LOWLAND: { max: 200, factor: 1.0 },
+  MIDLAND: { max: 500, factor: 1.2 },
+  HIGHLAND: { min: 501, factor: 1.5 }
+};
+
+const getAltitudeFactor = (altitude: number) => {
+  if (altitude <= ALTITUDE_CLASSIFICATION.LOWLAND.max) {
+    return ALTITUDE_CLASSIFICATION.LOWLAND.factor;
+  } else if (altitude <= ALTITUDE_CLASSIFICATION.MIDLAND.max) {
+    return ALTITUDE_CLASSIFICATION.MIDLAND.factor;
+  } else {
+    return ALTITUDE_CLASSIFICATION.HIGHLAND.factor;
+  }
+};
+
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+const calculateHeightMeasurements = (feature: any): HeightMeasurements => {
+  const absoluteMax = toNumber(feature.properties?.absoluteheightmaximum);
+  const absoluteRoofbase = toNumber(feature.properties?.absoluteheightroofbase);
+  const absoluteMin = toNumber(feature.properties?.absoluteheightminimum);
+  
+  const relativeMax = Math.max(0, absoluteMax - absoluteMin);
+  const relativeRoofbase = Math.max(0, absoluteRoofbase - absoluteMin);
+  const roofHeight = Math.max(0, absoluteMax - absoluteRoofbase);
+  
+  return {
+    absoluteMax,
+    absoluteRoofbase,
+    absoluteMin,
+    relativeMax,
+    relativeRoofbase,
+    roofHeight
+  };
+};
+
+const simplifyPolygon = (coordinates: number[][], tolerance: number = 0.00001): number[][] => {
+  if (coordinates.length <= 2) return coordinates;
+  if (coordinates.length < 50) return coordinates;
+  
+  const findFurthestPoint = (start: number, end: number): { index: number, distance: number } => {
+    let maxDistance = 0;
+    let maxIndex = 0;
+    
+    const [x1, y1] = coordinates[start];
+    const [x2, y2] = coordinates[end];
+    
+    const a = y2 - y1;
+    const b = x1 - x2;
+    const c = x2 * y1 - x1 * y2;
+    const lineLengthSq = a * a + b * b;
+    
+    if (lineLengthSq < 1e-10) return { index: start, distance: 0 };
+    
+    for (let i = start + 1; i < end; i++) {
+      const [x, y] = coordinates[i];
+      const distance = Math.abs(a * x + b * y + c) / Math.sqrt(lineLengthSq);
+      
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        maxIndex = i;
+      }
+    }
+    
+    return { index: maxIndex, distance: maxDistance };
+  };
+  
+  const simplifySegment = (start: number, end: number, result: Set<number>) => {
+    if (end - start <= 1) return;
+    
+    const { index, distance } = findFurthestPoint(start, end);
+    
+    if (distance > tolerance) {
+      if (index - start > 1) simplifySegment(start, index, result);
+      result.add(index);
+      if (end - index > 1) simplifySegment(index, end, result);
+    }
+  };
+  
+  const pointSet = new Set<number>([0, coordinates.length - 1]);
+  
+  if (coordinates.length > 1000) {
+    const step = Math.max(1, Math.floor(coordinates.length / 500));
+    for (let i = 0; i < coordinates.length; i += step) {
+      pointSet.add(i);
+    }
+  } else {
+    simplifySegment(0, coordinates.length - 1, pointSet);
+  }
+  
+  return Array.from(pointSet)
+    .sort((a, b) => a - b)
+    .map(index => coordinates[index]);
+};
+
 interface PhotoMarkerProps {
   photo: PhotoInfo;
   onClick: (id: number) => void;
   isSelected: boolean;
 }
 
-// Custom Photo Marker Component
 const PhotoMarker: React.FC<PhotoMarkerProps> = ({ photo, onClick, isSelected }) => {
   return (
     <div style={{ cursor: 'pointer' }} onClick={() => onClick(photo.id)}>
@@ -123,254 +221,9 @@ const PhotoMarker: React.FC<PhotoMarkerProps> = ({ photo, onClick, isSelected })
   );
 };
 
-// Enhanced fetchBuilding function with better timeout handling and caching
-const fetchBuilding = async (lat: number, lon: number, camDirection: number, camAltitude: number = 0, retryCount = 0) => {
-  let lng = lon;
-  if (lng > 0) lng = -Math.abs(lng);
-
-  // Generate a cache key based on coordinates and direction
-  const cacheKey = `bldg_${lat.toFixed(6)}_${lng.toFixed(6)}_${camDirection.toFixed(1)}`;
-  
-  // Check if we have this result in sessionStorage
-  const cachedResult = sessionStorage.getItem(cacheKey);
-  if (cachedResult) {
-    try {
-      const parsed = JSON.parse(cachedResult);
-      console.log(`Using cached building data for ${lat},${lng}`);
-      return parsed;
-    } catch (e) {
-      console.error("Failed to parse cached data:", e);
-      sessionStorage.removeItem(cacheKey);
-      // Continue with normal fetch
-    }
-  }
-
-  // Add timeout to prevent hanging requests - increased to 20 seconds
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
-
-  try {
-    // Log the request to help with debugging
-    console.log(`Fetching building data for ${lat},${lng} with direction ${camDirection}`);
-    
-    const response = await fetch(
-      `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${camDirection}`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-
-    // Always return a valid response structure, even if no building parts were found
-    const result = {
-      success: true,
-      geojson: data.data?.building_part?.length > 0 && data.data.building_part[0]?.geojson 
-        ? data.data.building_part[0].geojson 
-        : { type: 'FeatureCollection', features: [] },
-      cameraGPSData: [
-        {
-          coordinates: [lng, lat, camAltitude],
-          bearing: camDirection,
-          altitude: camAltitude,
-        },
-      ],
-      hasBuildings: !!(data.data?.building_part?.length > 0 && data.data.building_part[0]?.geojson)
-    };
-    
-    // Cache the successful response in sessionStorage
-    try {
-      sessionStorage.setItem(cacheKey, JSON.stringify(result));
-    } catch (e) {
-      console.warn("Failed to cache building data:", e);
-      // Non-critical error, continue without caching
-    }
-    
-    return result;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    
-    // Handle timeout or network errors with retry logic
-    if ((err as Error).name === 'AbortError') {
-      console.log(`Request timed out for photo at ${lat},${lng}`);
-      
-      // Retry logic - attempt up to 2 retries
-      if (retryCount < 2) {
-        console.log(`Retrying request (attempt ${retryCount + 1}/2)...`);
-        // Wait for 1 second before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return fetchBuilding(lat, lon, camDirection, camAltitude, retryCount + 1);
-      }
-    }
-    throw err;
-  }
-};
-
-// Debounce function to prevent excessive calls
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  return function(...args: Parameters<T>): void {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
-// Improved polygon simplification for better performance
-const simplifyPolygon = (coordinates: number[][], tolerance: number = 0.00001): number[][] => {
-  if (coordinates.length <= 2) return coordinates;
-  
-  // Check if the polygon is complex enough to warrant simplification
-  // This avoids unnecessary processing for simple polygons
-  if (coordinates.length < 50) return coordinates;
-  
-  // Find the point with the maximum distance from line between start and end
-  const findFurthestPoint = (start: number, end: number): { index: number, distance: number } => {
-    let maxDistance = 0;
-    let maxIndex = 0;
-    
-    const [x1, y1] = coordinates[start];
-    const [x2, y2] = coordinates[end];
-    
-    // Line equation coefficients: ax + by + c = 0
-    const a = y2 - y1;
-    const b = x1 - x2;
-    const c = x2 * y1 - x1 * y2;
-    const lineLengthSq = a * a + b * b;
-    
-    // Skip processing if line length is near zero to avoid division by zero
-    if (lineLengthSq < 1e-10) return { index: start, distance: 0 };
-    
-    for (let i = start + 1; i < end; i++) {
-      const [x, y] = coordinates[i];
-      // Distance from point to line
-      const distance = Math.abs(a * x + b * y + c) / Math.sqrt(lineLengthSq);
-      
-      if (distance > maxDistance) {
-        maxDistance = distance;
-        maxIndex = i;
-      }
-    }
-    
-    return { index: maxIndex, distance: maxDistance };
-  };
-  
-  // Recursive simplification with reduced recursion depth
-  const simplifySegment = (start: number, end: number, result: Set<number>) => {
-    // Base case: segment is too short
-    if (end - start <= 1) return;
-    
-    const { index, distance } = findFurthestPoint(start, end);
-    
-    if (distance > tolerance) {
-      // Point is far enough, keep it and recursively process segments
-      // Use smaller segments to reduce stack depth
-      if (index - start > 1) simplifySegment(start, index, result);
-      result.add(index);
-      if (end - index > 1) simplifySegment(index, end, result);
-    }
-    // If not far enough, we don't include intermediate points
-  };
-  
-  // Collect points to keep
-  const pointSet = new Set<number>([0, coordinates.length - 1]);
-  
-  // Use a non-recursive approach for very large polygons to avoid stack overflow
-  if (coordinates.length > 1000) {
-    // Simple distance-based decimation for very large polygons
-    const step = Math.max(1, Math.floor(coordinates.length / 500)); // Keep around 500 points
-    for (let i = 0; i < coordinates.length; i += step) {
-      pointSet.add(i);
-    }
-  } else {
-    // Use recursive approach for moderate-sized polygons
-    simplifySegment(0, coordinates.length - 1, pointSet);
-  }
-  
-  // Convert back to sorted array of coordinates
-  return Array.from(pointSet)
-    .sort((a, b) => a - b)
-    .map(index => coordinates[index]);
-};
-
-// Add altitude classification constants
-const ALTITUDE_CLASSIFICATION = {
-  LOWLAND: { max: 200, factor: 1.0 },    // 0-200m: normal extrusion
-  MIDLAND: { max: 500, factor: 1.2 },    // 201-500m: 20% more extrusion
-  HIGHLAND: { min: 501, factor: 1.5 }    // >500m: 50% more extrusion
-};
-
-// Add function to get altitude classification
-const getAltitudeClassification = (altitude: number) => {
-  if (altitude <= ALTITUDE_CLASSIFICATION.LOWLAND.max) {
-    return 'lowland';
-  } else if (altitude <= ALTITUDE_CLASSIFICATION.MIDLAND.max) {
-    return 'midland';
-  } else {
-    return 'highland';
-  }
-};
-
-// Add function to calculate altitude factor
-const getAltitudeFactor = (altitude: number) => {
-  if (altitude <= ALTITUDE_CLASSIFICATION.LOWLAND.max) {
-    return ALTITUDE_CLASSIFICATION.LOWLAND.factor;
-  } else if (altitude <= ALTITUDE_CLASSIFICATION.MIDLAND.max) {
-    return ALTITUDE_CLASSIFICATION.MIDLAND.factor;
-  } else {
-    return ALTITUDE_CLASSIFICATION.HIGHLAND.factor;
-  }
-};
-
-// Add height calculation types and interfaces
-interface HeightMeasurements {
-  absoluteMax: number;    // Height above sea level (MASL)
-  absoluteRoofbase: number;
-  absoluteMin: number;
-  relativeMax: number;    // Total building height
-  relativeRoofbase: number;
-  roofHeight: number;     // Height of roof only
-}
-
-// Function to safely convert to number
-const toNumber = (value: any): number => {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-};
-
-// Function to calculate height measurements
-const calculateHeightMeasurements = (feature: any): HeightMeasurements => {
-  // Safely convert all height values to numbers
-  const absoluteMax = toNumber(feature.properties?.absoluteheightmaximum);
-  const absoluteRoofbase = toNumber(feature.properties?.absoluteheightroofbase);
-  const absoluteMin = toNumber(feature.properties?.absoluteheightminimum);
-  
-  // Calculate relative heights
-  const relativeMax = Math.max(0, absoluteMax - absoluteMin);
-  const relativeRoofbase = Math.max(0, absoluteRoofbase - absoluteMin);
-  const roofHeight = Math.max(0, absoluteMax - absoluteRoofbase);
-  
-  return {
-    absoluteMax,
-    absoluteRoofbase,
-    absoluteMin,
-    relativeMax,
-    relativeRoofbase,
-    roofHeight
-  };
-};
-
-export default function Index({ auth, photos }: PageProps) {
+const BuildingAttributes = ({ auth, photos }: PageProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markerRef = useRef<maplibregl.Marker[]>([]);
+  const map = useRef<any>(null);
   const [viewState, setViewState] = useState<ViewState>({
     longitude: -0.7982,
     latitude: 51.2144,
@@ -384,61 +237,96 @@ export default function Index({ auth, photos }: PageProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingCount, setLoadingCount] = useState<number>(0);
-  const [metrics, setMetrics] = useState<{
-    totalRequests: number;
-    successfulRequests: number;
-    failedRequests: number;
-    averageLoadTime: number;
-    totalLoadTime: number;
-  }>({
-    totalRequests: 0,
-    successfulRequests: 0,
-    failedRequests: 0,
-    averageLoadTime: 0,
-    totalLoadTime: 0
-  });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(0);
-  const mapAreaRef = useRef<HTMLDivElement>(null);
+  const markerRef = useRef<maplibregl.Marker[]>([]);
 
-  // Process photos from props directly
-  useEffect(() => {
-    if (!photos || !Array.isArray(photos) || photos.length === 0) {
-      setError('No photos available');
-      return;
-    }
+  const fetchBuilding = async (lat: number, lon: number, camDirection: number, camAltitude: number = 0, retryCount = 0) => {
+    let lng = lon;
+    if (lng > 0) lng = -Math.abs(lng);
 
-    // Process all photos
-    const photoInfosArray = photos.map((photo: Photo) => ({
-      id: photo.id,
-      lat: typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat,
-      lng: typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng, 
-      altitude: typeof photo.altitude === 'string' ? parseFloat(photo.altitude || '0') : (photo.altitude || 0),
-      heading: typeof photo.photo_heading === 'string' ? parseFloat(photo.photo_heading || '0') : (photo.photo_heading || 0),
-      link: photo.link || undefined,
-      isLoading: false,
-      cameraGPSData: undefined,
-      error: undefined,
-      noBuildings: false,
-      processed: false
-    }));
-
-    setPhotoInfos(photoInfosArray);
+    const cacheKey = `bldg_${lat.toFixed(6)}_${lng.toFixed(6)}_${camDirection.toFixed(1)}`;
     
-    // Update view state to center on the first photo
-    if (photoInfosArray.length > 0) {
-      setViewState({
-        ...viewState,
-        longitude: photoInfosArray[0].lng,
-        latitude: photoInfosArray[0].lat
-      });
-      
-      // Auto-select the first photo
-      setSelectedPhotoId(photoInfosArray[0].id);
+    const cachedResult = sessionStorage.getItem(cacheKey);
+    if (cachedResult) {
+      try {
+        const parsed = JSON.parse(cachedResult);
+        console.log(`Using cached building data for ${lat},${lng}`);
+        return parsed;
+      } catch (e) {
+        console.error("Failed to parse cached data:", e);
+        sessionStorage.removeItem(cacheKey);
+      }
     }
-  }, [photos]);
 
-  // Function to fetch building data for a single photo
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    try {
+      console.log(`Fetching building data for ${lat},${lng} with direction ${camDirection}`);
+      
+      const response = await fetch(
+        `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${camDirection}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+
+      const result = {
+        success: true,
+        geojson: data.data?.building_part?.length > 0 && data.data.building_part[0]?.geojson 
+          ? data.data.building_part[0].geojson 
+          : { type: 'FeatureCollection', features: [] },
+        cameraGPSData: [
+          {
+            coordinates: [lng, lat, camAltitude],
+            bearing: camDirection,
+            altitude: camAltitude,
+          },
+        ],
+        hasBuildings: !!(data.data?.building_part?.length > 0 && data.data.building_part[0]?.geojson)
+      };
+      
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+      } catch (e) {
+        console.warn("Failed to cache building data:", e);
+      }
+      
+      return result;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      
+      if ((err as Error).name === 'AbortError') {
+        console.log(`Request timed out for photo at ${lat},${lng}`);
+        
+        if (retryCount < 2) {
+          console.log(`Retrying request (attempt ${retryCount + 1}/2)...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return fetchBuilding(lat, lon, camDirection, camAltitude, retryCount + 1);
+        }
+      }
+      throw err;
+    }
+  };
+
+  const getCachedElevation = (lng: number, lat: number): number | null => {
+    const cacheKey = `elev_${lng.toFixed(6)}_${lat.toFixed(6)}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      return parseFloat(cached);
+    }
+    return null;
+  };
+  
+  const setCachedElevation = (lng: number, lat: number, elevation: number) => {
+    const cacheKey = `elev_${lng.toFixed(6)}_${lat.toFixed(6)}`;
+    sessionStorage.setItem(cacheKey, elevation.toString());
+  };
+
   const fetchBuildingForPhoto = useCallback(async (photoId: number) => {
     const photoIndex = photoInfos.findIndex(p => p.id === photoId);
     if (photoIndex === -1) return;
@@ -446,11 +334,9 @@ export default function Index({ auth, photos }: PageProps) {
     const photo = photoInfos[photoIndex];
     if (photo.buildingFeatures || photo.isLoading) return;
     
-    // Start measuring the load time
     const startTime = performance.now();
     
     try {
-      // Mark this photo as loading
       setPhotoInfos(prev => {
         const updated = [...prev];
         updated[photoIndex] = { ...updated[photoIndex], isLoading: true, error: undefined };
@@ -459,12 +345,6 @@ export default function Index({ auth, photos }: PageProps) {
       
       setLoadingCount(prev => prev + 1);
       
-      // Update metrics for new request
-      setMetrics(prev => ({
-        ...prev,
-        totalRequests: prev.totalRequests + 1
-      }));
-      
       const data = await fetchBuilding(
         photo.lat,
         photo.lng,
@@ -472,7 +352,6 @@ export default function Index({ auth, photos }: PageProps) {
         photo.altitude
       );
       
-      // Calculate load time
       const loadTime = performance.now() - startTime;
       
       const features: any[] = [];
@@ -480,14 +359,12 @@ export default function Index({ auth, photos }: PageProps) {
       if (data.geojson.features && Array.isArray(data.geojson.features)) {
         data.geojson.features.forEach((feature: any) => {
           if (feature.geometry && feature.geometry.coordinates) {
-            // Check if we should simplify the polygon (only for very complex polygons)
             let processedCoordinates = feature.geometry.coordinates;
             if (feature.geometry.type === 'Polygon') {
               const coordCount = feature.geometry.coordinates.reduce(
                 (sum: number, ring: number[][]) => sum + ring.length, 0
               );
               
-              // If the polygon has many points, simplify it
               if (coordCount > 100) {
                 processedCoordinates = feature.geometry.coordinates.map(
                   (ring: number[][]) => simplifyPolygon(ring, 0.00001)
@@ -516,7 +393,6 @@ export default function Index({ auth, photos }: PageProps) {
         });
       }
       
-      // Mark the photo as successfully processed, even if no buildings were found
       setPhotoInfos(prev => {
         const updated = [...prev];
         updated[photoIndex] = {
@@ -526,21 +402,9 @@ export default function Index({ auth, photos }: PageProps) {
           cameraGPSData: data.cameraGPSData,
           error: undefined,
           noBuildings: features.length === 0,
-          processed: true // Mark as processed regardless of building data availability
+          processed: true
         };
         return updated;
-      });
-      
-      // Update metrics for successful request
-      setMetrics(prev => {
-        const newTotalLoadTime = prev.totalLoadTime + loadTime;
-        const newSuccessfulRequests = prev.successfulRequests + 1;
-        return {
-          ...prev,
-          successfulRequests: newSuccessfulRequests,
-          totalLoadTime: newTotalLoadTime,
-          averageLoadTime: newTotalLoadTime / newSuccessfulRequests
-        };
       });
       
       if (features.length > 0) {
@@ -549,7 +413,6 @@ export default function Index({ auth, photos }: PageProps) {
         console.log(`No building features found for photo ${photo.id}, but request was successful (${loadTime.toFixed(0)}ms)`);
       }
     } catch (err) {
-      // Calculate load time even for failed requests
       const loadTime = performance.now() - startTime;
       
       console.error(`Error fetching building data for photo ${photo.id}:`, err);
@@ -564,19 +427,44 @@ export default function Index({ auth, photos }: PageProps) {
         };
         return updated;
       });
-      
-      // Update metrics for failed request
-      setMetrics(prev => ({
-        ...prev,
-        failedRequests: prev.failedRequests + 1,
-        totalLoadTime: prev.totalLoadTime + loadTime
-      }));
     } finally {
       setLoadingCount(prev => prev - 1);
     }
   }, [photoInfos]);
 
-  // Fetch building data when a photo is selected
+  useEffect(() => {
+    if (!photos || !Array.isArray(photos) || photos.length === 0) {
+      setError('No photos available');
+      return;
+    }
+
+    const photoInfosArray = photos.map((photo: Photo) => ({
+      id: photo.id,
+      lat: typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat,
+      lng: typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng, 
+      altitude: typeof photo.altitude === 'string' ? parseFloat(photo.altitude || '0') : (photo.altitude || 0),
+      heading: typeof photo.photo_heading === 'string' ? parseFloat(photo.photo_heading || '0') : (photo.photo_heading || 0),
+      link: photo.link || undefined,
+      isLoading: false,
+      cameraGPSData: undefined,
+      error: undefined,
+      noBuildings: false,
+      processed: false
+    }));
+
+    setPhotoInfos(photoInfosArray);
+    
+    if (photoInfosArray.length > 0) {
+      setViewState({
+        ...viewState,
+        longitude: photoInfosArray[0].lng,
+        latitude: photoInfosArray[0].lat
+      });
+      
+      setSelectedPhotoId(photoInfosArray[0].id);
+    }
+  }, [photos]);
+
   useEffect(() => {
     if (selectedPhotoId === null) return;
     
@@ -586,29 +474,22 @@ export default function Index({ auth, photos }: PageProps) {
     fetchBuildingForPhoto(selectedPhotoId);
   }, [selectedPhotoId, photoInfos, fetchBuildingForPhoto]);
 
-  // Update loading state based on loading count
   useEffect(() => {
     setLoading(loadingCount > 0);
   }, [loadingCount]);
 
-  // Create deck.gl layers for 3D buildings (only for selected photo)
   useEffect(() => {
-    // Create layers based on selected photo
     const createLayers = () => {
       const newLayers: any[] = [];
       
       if (!selectedPhotoId) return newLayers;
       
-      // Only display buildings for selected photo to improve performance
       const selectedPhoto = photoInfos.find(photo => photo.id === selectedPhotoId);
       
       if (selectedPhoto?.buildingFeatures && selectedPhoto.buildingFeatures.length > 0) {
-        // Get altitude classification and factor
         const altitude = selectedPhoto.altitude || 0;
-        const altitudeClass = getAltitudeClassification(altitude);
         const altitudeFactor = getAltitudeFactor(altitude);
         
-        // Add a base GeoJSON layer for ground outlines
         const groundLayer = new GeoJsonLayer({
           id: `ground-layer`,
           data: {
@@ -628,29 +509,66 @@ export default function Index({ auth, photos }: PageProps) {
         });
         newLayers.push(groundLayer);
         
-        // Create extruded polygon layers for each building feature
         selectedPhoto.buildingFeatures.forEach((feature: any, index: number) => {
           if (!feature.properties) return;
           
-          // Calculate all height measurements
           const heights = calculateHeightMeasurements(feature);
           
-          // Apply altitude factor to relative heights
           const baseExtrusion = heights.relativeRoofbase * altitudeFactor;
           const roofExtrusion = heights.roofHeight * altitudeFactor;
           
-          // Base to roof base (Part A)
-          if (heights.relativeRoofbase > 0 && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
+          const buildingDataCopy = [...feature.geometry.coordinates[0]];
+          console.log("building", buildingDataCopy)
+          
+          if (heights.relativeRoofbase > 0) {
+            const baseCoords = buildingDataCopy.map((item: any) => {
+              const [lng, lat] = item;
+              console.log(photos)
+
+              let elevation = getCachedElevation(lng, lat);
+              
+              if (elevation === null) {
+                // If not in cache, get from map with retry
+                let retryCount = 0;
+                const maxRetries = 5;
+                
+                const getElevation = () => {
+                  const lngLat = new (window as any).maplibregl.LngLat(lng, lat);
+                  // console.log("sas",lngLat);
+                  elevation = map.current.queryTerrainElevation(lngLat) || 0;
+                  console.log("elevation 1", elevation);
+                  if (elevation === 0 && retryCount < maxRetries) {
+                    retryCount++;
+                    console.log(`Retrying elevation query for ${lng},${lat} (attempt ${retryCount})`);
+                    setTimeout(getElevation, 500);
+                  } else {
+                    console.log("Final roof elevation at", lng, lat, ":", elevation);
+                    // Cache the elevation value
+                    if (elevation !== 0) {
+                      setCachedElevation(lng, lat, elevation);
+                    }
+                  }
+                };
+                
+                getElevation();
+              } else {
+                console.log("Using cached roof elevation at", lng, lat, ":", elevation);
+              }
+
+              const finalElevation = heights.absoluteMin - elevation;
+              console.log("elevation", finalElevation)
+              // const elevationHeight = heights.absoluteMin - map.current.queryTerrainElevation(lngLat);
+              return [lng, lat, finalElevation];
+            });
+
             const partAData = {
-              contour: feature.geometry.coordinates[0],
-              baseHeight: heights.absoluteMin,
+              contour: baseCoords,
               height: baseExtrusion,
               color: [249, 180, 45, 200],
               name: feature.properties.description || `Building ${index + 1}`,
               info: `
                 Base to Roof Base: ${heights.absoluteMin.toFixed(2)}m to ${heights.absoluteRoofbase.toFixed(2)}m
                 Relative Height: ${heights.relativeRoofbase.toFixed(2)}m
-                Area: ${altitudeClass}
               `
             };
             
@@ -666,27 +584,61 @@ export default function Index({ auth, photos }: PageProps) {
               pickable: true,
               elevationScale: 1,
               getElevation: (d: any) => d.height,
-              getPosition: (d: any) => [0, 0, d.baseHeight],
+              getPosition: (d: any) => [0, 0, 0],
               updateTriggers: {
                 getElevation: (d: any) => d.height,
-                getPosition: (d: any) => [0, 0, d.baseHeight]
+                getPosition: (d: any) => [0, 0, 0]
               }
             });
             newLayers.push(partALayer);
           }
           
-          // Roof base to max height (Part B)
-          if (heights.roofHeight > 0 && feature.geometry && feature.geometry.coordinates && feature.geometry.coordinates[0]) {
+          if (heights.roofHeight > 0) {
+            const roofCoords = buildingDataCopy.map((item: any) => {
+              const [lng, lat] = item;
+              let elevation = getCachedElevation(lng, lat);
+              
+              if (elevation === null) {
+                // If not in cache, get from map with retry
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                const getElevation = () => {
+                  console.log("latlong",[lng, lat] )
+                  elevation = map.current?.queryTerrainElevation?.([lng, lat]) || 0;
+                  console.log("elevation 1", elevation);
+                  if (elevation === 0 && retryCount < maxRetries) {
+                    retryCount++;
+                    console.log(`Retrying elevation query for ${lng},${lat} (attempt ${retryCount})`);
+                    setTimeout(getElevation, 500);
+                  } else {
+                    console.log("Final roof elevation at", lng, lat, ":", elevation);
+                    // Cache the elevation value
+                    if (elevation !== 0) {
+                      setCachedElevation(lng, lat, elevation);
+                    }
+                  }
+                };
+                
+                getElevation();
+              } else {
+                console.log("Using cached roof elevation at", lng, lat, ":", elevation);
+              }
+
+              const finalElevation = heights.absoluteRoofbase - elevation;
+
+              return [lng, lat, finalElevation];
+            });
+            
             const partBData = {
-              contour: feature.geometry.coordinates[0],
-              baseHeight: heights.absoluteRoofbase,
+              contour: roofCoords,
+              baseHeight: baseExtrusion,
               height: roofExtrusion,
               color: [66, 135, 245, 200],
               name: feature.properties.description || `Building ${index + 1}`,
               info: `
                 Roof Base to Max: ${heights.absoluteRoofbase.toFixed(2)}m to ${heights.absoluteMax.toFixed(2)}m
                 Roof Height: ${heights.roofHeight.toFixed(2)}m
-                Area: ${altitudeClass}
               `
             };
             
@@ -716,17 +668,14 @@ export default function Index({ auth, photos }: PageProps) {
       return newLayers;
     };
     
-    // Update the view when selected photo changes
     if (selectedPhotoId) {
       const selectedPhoto = photoInfos.find(photo => photo.id === selectedPhotoId);
       
       if (selectedPhoto && map.current) {
-        // If we have camera GPS data, use that for better positioning
         if (selectedPhoto.cameraGPSData && selectedPhoto.cameraGPSData.length > 0) {
           const camera = selectedPhoto.cameraGPSData[0];
           const bearing = camera.bearing || 0;
           
-          // Update view state with camera position and bearing
           setViewState({
             longitude: selectedPhoto.lng,
             latitude: selectedPhoto.lat,
@@ -735,7 +684,6 @@ export default function Index({ auth, photos }: PageProps) {
             bearing: bearing
           });
           
-          // Fly to this location with proper bearing
           map.current.flyTo({
             center: [selectedPhoto.lng, selectedPhoto.lat],
             zoom: 17.5,
@@ -750,209 +698,16 @@ export default function Index({ auth, photos }: PageProps) {
     setLayers(createLayers());
   }, [photoInfos, selectedPhotoId, map]);
 
-  // Initialize MapLibre map and add custom photo markers
-  useEffect(() => {
-    const initializeMap = () => {
-      if (mapContainer.current && !map.current) {
-        // Add PMTiles protocol
-        const protocol = new Protocol();
-        maplibregl.addProtocol('pmtiles', protocol.tile);
-        const PMTILES_URL = 'https://pic2bim.co.uk/output.pmtiles'; // Use the PMTiles file in your public directory
-        
-        const mapInstance = new maplibregl.Map({
-          style: 'https://tiles.openfreemap.org/styles/liberty',
-          container: mapContainer.current,
-          center: [viewState.longitude, viewState.latitude],
-          zoom: viewState.zoom,
-          pitch: viewState.pitch,
-          bearing: viewState.bearing,
-          maxPitch: 85,
-          maxZoom: 20
-        });
-        
-        map.current = mapInstance;
-        
-        mapInstance.on('load', () => {
-          // Add terrain sources and setup
-          mapInstance.addSource('terrainSource', {
-            type: "raster-dem",
-            url: "pmtiles://" + PMTILES_URL,
-            tileSize: 256
-          });
-          
-          mapInstance.addSource('hillshadeSource', {
-            type: "raster-dem",
-            url: "pmtiles://" + PMTILES_URL,
-            tileSize: 256,
-          });
-          
-          mapInstance.setTerrain({
-            source: "terrainSource",
-            exaggeration: 1
-          });
-          
-          mapInstance.addLayer({
-            id: 'hillshadeLayer',
-            type: 'hillshade',
-            source: 'terrainSource',
-            paint: {
-              'hillshade-shadow-color': '#000000', 
-              'hillshade-highlight-color': '#ffffff',
-              'hillshade-accent-color': '#888888'
-            }
-          });
-          
-          // Add navigation controls
-          mapInstance.addControl(
-            new maplibregl.NavigationControl({
-              visualizePitch: true,
-              showZoom: true,
-              showCompass: true,
-            })
-          );
-          
-          // Add terrain control
-          mapInstance.addControl(
-            new maplibregl.TerrainControl({
-              source: "terrainSource",
-              exaggeration: 1
-            })
-          );
-          
-          // Add custom photo markers
-          addPhotoMarkers();
-        });
-
-        // Debounce view state updates to improve performance
-        const debouncedSetViewState = debounce(
-          (newViewState: ViewState) => setViewState(newViewState),
-          100
-        );
-
-        // Sync deck.gl viewState with maplibre
-        mapInstance.on('move', () => {
-          const { lng, lat } = mapInstance.getCenter();
-          debouncedSetViewState({
-            longitude: lng,
-            latitude: lat,
-            zoom: mapInstance.getZoom(),
-            pitch: mapInstance.getPitch(),
-            bearing: mapInstance.getBearing()
-          });
-        });
-      }
-    };
-    
-    initializeMap();
-    
-    // Cleanup function
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, []);
-  
-  // Add custom photo markers when photoInfos changes
-  useEffect(() => {
-    if (map.current && photoInfos.length > 0) {
-      addPhotoMarkers();
-    }
-  }, [photoInfos, selectedPhotoId]); // Added selectedPhotoId as dependency to update marker style
-  
-  // Function to add photo markers to the map
-  const addPhotoMarkers = () => {
-    // Clear previous markers
-    markerRef.current.forEach(marker => marker.remove());
-    markerRef.current = [];
-    
-    // Add markers for each photo
-    photoInfos.forEach(photo => {
-      const markerElement = document.createElement('div');
-      const root = createRoot(markerElement);
-      
-      // Render custom photo marker component
-      root.render(
-        <PhotoMarker 
-          photo={photo} 
-          onClick={(id) => handlePhotoSelect(id)} 
-          isSelected={photo.id === selectedPhotoId} 
-        />
-      );
-      
-      // Create a clickable popup with photo info
-      const popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 25,
-        className: 'photo-popup'
-      }).setHTML(`
-        <div style="text-align: center; padding: 5px;">
-          <div style="font-weight: bold;">Photo ID: ${photo.id}</div>
-          ${photo.buildingFeatures && photo.buildingFeatures.length > 0 ? 
-            `<div style="color: green; font-size: 11px;">Buildings found</div>` : 
-            photo.processed ? 
-              `<div style="color: orange; font-size: 11px;">Processed, no buildings</div>` : 
-              photo.error ? 
-                `<div style="color: red; font-size: 11px;">Error: ${photo.error}</div>` :
-                `<div style="font-size: 11px;">Click to process</div>`
-          }
-        </div>
-      `);
-      
-      // Create and add marker to map with popup and click handler
-      const marker = new maplibregl.Marker({
-        element: markerElement,
-        anchor: 'bottom',
-        clickTolerance: 10 // Make it easier to click
-      })
-      .setLngLat([photo.lng, photo.lat])
-      .setPopup(popup)
-      .addTo(map.current!);
-      
-      // Make the entire marker clickable
-      markerElement.style.cursor = 'pointer';
-      marker.getElement().addEventListener('click', () => {
-        // Close any open popups
-        markerRef.current.forEach(m => m.getPopup().remove());
-        // Open this marker's popup
-        marker.togglePopup();
-        // Handle the photo selection
-        handlePhotoSelect(photo.id);
-      });
-      
-      // Handle mouseover to show popup
-      marker.getElement().addEventListener('mouseenter', () => {
-        marker.getPopup().addTo(map.current!);
-      });
-      
-      // Handle mouseout to hide popup if not the selected marker
-      marker.getElement().addEventListener('mouseleave', () => {
-        if (photo.id !== selectedPhotoId) {
-          marker.getPopup().remove();
-        }
-      });
-      
-      // Store marker reference for cleanup
-      markerRef.current.push(marker);
-    });
-  };
-
-  // Handle photo selection and center map
   const handlePhotoSelect = (id: number) => {
     setSelectedPhotoId(id);
     
-    // Get the selected photo
     const selectedPhoto = photoInfos.find(p => p.id === id);
     if (!selectedPhoto) return;
     
-    // Load data for this photo if not loaded yet
     if (!selectedPhoto.buildingFeatures && !selectedPhoto.isLoading) {
       fetchBuildingForPhoto(id);
     }
     
-    // Center map on selected photo
     if (map.current) {
       map.current.flyTo({
         center: [selectedPhoto.lng, selectedPhoto.lat],
@@ -961,360 +716,318 @@ export default function Index({ auth, photos }: PageProps) {
       });
     }
   };
-  
-  // Load building data for all photos with batching and progress updates
-  const loadAllBuildingData = useCallback(() => {
-    // Only consider photos that haven't been processed yet and aren't currently loading
-    const photosToLoad = photoInfos.filter(
-      photo => !photo.processed && !photo.isLoading
-    );
-    
-    if (photosToLoad.length === 0) {
-      setError("All photos have already been processed");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-    
-    // Show notification
-    setError(`Loading data for ${photosToLoad.length} photos...`);
-    
-    // Process photos in batches to avoid overwhelming the server
-    // but still get some parallelism
-    const BATCH_SIZE = 3; // Process 3 photos at a time
-    const DELAY_BETWEEN_BATCHES = 1000; // 1 second between batches
-    
-    // Load data for photos in batches
-    const loadInBatches = async () => {
-      let processed = 0;
-      const totalToProcess = photosToLoad.length;
-      
-      // Process photos in batches
-      for (let i = 0; i < photosToLoad.length; i += BATCH_SIZE) {
-        const batch = photosToLoad.slice(i, i + BATCH_SIZE);
-        
-        // Process this batch in parallel
-        await Promise.allSettled(
-          batch.map(photo => fetchBuildingForPhoto(photo.id))
-        );
-        
-        processed += batch.length;
-        
-        // Update progress
-        setError(`Processed ${processed}/${totalToProcess} photos...`);
-        
-        // Add delay between batches to avoid overwhelming the server
-        if (i + BATCH_SIZE < photosToLoad.length) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-        }
+
+  useEffect(() => {
+    const loadScripts = async () => {
+      if (typeof window.maplibregl === 'undefined') {
+        const linkElement = document.createElement('link');
+        linkElement.rel = 'stylesheet';
+        linkElement.href = 'https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.css';
+        linkElement.crossOrigin = 'anonymous';
+        document.head.appendChild(linkElement);
+
+        const maplibreScript = document.createElement('script');
+        maplibreScript.src = 'https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.js';
+        maplibreScript.crossOrigin = 'anonymous';
+        document.head.appendChild(maplibreScript);
+
+        const pmtilesScript = document.createElement('script');
+        pmtilesScript.src = 'https://unpkg.com/pmtiles@4.1.0/dist/pmtiles.js';
+        document.head.appendChild(pmtilesScript);
+
+        await new Promise((resolve) => {
+          let scriptsLoaded = 0;
+          const checkLoaded = () => {
+            scriptsLoaded++;
+            if (scriptsLoaded === 2) resolve(true);
+          };
+          maplibreScript.onload = checkLoaded;
+          pmtilesScript.onload = checkLoaded;
+        });
       }
-      
-      setError("All photos processed successfully");
-      setTimeout(() => setError(null), 3000);
+
+      initializeMap();
     };
-    
-    loadInBatches();
-  }, [photoInfos, fetchBuildingForPhoto]);
 
-  const clearBuildingCache = useCallback(() => {
-    Object.keys(sessionStorage).forEach(key => {
-      if (key.startsWith('bldg_')) {
-        sessionStorage.removeItem(key);
+    const initializeMap = () => {
+      const { maplibregl, pmtiles } = window as any;
+      
+      if (map.current || !mapContainer.current) return;
+
+      let protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol("pmtiles", protocol.tile);
+      let URL = "https://pic2bim.co.uk/output.pmtiles";
+
+      map.current = new maplibregl.Map({
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        container: mapContainer.current,
+        center: [viewState.longitude, viewState.latitude],
+        zoom: viewState.zoom,
+        pitch: viewState.pitch,
+        bearing: viewState.bearing,
+        maxPitch: 85,
+        maxZoom: 20,
+        projection: 'mercator'
+      });
+
+      map.current.on('load', () => {
+        map.current.addSource('terrainSource', {
+          type: "raster-dem",
+          url: "pmtiles://" + URL,
+          tileSize: 256
+        });
+
+        map.current.addSource('hillshadeSource', {
+          type: "raster-dem",
+          url: "pmtiles://" + URL,
+          tileSize: 256,
+        });
+
+        map.current.setTerrain({
+          source: "terrainSource",
+          exaggeration: 1
+        });
+
+        map.current.addLayer({
+          id: 'hillshadeLayer',
+          type: 'hillshade',
+          source: 'terrainSource',
+          paint: {
+            'hillshade-shadow-color': '#000000',
+            'hillshade-highlight-color': '#ffffff',
+            'hillshade-accent-color': '#888888'
+          }
+        });
+
+        map.current.on('sourcedata', (e: any) => {
+          if (e.sourceId === 'terrainSource' && e.isSourceLoaded) {
+            console.log('Terrain source loaded');
+            setLayers(prevLayers => [...prevLayers]);
+          }
+        });
+
+      });
+
+      map.current.addControl(
+        new maplibregl.NavigationControl({
+          visualizePitch: true,
+          showZoom: true,
+          showCompass: true,
+        })
+      );
+
+      map.current.addControl(
+        new maplibregl.TerrainControl({
+          source: "terrainSource",
+          exaggeration: 1
+        })
+      );
+    };
+
+    loadScripts();
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
       }
-    });
-    
-    setError("Building cache cleared");
-    setTimeout(() => setError(null), 3000);
-  }, []);
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    // Get coordinates where the photo was dropped
-    const mapArea = mapAreaRef.current;
-    if (!mapArea || !map.current) return;
-    
-    // Get drop position relative to the map
-    const rect = mapArea.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Convert to map coordinates
-    const point = map.current.unproject([x, y]);
-    const lng = point.lng;
-    const lat = point.lat;
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      
-      // Check if it's an image
-      if (!file.type.startsWith('image/')) {
-        setError('Please drop an image file');
-        setTimeout(() => setError(null), 3000);
-        return;
-      }
-      
-      const tempId = Date.now(); // Use timestamp as temporary ID
-      const heading = 0; // Default heading
-      
-      // Create URL for preview
-      const photoUrl = URL.createObjectURL(file);
-      
-      // Add to photos array
-      const newPhoto: PhotoInfo = {
-        id: tempId,
-        lat,
-        lng,
-        altitude: 0,
-        heading,
-        link: photoUrl,
-        isLoading: false,
-        processed: false
-      };
-      
-      setPhotoInfos(prev => [...prev, newPhoto]);
-      setSelectedPhotoId(tempId);
-      
-      // Optional: automatically fetch building data for this photo
-      setTimeout(() => {
-        fetchBuildingForPhoto(tempId);
-      }, 500);
-      
-      setError(`Added new photo at ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-      setTimeout(() => setError(null), 3000);
-    }
-  };
+    };
+  }, [viewState]);
 
   return (
     <AuthenticatedLayout
       user={auth.user}
       header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Building Attributes 3D Map</h2>}
     >
-      <Head title="Building Attributes 3D Map" />
-      
-      <div className="py-12">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-            <div className="p-6 text-gray-900 dark:text-gray-100">
-              {loading && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                    <span className="mb-2">Loading building data...</span>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(photoInfos.filter(p => p.processed).length / photoInfos.length) * 100}%` }}></div>
-                    </div>
-                    <span className="text-xs mt-1">
-                      {photoInfos.filter(p => p.processed).length} of {photoInfos.length} photos processed
-                    </span>
-                  </div>
+      <div className="w-full h-screen relative">
+        <div 
+          ref={mapContainer} 
+          className="absolute top-0 bottom-0 w-full"
+          style={{ height: '100vh' }}
+        />
+        
+        <DeckGL
+          initialViewState={viewState}
+          controller={true}
+          layers={layers}
+          getTooltip={({object}: any) => {
+            if (!object) return null;
+            
+            return {
+              html: `
+                <div>
+                  <h3>${object.name || 'Building'}</h3>
+                  <p>${object.info || ''}</p>
                 </div>
-              )}
-              
-              {error && (
-                <div className="absolute top-4 right-4 z-10 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
-                  <span>{error}</span>
-                </div>
-              )}
-              
-              <div 
-                style={{ position: 'relative', width: '100%', height: '600px' }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                ref={mapAreaRef}
-              >
-                <div ref={mapContainer} style={{ width: '100%', height: '600px', position: 'absolute', top: 0, left: 0 }} />
-                
-                {isDragging && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: 'rgba(52, 152, 219, 0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 100,
-                    pointerEvents: 'none'
-                  }}>
-                    <div style={{
-                      backgroundColor: 'white',
-                      padding: '20px',
-                      borderRadius: '8px',
-                      textAlign: 'center'
-                    }}>
-                      <h3 style={{ margin: 0 }}>Drop photo here</h3>
-                      <p style={{ margin: '10px 0 0' }}>The photo will be added at the drop location</p>
+              `,
+              style: {
+                backgroundColor: 'white',
+                color: 'black',
+                fontSize: '12px',
+                padding: '10px',
+                borderRadius: '4px'
+              }
+            };
+          }}
+          onClick={({x, y, coordinate}) => {
+            if (map.current && coordinate) {
+              const popups = document.getElementsByClassName('maplibregl-popup');
+              while (popups[0]) {
+                popups[0].remove();
+              }
+
+              console.log("click", coordinate)
+              const elevation = map.current.queryTerrainElevation(coordinate);
+              // console.log(elevation);
+              if (elevation !== null) {
+                const popup = new (window as any).maplibregl.Popup({
+                  closeButton: true,
+                  closeOnClick: false,
+                  maxWidth: '300px',
+                  className: 'elevation-popup'
+                })
+                  .setLngLat([coordinate[0], coordinate[1]])
+                  .setHTML(`
+                    <div style="
+                      background: white;
+                      padding: 10px;
+                      border-radius: 4px;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    ">
+                      <h3 style="margin: 0 0 10px 0; font-size: 16px;">Elevation Information</h3>
+                      <p style="margin: 5px 0; font-size: 14px;">Elevation: ${Math.round(elevation)} meters</p>
+                      <p style="margin: 5px 0; font-size: 14px;">Coordinates: ${coordinate[0].toFixed(4)}, ${coordinate[1].toFixed(4)}</p>
                     </div>
+                  `)
+                  .addTo(map.current);
+
+                const style = document.createElement('style');
+                style.textContent = `
+                  .elevation-popup {
+                    z-index: 1000 !important;
+                  }
+                  .maplibregl-popup-content {
+                    background: white !important;
+                    border-radius: 4px !important;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                  }
+                `;
+                document.head.appendChild(style);
+              }
+            }
+          }}
+          style={{ 
+            position: 'absolute', 
+            top: '0', 
+            left: '0', 
+            width: '100%', 
+            height: '100%'
+          }}
+          onViewStateChange={({viewState}: any) => {
+            const newViewState = viewState as ViewState;
+            setViewState(newViewState);
+            if (map.current) {
+              map.current.jumpTo({
+                center: [newViewState.longitude, newViewState.latitude],
+                zoom: newViewState.zoom,
+                pitch: newViewState.pitch,
+                bearing: newViewState.bearing
+              });
+            }
+          }}
+        />
+
+        <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow max-w-md overflow-x-auto flex gap-2">
+          {photoInfos.map(photo => (
+            <div 
+              key={photo.id}
+              onClick={() => handlePhotoSelect(photo.id)}
+              className={`cursor-pointer p-1 rounded transition-all ${photo.id === selectedPhotoId ? 'bg-blue-100 dark:bg-blue-900 ring-2 ring-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            >
+              <div className="relative w-16 h-16 overflow-hidden rounded">
+                {photo.link ? (
+                  <img 
+                    src={photo.link} 
+                    alt={`Thumbnail ${photo.id}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <span className="text-xs">No image</span>
                   </div>
                 )}
-
-                <DeckGL
-                  initialViewState={viewState}
-                  controller={true}
-                  layers={layers}
-                  getTooltip={({object}: any) => {
-                    if (!object) return null;
-                    
-                    return {
-                      html: `
-                        <div>
-                          <h3>${object.name || 'Building'}</h3>
-                          <p>${object.info || ''}</p>
-                        </div>
-                      `,
-                      style: {
-                        backgroundColor: 'white',
-                        color: 'black',
-                        fontSize: '12px',
-                        padding: '10px',
-                        borderRadius: '4px'
-                      }
-                    };
-                  }}
-                  // @ts-ignore - DeckGL styling type issue
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                  onViewStateChange={({viewState}: any) => {
-                    const newViewState = viewState as ViewState;
-                    // Using direct update here for smooth interaction
-                    setViewState(newViewState);
-                    if (map.current) {
-                      map.current.jumpTo({
-                        center: [newViewState.longitude, newViewState.latitude],
-                        zoom: newViewState.zoom,
-                        pitch: newViewState.pitch,
-                        bearing: newViewState.bearing
-                      });
-                    }
-                  }}
-                />
-                <div className="absolute top-4 left-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow">
-                  <div className="flex flex-col space-y-2">
-                    <button 
-                      onClick={loadAllBuildingData}
-                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    >
-                      Load All Building Data
-                    </button>
-                    <button 
-                      onClick={clearBuildingCache}
-                      className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm"
-                    >
-                      Clear Cache
-                    </button>
-                  </div>
+                <div className="absolute bottom-0 left-0 right-0 text-center text-xs bg-black bg-opacity-50 text-white">
+                  {photo.id}
                 </div>
-                <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow">
-                  <p className="text-sm font-semibold text-blue-600">👆 Click on a photo to view its building</p>
-                  <p className="text-sm text-gray-500 mt-1">Showing {photoInfos.length} photos</p>
-                  <p className="text-sm text-gray-500">
-                    Processed: {photoInfos.filter(p => p.processed).length}/{photoInfos.length} photos
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Buildings found: {photoInfos.filter(p => p.buildingFeatures && p.buildingFeatures.length > 0).length} photos
-                  </p>
-                  {selectedPhotoId && (
-                    <p className="text-sm text-gray-700 mt-1">Selected: Photo ID {selectedPhotoId}</p>
-                  )}
-                </div>
-                
-                {/* Add thumbnails of photos at bottom for easy selection */}
-                <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow max-w-md overflow-x-auto flex gap-2">
-                  {photoInfos.map(photo => (
-                    <div 
-                      key={photo.id}
-                      onClick={() => handlePhotoSelect(photo.id)}
-                      className={`cursor-pointer p-1 rounded transition-all ${photo.id === selectedPhotoId ? 'bg-blue-100 dark:bg-blue-900 ring-2 ring-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                    >
-                      <div className="relative w-16 h-16 overflow-hidden rounded">
-                        {photo.link ? (
-                          <img 
-                            src={photo.link} 
-                            alt={`Thumbnail ${photo.id}`}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                            <span className="text-xs">No image</span>
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 text-center text-xs bg-black bg-opacity-50 text-white">
-                          {photo.id}
-                        </div>
-                        {photo.isLoading && (
-                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                        )}
-                        {photo.buildingFeatures && photo.buildingFeatures.length > 0 && (
-                          <div className="absolute top-0 right-0 w-4 h-4 bg-green-500 rounded-full" 
-                               title="Building data loaded"></div>
-                        )}
-                        {photo.processed && photo.noBuildings && (
-                          <div className="absolute top-0 right-0 w-4 h-4 bg-yellow-500 rounded-full" 
-                               title="No buildings found in this area"></div>
-                        )}
-                        {photo.error && (
-                          <div 
-                            className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center cursor-pointer" 
-                            title={photo.error}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              fetchBuildingForPhoto(photo.id);
-                            }}
-                          >
-                            <span className="text-white text-xs font-bold">!</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Status legend */}
-                <div className="absolute bottom-32 right-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow">
-                  <div className="text-sm font-semibold mb-1">Status Legend:</div>
-                  <div className="flex items-center mb-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-xs">Building found</span>
+                {photo.isLoading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                  <div className="flex items-center mb-1">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                    <span className="text-xs">Processed, no buildings</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                    <span className="text-xs">Error (click to retry)</span>
-                  </div>
-                </div>
-
-                {/* Performance Metrics Panel */}
-                {metrics.totalRequests > 0 && (
-                  <div className="absolute top-4 right-32 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow">
-                    <div className="text-xs font-semibold mb-1">Performance Metrics:</div>
-                    <div className="text-xs">Requests: {metrics.totalRequests}</div>
-                    <div className="text-xs">Success rate: {((metrics.successfulRequests / metrics.totalRequests) * 100).toFixed(1)}%</div>
-                    <div className="text-xs">Avg. load time: {metrics.averageLoadTime.toFixed(0)}ms</div>
+                )}
+                {photo.buildingFeatures && photo.buildingFeatures.length > 0 && (
+                  <div className="absolute top-0 right-0 w-4 h-4 bg-green-500 rounded-full" 
+                       title="Building data loaded"></div>
+                )}
+                {photo.processed && photo.noBuildings && (
+                  <div className="absolute top-0 right-0 w-4 h-4 bg-yellow-500 rounded-full" 
+                       title="No buildings found in this area"></div>
+                )}
+                {photo.error && (
+                  <div 
+                    className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center cursor-pointer" 
+                    title={photo.error}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetchBuildingForPhoto(photo.id);
+                    }}
+                  >
+                    <span className="text-white text-xs font-bold">!</span>
                   </div>
                 )}
               </div>
             </div>
+          ))}
+        </div>
+
+        <div className="absolute bottom-32 right-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow">
+          <div className="text-sm font-semibold mb-1">Status Legend:</div>
+          <div className="flex items-center mb-1">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+            <span className="text-xs">Building found</span>
+          </div>
+          <div className="flex items-center mb-1">
+            <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+            <span className="text-xs">Processed, no buildings</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+            <span className="text-xs">Error (click to retry)</span>
           </div>
         </div>
+
+        {loading && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+              <span className="mb-2">Loading building data...</span>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(photoInfos.filter(p => p.processed).length / photoInfos.length) * 100}%` }}></div>
+              </div>
+              <span className="text-xs mt-1">
+                {photoInfos.filter(p => p.processed).length} of {photoInfos.length} photos processed
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="absolute top-4 right-4 z-10 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+            <span>{error}</span>
+          </div>
+        )}
       </div>
     </AuthenticatedLayout>
   );
-}
+};
+
+export default BuildingAttributes;
