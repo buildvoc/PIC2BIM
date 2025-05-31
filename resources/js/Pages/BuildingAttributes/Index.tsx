@@ -525,7 +525,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                     retryCount++;
                     setTimeout(getElevation, 500);
                   } else {
-                    if (elevation !== 0) {
+                    if (elevation !== 0 && elevation !== null) {
                       setCachedElevation(lng, lat, elevation);
                     }
                   }
@@ -585,7 +585,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                     retryCount++;
                     setTimeout(getElevation, 500);
                   } else {
-                    if (elevation !== 0) {
+                    if (elevation !== 0 && elevation !== null) {
                       setCachedElevation(lng, lat, elevation);
                     }
                   }
