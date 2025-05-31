@@ -249,7 +249,6 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
     if (cachedResult) {
       try {
         const parsed = JSON.parse(cachedResult);
-        console.log(`Using cached building data for ${lat},${lng}`);
         return parsed;
       } catch (e) {
         console.error("Failed to parse cached data:", e);
@@ -261,8 +260,6 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
-      console.log(`Fetching building data for ${lat},${lng} with direction ${camDirection}`);
-      
       const response = await fetch(
         `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${camDirection}`,
         { signal: controller.signal }
@@ -301,10 +298,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
       clearTimeout(timeoutId);
       
       if ((err as Error).name === 'AbortError') {
-        console.log(`Request timed out for photo at ${lat},${lng}`);
-        
         if (retryCount < 2) {
-          console.log(`Retrying request (attempt ${retryCount + 1}/2)...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchBuilding(lat, lon, camDirection, camAltitude, retryCount + 1);
         }
@@ -369,9 +363,6 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 processedCoordinates = feature.geometry.coordinates.map(
                   (ring: number[][]) => simplifyPolygon(ring, 0.00001)
                 );
-                console.log(`Simplified polygon from ${coordCount} to ${
-                  processedCoordinates.reduce((sum: number, ring: number[][]) => sum + ring.length, 0)
-                } points`);
               }
             }
             
@@ -409,8 +400,6 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
       
       if (features.length > 0) {
         console.log(`Loaded ${features.length} building features for photo ${photo.id} in ${loadTime.toFixed(0)}ms`);
-      } else {
-        console.log(`No building features found for photo ${photo.id}, but request was successful (${loadTime.toFixed(0)}ms)`);
       }
     } catch (err) {
       const loadTime = performance.now() - startTime;
@@ -518,32 +507,24 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
           const roofExtrusion = heights.roofHeight * altitudeFactor;
           
           const buildingDataCopy = [...feature.geometry.coordinates[0]];
-          console.log("building", buildingDataCopy)
           
           if (heights.relativeRoofbase > 0) {
             const baseCoords = buildingDataCopy.map((item: any) => {
               const [lng, lat] = item;
-              console.log(photos)
 
               let elevation = getCachedElevation(lng, lat);
               
               if (elevation === null) {
-                // If not in cache, get from map with retry
                 let retryCount = 0;
                 const maxRetries = 5;
                 
                 const getElevation = () => {
                   const lngLat = new (window as any).maplibregl.LngLat(lng, lat);
-                  // console.log("sas",lngLat);
                   elevation = map.current.queryTerrainElevation(lngLat) || 0;
-                  console.log("elevation 1", elevation);
                   if (elevation === 0 && retryCount < maxRetries) {
                     retryCount++;
-                    console.log(`Retrying elevation query for ${lng},${lat} (attempt ${retryCount})`);
                     setTimeout(getElevation, 500);
                   } else {
-                    console.log("Final roof elevation at", lng, lat, ":", elevation);
-                    // Cache the elevation value
                     if (elevation !== 0) {
                       setCachedElevation(lng, lat, elevation);
                     }
@@ -551,13 +532,9 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 };
                 
                 getElevation();
-              } else {
-                console.log("Using cached roof elevation at", lng, lat, ":", elevation);
               }
 
-              const finalElevation = heights.absoluteMin - elevation;
-              console.log("elevation", finalElevation)
-              // const elevationHeight = heights.absoluteMin - map.current.queryTerrainElevation(lngLat);
+              const finalElevation = heights.absoluteMin - (elevation || 0);
               return [lng, lat, finalElevation];
             });
 
@@ -599,21 +576,15 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
               let elevation = getCachedElevation(lng, lat);
               
               if (elevation === null) {
-                // If not in cache, get from map with retry
                 let retryCount = 0;
                 const maxRetries = 3;
                 
                 const getElevation = () => {
-                  console.log("latlong",[lng, lat] )
                   elevation = map.current?.queryTerrainElevation?.([lng, lat]) || 0;
-                  console.log("elevation 1", elevation);
                   if (elevation === 0 && retryCount < maxRetries) {
                     retryCount++;
-                    console.log(`Retrying elevation query for ${lng},${lat} (attempt ${retryCount})`);
                     setTimeout(getElevation, 500);
                   } else {
-                    console.log("Final roof elevation at", lng, lat, ":", elevation);
-                    // Cache the elevation value
                     if (elevation !== 0) {
                       setCachedElevation(lng, lat, elevation);
                     }
@@ -621,11 +592,9 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 };
                 
                 getElevation();
-              } else {
-                console.log("Using cached roof elevation at", lng, lat, ":", elevation);
               }
 
-              const finalElevation = heights.absoluteRoofbase - elevation;
+              const finalElevation = heights.absoluteRoofbase - (elevation || 0);
 
               return [lng, lat, finalElevation];
             });
@@ -801,7 +770,6 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
 
         map.current.on('sourcedata', (e: any) => {
           if (e.sourceId === 'terrainSource' && e.isSourceLoaded) {
-            console.log('Terrain source loaded');
             setLayers(prevLayers => [...prevLayers]);
           }
         });
@@ -876,9 +844,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 popups[0].remove();
               }
 
-              console.log("click", coordinate)
               const elevation = map.current.queryTerrainElevation(coordinate);
-              // console.log(elevation);
               if (elevation !== null) {
                 const popup = new (window as any).maplibregl.Popup({
                   closeButton: true,
