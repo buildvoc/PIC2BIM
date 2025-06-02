@@ -3,9 +3,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, Photo } from '@/types';
 import { DeckGL } from '@deck.gl/react';
 import { GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
-import { Protocol } from 'pmtiles';
-import { createRoot } from 'react-dom/client';
-import maplibregl from 'maplibre-gl';
 
 interface ViewState {
   longitude: number;
@@ -224,6 +221,7 @@ const PhotoMarker: React.FC<PhotoMarkerProps> = ({ photo, onClick, isSelected })
 const BuildingAttributes = ({ auth, photos }: PageProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
+  const deckRef = useRef<any>(null);
   const [viewState, setViewState] = useState<ViewState>({
     longitude: -0.7982,
     latitude: 51.2144,
@@ -238,6 +236,8 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
   const [error, setError] = useState<string | null>(null);
   const [loadingCount, setLoadingCount] = useState<number>(0);
   const markerRef = useRef<maplibregl.Marker[]>([]);
+  const isMapMoving = useRef<boolean>(false);
+  const isDeckMoving = useRef<boolean>(false);
 
   const fetchBuilding = async (lat: number, lon: number, camDirection: number, camAltitude: number = 0, retryCount = 0) => {
     let lng = lon;
@@ -490,7 +490,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
           lineWidthMinPixels: 1,
           getLineColor: [0, 0, 0, 255],
           getFillColor: [183, 244, 216, 150],
-          getLineWidth: 1,
+          getLineWidth: 0.5,
           pickable: true,
           updateTriggers: {
             getFillColor: [183, 244, 216, 150]
@@ -534,7 +534,9 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 getElevation();
               }
 
-              const finalElevation = heights.absoluteMin - (elevation || 0);
+              const elevationDiff = heights.absoluteMin - (elevation || 0);
+              const finalElevation = Math.abs(elevationDiff) > 1 ? 0 : elevationDiff;
+
               return [lng, lat, finalElevation];
             });
 
@@ -594,9 +596,14 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 getElevation();
               }
 
-              const finalElevation = heights.absoluteRoofbase - (elevation || 0);
+              console.log("max", heights.absoluteRoofbase);
+              const baseDiff = heights.absoluteMin - (elevation || 0);
 
-              return [lng, lat, finalElevation];
+              const Elevation = Math.abs(baseDiff) > 1 
+                ? heights.absoluteRoofbase - (elevation || 0) - baseDiff
+                : heights.absoluteRoofbase - (elevation || 0);
+
+              return [lng, lat, Elevation];
             });
             
             const partBData = {
@@ -736,7 +743,9 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         bearing: viewState.bearing,
         maxPitch: 85,
         maxZoom: 20,
-        projection: 'mercator'
+        projection: 'mercator',
+        antialias: true,
+        preserveDrawingBuffer: true
       });
 
       map.current.on('load', () => {
@@ -773,7 +782,28 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
             setLayers(prevLayers => [...prevLayers]);
           }
         });
+      });
 
+      map.current.on('movestart', () => {
+        isMapMoving.current = true;
+      });
+
+      map.current.on('moveend', () => {
+        isMapMoving.current = false;
+        if (!isDeckMoving.current) {
+          const center = map.current.getCenter();
+          const zoom = map.current.getZoom();
+          const pitch = map.current.getPitch();
+          const bearing = map.current.getBearing();
+          
+          setViewState({
+            longitude: center.lng,
+            latitude: center.lat,
+            zoom,
+            pitch,
+            bearing
+          });
+        }
       });
 
       map.current.addControl(
@@ -800,7 +830,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         map.current = null;
       }
     };
-  }, [viewState]);
+  }, []);
 
   return (
     <AuthenticatedLayout
@@ -815,6 +845,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         />
         
         <DeckGL
+          ref={deckRef}
           initialViewState={viewState}
           controller={true}
           layers={layers}
@@ -890,6 +921,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
             height: '100%'
           }}
           onViewStateChange={({viewState}: any) => {
+            isDeckMoving.current = true;
             const newViewState = viewState as ViewState;
             setViewState(newViewState);
             if (map.current) {
@@ -900,6 +932,9 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
                 bearing: newViewState.bearing
               });
             }
+            setTimeout(() => {
+              isDeckMoving.current = false;
+            }, 100);
           }}
         />
 
