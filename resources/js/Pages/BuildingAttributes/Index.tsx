@@ -2,7 +2,11 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, Photo } from '@/types';
 import { DeckGL } from '@deck.gl/react';
-import { GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, PolygonLayer, IconLayer } from '@deck.gl/layers';
+import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { Paper, Stack, Typography } from '@mui/material';
+import MapIcon from '@mui/icons-material/Map';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 interface ViewState {
   longitude: number;
@@ -218,6 +222,82 @@ const PhotoMarker: React.FC<PhotoMarkerProps> = ({ photo, onClick, isSelected })
   );
 };
 
+interface PhotoTooltipProps {
+  x: number;
+  y: number;
+  show: boolean;
+  photo: PhotoInfo | null;
+}
+
+const PhotoTooltip: React.FC<PhotoTooltipProps> = ({ x, y, show, photo }) => {
+  if (!show || !photo) return null;
+
+  return (
+    <Paper
+      sx={{
+        position: 'absolute',
+        left: `${x}px`,
+        bottom: `${window.innerHeight - y}px`,
+        zIndex: 2,
+        padding: '8px',
+        borderRadius: '8px',
+        backgroundColor: 'white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+      }}
+    >
+      <Stack direction="row" alignItems="center">
+        {photo.link && (
+          <img 
+            src={photo.link} 
+            alt={`Photo ${photo.id}`}
+            style={{ width: '80px', height: 'auto' }}
+          />
+        )}
+        <Stack
+          direction="column"
+          sx={{ width: '200px', marginLeft: '10px' }}
+          alignItems="start"
+          spacing={0.5}
+        >
+          <Typography
+            variant="subtitle2"
+            fontSize="1rem"
+            sx={{ textAlign: 'left' }}
+          >
+            Photo ID: {photo.id}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ textAlign: 'left', fontSize: '10px' }}
+          >
+            Altitude: {photo.altitude?.toFixed(2)}m
+          </Typography>
+          <Stack
+            direction="row"
+            justifyContent="left"
+            alignItems="center"
+          >
+            <MapIcon sx={{ fontSize: '14px', marginRight: '4px' }} />
+            <Typography variant="body2" sx={{ fontSize: '10px' }}>
+              {photo.lat.toFixed(5)}, {photo.lng.toFixed(5)}
+            </Typography>
+          </Stack>
+          <Stack
+            direction="row"
+            justifyContent="left"
+            alignItems="center"
+          >
+            <CalendarTodayIcon sx={{ fontSize: '14px', marginRight: '4px' }} />
+            <Typography variant="body2" sx={{ fontSize: '10px' }}>
+              Heading: {photo.heading}°
+            </Typography>
+          </Stack>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+};
+
 const BuildingAttributes = ({ auth, photos }: PageProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
@@ -226,7 +306,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
     longitude: -0.7982,
     latitude: 51.2144,
     zoom: 15.5,
-    pitch: 40,
+    pitch: 61,
     bearing: 0
   });
   const [selectedPhotoId, setSelectedPhotoId] = useState<number | null>(null);
@@ -238,6 +318,17 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
   const markerRef = useRef<maplibregl.Marker[]>([]);
   const isMapMoving = useRef<boolean>(false);
   const isDeckMoving = useRef<boolean>(false);
+  const [tooltipInfo, setTooltipInfo] = useState<{
+    x: number;
+    y: number;
+    show: boolean;
+    photo: PhotoInfo | null;
+  }>({
+    x: 0,
+    y: 0,
+    show: false,
+    photo: null
+  });
 
   const fetchBuilding = async (lat: number, lon: number, camDirection: number, camAltitude: number = 0, retryCount = 0) => {
     let lng = lon;
@@ -479,6 +570,70 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         const altitude = selectedPhoto.altitude || 0;
         const altitudeFactor = getAltitudeFactor(altitude);
         
+        const cameraHeight = 0 + ((selectedPhoto.altitude || 0) / 10);
+        const cameraMarkerLayer = new IconLayer({
+          id: 'camera-marker-layer',
+          data: [{
+            coordinates: [selectedPhoto.lng, selectedPhoto.lat, cameraHeight],
+            bearing: selectedPhoto.heading,
+            id: selectedPhoto.id,
+            photo: selectedPhoto
+          }],
+          getIcon: () => 'marker',
+          iconAtlas: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/icon-atlas.png',
+          iconMapping: {
+            marker: { x: 0, y: 0, width: 128, height: 128, mask: true }
+          },
+          getPosition: d => d.coordinates,
+          getColor: d => [255, 0, 0],
+          getSize: () => 5,
+          sizeScale: 8,
+          billboard: true,
+          pickable: true,
+          onHover: (info) => {
+            if (info.object) {
+              setTooltipInfo({
+                x: info.x,
+                y: info.y,
+                show: true,
+                photo: info.object.photo
+              });
+            } else {
+              setTooltipInfo(prev => ({ ...prev, show: false }));
+            }
+          }
+        });
+        newLayers.push(cameraMarkerLayer);
+
+        const cameraModelLayer = new ScenegraphLayer({
+          id: 'camera-model-layer',
+          data: [{
+            coordinates: [selectedPhoto.lng, selectedPhoto.lat, cameraHeight],
+            bearing: selectedPhoto.heading,
+            id: selectedPhoto.id,
+            photo: selectedPhoto
+          }],
+          scenegraph: '/cam.gltf',
+          getPosition: d => d.coordinates,
+          getColor: d => [255, 0, 226],
+          getOrientation: d => [0, -d.bearing, 90],
+          pickable: true,
+          opacity: 1,
+          onHover: (info) => {
+            if (info.object) {
+              setTooltipInfo({
+                x: info.x,
+                y: info.y,
+                show: true,
+                photo: info.object.photo
+              });
+            } else {
+              setTooltipInfo(prev => ({ ...prev, show: false }));
+            }
+          }
+        });
+        newLayers.push(cameraModelLayer);
+
         const groundLayer = new GeoJsonLayer({
           id: `ground-layer`,
           data: {
@@ -500,143 +655,69 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         
         selectedPhoto.buildingFeatures.forEach((feature: any, index: number) => {
           if (!feature.properties) return;
-          
           const heights = calculateHeightMeasurements(feature);
-          
-          const baseExtrusion = heights.relativeRoofbase * altitudeFactor;
-          const roofExtrusion = heights.roofHeight * altitudeFactor;
-          
-          const buildingDataCopy = [...feature.geometry.coordinates[0]];
-          
-          if (heights.relativeRoofbase > 0) {
-            const baseCoords = buildingDataCopy.map((item: any) => {
-              const [lng, lat] = item;
+          const altitude = selectedPhoto.altitude || 0;
+          const altitudeFactor = getAltitudeFactor(altitude);
 
-              let elevation = getCachedElevation(lng, lat);
-              
-              if (elevation === null) {
-                let retryCount = 0;
-                const maxRetries = 5;
-                
-                const getElevation = () => {
-                  const lngLat = new (window as any).maplibregl.LngLat(lng, lat);
-                  elevation = map.current.queryTerrainElevation(lngLat) || 0;
-                  if (elevation === 0 && retryCount < maxRetries) {
-                    retryCount++;
-                    setTimeout(getElevation, 500);
-                  } else {
-                    if (elevation !== 0 && elevation !== null) {
-                      setCachedElevation(lng, lat, elevation);
-                    }
-                  }
-                };
-                
-                getElevation();
+          const baseToRoof = (heights.absoluteRoofbase - heights.absoluteMin);
+          const roofToMax = (heights.absoluteMax - heights.absoluteRoofbase);
+
+          const baseCoords = feature.geometry.coordinates[0].map((item: any) => {
+            const [lng, lat] = item;
+            let elevation = getCachedElevation(lng, lat);
+            if (elevation === null && map.current) {
+              const lngLat = new (window as any).maplibregl.LngLat(lng, lat);
+              elevation = map.current.queryTerrainElevation(lngLat) || 0;
+              if (elevation !== 0 && elevation !== null) {
+                setCachedElevation(lng, lat, elevation - heights.absoluteMin);
               }
-
-              const elevationDiff = heights.absoluteMin - (elevation || 0);
-              const finalElevation = Math.abs(elevationDiff) > 1 ? 0 : elevationDiff;
-
-              return [lng, lat, finalElevation];
-            });
-
-            const partAData = {
-              contour: baseCoords,
-              height: baseExtrusion,
-              color: [249, 180, 45, 200],
-              name: feature.properties.description || `Building ${index + 1}`,
-              info: `
-                Base to Roof Base: ${heights.absoluteMin.toFixed(2)}m to ${heights.absoluteRoofbase.toFixed(2)}m
-                Relative Height: ${heights.relativeRoofbase.toFixed(2)}m
-              `
-            };
-            
-            const partALayer = new PolygonLayer({
-              id: `building-part-a-${index}`,
-              data: [partAData],
+            }
+            return [lng, lat, 0];
+          });
+          // Part A: base to roof
+          const polygonDataA = [{ contour: baseCoords }];
+          const polygonLayerA = new PolygonLayer({
+            id: `building-extrusion-base2roof-${index}`,
+            data: polygonDataA,
+            extruded: true,
+            wireframe: true,
+            getPolygon: (d: any) => d.contour,
+            getFillColor: [249, 180, 45, 200], // kuning/oranye
+            getLineColor: [0, 0, 0, 255],
+            getElevation: () => baseToRoof,
+            opacity: 1,
+            pickable: true,
+            elevationScale: 1,
+            getPosition: (d: any) => [0, 0, 0],
+            updateTriggers: {
+              getElevation: baseToRoof,
+              getPosition: 0
+            }
+          });
+          newLayers.push(polygonLayerA);
+          // Part B: roof to max
+          if (roofToMax > 0.01) {
+            const roofCoords = baseCoords.map(([lng, lat, elev]: any) => [lng, lat, elev + baseToRoof]);
+            const polygonDataB = [{ contour: roofCoords }];
+            const polygonLayerB = new PolygonLayer({
+              id: `building-extrusion-roof2max-${index}`,
+              data: polygonDataB,
               extruded: true,
               wireframe: true,
               getPolygon: (d: any) => d.contour,
-              getFillColor: (d: any) => d.color,
+              getFillColor: [203, 24, 226, 200], // ungu/merah
               getLineColor: [0, 0, 0, 255],
-              lineWidthMinPixels: 1,
+              getElevation: () => roofToMax,
+              opacity: 1,
               pickable: true,
               elevationScale: 1,
-              getElevation: (d: any) => d.height,
               getPosition: (d: any) => [0, 0, 0],
               updateTriggers: {
-                getElevation: (d: any) => d.height,
-                getPosition: (d: any) => [0, 0, 0]
+                getElevation: roofToMax,
+                getPosition: 0
               }
             });
-            newLayers.push(partALayer);
-          }
-          
-          if (heights.roofHeight > 0) {
-            const roofCoords = buildingDataCopy.map((item: any) => {
-              const [lng, lat] = item;
-              let elevation = getCachedElevation(lng, lat);
-              
-              if (elevation === null) {
-                let retryCount = 0;
-                const maxRetries = 3;
-                
-                const getElevation = () => {
-                  elevation = map.current?.queryTerrainElevation?.([lng, lat]) || 0;
-                  if (elevation === 0 && retryCount < maxRetries) {
-                    retryCount++;
-                    setTimeout(getElevation, 500);
-                  } else {
-                    if (elevation !== 0 && elevation !== null) {
-                      setCachedElevation(lng, lat, elevation);
-                    }
-                  }
-                };
-                
-                getElevation();
-              }
-
-              console.log("max", heights.absoluteRoofbase);
-              const baseDiff = heights.absoluteMin - (elevation || 0);
-
-              const Elevation = Math.abs(baseDiff) > 1 
-                ? heights.absoluteRoofbase - (elevation || 0) - baseDiff
-                : heights.absoluteRoofbase - (elevation || 0);
-
-              return [lng, lat, Elevation];
-            });
-            
-            const partBData = {
-              contour: roofCoords,
-              baseHeight: baseExtrusion,
-              height: roofExtrusion,
-              color: [66, 135, 245, 200],
-              name: feature.properties.description || `Building ${index + 1}`,
-              info: `
-                Roof Base to Max: ${heights.absoluteRoofbase.toFixed(2)}m to ${heights.absoluteMax.toFixed(2)}m
-                Roof Height: ${heights.roofHeight.toFixed(2)}m
-              `
-            };
-            
-            const partBLayer = new PolygonLayer({
-              id: `building-part-b-${index}`,
-              data: [partBData],
-              extruded: true,
-              wireframe: true,
-              getPolygon: (d: any) => d.contour,
-              getFillColor: (d: any) => d.color,
-              getLineColor: [0, 0, 0, 255],
-              lineWidthMinPixels: 1,
-              pickable: true,
-              elevationScale: 1,
-              getElevation: (d: any) => d.height,
-              getPosition: (d: any) => [0, 0, d.baseHeight],
-              updateTriggers: {
-                getElevation: (d: any) => d.height,
-                getPosition: (d: any) => [0, 0, d.baseHeight]
-              }
-            });
-            newLayers.push(partBLayer);
+            newLayers.push(polygonLayerB);
           }
         });
       }
@@ -656,14 +737,14 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
             longitude: selectedPhoto.lng,
             latitude: selectedPhoto.lat,
             zoom: 17.5,
-            pitch: 45,
+            pitch: 61,
             bearing: bearing
           });
           
           map.current.flyTo({
             center: [selectedPhoto.lng, selectedPhoto.lat],
             zoom: 17.5,
-            pitch: 45,
+            pitch: 61,
             bearing: bearing,
             duration: 1000
           });
@@ -745,7 +826,12 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         maxZoom: 20,
         projection: 'mercator',
         antialias: true,
-        preserveDrawingBuffer: true
+        preserveDrawingBuffer: true,
+        dragRotate: true,
+        dragPitch: true,
+        touchPitch: true,
+        touchZoomRotate: true,
+        touchZoomRotateBehavior: 'all'
       });
 
       map.current.on('load', () => {
@@ -847,7 +933,7 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
         <DeckGL
           ref={deckRef}
           initialViewState={viewState}
-          controller={true}
+          controller={{ maxPitch: 85 } as any}
           layers={layers}
           getTooltip={({object}: any) => {
             if (!object) return null;
@@ -937,6 +1023,48 @@ const BuildingAttributes = ({ auth, photos }: PageProps) => {
             }, 100);
           }}
         />
+
+        {tooltipInfo.show && tooltipInfo.photo && (
+          <div
+            style={{
+              position: 'absolute',
+              left: tooltipInfo.x,
+              top: tooltipInfo.y,
+              zIndex: 1000,
+              backgroundColor: 'white',
+              padding: '8px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              pointerEvents: 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {tooltipInfo.photo.link && (
+                <img 
+                  src={tooltipInfo.photo.link} 
+                  alt={`Photo ${tooltipInfo.photo.id}`}
+                  style={{ width: '80px', height: 'auto' }}
+                />
+              )}
+              <div style={{ marginLeft: '10px', width: '200px' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 'bold', textAlign: 'left' }}>
+                  Photo ID: {tooltipInfo.photo.id}
+                </div>
+                <div style={{ fontSize: '10px', textAlign: 'left' }}>
+                  Altitude: {tooltipInfo.photo.altitude?.toFixed(2)}m
+                </div>
+                <div style={{ fontSize: '10px', textAlign: 'left', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '4px' }}>📍</span>
+                  {tooltipInfo.photo.lat.toFixed(5)}, {tooltipInfo.photo.lng.toFixed(5)}
+                </div>
+                <div style={{ fontSize: '10px', textAlign: 'left', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '4px' }}>📅</span>
+                  Heading: {tooltipInfo.photo.heading}°
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-800 p-2 rounded shadow max-w-md overflow-x-auto flex gap-2">
           {photoInfos.map(photo => (

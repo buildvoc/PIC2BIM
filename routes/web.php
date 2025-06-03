@@ -56,7 +56,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
         Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
 
-        Route::get('/building-attributes', [BuildingAttributesController::class, 'index'])
+        Route::get('/building_attributes', [BuildingAttributesController::class, 'index'])
         ->name('building_attributes');
     });
     
