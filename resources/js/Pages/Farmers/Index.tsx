@@ -112,7 +112,7 @@ export function Index({ auth }: PageProps) {
     
 
     function handlePageChange(url: string) {
-        router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+        router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&search='+search);
     }
     function handleSearch(q : string){
         applyFilters({search : q, sortColumn : sortColumn , sortOrder : sortOrder, filters : selectedStatus});
