@@ -61,7 +61,7 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
   function handlePageChange(url: string) {
-    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&search='+search);
   }
   function reset(){
     router.get(route('users.show',user.id));
