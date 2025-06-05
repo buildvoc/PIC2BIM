@@ -58,7 +58,7 @@ use Illuminate\Support\Facades\DB;
         ->leftJoin('task_flag', 'task.id', '=', 'task_flag.task_id')
         ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status');
 
-        if (!empty($search)) {
+        if (!empty($search) && $search != null && $search !== 'null') {
             $tasks->where('task.name', 'ILIKE', '%' . $search . '%');
         }
         
