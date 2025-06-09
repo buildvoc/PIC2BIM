@@ -3,15 +3,14 @@ import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 
-// We need to import CSS in the component since this is React
 // The MapLibre and deck.gl scripts will be loaded in the head of the document via CDN
 
 const INITIAL_VIEW_STATE = {
-  longitude: -0.7960,
-  latitude: 51.2140,
-  zoom: 16,
+  longitude: -0.7934,
+  latitude: 51.2177,
+  zoom: 20,
   pitch: 61,
-  bearing: 0
+  bearing: 11.5657
 };
 
 interface PhotoData {
@@ -38,9 +37,8 @@ interface BuildingGeometryData {
   base: number;
 }
 
-// Use PageProps with an additional photos property
 interface Props extends PageProps {
-  photos: any[]; // Using any[] to avoid type conflicts
+  photos: any[];
 }
 
 const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
@@ -61,8 +59,8 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         properties: {
           photoId: parseInt(photoId),
           buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
-          height: buildingData.height || 10, // Use the height we saved or default to 10
-          base: buildingData.base || 0 // Use the base we saved or default to 0
+          height: buildingData.height || 10,
+          base: buildingData.base || 0
         },
         geometry: {
           type: 'Polygon',
@@ -87,8 +85,8 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         properties: {
           photoId: parseInt(photoId),
           buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
-          height: buildingData.height || 10, // Total height from ground
-          base: buildingData.base || 0 // Height of roof base from ground
+          height: buildingData.height || 10,
+          base: buildingData.base || 0
         },
         geometry: {
           type: 'Polygon',
@@ -307,8 +305,8 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
       zoom: INITIAL_VIEW_STATE.zoom,
       pitch: INITIAL_VIEW_STATE.pitch,
       bearing: INITIAL_VIEW_STATE.bearing,
-      maxPitch: 85,
-      maxZoom: 20
+      maxPitch: 90,
+      maxZoom: 21
     });
 
     map.current.addControl(
@@ -364,7 +362,6 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
       fetch('assets/building-polygons.geojson')
         .then(response => response.json())
         .then(geojsonData => {
-          // Filter the data to ensure we only have LineString features if needed
           const lineFeatures = {
             type: 'FeatureCollection',
             features: geojsonData.features.filter((feature: any) => 
@@ -373,14 +370,11 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
             )
           };
 
-          // If there are no line features, we'll create a source with the original data
-          // but make sure to render it only as lines
           map.current.addSource('line-source', {
             type: 'geojson',
             data: lineFeatures.features.length > 0 ? lineFeatures : geojsonData
           });
 
-          // Render ONLY as a line, regardless of the geometry type
           map.current.addLayer({
             id: 'line-layer',
             type: 'line',
@@ -393,7 +387,6 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
               'line-color': '#ff0000',
               'line-width': 6
             },
-            // Force it to use only LineString features or convert Polygons to lines
             filter: ['any', 
               ['==', ['geometry-type'], 'LineString'],
               ['==', ['geometry-type'], 'MultiLineString']
@@ -432,11 +425,10 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
               'type': 'fill-extrusion',
               'paint': {
                 'fill-extrusion-color': '#ff8c00',
-                'fill-extrusion-height': 10, // Use height property or fixed value
+                'fill-extrusion-height': 10,
                 'fill-extrusion-base': 0,
                 'fill-extrusion-opacity': 0.8
               },
-              // Make sure it only renders Polygon features
               filter: ['any', 
                 ['==', ['geometry-type'], 'Polygon'],
                 ['==', ['geometry-type'], 'MultiPolygon']
@@ -466,9 +458,9 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         'source': 'api-buildings-source',
         'type': 'fill-extrusion',
         'paint': {
-          'fill-extrusion-color': '#FFEB3B', // Yellow for main building part
-          'fill-extrusion-height': ['get', 'base'], // Use the base property as the height (roof base)
-          'fill-extrusion-base': 0, // Start from the ground
+          'fill-extrusion-color': '#FFEB3B',
+          'fill-extrusion-height': ['get', 'base'],
+          'fill-extrusion-base': 0,
           'fill-extrusion-opacity': 0.7
         }
       });
@@ -479,9 +471,9 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         'source': 'api-roofs-source',
         'type': 'fill-extrusion',
         'paint': {
-          'fill-extrusion-color': '#2196F3', // Blue for roof part
-          'fill-extrusion-height': ['get', 'height'], // Use the total height property
-          'fill-extrusion-base': ['get', 'base'], // Start from the roof base
+          'fill-extrusion-color': '#2196F3',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'base'],
           'fill-extrusion-opacity': 0.7
         }
       });
@@ -502,8 +494,8 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           'circle-radius': 8,
           'circle-color': [
             'case',
-            ['get', 'hasGeometry'], '#E91E63', // Pink if has geometry
-            ['!=', ['get', 'nearestBuildingId'], null], '#4CAF50', // Green if has nearest building
+            ['get', 'hasGeometry'], '#E91E63', // Pink
+            ['!=', ['get', 'nearestBuildingId'], null], '#4CAF50', // Green
             '#3887be' // Default blue
           ],
           'circle-stroke-width': 2,
