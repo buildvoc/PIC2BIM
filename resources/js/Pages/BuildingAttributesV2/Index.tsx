@@ -620,6 +620,16 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         map.current.getCanvas().style.cursor = '';
       });
     });
+
+    // Disable road labels
+    map.current.on('style.load', () => {
+      map.current.setLayoutProperty('highway-name-path', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-name-minor', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-name-major', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-shield-non-us', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-shield-us-interstate', 'visibility', 'none');
+      map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
+    });
   };
 
   return (
