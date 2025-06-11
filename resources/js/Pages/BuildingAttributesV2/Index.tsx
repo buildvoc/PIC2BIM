@@ -461,7 +461,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           'fill-extrusion-color': '#FFEB3B',
           'fill-extrusion-height': ['get', 'base'],
           'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.7
+          'fill-extrusion-opacity': 0.8
         }
       });
       
@@ -474,7 +474,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           'fill-extrusion-color': '#2196F3',
           'fill-extrusion-height': ['get', 'height'],
           'fill-extrusion-base': ['get', 'base'],
-          'fill-extrusion-opacity': 0.7
+          'fill-extrusion-opacity': 0.8
         }
       });
       
@@ -490,6 +490,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         id: 'photos-layer',
         type: 'circle',
         source: 'photos-source',
+        minzoom: 0,
         paint: {
           'circle-radius': 8,
           'circle-color': [
@@ -501,7 +502,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff'
         }
-      });
+      }, 'building');
 
       // Add click handler for the photos
       map.current.on('click', 'photos-layer', (e: any) => {
@@ -629,6 +630,9 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
       map.current.setLayoutProperty('highway-shield-non-us', 'visibility', 'none');
       map.current.setLayoutProperty('highway-shield-us-interstate', 'visibility', 'none');
       map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
+
+      map.current.setPaintProperty('building', 'fill-opacity', 1);
+      map.current.setPaintProperty('building-3d', 'fill-extrusion-opacity', 1);
     });
   };
 
