@@ -58,8 +58,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/building_attributes', [BuildingAttributesController::class, 'index'])
         ->name('building_attributes');
-        Route::get('/building_attributes_v2', [BuildingAttributesController::class, 'index_v2'])
-        ->name('building_attributes_v2');
     });
     
 
