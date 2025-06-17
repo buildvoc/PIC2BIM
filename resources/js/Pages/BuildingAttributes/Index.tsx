@@ -1,9 +1,64 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 
-// The MapLibre and deck.gl scripts will be loaded in the head of the document via CDN
+interface ViewState {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  pitch: number;
+  bearing: number;
+}
+
+interface PhotoData {
+  id: number;
+  lat: string;
+  lng: string;
+  photo_heading: string;
+  file_name: string;
+  link: string;
+  altitude?: number;
+  path?: string;
+  angle?: number;
+  vertical_view_angle?: number;
+  distance?: number;
+  nmea_distance?: number;
+  [key: string]: any; // Allow for additional properties
+}
+
+interface NearestBuildingData {
+  id: number;
+  buildingPartId: string;
+  distance: number;
+  name?: string;
+  geometry?: any;
+  [key: string]: any;
+}
+
+interface BuildingGeometryData {
+  coordinates: any[];
+  height: number;
+  base: number;
+}
+
+interface Props extends Omit<PageProps, 'photos'> {
+  photos: PhotoData[];
+  auth: {
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      login: string;
+      surname: string;
+      identification_number: string;
+      vat: string;
+      email_verified_at: string;
+      roles: any[];
+      [key: string]: any;
+    };
+  };
+}
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -13,41 +68,14 @@ const INITIAL_VIEW_STATE = {
   bearing: 11.5657
 };
 
-interface PhotoData {
-  id: number;
-  lat: string;
-  lng: string;
-  photo_heading: string;
-  file_name: string;
-  link: string;
-}
-
-interface NearestBuildingData {
-  id: number;
-  buildingPartId: string;
-  distance: number;
-  name?: string;
-  geometry?: any;
-  [key: string]: any; // Allow for additional properties
-}
-
-interface BuildingGeometryData {
-  coordinates: any[];
-  height: number;
-  base: number;
-}
-
-interface Props extends PageProps {
-  photos: any[];
-}
-
-const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
+const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
-  const overlay = useRef<any>(null);
+  const deckRef = useRef<any>(null);
+  const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [nearestBuildings, setNearestBuildings] = useState<Record<number, NearestBuildingData | null>>({});
-  const [loadingPhotos, setLoadingPhotos] = useState<boolean>(true);
   const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
+  const [loadingPhotos, setLoadingPhotos] = useState<boolean>(true);
 
   // Create a GeoJSON from all building geometries
   const createBuildingGeometriesGeoJSON = () => {
@@ -70,7 +98,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
     }).filter(feature => feature !== null);
     
     return {
-    type: 'FeatureCollection',
+      type: 'FeatureCollection',
       features
     };
   };
@@ -115,7 +143,8 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           nearestBuildingId: nearestBuildings[photo.id]?.buildingPartId || null,
           nearestBuildingDistance: nearestBuildings[photo.id]?.distance || null,
           hasGeometry: buildingGeometries[photo.id] ? true : false,
-          link: photo.link
+          link: photo.link,
+          altitude: photo.altitude || 0
         },
         geometry: {
           type: 'Point',
@@ -200,8 +229,7 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
       setLoadingPhotos(false);
     }
   };
-  
-  // Fetch nearest buildings when component mounts
+
   useEffect(() => {
     if (photos.length > 0) {
       fetchAllNearestBuildings();
@@ -209,7 +237,6 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
   }, [photos]);
 
   useEffect(() => {
-    // Load MapLibre, pmtiles, and deck.gl scripts dynamically
     const loadScripts = async () => {
       // Load MapLibre CSS
       if (!document.querySelector('link[href*="maplibre-gl.css"]')) {
@@ -241,17 +268,6 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         });
       }
 
-      // Load deck.gl
-      if (!window.deck) {
-        const deckglScript = document.createElement('script');
-        deckglScript.src = 'https://unpkg.com/deck.gl@8.9.33/dist.min.js';
-        deckglScript.async = true;
-        document.head.appendChild(deckglScript);
-        await new Promise<void>((resolve) => {
-          deckglScript.onload = () => resolve();
-        });
-      }
-
       initializeMap();
     };
 
@@ -264,33 +280,11 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
     };
   }, []);
 
-  // Update the photos source when nearestBuildings data changes
-  useEffect(() => {
-    if (map.current && map.current.getSource('photos-source')) {
-      const photosGeoJSON = createPhotosGeoJSON();
-      map.current.getSource('photos-source').setData(photosGeoJSON);
-    }
-  }, [nearestBuildings]);
-  
-  // Update the building geometries source when buildingGeometries changes
-  useEffect(() => {
-    if (map.current && map.current.getSource('api-buildings-source')) {
-      const buildingsGeoJSON = createBuildingGeometriesGeoJSON();
-      map.current.getSource('api-buildings-source').setData(buildingsGeoJSON);
-    }
-    
-    if (map.current && map.current.getSource('api-roofs-source')) {
-      const roofsGeoJSON = createRoofGeometriesGeoJSON();
-      map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
-    }
-  }, [buildingGeometries]);
-
   const initializeMap = () => {
     const maplibregl = window.maplibregl;
     const pmtiles = window.pmtiles;
-    const deck = window.deck;
 
-    if (!maplibregl || !pmtiles || !mapContainer.current || !deck) return;
+    if (!maplibregl || !pmtiles || !mapContainer.current) return;
 
     // Initialize the pmtiles protocol
     const protocol = new pmtiles.Protocol();
@@ -301,10 +295,10 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-      zoom: INITIAL_VIEW_STATE.zoom,
-      pitch: INITIAL_VIEW_STATE.pitch,
-      bearing: INITIAL_VIEW_STATE.bearing,
+      center: [viewState.longitude, viewState.latitude],
+      zoom: viewState.zoom,
+      pitch: viewState.pitch,
+      bearing: viewState.bearing,
       maxPitch: 90,
       maxZoom: 21
     });
@@ -358,101 +352,18 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         })
       );
 
-      // Load trail GeoJSON data - Making sure it's only rendered as a line
-      fetch('assets/building-polygons.geojson')
-        .then(response => response.json())
-        .then(geojsonData => {
-          const lineFeatures = {
-            type: 'FeatureCollection',
-            features: geojsonData.features.filter((feature: any) => 
-              feature.geometry.type === 'LineString' || 
-              feature.geometry.type === 'MultiLineString'
-            )
-          };
-
-          map.current.addSource('line-source', {
-            type: 'geojson',
-            data: lineFeatures.features.length > 0 ? lineFeatures : geojsonData
-          });
-
-          map.current.addLayer({
-            id: 'line-layer',
-            type: 'line',
-            source: 'line-source',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#ff0000',
-              'line-width': 6
-            },
-            filter: ['any', 
-              ['==', ['geometry-type'], 'LineString'],
-              ['==', ['geometry-type'], 'MultiLineString']
-            ]
-          });
-        })
-        .catch(error => {
-          console.error("Error loading GeoJSON:", error);
-        });
-        
-      // Add building sources using the same GeoJSON but only for Polygon features
-      fetch('assets/building-polygons.geojson')
-        .then(response => response.json())
-        .then(geojsonData => {
-          // Filter to only include Polygon or MultiPolygon features
-          const polygonFeatures = {
-            type: 'FeatureCollection',
-            features: geojsonData.features.filter((feature: any) => 
-              feature.geometry.type === 'Polygon' || 
-              feature.geometry.type === 'MultiPolygon'
-            )
-          };
-
-          // Only add building source if we have polygon features
-          if (polygonFeatures.features.length > 0) {
-            // Add the GeoJSON source
-            map.current.addSource('buildings-source', {
-              type: 'geojson',
-              data: polygonFeatures
-            });
-
-            // Add the 3D buildings layer
-            map.current.addLayer({
-              'id': '3d-buildings',
-              'source': 'buildings-source',
-              'type': 'fill-extrusion',
-              'paint': {
-                'fill-extrusion-color': '#ff8c00',
-                'fill-extrusion-height': 10,
-                'fill-extrusion-base': 0,
-                'fill-extrusion-opacity': 0.8
-              },
-              filter: ['any', 
-                ['==', ['geometry-type'], 'Polygon'],
-                ['==', ['geometry-type'], 'MultiPolygon']
-              ]
-            });
-          }
-        })
-        .catch(error => {
-          console.error("Error loading building polygons:", error);
-        });
-      
-      // Add a source for API building geometries
+      // Add building sources
       map.current.addSource('api-buildings-source', {
         type: 'geojson',
         data: createBuildingGeometriesGeoJSON()
       });
       
-      // Add a source for API roof geometries
       map.current.addSource('api-roofs-source', {
         type: 'geojson',
         data: createRoofGeometriesGeoJSON()
       });
       
-      // Add a layer for API building geometries (ground to roof base)
+      // Add layers for buildings
       map.current.addLayer({
         'id': 'api-buildings',
         'source': 'api-buildings-source',
@@ -465,7 +376,6 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         }
       });
       
-      // Add a layer for API roof geometries (roof base to maximum height)
       map.current.addLayer({
         'id': 'api-roofs',
         'source': 'api-roofs-source',
@@ -478,14 +388,14 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
         }
       });
       
-      // Add photos to the map as markers with direction
+      // Add photos source
       const photosGeoJSON = createPhotosGeoJSON();
       map.current.addSource('photos-source', {
         type: 'geojson',
         data: photosGeoJSON
       });
       
-      // Add a layer to render the photo locations as circles
+      // Add photos layer
       map.current.addLayer({
         id: 'photos-layer',
         type: 'circle',
@@ -495,16 +405,16 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
           'circle-radius': 8,
           'circle-color': [
             'case',
-            ['get', 'hasGeometry'], '#E91E63', // Pink
-            ['!=', ['get', 'nearestBuildingId'], null], '#4CAF50', // Green
-            '#3887be' // Default blue
+            ['get', 'hasGeometry'], '#E91E63',
+            ['!=', ['get', 'nearestBuildingId'], null], '#4CAF50',
+            '#3887be'
           ],
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff'
         }
       }, 'building');
 
-      // Add click handler for the photos
+      // Add click handlers
       map.current.on('click', 'photos-layer', (e: any) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
@@ -541,83 +451,13 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
             .addTo(map.current);
         }
       });
-      
-      // Add click handler for API buildings
-      map.current.on('click', 'api-buildings', (e: any) => {
-        if (e.features && e.features.length > 0) {
-          const properties = e.features[0].properties;
-          const photoId = properties.photoId;
-          const buildingId = properties.buildingId;
-          const height = properties.height;
-          const base = properties.base;
-          
-            const description = `
-              <div>
-              <p><strong>Building ID:</strong> ${buildingId}</p>
-              <p><strong>Associated with Photo:</strong> ${photoId}</p>
-              <p><strong>Total Height:</strong> ${height ? height.toFixed(2) + 'm' : 'Unknown'}</p>
-              <p><strong>Roof Base:</strong> ${base ? base.toFixed(2) + 'm' : '0m'}</p>
-              <p><strong>Roof Height:</strong> ${(height && base) ? (height - base).toFixed(2) + 'm' : 'Unknown'}</p>
-              </div>
-            `;
-            
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-              .setHTML(description)
-              .addTo(map.current);
-          }
-      });
-      
-      // Add click handler for API roofs (same as buildings)
-      map.current.on('click', 'api-roofs', (e: any) => {
-        if (e.features && e.features.length > 0) {
-          const properties = e.features[0].properties;
-          const photoId = properties.photoId;
-          const buildingId = properties.buildingId;
-          const height = properties.height;
-          const base = properties.base;
-          
-          const description = `
-            <div>
-              <p><strong>Building ID:</strong> ${buildingId}</p>
-              <p><strong>Associated with Photo:</strong> ${photoId}</p>
-              <p><strong>Total Height:</strong> ${height ? height.toFixed(2) + 'm' : 'Unknown'}</p>
-              <p><strong>Roof Base:</strong> ${base ? base.toFixed(2) + 'm' : '0m'}</p>
-              <p><strong>Roof Height:</strong> ${(height && base) ? (height - base).toFixed(2) + 'm' : 'Unknown'}</p>
-            </div>
-          `;
-          
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(description)
-            .addTo(map.current);
-        }
-      });
-      
-      // Change cursor on hover over photos
+
+      // Add hover effects
       map.current.on('mouseenter', 'photos-layer', () => {
         map.current.getCanvas().style.cursor = 'pointer';
       });
       
       map.current.on('mouseleave', 'photos-layer', () => {
-        map.current.getCanvas().style.cursor = '';
-      });
-      
-      // Change cursor on hover over API buildings
-      map.current.on('mouseenter', 'api-buildings', () => {
-        map.current.getCanvas().style.cursor = 'pointer';
-      });
-      
-      map.current.on('mouseleave', 'api-buildings', () => {
-        map.current.getCanvas().style.cursor = '';
-      });
-      
-      // Change cursor on hover over API roofs
-      map.current.on('mouseenter', 'api-roofs', () => {
-        map.current.getCanvas().style.cursor = 'pointer';
-      });
-      
-      map.current.on('mouseleave', 'api-roofs', () => {
         map.current.getCanvas().style.cursor = '';
       });
     });
@@ -630,11 +470,28 @@ const BuildingAttributesContent: React.FC<{ photos: any[] }> = ({ photos }) => {
       map.current.setLayoutProperty('highway-shield-non-us', 'visibility', 'none');
       map.current.setLayoutProperty('highway-shield-us-interstate', 'visibility', 'none');
       map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
-
-      map.current.setPaintProperty('building', 'fill-opacity', 1);
-      map.current.setPaintProperty('building-3d', 'fill-extrusion-opacity', 1);
     });
   };
+
+  // Update layers when data changes
+  useEffect(() => {
+    if (map.current && map.current.getSource('photos-source')) {
+      const photosGeoJSON = createPhotosGeoJSON();
+      map.current.getSource('photos-source').setData(photosGeoJSON);
+    }
+  }, [nearestBuildings]);
+
+  useEffect(() => {
+    if (map.current && map.current.getSource('api-buildings-source')) {
+      const buildingsGeoJSON = createBuildingGeometriesGeoJSON();
+      map.current.getSource('api-buildings-source').setData(buildingsGeoJSON);
+    }
+    
+    if (map.current && map.current.getSource('api-roofs-source')) {
+      const roofsGeoJSON = createRoofGeometriesGeoJSON();
+      map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
+    }
+  }, [buildingGeometries]);
 
   return (
     <div className="relative w-full h-[calc(100vh-64px)]">
@@ -690,3 +547,7 @@ declare global {
     deck: any;
   }
 }
+
+declare module '@deck.gl/react';
+declare module '@deck.gl/layers';
+declare module '@deck.gl/mesh-layers';
