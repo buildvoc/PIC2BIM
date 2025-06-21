@@ -122,6 +122,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/comm_building_part', [ApiController::class, 'comm_building_part']);
     Route::get('/comm_building_part_nearest', [ApiController::class, 'comm_building_part_nearest']);
     Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
+
+    Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
+
+    //NHLE API
+    Route::get('/comm_nhle', [ApiController::class, 'comm_nhle']);
+
+    //Spatial Boundaries API
+    Route::get('/comm_land_registry_inspire', [ApiController::class, 'comm_land_registry_inspire']);
     //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
 });
 
