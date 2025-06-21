@@ -20,7 +20,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
 import Filter from "@/Components/PhotoGallery/Filter";
-import Pagination from "@/Components/Pagination/Pagination";
 
 export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
     console.log(paginatedPhotos,"paginatedPhotos")
@@ -218,7 +217,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                     <div className="overflow-hidden sm:rounded-lg">
                         <div
                             className={` ${splitView.split
-                                ? "overflow-y-auto h-3/4-screen"
+                                ? "h-3/4-screen"
                                 : ""
                                 } `}
                         >
@@ -228,8 +227,8 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                                 isUnassigned={true}
                                 destroy={destroy}
                                 setPhotos={setPhotos}
+                                isSplitView={splitView.split}
                             />
-                            <Pagination pagination={paginatedPhotos}/>
                         </div>
                     </div>
                 </div>
@@ -265,53 +264,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                                 setIsMapVisible={setMapVisibility}
                                 splitView={splitView.split}
                             />
-                            {/* <div className="flex pt-2 px-2">
-                                <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
-                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAll}
-                                    >
-                                        <span>Select All</span>
-                                    </button>
-                                    <Link
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        href={""}
-                                    >
-                                        <span>Cancel Selection</span>
-                                    </Link>
-                                    <button
-                                        className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={onDeleteHandler}
-                                    >
-                                        <FaTrash size={16} className="mr-2" />
-                                        <span>Delete Selected</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={chooseTask}
-                                    >
-                                        <span>Choose Task</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={() => {
-                                            const queryString = new URLSearchParams({
-                                                unassigned: 'true',
-                                                total: photos.length.toString()
-                                            }).toString();
-                                            const exportUrl = route("pdf_preview") + '?' + queryString;
-                                            window.open(exportUrl,'_blank')
-                                        }}
-                                    >
-                                        <span>Export To PDF</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAllPdfHandler}
-                                    >
-                                        <span>Export Selected To PDF</span>
-                                    </button>
-                                </div>
-                            </div> */}
                         </div>
                     </div>
                 </div>

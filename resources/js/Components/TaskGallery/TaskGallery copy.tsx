@@ -3,7 +3,7 @@ import { GalleryProps } from "@/types";
 import { FaTrash } from "react-icons/fa";
 import { FaSync } from "react-icons/fa";
 import { FaCheck } from "react-icons/fa";
-import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown, FaEye } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaEye } from "react-icons/fa";
 import { loadJQuery } from "@/helpers";
 import "./style.css";
 import Modal_ from "./Modal_";
@@ -32,71 +32,35 @@ const TaskGallery = ({
         margin: '0 auto'
     } : {};
 
-    // For horizontal carousel (non-split view)
     const NextArrow = (props: any) => {
         const { onClick } = props;
         return (
             <div
-                className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-2 md:p-3 rounded-full shadow-lg"
+                className="absolute -right-8 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg"
                 onClick={onClick}
             >
-                <FaChevronRight className="text-gray-600 dark:text-gray-400 text-xs md:text-base" />
+                <FaChevronRight className="text-gray-600 dark:text-gray-400" />
             </div>
         );
     };
 
-    // For horizontal carousel (non-split view)
     const PrevArrow = (props: any) => {
         const { onClick } = props;
         return (
             <div
-                className="absolute -left-2 md:-left-6 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-2 md:p-3 rounded-full shadow-lg"
+                className="absolute -left-8 top-1/2 -translate-y-1/2 z-10 cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg"
                 onClick={onClick}
             >
-                <FaChevronLeft className="text-gray-600 dark:text-gray-400 text-xs md:text-base" />
+                <FaChevronLeft className="text-gray-600 dark:text-gray-400" />
             </div>
         );
     };
 
-    // For vertical carousel (split view)
-    const NextArrowVertical = (props: any) => {
-        const { onClick } = props;
-        return (
-            <div
-                className="absolute right-1/2 bottom-0 z-20 cursor-pointer bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg"
-                onClick={onClick}
-                style={{ transform: 'translate(50%, 50%)' }}
-            >
-                <FaChevronDown className="text-gray-600 dark:text-gray-400 text-xs" />
-            </div>
-        );
-    };
-
-    // For vertical carousel (split view)
-    const PrevArrowVertical = (props: any) => {
-        const { onClick } = props;
-        return (
-            <div
-                className="absolute right-1/2 top-0 z-20 cursor-pointer bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg"
-                onClick={onClick}
-                style={{ transform: 'translate(50%, -50%)' }}
-            >
-                <FaChevronUp className="text-gray-600 dark:text-gray-400 text-xs" />
-            </div>
-        );
-    };
-
-    // Calculate slidesToShow based on available photos, split view, and ensure it's at least 1
-    const slidesToShow = photos.length > 0 
-        ? Math.min(photos.length, isSplitView ? 1 : 4)
-        : 1;
-
-    // Settings for horizontal carousel (non-split view)
-    const horizontalSettings = {
+    const settings = {
         dots: true,
         infinite: false,
         speed: 500,
-        slidesToShow: Math.min(photos.length || 1, 4),
+        slidesToShow: Math.min(photos.length, isSplitView ? 2 : 4),
         slidesToScroll: 1,
         nextArrow: <NextArrow />,
         prevArrow: <PrevArrow />,
@@ -104,7 +68,7 @@ const TaskGallery = ({
             {
                 breakpoint: 1280,
                 settings: {
-                    slidesToShow: Math.min(photos.length || 1, 3),
+                    slidesToShow: Math.min(photos.length, isSplitView ? 1 : 3),
                     slidesToScroll: 1,
                     dots: true
                 }
@@ -112,7 +76,7 @@ const TaskGallery = ({
             {
                 breakpoint: 1024,
                 settings: {
-                    slidesToShow: Math.min(photos.length || 1, 2),
+                    slidesToShow: Math.min(photos.length, isSplitView ? 1 : 2),
                     slidesToScroll: 1,
                     dots: true
                 }
@@ -120,46 +84,14 @@ const TaskGallery = ({
             {
                 breakpoint: 640,
                 settings: {
-                    slidesToShow: 1,
+                    slidesToShow: Math.min(photos.length, 1),
                     slidesToScroll: 1,
                     dots: true,
-                    arrows: true
+                    arrows: false
                 }
             }
         ]
     };
-
-    // Settings for vertical carousel (split view)
-    const verticalSettings = {
-        dots: false,
-        infinite: false,
-        speed: 500,
-        slidesToShow: Math.min(photos.length, 2), // Show up to 2 photos at once for larger photos
-        slidesToScroll: 1,
-        vertical: true,
-        verticalSwiping: true,
-        nextArrow: <NextArrowVertical />,
-        prevArrow: <PrevArrowVertical />,
-        responsive: [
-            {
-                breakpoint: 768,
-                settings: {
-                    slidesToShow: Math.min(photos.length, 2),
-                    slidesToScroll: 1,
-                }
-            },
-            {
-                breakpoint: 480,
-                settings: {
-                    slidesToShow: 1,
-                    slidesToScroll: 1,
-                }
-            }
-        ]
-    };
-
-    // Choose the appropriate settings based on view mode
-    const settings = isSplitView ? verticalSettings : horizontalSettings;
 
     useEffect(() => {
         const initJQuery = async () => {
@@ -216,63 +148,26 @@ const TaskGallery = ({
         setPhotos(withCheckUpdate);
     };
 
-    // If there are no photos, show a message instead
-    if (photos.length === 0) {
-        return (
-            <div className="flex justify-center items-center p-8 text-gray-500 dark:text-gray-400">
-                No photos available
-            </div>
-        );
-    }
-
     return (
         <>
-            <div className={`mx-auto px-1 md:px-3 py-2 md:py-6 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
-                <div 
-                    className={`slider-container mb-2 md:mb-4 px-2 md:px-4 relative mx-auto 
-                        ${isSplitView ? 'max-w-full vertical-carousel' : 'max-w-[90%]'} 
-                        ${photos.length === 1 ? 'single-image-container' : ''}`} 
-                    style={{ 
-                        width: '100%',
-                        ...(isSplitView ? { height: '80vh', overflow: 'hidden', paddingTop: '20px', paddingBottom: '20px' } : {})
-                    }}
-                >
-                    <Slider 
-                        {...settings} 
-                        className={`gallery-slider py-1 md:py-2 
-                            ${isSplitView ? 'split-view-slider vertical-slider' : ''} 
-                            ${photos.length === 1 ? 'single-image-slider' : ''}`}
-                    >
+            <div className={`mx-auto px-3 py-6 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
+                <div className={`slider-container mb-4 px-4 relative mx-auto ${isSplitView ? 'max-w-full' : 'max-w-[90%]'} ${photos.length === 1 ? 'single-image-container' : ''}`}>
+                    <Slider {...settings} className={`gallery-slider py-2 ${isSplitView ? 'split-view-slider' : ''} ${photos.length === 1 ? 'single-image-slider' : ''}`}>
                         {photos?.map((photo, index) => {
                             const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
                             return (
-                                <div 
-                                    className={`slide-item px-1 md:px-2 ${isSplitView ? 'py-2 mb-4' : 'mt-1 md:mt-3'}`} 
-                                    key={index} 
-                                    style={{ width: '100%' }}
-                                >
+                                <div className="slide-item px-2 mt-3" key={index}>
                                     <div 
-                                        className={`bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden p-2 md:p-3 mx-1 md:mx-2 h-full group 
-                                            ${photo.check ? 'ring-2 ring-blue-500' : ''}
-                                            ${isSplitView ? 'split-view-item' : ''} 
-                                            ${photos.length === 1 ? 'single-image-item' : ''}`}
+                                        className={`bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden p-3 mx-2 h-full group ${
+                                            photo.check ? 'ring-2 ring-blue-500' : ''
+                                        } ${isSplitView ? 'split-view-item' : ''} ${photos.length === 1 ? 'single-image-item' : ''}`}
                                         style={photos.length === 1 ? singleImageStyles : {}}
                                     >
+                                        {/* Image Section */}
                                         <div className="relative">
                                             <div 
-                                                className={`w-full relative overflow-hidden rounded-lg sm:rounded-xl bg-gray-100 dark:bg-gray-700 
-                                                    ${isSplitView ? 'split-view-image-container' : ''} 
-                                                    ${photos.length === 1 ? 'single-image-container' : ''}`}
-                                                style={photos.length === 1 ? { 
-                                                    maxWidth: '300px', 
-                                                    maxHeight: '300px', 
-                                                    minWidth: '200px', 
-                                                    minHeight: '200px' 
-                                                } : isSplitView ? {
-                                                    height: '220px'
-                                                } : {
-                                                    aspectRatio: '1/1'
-                                                }}
+                                                className={`w-full aspect-square relative overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-700 ${isSplitView ? 'split-view-image-container' : ''} ${photos.length === 1 ? 'single-image-container' : ''}`}
+                                                style={photos.length === 1 ? { maxWidth: '300px', maxHeight: '300px', minWidth: '200px', minHeight: '200px' } : {}}
                                             >
                                                 <img
                                                     loading="lazy"
@@ -281,11 +176,9 @@ const TaskGallery = ({
                                                         e.currentTarget.onerror = null;
                                                     }}
                                                     src={imageSrc}
-                                                    className={`absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90 
-                                                        ${isSplitView ? 'split-view-image' : ''} 
-                                                        ${photos.length === 1 ? 'single-image' : ''}`}
+                                                    className={`absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90 ${isSplitView ? 'split-view-image' : ''} ${photos.length === 1 ? 'single-image' : ''}`}
                                                     style={{
-                                                        transform: `rotate(${photo?.angle || 0}deg)`,
+                                                        transform: `rotate(${photo?.angle}deg)`,
                                                         ...(photos.length === 1 ? { maxWidth: '300px', maxHeight: '300px' } : {})
                                                     }}
                                                     onClick={() => {
@@ -297,8 +190,7 @@ const TaskGallery = ({
                                                 />
                                                 
                                                 <div 
-                                                    className={`absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer 
-                                                        ${isSplitView ? 'split-view-overlay' : ''}`}
+                                                    className={`absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer ${isSplitView ? 'split-view-overlay' : ''}`}
                                                     onClick={() => {
                                                         setShowModal({
                                                             isShow: true,
@@ -307,13 +199,12 @@ const TaskGallery = ({
                                                     }}
                                                 >
                                                     <div 
-                                                        className={`flex gap-2 md:gap-3 p-1 md:p-2 rounded-lg bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 
-                                                            ${isSplitView ? 'split-view-buttons' : ''}`}
+                                                        className={`flex gap-3 p-2 rounded-lg bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 ${isSplitView ? 'split-view-buttons' : ''}`}
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         {isUnassigned && (
                                                             <FaTrash
-                                                                className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-sm md:text-base"
+                                                                className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-base sm:text-lg"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     destroy!([photo.id].join(","));
@@ -322,7 +213,7 @@ const TaskGallery = ({
                                                             />
                                                         )}
                                                         <FaSync
-                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
                                                             style={{ transform: "scaleX(-1)" }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -331,7 +222,7 @@ const TaskGallery = ({
                                                             title="Rotate left"
                                                         />
                                                         <FaSync
-                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleRotate(photo.digest, "right");
@@ -339,7 +230,7 @@ const TaskGallery = ({
                                                             title="Rotate right"
                                                         />
                                                         <FaCheck 
-                                                            className={`text-sm md:text-base cursor-pointer transition-colors ${
+                                                            className={`text-base sm:text-lg cursor-pointer transition-colors ${
                                                                 photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
                                                             }`}
                                                             onClick={(e) => {
@@ -349,7 +240,7 @@ const TaskGallery = ({
                                                             title="Select photo"
                                                         />
                                                         <FaEye 
-                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-base sm:text-lg"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 localStorage.setItem("map_from_photo_detail", "true");
@@ -363,8 +254,8 @@ const TaskGallery = ({
                                         </div>
                                         
                                         {photo.check && (
-                                            <div className="flex justify-center mt-1 md:mt-2">
-                                                <div className="bg-blue-500 h-1 md:h-1.5 w-1/3 rounded-full"></div>
+                                            <div className="flex justify-center mt-2">
+                                                <div className="bg-blue-500 h-1.5 w-1/3 rounded-full"></div>
                                             </div>
                                         )}
                                     </div>
