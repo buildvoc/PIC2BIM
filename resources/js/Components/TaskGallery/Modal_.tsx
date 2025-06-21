@@ -234,7 +234,7 @@ const Modal_ = ({
                             
                             // Find the closest land feature
                             if (features.length === 1) {
-                                setLandData(features[0]);
+                                setLandData(features[0].properties);
                             } else {
                                 let closestLand = null;
                                 let minDistance = Number.MAX_VALUE;
@@ -252,14 +252,14 @@ const Modal_ = ({
                                             
                                             if (distance < minDistance) {
                                                 minDistance = distance;
-                                                closestLand = feature;
+                                                closestLand = feature.properties;
                                             }
                                         }
                                         // For Polygon geometries, use the first coordinate of the first ring
                                         else if ((feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') 
                                                 && feature.geometry.coordinates && feature.geometry.coordinates.length > 0) {
                                             // Get center of bbox instead
-                                            setLandData(feature);
+                                            setLandData(feature.properties);
                                             break;
                                         }
                                     }
@@ -602,7 +602,7 @@ const Modal_ = ({
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{shapeData?.wd24nm ? shapeData.wd24nm : ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Parcel Ref</div>
-                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.properties?.description || ''}</div>
+                            <div className="text-right font-medium text-gray-700 dark:text-gray-200">{landData?.description || ''}</div>
                             
                             <div className="text-gray-500 dark:text-gray-400">Note</div>
                             <div className="text-right font-medium text-gray-700 dark:text-gray-200">{photo?.note}</div>
