@@ -354,10 +354,85 @@ export default function Authenticated({
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink
                             href={route("dashboard")}
-                            active={route().current("dashboard")}
+                            active={route().current("dashboard") || route().current("user_task.index")}
                         >
-                            Dashboard
+                            Home
                         </ResponsiveNavLink>
+                        
+                        {userRoles.includes(2) && userRoles.length > 0 && (
+                            <ResponsiveNavLink
+                                href={route("users.unassigned")}
+                                active={route().current("users.unassigned")}
+                            >
+                                Unassigned Farmers
+                            </ResponsiveNavLink>
+                        )}
+
+                        {userRoles.includes(3) && userRoles.length > 0 && (
+                            <ResponsiveNavLink
+                                href={route("types.index")}
+                                active={route().current("types.index")}
+                            >
+                                Task Purpose
+                            </ResponsiveNavLink>
+                        )}
+
+                        {userRoles.includes(1) && userRoles.length > 0 && (
+                            <>
+                                <ResponsiveNavLink
+                                    href={route("photo_gallery")}
+                                    active={route().current("photo_gallery")}
+                                >
+                                    Photo Gallery
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route("user_paths")}
+                                    active={route().current("user_paths")}
+                                >
+                                    Show Paths
+                                </ResponsiveNavLink>
+                                {header ? (
+                                    <ResponsiveNavLink
+                                        href={route("building_height")}
+                                        active={route().current("user_paths")}
+                                    >
+                                        Building height
+                                    </ResponsiveNavLink>
+                                ) : (
+                                    <>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                        >
+                                            Take photo again
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                            onClick={() => uploadPhotoHandler()}
+                                        >
+                                            Upload photo again
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                            onClick={() => metadataResultsHandler()}
+                                        >
+                                            Metadata results
+                                        </ResponsiveNavLink>
+                                    </>
+                                )}
+                                <ResponsiveNavLink
+                                    href={route("building_attributes")}
+                                    active={route().current("building_attributes")}
+                                >
+                                    Building attributes
+                                </ResponsiveNavLink>
+                            </>
+                        )}
                     </div>
 
                     <div className="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
