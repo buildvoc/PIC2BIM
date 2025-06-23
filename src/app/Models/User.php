@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -48,7 +46,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
-            //'password' => 'hashed',
+            
         ];
     }
 
@@ -102,22 +100,6 @@ class User extends Authenticatable implements MustVerifyEmail
                     break;
 
                 case 'filtered_tasks':
-                    // if (isset($_SESSION['task_list_filter']['filter'])) {
-                    //     $filter = index_model::setListFilter($_SESSION['task_list_filter']['filter']);
-                    // } else {
-                    //     $filter = index_model::setDefaultListFilter();
-                    // }
-
-                    // $query = DB::table('task as t')
-                    //     ->leftJoin('task_flag as tf', 't.id', '=', 'tf.task_id')
-                    //     ->where('t.user_id', $farmers_id)
-                    //     ->where('t.flg_deleted', 0);
-
-                    // if (!empty($filter)) {
-                    //     $query->whereRaw($filter);
-                    // }
-
-                    // $count_sql = $query->count();
                     $count_sql = 0;
                     break;
 

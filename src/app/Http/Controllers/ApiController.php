@@ -2,22 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CodepointCollection;
-use App\Http\Resources\ShapeCollection;
-use App\Http\Resources\UprnCollection;
-use App\Models\Attr\BuildingPart;
-use App\Models\Attr\Codepoint;
+use PDO;
+use Exception;
+use App\Models\Land;
+use App\Models\NHLE;
+use App\Models\Path;
+use App\Models\Task;
+use App\Models\Photo;
 use App\Models\Attr\Uprn;
 use App\Models\Attr\Shape;
-use App\Models\Land;
-use App\Models\Path;
-use App\Models\Photo;
-use App\Models\Task;
-use Exception;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Models\Attr\Codepoint;
+use App\Models\Attr\BuildingPart;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use PDO;
+use App\Http\Resources\UprnCollection;
+use App\Http\Resources\ShapeCollection;
+use App\Http\Resources\CodepointCollection;
+use App\Http\Resources\NhleCollection;
+use App\Models\LandRegistryInspire;
+use App\Http\Resources\LandRegistryInspireCollection;
 
 class ApiController extends Controller
 {
@@ -352,8 +356,7 @@ class ApiController extends Controller
 
 
     public function comm_get_lpis(Request $request){
-        // https://api.os.uk/features/ngd/ofa/v1/collections/bld-fts-buildingpart-2/items?bbox=-0.795704,51.215453,-0.795082,51.215748
-        // https://pic2bim.co.uk/comm_get_lpis?max_lat=51.219908&min_lat=51.212019&max_lng=-0.759859&min_lng=-0.781896
+        
         $bbox = explode(",",$request->bbox);
         $requestData = $request->all();
         $max_lng = $bbox[2] ?? false;
@@ -361,13 +364,10 @@ class ApiController extends Controller
         $min_lng = $bbox[0] ?? false;
         $min_lat = $bbox[1] ?? false;
 
-        // $max_lat = trim($request->input('max_lat'));
-        // $min_lat = trim($request->input('min_lat'));
-        // $max_lng = trim($request->input('max_lng'));
-        // $min_lng = trim($request->input('min_lng'));
-
         $numberOfRecords = $requestData['numberOfRecords'] ?? 20;
-        $query = Land::whereNotNull('wgs_geometry');
+        $query = Land::select('id', 'identificator', 'pa_description', 'wkt', 'wgs_max_lat', 'wgs_min_lat', 'wgs_max_lng', 'wgs_min_lng')
+            ->selectRaw("ST_AsGeoJSON(wgs_geometry) as geometry_json")
+            ->whereNotNull('wgs_geometry');
         
         if ($request->has('identificator')) {
             $query->where('identificator', $request->input('identificator'));
@@ -379,26 +379,24 @@ class ApiController extends Controller
                 ->where('wgs_max_lat', '>', $min_lat)
                 ->where('wgs_min_lng', '<', $max_lng)
                 ->where('wgs_max_lng', '>', $min_lng);
-                // ->whereRaw('CAST(wgs_min_lat AS DECIMAL) >= ?', [$max_lat])
-                // ->whereRaw('CAST(wgs_max_lat AS DECIMAL) <= ?', [$min_lat])
-                // ->whereRaw('CAST(wgs_min_lng AS DECIMAL) >= ?', [$max_lng])
-                // ->whereRaw('CAST(wgs_max_lng AS DECIMAL) <= ?', [$min_lng]);
         }
         
         $lands = $query->limit($numberOfRecords)->get();
 
         $features = [];
         foreach ($lands as $land){
+            $geometryJson = json_decode($land->geometry_json, true);
+            
             $features[] = [
-                'id' => $land['id'],
+                'id' => $land->id,
                 'type' => 'Feature',
-                'geometry' => [
-                    'type' => $land['wkt'],
-                    'coordinates' => $land['wgs_geometry']
+                'geometry' => $geometryJson ?? [
+                    'type' => $land->wkt,
+                    'coordinates' => null
                 ],
                 'properties' => [
-                    'name' => $land['identificator'],
-                    'description' => $land['pa_description']
+                    'name' => $land->identificator,
+                    'description' => $land->pa_description
                 ]
             ];
         }
@@ -648,43 +646,35 @@ class ApiController extends Controller
         ], 200);
     }
 
-    /**
-     * @OA\Get(
-     * path="/comm_codepoint",
-     * security={{"bearerAuth":{}}},
-     * tags={"Codepoint"},
-     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
-     *   @OA\Parameter(
-     *      name="postcode",
-     *      in="query",
-     *      required=false,
-     *      @OA\Schema(
-     *          type="string"
-     *      ),
-     *      example="BA1 0AH",
-     *   ),
-     *   @OA\Parameter(
-     *      name="page",
-     *      in="query",
-     *      required=false,
-     *      @OA\Schema(
-     *          type="string"
-     *      )
-     *   ),
-     * )
-     */
     public function comm_codepoint(Request $request)
     {
         $postcode = $request->query('postcode');
-
-        $data = Codepoint::query()
-        ->when($postcode, function ($query) use ($postcode) {
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = Codepoint::query();
+        
+        if ($postcode) {
             $query->where('postcode', 'ILIKE', '%'.$postcode.'%');
-        })
-        ->paginate(100);
-
-        $data->appends(array('postcode' => $postcode));
-
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'postcode' => $postcode,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
+        
         return new CodepointCollection($data);
     }
 
@@ -716,15 +706,125 @@ class ApiController extends Controller
     public function comm_uprn(Request $request)
     {
         $uprn = $request->query('uprn');
-
-        $data = Uprn::query()
-        ->when($uprn, function ($query) use ($uprn) {
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = Uprn::query();
+        
+        if ($uprn) {
             $query->where('uprn', $uprn);
-        })
-        ->paginate(100);
-
-        $data->appends(array('uprn' => $uprn));
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'uprn' => $uprn,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
 
         return new UprnCollection($data);
+    }
+
+    public function comm_nhle(Request $request)
+    {
+        $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-90,90']
+        ]);
+        $latitude = $request->query('latitude');
+        $longitude = $request->query('longitude');
+        $distance = $request->query('distance') ?: 5;
+        $imagedirection = $request->query('imagedirection') ?: 9;
+        
+        $query = NHLE::query();
+        
+        if ($latitude && $longitude) {
+            // Calculate target point based on direction
+            $radians = deg2rad($imagedirection);
+            $targetLng = $longitude + (sin($radians) * $distance * 0.00001);
+            $targetLat = $latitude + (cos($radians) * $distance * 0.00001);
+            
+            // Using buffer to create a corridor for intersection
+            $query
+                ->whereRaw("ST_Intersects(
+                    geom,
+                    ST_Transform(
+                        ST_SetSRID(
+                            ST_Buffer(
+                                ST_MakeLine(
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry,
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry
+                                ),
+                                0.0002
+                            ),
+                            4326
+                        ),
+                        ST_SRID(geom)
+                    )
+                )",
+                [
+                    $longitude, $latitude,
+                    $targetLng, $targetLat
+                ])
+                // Just order by the direction the user is facing
+                ->orderByRaw("
+                    ST_Distance(
+                        geom,
+                        ST_Transform(
+                            ST_SetSRID(ST_MakePoint(?, ?), 4326),
+                            ST_SRID(geom)
+                        )
+                    ) ASC
+                ",
+                [
+                    $targetLng, $targetLat
+                ]);
+        }
+        
+        $data = $query->limit(1)->get();
+        
+        return new NhleCollection($data);
+    }
+
+    public function comm_land_registry_inspire(Request $request)
+    {
+        $inspire_id = $request->query('inspire_id');
+        $min_lng = $request->query('min_lng');
+        $min_lat = $request->query('min_lat');
+        $max_lng = $request->query('max_lng');
+        $max_lat = $request->query('max_lat');
+        
+        $query = LandRegistryInspire::query();
+        
+        if ($inspire_id) {
+            $query->where('INSPIREID', $inspire_id);
+        }
+        
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $query->whereRaw("ST_Intersects(geom, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geom)))", 
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        
+        $data = $query->paginate(100);
+        
+        $data->appends([
+            'inspire_id' => $inspire_id,
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat
+        ]);
+
+        return new LandRegistryInspireCollection($data);
     }
 }

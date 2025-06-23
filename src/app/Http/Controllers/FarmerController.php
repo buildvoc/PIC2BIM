@@ -40,18 +40,25 @@ use Illuminate\Support\Facades\DB;
             'task.task_due_date as due',
             DB::raw("to_char(task.date_created, 'DD-MM-YYYY') as date_created"),
             DB::raw("to_char(task.task_due_date, 'DD-MM-YYYY') as task_due_date"),
-            DB::raw('COUNT(photo.id) as photo_taken'),
+            // DB::raw('COUNT(photo.id) as photo_taken'),
             'task_flag.flag_id',
             'status_sortorder.sortorder'
         )
+        ->addSelect([
+            'photo_taken' => Task::selectRaw('COUNT(*)')
+                                ->from('photo')
+                                ->whereColumn('photo.task_id','task.id')
+                                ->where('photo.flg_deleted',0)
+        ])
         ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 1) > 0 THEN 1 ELSE 0 END AS flag_valid')
         ->selectRaw('CASE WHEN (SELECT COUNT(*) FROM task_flag tf WHERE task_id = task.id AND flag_id = 2) > 0 THEN 1 ELSE 0 END AS flag_invalid')
         ->where('task.user_id', $user_id)
         ->where('task.flg_deleted', 0)
-        ->leftJoin('photo', 'task.id', '=', 'photo.task_id')
+        // ->leftJoin('photo', 'task.id', '=', 'photo.task_id')
         ->leftJoin('task_flag', 'task.id', '=', 'task_flag.task_id')
         ->leftJoin('status_sortorder', 'task.status', '=', 'status_sortorder.status');
 
+        if($search == null || $search == 'null') $search = '';
         if (!empty($search)) {
             $tasks->where('task.name', 'ILIKE', '%' . $search . '%');
         }
@@ -85,7 +92,7 @@ use Illuminate\Support\Facades\DB;
             $tasks->orderByRaw('status_sortorder.sortorder ASC, created DESC');
         }
 
-        $tasks = $tasks->orderBy('status_sortorder.sortorder');
+        // $tasks = $tasks->orderBy('status_sortorder.sortorder');
         $tasks = $tasks->groupBy([
             'task.id', 
             'task.status', 

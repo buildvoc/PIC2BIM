@@ -61,7 +61,7 @@ export default function Dashboard({ auth }: PageProps) {
     }
   }
   function handlePageChange(url: string) {
-    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&seach='+search);
+    router.get(url+'&sortOrder='+sortOrder+'&sortColumn='+sortColumn+'&search='+search);
   }
   function reset(){
     router.get(route('users.show',user.id));
@@ -103,7 +103,7 @@ export default function Dashboard({ auth }: PageProps) {
     setSelectedStatus(prevSelectedStatus => {
       if (prevSelectedStatus.includes(status)) {
         const return1 =  prevSelectedStatus.filter(selectedStatus => selectedStatus !== status);
-        console.log(return1,'1');
+        
         applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder, filters : return1});
         return return1;
       } 
@@ -116,11 +116,6 @@ export default function Dashboard({ auth }: PageProps) {
 
     });
   };
-
-  useEffect (() => {
-    // console.log(selectedStatus);
-    // applyFilters({search : search, sortColumn : sortColumn , sortOrder : sortOrder});
-  } , [selectedStatus]);
 
   function handleRowClick(row:Tasks){
     router.get(route('tasks.show',row.id));

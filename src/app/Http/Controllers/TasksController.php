@@ -204,6 +204,5 @@ class TasksController extends Controller
         Photo::whereIn('id',$photoIds)->update([
             'task_id' => $request->task_id
         ]);
-        // return redirect()->route('photo_gallery');
     }
 }

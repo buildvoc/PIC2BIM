@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\User;
 use App\Models\UserRole;
 use Carbon\Carbon;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -66,7 +67,7 @@ class OfficerController extends Controller implements HasMiddleware
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
         DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => 2,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
-
+        event(new Registered($user));
         return redirect()->route('dashboard.agencies.show',$request->agencyId);
     }
 
@@ -111,7 +112,7 @@ class OfficerController extends Controller implements HasMiddleware
             'pa_id' => $request->agencyId,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
-        if($request->password) $user->update(['pswd' =>  sha1($request->password) ]);
+        if($request->password && !empty($request->password)) $user->update(['pswd' =>  sha1($request->password) ]);
 
         return redirect()->route('dashboard.agencies.show',$request->agencyId);
     }

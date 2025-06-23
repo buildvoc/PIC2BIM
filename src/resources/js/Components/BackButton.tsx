@@ -8,10 +8,6 @@ interface BackButtonProps {
 }
 
 const BackButton: React.FC<BackButtonProps> = ({ label = 'Back', className = '' }) => {
-    const handleGoBack = () => {
-        // Inertia.visit(document.referrer || '/');
-    };
-
     return (
         <div className='text-indigo-500 hover:text-white flex items-center ms-4 mt-2'>
             <FaArrowLeft className='' />

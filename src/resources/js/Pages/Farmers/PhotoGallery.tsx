@@ -162,20 +162,16 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 alert("Failed to assign task. Please try again.");
             }
         });
-        // router.reload();
-        // setIsChooseTaskPopupOpen(false);
     };
 
     
     const selectAll = () => {
-        const allPhotos = photo_;
-        const withCheckUpdate = allPhotos.map((photo) => {
+        setPhotos(prevPhotos => prevPhotos.map((photo) => {
             let check = !photo.hasOwnProperty("check")
                 ? true
                 : !photo?.check;
             return { ...photo, check: check };
-        });
-        setPhotos(withCheckUpdate);
+        }));
     };
 
 
@@ -208,6 +204,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                                 isUnassigned={true}
                                 destroy={destroy}
                                 setPhotos={setPhotos}
+                                isSplitView={splitView.split}
                             />
                         </div>
                     </div>

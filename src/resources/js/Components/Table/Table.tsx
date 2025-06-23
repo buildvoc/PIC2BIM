@@ -49,7 +49,6 @@ export default function Table<T>({
     onHeaderClick,
     sortConfig,
 }: TableProps<T>) {
-    console.log(rows,"RWS")
     const [searchValue, setSearchValue] = useState(search || "");
     const [columnActive, setColumnActive] = useState("Status");
     const handleSort = (columnName: string, order: "asc" | "desc") => {
