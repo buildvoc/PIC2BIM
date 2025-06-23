@@ -209,17 +209,14 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     }>) => {
         return (
             <div
-                className={`w-full py-2  ${splitView.split ? "md:w-[20%]" : ""
-                    } `}
+                className={`w-full py-2 ${splitView.split ? "md:w-[20%] flex flex-col" : ""}`}
+                style={splitView.split ? { height: '100%' } : {}}
             >
                 {" "}
-                <div className="max-w mx-auto sm:px-4 ">
+                <div className={`max-w mx-auto sm:px-4 ${splitView.split ? "flex flex-col flex-grow justify-center" : ""}`}>
                     <div className="overflow-hidden sm:rounded-lg">
                         <div
-                            className={` ${splitView.split
-                                ? "h-3/4-screen"
-                                : ""
-                                } `}
+                            className={`${splitView.split ? "h-full" : ""}`}
                         >
                             {" "}
                             <TaskGallery
@@ -228,13 +225,14 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                                 destroy={destroy}
                                 setPhotos={setPhotos}
                                 isSplitView={splitView.split}
+                                isMapVisible={isMapVisible}
                             />
                         </div>
                     </div>
                 </div>
             </div>
         );
-    },[splitView.split]);
+    },[splitView.split, isMapVisible]);
 
 
     const RightPane = useCallback(

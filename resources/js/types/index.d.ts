@@ -193,6 +193,7 @@ export interface GalleryProps{
   setPhotos?:any
   destroy?:(id:string)=>void
   isSplitView?:boolean
+  isMapVisible?:boolean
 }
 
 export interface GalleryModalProps{

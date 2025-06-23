@@ -1,7 +1,7 @@
 @use "mixin";
 .photo-gallery-filter{
     background-color: white;
-    padding: 10px 16px;
+    padding: 6px 16px;
     width: 100%;
     .photo-gallery-filter-container{
         align-items: center;
@@ -14,7 +14,10 @@
         .photo-gallery-filter-heading{
             color: #111827;
             @include mixin.font-figtree-semibold;
-            line-height: calc(24 / 20);
+            line-height: calc(20 / 18);
+            h1 {
+                font-size: 18px;
+            }
         }
         .photo-gallery-filter-actions{
             align-items: center;
@@ -34,12 +37,12 @@
                     border-radius: 4px;
                     color: white;
                     display: flex;
-                    font-size: 18px;
+                    font-size: 16px;
                     @include mixin.font-figtree-medium;
                     gap: 10px;
-                    height: 40px;
+                    height: 34px;
                     outline: none;
-                    padding: 8px 16px;
+                    padding: 6px 14px;
                     text-decoration: none;
                     &:hover,
                     &:focus{
@@ -92,12 +95,12 @@
                     border-radius: 4px;
                     color: #4F46E5;
                     display: flex;
-                    font-size: 18px;
+                    font-size: 16px;
                     @include mixin.font-figtree-medium;
                     gap: 10px;
-                    height: 40px;
+                    height: 34px;
                     outline: none;
-                    padding: 8px 16px;
+                    padding: 6px 14px;
                     text-decoration: none;
                     @media (max-width: 767.98px){
                         font-size: 14px;
@@ -162,9 +165,9 @@
                 color: white;
                 display: flex;
                 justify-content: center;
-                padding: 8px 16px;
+                padding: 6px 14px;
                 gap: 10px;
-                height: 40px;
+                height: 34px;
                 width: 136px;
                 @media (max-width: 767.98px){
                     font-size: 14px;
