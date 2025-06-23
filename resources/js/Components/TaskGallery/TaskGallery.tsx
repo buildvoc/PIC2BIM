@@ -96,7 +96,7 @@ const TaskGallery = ({
         dots: true,
         infinite: false,
         speed: 500,
-        slidesToShow: Math.min(photos.length || 1, 4),
+        slidesToShow: Math.min(photos.length || 1, 6),
         slidesToScroll: 1,
         nextArrow: <NextArrow />,
         prevArrow: <PrevArrow />,
@@ -104,25 +104,25 @@ const TaskGallery = ({
             {
                 breakpoint: 1280,
                 settings: {
-                    slidesToShow: Math.min(photos.length || 1, 3),
+                    slidesToShow: Math.min(photos.length || 1, 4),
                     slidesToScroll: 1,
-                    dots: true
+                    dots: false
                 }
             },
             {
                 breakpoint: 1024,
                 settings: {
-                    slidesToShow: Math.min(photos.length || 1, 2),
+                    slidesToShow: Math.min(photos.length || 1, 3),
                     slidesToScroll: 1,
-                    dots: true
+                    dots: false
                 }
             },
             {
                 breakpoint: 640,
                 settings: {
-                    slidesToShow: 1,
+                    slidesToShow: 2,
                     slidesToScroll: 1,
-                    dots: true,
+                    dots: false,
                     arrows: true
                 }
             }
@@ -227,7 +227,7 @@ const TaskGallery = ({
 
     return (
         <>
-            <div className={`mx-auto px-1 md:px-3 py-2 md:py-6 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
+            <div className={`mx-auto px-1 md:px-3 py-2 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
                 <div 
                     className={`slider-container mb-2 md:mb-4 px-2 md:px-4 relative mx-auto 
                         ${isSplitView ? 'max-w-full vertical-carousel' : 'max-w-[90%]'} 
