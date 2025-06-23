@@ -14,9 +14,9 @@ class PhotoGalleryController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $paginatedPhotos =  getPhotosWithoutTask($user->id, true);
+        $paginatedPhotos =  getPhotosWithoutTask($user->id);
         
-        $photos = $paginatedPhotos->items();
+        $photos = $paginatedPhotos;
         
         if($request->has('showStatic')) return Inertia::render('Farmers/PhotoGalleryStatic', compact('photos'));
 

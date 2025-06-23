@@ -394,8 +394,8 @@ export default function Authenticated({
                 </header>
             )}
 
-            <main className="pb-[50px]">{children}</main>
-            <Footer isDark={isDark} />
+            <main className="pb-[20px] overflow-hidden">{children}</main>
+            {/* <Footer isDark={isDark} /> */}
         </div>
     );
 }
