@@ -168,9 +168,16 @@ const TaskGallery = ({
         prevArrow: <PrevArrowVertical />,
         responsive: [
             {
-                breakpoint: 768,
+                breakpoint: 1024,
                 settings: {
                     slidesToShow: Math.min(photos.length, 2),
+                    slidesToScroll: 1,
+                }
+            },
+            {
+                breakpoint: 768,
+                settings: {
+                    slidesToShow: 1,
                     slidesToScroll: 1,
                 }
             },
@@ -179,6 +186,7 @@ const TaskGallery = ({
                 settings: {
                     slidesToShow: 1,
                     slidesToScroll: 1,
+                    arrows: true,
                 }
             }
         ]
@@ -186,7 +194,7 @@ const TaskGallery = ({
 
     // Settings for grid view (5x3 layout)
     const gridSettings = {
-        dots: true,
+        dots: false,
         infinite: false,
         speed: 500,
         slidesToShow: 1,
@@ -197,6 +205,29 @@ const TaskGallery = ({
         variableWidth: false,
         fade: true,
         cssEase: 'linear',
+        responsive: [
+            {
+                breakpoint: 1024,
+                settings: {
+                    arrows: true,
+                    dots: true
+                }
+            },
+            {
+                breakpoint: 768,
+                settings: {
+                    arrows: true,
+                    dots: false
+                }
+            },
+            {
+                breakpoint: 480,
+                settings: {
+                    arrows: true,
+                    dots: false
+                }
+            }
+        ]
     };
 
     // Choose the appropriate settings based on view mode
@@ -436,21 +467,43 @@ const TaskGallery = ({
 
     // Render grid view (used when map is hidden)
     const renderGridView = () => {
-        // Group photos into chunks of 15 (5x3) for each slide
-        const photosPerSlide = 15;
+        // For mobile, reduce photos per slide
+        const getPhotosPerSlide = () => {
+            if (typeof window !== 'undefined') {
+                const width = window.innerWidth;
+                if (width < 640) return 6; // 2x3 for mobile
+                if (width < 1024) return 9; // 3x3 for tablet
+                return 15; // 5x3 for desktop
+            }
+            return 15;
+        };
+
+        // Group photos into chunks for each slide
+        const photosPerSlide = getPhotosPerSlide();
         const photoChunks = [];
         
         for (let i = 0; i < photos.length; i += photosPerSlide) {
             photoChunks.push(photos.slice(i, i + photosPerSlide));
         }
         
+        // Determine grid class based on screen size
+        const getGridClass = () => {
+            if (typeof window !== 'undefined') {
+                const width = window.innerWidth;
+                if (width < 640) return 'grid-2x3';
+                if (width < 1024) return 'grid-3x3';
+                return 'grid-5x3';
+            }
+            return 'grid-5x3';
+        };
+        
         return (
             <div className="mx-auto px-2 md:px-4 py-4 dark:bg-gray-900">
-                <div className="grid-container px-8 sm:px-12 md:px-16">
+                <div className="grid-container">
                     <Slider {...gridSettings} className="grid-slider">
                         {photoChunks.map((chunk, slideIndex) => (
                             <div key={slideIndex} className="grid-slide">
-                                <div className="grid grid-5x3">
+                                <div className={`grid ${getGridClass()}`}>
                                     {chunk.map((photo, photoIndex) => (
                                         <div key={slideIndex * photosPerSlide + photoIndex} className="photo-grid-item">
                                             {renderPhotoCard(photo, slideIndex * photosPerSlide + photoIndex)}

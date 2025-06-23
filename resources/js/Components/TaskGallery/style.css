@@ -67,6 +67,7 @@
   margin: 0 auto;
   position: relative;
   overflow: hidden;
+  padding: 0 20px;
 }
 
 .grid-slider {
@@ -161,5 +162,243 @@
     height: auto;
     max-height: calc(100vh - 150px);
     overflow-y: auto;
+  }
+}
+
+/* Responsive styles for all device types */
+
+/* Base styles */
+.grid-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+/* Mobile styles (up to 640px) */
+@media (max-width: 640px) {
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-5x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+    height: auto;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    grid-gap: 5px;
+    padding: 5px;
+  }
+  
+  .split-view-mode {
+    height: auto;
+  }
+  
+  .vertical-carousel {
+    height: calc(100vh - 150px);
+  }
+  
+  .photo-grid-item img {
+    max-height: 150px;
+  }
+  
+  .grid-slider {
+    margin: 0 25px;
+  }
+  
+  .grid-prev-arrow, 
+  .grid-next-arrow {
+    width: 30px !important;
+    height: 30px !important;
+  }
+}
+
+/* Tablet styles (641px to 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid-container {
+    padding: 0 15px;
+  }
+  
+  .grid-5x3 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    height: calc(100vh - 150px);
+    grid-gap: 8px;
+    padding: 10px;
+  }
+  
+  .vertical-carousel {
+    height: calc(100vh - 180px);
+  }
+  
+  .split-view-item {
+    max-height: 250px;
+  }
+  
+  .grid-slider {
+    margin: 0 40px;
+  }
+  
+  .grid-prev-arrow, 
+  .grid-next-arrow {
+    width: 35px !important;
+    height: 35px !important;
+  }
+}
+
+/* Laptop styles (1025px to 1366px) */
+@media (min-width: 1025px) and (max-width: 1366px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    height: calc(100vh - 165px);
+    grid-gap: 10px;
+    padding: 12px;
+  }
+  
+  .split-view-item {
+    max-height: 270px;
+  }
+}
+
+/* Desktop styles (1367px and above) */
+@media (min-width: 1367px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    height: calc(100vh - 180px);
+    grid-gap: 12px;
+    padding: 15px;
+  }
+  
+  .split-view-item {
+    max-height: 300px;
+  }
+}
+
+/* Grid for different screen sizes */
+.grid-2x3 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 8px;
+  padding: 10px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+.grid-3x3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 150px);
+  max-height: 700px;
+}
+
+/* Better arrow positioning for small screens */
+@media (max-width: 480px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
+    padding: 0 5px;
+  }
+}
+
+/* Improve split view responsiveness */
+@media (max-width: 768px) {
+  .split-view-mode {
+    height: calc(100vh - 160px);
+  }
+  
+  .vertical-carousel {
+    padding: 10px 0;
+  }
+  
+  .split-view-slider {
+    width: 100%;
+  }
+  
+  .split-view-item {
+    max-width: 90vw;
+  }
+}
+
+/* Medium screens (tablet) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .split-view-mode {
+    height: calc(100vh - 170px);
+  }
+  
+  .split-view-slider {
+    width: 90%;
+    max-width: 400px;
+  }
+  
+  .vertical-carousel {
+    padding: 15px 0;
+  }
+}
+
+/* Prevent image stretching */
+.photo-grid-item .relative img {
+  object-fit: contain !important;
+}
+
+/* Better photo card appearance */
+.photo-grid-item > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-grid-item .relative {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Very small devices (under 375px) */
+@media (max-width: 375px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(1, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    grid-gap: 5px;
+    padding: 5px;
+  }
+  
+  .photo-grid-item {
+    max-height: 200px;
+  }
+  
+  .grid-prev-arrow,
+  .grid-next-arrow {
+    width: 25px !important;
+    height: 25px !important;
+  }
+  
+  .grid-slider {
+    margin: 0 10px;
+  }
+  
+  .split-view-mode {
+    height: calc(100vh - 130px);
   }
 }
