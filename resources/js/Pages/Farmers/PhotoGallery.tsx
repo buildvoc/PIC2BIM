@@ -207,10 +207,14 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     destroy: (ids: string)=>void;
     setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
     }>) => {
-        return (
+        const leftPaneClass = splitView.split && !isMapVisible
+            ? 'w-full py-2'
+            : `w-full py-2 ${splitView.split ? "md:w-[20%] flex flex-col" : ""}`;
+        const leftPaneStyle = splitView.split && !isMapVisible ? { height: '100%' } : (splitView.split ? { height: '100%' } : {});
+        return (    
             <div
-                className={`w-full py-2 ${splitView.split ? "md:w-[20%] flex flex-col" : ""}`}
-                style={splitView.split ? { height: '100%' } : {}}
+                className={leftPaneClass}
+                style={leftPaneStyle}
             >
                 {" "}
                 <div className={`max-w mx-auto sm:px-4 ${splitView.split ? "flex flex-col flex-grow justify-center" : ""}`}>

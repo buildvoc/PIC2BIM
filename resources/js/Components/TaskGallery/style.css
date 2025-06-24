@@ -402,3 +402,34 @@
     height: calc(100vh - 130px);
   }
 }
+
+/* New grid layouts for enhanced responsiveness */
+.grid-2x4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  grid-gap: 8px;
+  padding: 10px;
+  height: calc(100vh - 120px);
+  max-height: 700px;
+}
+
+.grid-4x2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  grid-gap: 8px;
+  padding: 10px;
+  height: calc(100vh - 120px);
+  max-height: 400px;
+}
+
+.grid-4x3 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 150px);
+  max-height: 700px;
+}

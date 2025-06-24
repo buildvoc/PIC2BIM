@@ -467,31 +467,41 @@ const TaskGallery = ({
 
     // Render grid view (used when map is hidden)
     const renderGridView = () => {
-        // For mobile, reduce photos per slide
         const getPhotosPerSlide = () => {
             if (typeof window !== 'undefined') {
                 const width = window.innerWidth;
-                if (width < 640) return 6; // 2x3 for mobile
-                if (width < 1024) return 9; // 3x3 for tablet
-                return 15; // 5x3 for desktop
+                const height = window.innerHeight;
+                const aspect = width / height;
+                if (width <= 640) {
+                    if (aspect < 0.8) return 8;
+                    if (aspect >= 1.2) return 8;
+                }
+                if (width <= 1024 && aspect >= 0.8 && aspect < 1.2) {
+                    return 12;
+                }
+                return 15;
             }
             return 15;
         };
 
-        // Group photos into chunks for each slide
         const photosPerSlide = getPhotosPerSlide();
         const photoChunks = [];
-        
         for (let i = 0; i < photos.length; i += photosPerSlide) {
             photoChunks.push(photos.slice(i, i + photosPerSlide));
         }
-        
-        // Determine grid class based on screen size
+
         const getGridClass = () => {
             if (typeof window !== 'undefined') {
                 const width = window.innerWidth;
-                if (width < 640) return 'grid-2x3';
-                if (width < 1024) return 'grid-3x3';
+                const height = window.innerHeight;
+                const aspect = width / height;
+                if (width <= 640) {
+                    if (aspect < 0.8) return 'grid-2x4';
+                    if (aspect >= 1.2) return 'grid-4x2';
+                }
+                if (width <= 1024 && aspect >= 0.8 && aspect < 1.2) {
+                    return 'grid-4x3';
+                }
                 return 'grid-5x3';
             }
             return 'grid-5x3';
@@ -520,7 +530,9 @@ const TaskGallery = ({
 
     return (
         <>
-            {isMapVisible ? renderCarouselView() : renderGridView()}
+            {isSplitView
+                ? (isMapVisible ? renderCarouselView() : renderGridView())
+                : (isMapVisible ? renderCarouselView() : renderGridView())}
 
             <Modal_
                 modal={showModal}
