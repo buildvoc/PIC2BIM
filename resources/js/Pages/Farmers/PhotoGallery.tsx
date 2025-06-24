@@ -40,6 +40,24 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
         split: splitMode ? true : false,
         single: splitMode ? false : true,
     });
+
+    useEffect(() => {
+        function handleResize() {
+            if (window.innerWidth < 768) {
+                setSplitView({ split: false, single: true });
+            } else {
+                setSplitView({
+                    split: splitMode ? true : false,
+                    single: splitMode ? false : true,
+                });
+            }
+        }
+
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, [splitMode]);
+
     useEffect(() => {
         loadData();
     }, []);
