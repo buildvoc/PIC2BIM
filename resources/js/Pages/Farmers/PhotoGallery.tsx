@@ -227,7 +227,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     }>) => {
         const leftPaneClass = splitView.split && !isMapVisible
             ? 'w-full py-2'
-            : `w-full py-2 ${splitView.split ? "md:w-[20%] flex flex-col" : ""}`;
+            : `w-full py-2 ${splitView.split ? "md:w-[45%] flex flex-col" : ""}`;
         const leftPaneStyle = splitView.split && !isMapVisible ? { height: '100%' } : (splitView.split ? { height: '100%' } : {});
         return (    
             <div
@@ -235,7 +235,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                 style={leftPaneStyle}
             >
                 {" "}
-                <div className={`max-w mx-auto sm:px-4 ${splitView.split ? "flex flex-col flex-grow justify-center" : ""}`}>
+                <div className={`max-w sm:px-4 ${splitView.split ? "flex flex-col flex-grow justify-center" : ""}`}>
                     <div className="overflow-hidden sm:rounded-lg">
                         <div
                             className={`${splitView.split ? "h-full" : ""}`}
@@ -270,7 +270,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
         }>) => {
             return (
                 <div
-                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-[80%]  " : ""
+                    className={`w-full py-2 m-auto ${splitView.split ? "md:w-[55%]  sm:px-4" : ""
                         } `}
                 >
                     {" "}

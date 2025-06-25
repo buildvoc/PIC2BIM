@@ -433,3 +433,11 @@
   height: calc(100vh - 150px);
   max-height: 700px;
 }
+
+.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+}

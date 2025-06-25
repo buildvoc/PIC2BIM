@@ -230,6 +230,44 @@ const TaskGallery = ({
         ]
     };
 
+    // Settings for split view 2x3 grid carousel (split view + map show)
+    const split2x3Settings = {
+        dots: false,
+        infinite: false,
+        speed: 500,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        nextArrow: <NextArrow />,
+        prevArrow: <PrevArrow />,
+        centerMode: false,
+        variableWidth: false,
+        fade: false,
+        cssEase: 'linear',
+        responsive: [
+            {
+                breakpoint: 1024,
+                settings: {
+                    arrows: true,
+                    dots: true
+                }
+            },
+            {
+                breakpoint: 768,
+                settings: {
+                    arrows: true,
+                    dots: false
+                }
+            },
+            {
+                breakpoint: 480,
+                settings: {
+                    arrows: true,
+                    dots: false
+                }
+            }
+        ]
+    };
+
     // Choose the appropriate settings based on view mode
     const settings = isSplitView ? verticalSettings : horizontalSettings;
 
@@ -528,10 +566,37 @@ const TaskGallery = ({
         );
     };
 
+    const renderSplit3x3Carousel = () => {
+        const photosPerSlide = 9;
+        const photoChunks = [];
+        for (let i = 0; i < photos.length; i += photosPerSlide) {
+            photoChunks.push(photos.slice(i, i + photosPerSlide));
+        }
+        return (
+            <div className="w-full max-w-xl px-2 md:px-4 py-4 dark:bg-gray-900 flex flex-col justify-center mx-auto" style={{minHeight: '100%', boxSizing: 'border-box'}}>
+                <div className="grid-container" style={{width: '100%'}}>
+                    <Slider {...split2x3Settings} className="split-3x3-slider">
+                        {photoChunks.map((chunk, slideIndex) => (
+                            <div key={slideIndex} className="grid-slide">
+                                <div className="grid grid-3x3 w-full" style={{height: '100%'}}>
+                                    {chunk.map((photo, photoIndex) => (
+                                        <div key={slideIndex * photosPerSlide + photoIndex} className="photo-grid-item">
+                                            {renderPhotoCard(photo, slideIndex * photosPerSlide + photoIndex)}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </Slider>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <>
             {isSplitView
-                ? (isMapVisible ? renderCarouselView() : renderGridView())
+                ? (isMapVisible ? renderSplit3x3Carousel() : renderGridView())
                 : (isMapVisible ? renderCarouselView() : renderGridView())}
 
             <Modal_
