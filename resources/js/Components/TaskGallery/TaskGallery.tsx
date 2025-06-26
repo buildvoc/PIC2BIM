@@ -395,13 +395,13 @@ const TaskGallery = ({
                             }}
                         >
                             <div 
-                                className={`flex gap-2 md:gap-3 p-1 md:p-2 rounded-lg bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 
+                                className={`flex flex-wrap justify-center gap-1 sm:gap-2 md:gap-3 p-1 sm:p-1.5 md:p-2 rounded-lg bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 max-w-[95%] max-h-[95%]
                                     ${isSplitView ? 'split-view-buttons' : ''}`}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {isUnassigned && (
                                     <FaTrash
-                                        className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-sm md:text-base"
+                                        className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             destroy!([photo.id].join(","));
@@ -410,7 +410,7 @@ const TaskGallery = ({
                                     />
                                 )}
                                 <FaSync
-                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
                                     style={{ transform: "scaleX(-1)" }}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -419,7 +419,7 @@ const TaskGallery = ({
                                     title="Rotate left"
                                 />
                                 <FaSync
-                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleRotate(photo.digest, "right");
@@ -427,7 +427,7 @@ const TaskGallery = ({
                                     title="Rotate right"
                                 />
                                 <FaCheck 
-                                    className={`text-sm md:text-base cursor-pointer transition-colors ${
+                                    className={`text-xs sm:text-sm md:text-base lg:text-lg cursor-pointer transition-colors p-1 ${
                                         photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
                                     }`}
                                     onClick={(e) => {
@@ -437,7 +437,7 @@ const TaskGallery = ({
                                     title="Select photo"
                                 />
                                 <FaEye 
-                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm md:text-base"
+                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         localStorage.setItem("map_from_photo_detail", "true");
@@ -566,19 +566,83 @@ const TaskGallery = ({
         );
     };
 
+    // Render split view carousel with consideration for screen orientation
     const renderSplit3x3Carousel = () => {
-        const photosPerSlide = 9;
+        // Dynamically determine layout based on screen dimensions
+        const getPhotosPerSlide = () => {
+            if (typeof window !== 'undefined') {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const aspect = width / height;
+                
+                // Portrait mode - tall screens (like in the image)
+                if (aspect < 0.8) {
+                    if (width <= 640) return 4; // 2x2 for small portrait
+                    if (width <= 1024) {
+                        // For tablet in portrait with more vertical space
+                        if (height > 900) return 6; // 2x3 for taller tablet portrait
+                        return 4; // 2x2 for standard tablet portrait
+                    }
+                    return 6; // 2x3 for larger portrait
+                }
+                
+                // Landscape mode
+                if (aspect > 1.3) {
+                    if (width <= 640) return 4; // 2x2 for small landscape
+                    if (width <= 1024) return 6; // 3x2 for tablet landscape
+                    return 9; // 3x3 for desktop landscape
+                }
+                
+                // Standard/square-ish aspect ratio
+                return 9; // 3x3 default for desktop
+            }
+            return 6; // Default to 2x3 for SSR
+        };
+        
+        // Determine grid class based on screen orientation
+        const getGridClass = () => {
+            if (typeof window !== 'undefined') {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const aspect = width / height;
+                
+                // Portrait mode - tall screens
+                if (aspect < 0.8) {
+                    if (width <= 640) return 'grid-2x2';
+                    if (width <= 1024) {
+                        // For tablet in portrait with more vertical space
+                        if (height > 900) return 'grid-2x3';
+                        return 'grid-2x2';
+                    }
+                    return 'grid-2x3';
+                }
+                
+                // Landscape mode
+                if (aspect > 1.3) {
+                    if (width <= 640) return 'grid-2x2';
+                    if (width <= 1024) return 'grid-3x2';
+                    return 'grid-3x3'; // 3x3 for desktop
+                }
+                
+                // Standard/square-ish aspect ratio
+                return 'grid-3x3'; // 3x3 default for desktop
+            }
+            return 'grid-2x3';
+        };
+        
+        const photosPerSlide = getPhotosPerSlide();
         const photoChunks = [];
         for (let i = 0; i < photos.length; i += photosPerSlide) {
             photoChunks.push(photos.slice(i, i + photosPerSlide));
         }
+        
         return (
             <div className="w-full max-w-xl px-2 md:px-4 py-4 dark:bg-gray-900 flex flex-col justify-center mx-auto" style={{minHeight: '100%', boxSizing: 'border-box'}}>
                 <div className="grid-container" style={{width: '100%'}}>
                     <Slider {...split2x3Settings} className="split-3x3-slider">
                         {photoChunks.map((chunk, slideIndex) => (
                             <div key={slideIndex} className="grid-slide">
-                                <div className="grid grid-3x3 w-full" style={{height: '100%'}}>
+                                <div className={`grid ${getGridClass()} w-full`} style={{height: '100%'}}>
                                     {chunk.map((photo, photoIndex) => (
                                         <div key={slideIndex * photosPerSlide + photoIndex} className="photo-grid-item">
                                             {renderPhotoCard(photo, slideIndex * photosPerSlide + photoIndex)}

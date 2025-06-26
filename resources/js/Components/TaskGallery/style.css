@@ -283,20 +283,56 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  grid-gap: 8px;
-  padding: 10px;
+  grid-gap: 10px;
+  padding: 12px;
   height: calc(100vh - 140px);
   max-height: 600px;
+}
+
+/* Adjust 2x3 grid for tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: 12px;
+    padding: 15px;
+    height: calc(100vh - 160px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    height: auto;
+    min-height: 150px;
+    max-height: 250px;
+  }
+}
+
+/* Adjust 2x3 grid for smaller screens */
+@media (max-width: 640px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: 8px;
+    padding: 10px;
+    height: auto;
+    max-height: calc(100vh - 130px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    height: auto;
+    min-height: 120px;
+    max-height: 200px;
+  }
 }
 
 .grid-3x3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  grid-gap: 10px;
-  padding: 12px;
-  height: calc(100vh - 150px);
-  max-height: 700px;
+  gap: 15px;
+  padding: 20px;
+  height: auto;
+  min-height: 500px;
+  max-height: calc(100vh - 200px);
 }
 
 /* Better arrow positioning for small screens */
@@ -439,5 +475,252 @@
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 10px;
-  width: 100%;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+.grid-3x2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+/* Additional responsive hover effect styles */
+.photo-grid-item .relative .group-hover\:opacity-100 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Ensure icons are properly sized and spaced */
+.split-view-buttons {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 95%;
+}
+
+/* Larger icons for desktop */
+@media (min-width: 1024px) {
+  .split-view-buttons svg, 
+  .photo-grid-item .relative svg {
+    font-size: 1.7rem !important;
+    padding: 4px !important;
+  }
+  
+  .split-view-buttons {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+}
+
+/* Even larger icons for larger screens */
+@media (min-width: 1280px) {
+  .split-view-buttons svg, 
+  .photo-grid-item .relative svg {
+    font-size: 1.5rem !important;
+    padding: 5px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .split-view-buttons {
+    padding: 2px !important;
+    gap: 2px !important;
+  }
+  
+  .split-view-buttons svg {
+    font-size: 0.75rem !important;
+    padding: 2px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
+    padding: 0 5px;
+  }
+}
+
+/* Grid layouts for different screen orientations */
+.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+.grid-3x2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+/* Responsive adjustments for grid layouts based on orientation */
+@media (orientation: portrait) {
+  .grid-2x2, .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    height: auto;
+    min-height: 300px;
+    max-height: calc(100vh - 180px);
+  }
+  
+  .grid-2x2 {
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .grid-2x3 {
+    grid-template-rows: repeat(3, 1fr);
+  }
+  
+  .photo-grid-item {
+    min-height: 120px;
+  }
+}
+
+@media (orientation: landscape) {
+  .grid-3x2 {
+    height: auto;
+    min-height: 250px;
+    max-height: calc(100vh - 200px);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .photo-grid-item {
+    min-height: 100px;
+  }
+}
+
+/* Large screens in landscape */
+@media (min-width: 1025px) and (orientation: landscape) {
+  .grid-3x2 {
+    gap: 15px;
+    padding: 18px;
+    min-height: 300px;
+  }
+  
+  .grid-3x2 .photo-grid-item {
+    min-height: 140px;
+  }
+}
+
+/* Tablets in portrait */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .grid-2x2, .grid-2x3 {
+    gap: 12px;
+    padding: 15px;
+  }
+  
+  .photo-grid-item {
+    min-height: 150px;
+  }
+}
+
+/* Tablets in landscape */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .grid-3x2 {
+    gap: 12px;
+    padding: 15px;
+  }
+  
+  .photo-grid-item {
+    min-height: 130px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
+    padding: 0 5px;
+  }
+}
+
+/* Optimize grid-2x3 for taller tablets/iPads */
+@media (min-width: 768px) and (max-width: 1024px) and (min-height: 900px) and (orientation: portrait) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 15px;
+    padding: 18px;
+    height: auto;
+    min-height: 600px;
+    max-height: calc(100vh - 260px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    min-height: 160px;
+    max-height: 240px;
+  }
+  
+  .photo-grid-item .relative {
+    height: 100%;
+  }
+  
+  .photo-grid-item .relative img {
+    max-height: 220px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  .grid-3x3 {
+    gap: 20px;
+    padding: 25px;
+    min-height: 600px;
+  }
+  
+  .grid-3x3 .photo-grid-item {
+    min-height: 150px;
+    max-height: 300px;
+  }
+  
+  .photo-grid-item .relative img {
+    max-height: 100%;
+    object-fit: contain;
+  }
 }
