@@ -24,7 +24,6 @@ const TaskGallery = ({
     const [showModal, setShowModal] = useState({ isShow: false, index: -1 });
     const [ekfIndex, setEkfIndex] = useState(-1);
 
-    // Add CSS styles for single image mode
     const singleImageStyles = photos.length === 1 ? {
         maxWidth: '300px',
         maxHeight: '300px',
@@ -33,7 +32,6 @@ const TaskGallery = ({
         margin: '0 auto'
     } : {};
 
-    // For horizontal carousel (non-split view)
     const NextArrow = (props: any) => {
         const { onClick } = props;
         return (
@@ -46,7 +44,6 @@ const TaskGallery = ({
         );
     };
 
-    // For horizontal carousel (non-split view)
     const PrevArrow = (props: any) => {
         const { onClick } = props;
         return (
@@ -59,7 +56,6 @@ const TaskGallery = ({
         );
     };
 
-    // For vertical carousel (split view)
     const NextArrowVertical = (props: any) => {
         const { onClick } = props;
         return (
@@ -73,7 +69,6 @@ const TaskGallery = ({
         );
     };
 
-    // For vertical carousel (split view)
     const PrevArrowVertical = (props: any) => {
         const { onClick } = props;
         return (
@@ -112,7 +107,6 @@ const TaskGallery = ({
         );
     };
 
-    // Calculate slidesToShow based on available photos, split view, and ensure it's at least 1
     const slidesToShow = photos.length > 0 
         ? Math.min(photos.length, isSplitView ? 1 : 4)
         : 1;
@@ -155,12 +149,11 @@ const TaskGallery = ({
         ]
     };
 
-    // Settings for vertical carousel (split view)
     const verticalSettings = {
         dots: false,
         infinite: false,
         speed: 500,
-        slidesToShow: Math.min(photos.length, 2), // Show up to 2 photos at once for larger photos
+        slidesToShow: Math.min(photos.length, 2), 
         slidesToScroll: 1,
         vertical: true,
         verticalSwiping: true,
@@ -192,7 +185,6 @@ const TaskGallery = ({
         ]
     };
 
-    // Settings for grid view (5x3 layout)
     const gridSettings = {
         dots: false,
         infinite: false,
@@ -230,7 +222,6 @@ const TaskGallery = ({
         ]
     };
 
-    // Settings for split view 2x3 grid carousel (split view + map show)
     const split2x3Settings = {
         dots: false,
         infinite: false,
@@ -268,7 +259,6 @@ const TaskGallery = ({
         ]
     };
 
-    // Choose the appropriate settings based on view mode
     const settings = isSplitView ? verticalSettings : horizontalSettings;
 
     useEffect(() => {
@@ -326,7 +316,6 @@ const TaskGallery = ({
         setPhotos(withCheckUpdate);
     };
 
-    // If there are no photos, show a message instead
     if (photos.length === 0) {
         return (
             <div className="flex justify-center items-center p-8 text-gray-500 dark:text-gray-400">
@@ -335,7 +324,6 @@ const TaskGallery = ({
         );
     }
 
-    // Render photo card (used in both carousel and grid view)
     const renderPhotoCard = (photo: any, index: number) => {
         const imageSrc = photo?.link ? photo.link : '/images/dummy-image.jpg';
         return (
@@ -459,7 +447,6 @@ const TaskGallery = ({
         );
     };
 
-    // Render carousel view (used when map is visible)
     const renderCarouselView = () => {
         return (
             <div className={`mx-auto px-1 md:px-3 py-2 dark:bg-gray-900 ${isSplitView ? 'split-view-mode' : ''}`}>
@@ -503,7 +490,6 @@ const TaskGallery = ({
         );
     };
 
-    // Render grid view (used when map is hidden)
     const renderGridView = () => {
         const getPhotosPerSlide = () => {
             if (typeof window !== 'undefined') {
@@ -566,74 +552,200 @@ const TaskGallery = ({
         );
     };
 
-    // Render split view carousel with consideration for screen orientation
     const renderSplit3x3Carousel = () => {
-        // Dynamically determine layout based on screen dimensions
         const getPhotosPerSlide = () => {
             if (typeof window !== 'undefined') {
                 const width = window.innerWidth;
                 const height = window.innerHeight;
                 const aspect = width / height;
                 
-                // Portrait mode - tall screens (like in the image)
                 if (aspect < 0.8) {
-                    if (width <= 640) return 4; // 2x2 for small portrait
-                    if (width <= 1024) {
-                        // For tablet in portrait with more vertical space
-                        if (height > 900) return 6; // 2x3 for taller tablet portrait
-                        return 4; // 2x2 for standard tablet portrait
+                    if (width <= 640) {
+                        return photos.length; 
                     }
-                    return 6; // 2x3 for larger portrait
+                    if (width <= 1024) {
+                        if (height > 900) return 6; 
+                        return 4; 
+                    }
+                    return 6; 
                 }
                 
-                // Landscape mode
                 if (aspect > 1.3) {
-                    if (width <= 640) return 4; // 2x2 for small landscape
-                    if (width <= 1024) return 6; // 3x2 for tablet landscape
-                    return 9; // 3x3 for desktop landscape
+                    if (width <= 640) return 2; 
+                    if (width <= 1024) {
+                        if (width >= 900 && width <= 950 && height >= 400 && height <= 450) {
+                            return 4; 
+                        }
+                        return 6; 
+                    }
+                    return 9; 
                 }
                 
-                // Standard/square-ish aspect ratio
-                return 9; // 3x3 default for desktop
+                return 9; 
             }
-            return 6; // Default to 2x3 for SSR
+            return 6; 
         };
         
-        // Determine grid class based on screen orientation
         const getGridClass = () => {
             if (typeof window !== 'undefined') {
                 const width = window.innerWidth;
                 const height = window.innerHeight;
                 const aspect = width / height;
                 
-                // Portrait mode - tall screens
                 if (aspect < 0.8) {
-                    if (width <= 640) return 'grid-2x2';
+                    if (width <= 640) {
+                        return 'mobile-portrait-scroll';
+                    }
                     if (width <= 1024) {
-                        // For tablet in portrait with more vertical space
                         if (height > 900) return 'grid-2x3';
                         return 'grid-2x2';
                     }
                     return 'grid-2x3';
                 }
                 
-                // Landscape mode
                 if (aspect > 1.3) {
-                    if (width <= 640) return 'grid-2x2';
-                    if (width <= 1024) return 'grid-3x2';
-                    return 'grid-3x3'; // 3x3 for desktop
+                    if (width <= 640) return 'grid-2x1';
+                    if (width <= 1024) {
+                        if (width >= 900 && width <= 950 && height >= 400 && height <= 450) {
+                            return 'grid-2x2';
+                        }
+                        return 'grid-3x2';
+                    }
+                    return 'grid-3x3'; 
                 }
                 
-                // Standard/square-ish aspect ratio
-                return 'grid-3x3'; // 3x3 default for desktop
+                return 'grid-3x3'; 
             }
             return 'grid-2x3';
+        };
+        
+        const isMobilePortrait = () => {
+            if (typeof window !== 'undefined') {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const aspect = width / height;
+                return width <= 640 && aspect < 0.8;
+            }
+            return false;
         };
         
         const photosPerSlide = getPhotosPerSlide();
         const photoChunks = [];
         for (let i = 0; i < photos.length; i += photosPerSlide) {
             photoChunks.push(photos.slice(i, i + photosPerSlide));
+        }
+        
+        if (isMobilePortrait()) {
+            return (
+                <div className="w-full px-1 py-2 dark:bg-gray-900 flex flex-col justify-start overflow-auto" style={{height: 'calc(100vh - 120px)', maxWidth: '100%'}}>
+                    <div className="overflow-y-auto pr-1" style={{width: '100%', maxHeight: '100%'}}>
+                        <div className="flex flex-col gap-4">
+                            {photos.map((photo, index) => (
+                                <div key={index} className="photo-scroll-item">
+                                    <div 
+                                        className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden p-2 h-full group"
+                                        style={{maxHeight: '180px'}}
+                                    >
+                                        <div className="relative">
+                                            <div 
+                                                className="w-full relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
+                                                style={{height: '160px'}}
+                                            >
+                                                <img
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        e.currentTarget.src = '/images/dummy-image.jpg';
+                                                        e.currentTarget.onerror = null;
+                                                    }}
+                                                    src={photo?.link ? photo.link : '/images/dummy-image.jpg'}
+                                                    className="absolute inset-0 w-full h-full object-contain hover:opacity-90 transition-opacity cursor-pointer dark:opacity-90"
+                                                    style={{
+                                                        transform: `rotate(${photo?.angle || 0}deg)`,
+                                                    }}
+                                                    onClick={() => {
+                                                        setShowModal({
+                                                            isShow: true,
+                                                            index: index, 
+                                                        });
+                                                    }}
+                                                />
+                                                
+                                                <div 
+                                                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                                                    onClick={() => {
+                                                        setShowModal({
+                                                            isShow: true,
+                                                            index: index, 
+                                                        });
+                                                    }}
+                                                >
+                                                    <div 
+                                                        className="flex flex-wrap justify-center gap-1 p-1 rounded-md bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 max-w-[95%] max-h-[95%] mobile-portrait-buttons"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {isUnassigned && (
+                                                            <FaTrash
+                                                                className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-xs p-0.5"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    destroy!([photo.id].join(","));
+                                                                }}
+                                                                title="Delete photo"
+                                                            />
+                                                        )}
+                                                        <FaSync
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
+                                                            style={{ transform: "scaleX(-1)" }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRotate(photo.digest, "left");
+                                                            }}
+                                                            title="Rotate left"
+                                                        />
+                                                        <FaSync
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRotate(photo.digest, "right");
+                                                            }}
+                                                            title="Rotate right"
+                                                        />
+                                                        <FaCheck 
+                                                            className={`text-xs cursor-pointer transition-colors p-0.5 ${
+                                                                photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
+                                                            }`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handlePhotoCheckBox(photo?.digest);
+                                                            }}
+                                                            title="Select photo"
+                                                        />
+                                                        <FaEye 
+                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                localStorage.setItem("map_from_photo_detail", "true");
+                                                                router.get(route("photo_detail", photo.id));
+                                                            }}
+                                                            title="View photo details"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {photo.check && (
+                                            <div className="flex justify-center mt-0.5">
+                                                <div className="bg-blue-500 h-0.5 w-1/3 rounded-full"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
         }
         
         return (

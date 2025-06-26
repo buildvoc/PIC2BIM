@@ -446,6 +446,38 @@ export default function Authenticated({
                         </div>
 
                         <div className="mt-3 space-y-1">
+                            {splitView && (
+                                <div className="flex items-center space-x-2 px-4 py-2">
+                                    <button
+                                        className={`flex items-center justify-center p-2 rounded-md ${
+                                            splitView?.split
+                                                ? "bg-gray-200 dark:bg-gray-600"
+                                                : ""
+                                        } text-indigo-600 dark:text-indigo-400`}
+                                        onClick={() => toggleSplitMode({
+                                            single: false,
+                                            split: true,
+                                        })}
+                                    >
+                                        <BsLayoutSplit size={18} />
+                                        <span className="ml-2">Split View</span>
+                                    </button>
+                                    <button
+                                        className={`flex items-center justify-center p-2 rounded-md ${
+                                            splitView?.single
+                                                ? "bg-gray-200 dark:bg-gray-600"
+                                                : ""
+                                        } text-indigo-600 dark:text-indigo-400`}
+                                        onClick={() => toggleSplitMode({
+                                            single: true,
+                                            split: false,
+                                        })}
+                                    >
+                                        <BsSquare size={18} />
+                                        <span className="ml-2">Single View</span>
+                                    </button>
+                                </div>
+                            )}
                             <ResponsiveNavLink href={route("profile.edit")}>
                                 Profile
                             </ResponsiveNavLink>

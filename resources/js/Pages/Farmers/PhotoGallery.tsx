@@ -42,23 +42,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     });
 
     useEffect(() => {
-        function handleResize() {
-            if (window.innerWidth < 768) {
-                setSplitView({ split: false, single: true });
-            } else {
-                setSplitView({
-                    split: splitMode ? true : false,
-                    single: splitMode ? false : true,
-                });
-            }
-        }
-
-        handleResize();
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, [splitMode]);
-
-    useEffect(() => {
         loadData();
     }, []);
 
@@ -227,8 +210,12 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     }>) => {
         const leftPaneClass = splitView.split && !isMapVisible
             ? 'w-full py-2'
-            : `w-full py-2 ${splitView.split ? "md:w-[45%] flex flex-col" : ""}`;
-        const leftPaneStyle = splitView.split && !isMapVisible ? { height: '100%' } : (splitView.split ? { height: '100%' } : {});
+            : `w-full py-2 ${splitView.split ? "md:w-[45%] flex flex-col mobile-portrait-left-pane" : ""}`;
+        
+        const leftPaneStyle = splitView.split && !isMapVisible 
+            ? { height: '100%' } 
+            : (splitView.split ? { height: '100%' } : {});
+            
         return (    
             <div
                 className={leftPaneClass}
@@ -268,11 +255,12 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
             chooseTask: () => void;
 
         }>) => {
+            const rightPaneClass = `w-full py-2 m-auto ${
+                splitView.split ? "md:w-[55%] sm:px-4 mobile-portrait-right-pane" : ""
+            }`;
+            
             return (
-                <div
-                    className={`w-full py-2 m-auto ${splitView.split ? "md:w-[55%]  sm:px-4" : ""
-                        } `}
-                >
+                <div className={rightPaneClass}>
                     {" "}
                     <div className="max-w mx-auto">
                         <div className="overflow-hidden sm:rounded-lg">
@@ -327,6 +315,18 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
         );
     };
 
+    const SplitViewContainer = useCallback(({children}: PropsWithChildren) => {
+        const isMobilePortrait = typeof window !== 'undefined' && 
+            window.innerWidth <= 640 && 
+            window.innerHeight > window.innerWidth;
+            
+        return (
+            <div className={`flex ${isMobilePortrait ? 'mobile-portrait-container-wrapper' : 'flex-wrap'}`}>
+                {children}
+            </div>
+        );
+    }, []);
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -337,36 +337,33 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
             <Head title="Photo gallery" />
             <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} chooseTask={chooseTask} />
             {/* <BackButton label="Back" className="" /> */}
-            <div className="flex flex-wrap ">
-                {splitView.split ? (
-                    <>
-                        <LeftPane 
+            {splitView.split ? (
+                <SplitViewContainer>
+                    <LeftPane 
                         photo_={photo_}
                         destroy={destroy}
                         setPhotos={setPhotos}
-
-                        />
-                        <RightPane
-                            onDeleteHandler={onDeleteHandler}
-                            selectAllPdfHandler={selectAllPdfHandler}
-                            chooseTask={chooseTask}
-                        />
-                    </>
-                ) : (
-                    <>
-                        <RightPane
-                            onDeleteHandler={onDeleteHandler}
-                            selectAllPdfHandler={selectAllPdfHandler}
-                            chooseTask={chooseTask}
-                        />
-                        <LeftPane
-                            photo_={photo_}
-                            destroy={destroy}
-                            setPhotos={setPhotos}
-                        />
-                    </>
-                )}
-            </div>
+                    />
+                    <RightPane
+                        onDeleteHandler={onDeleteHandler}
+                        selectAllPdfHandler={selectAllPdfHandler}
+                        chooseTask={chooseTask}
+                    />
+                </SplitViewContainer>
+            ) : (
+                <div className="flex flex-wrap">
+                    <RightPane
+                        onDeleteHandler={onDeleteHandler}
+                        selectAllPdfHandler={selectAllPdfHandler}
+                        chooseTask={chooseTask}
+                    />
+                    <LeftPane
+                        photo_={photo_}
+                        destroy={destroy}
+                        setPhotos={setPhotos}
+                    />
+                </div>
+            )}
             <ChooseTaskPopup />
         </AuthenticatedLayout>
     );
