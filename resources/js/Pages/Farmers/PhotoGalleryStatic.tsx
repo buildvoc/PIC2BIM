@@ -5,8 +5,9 @@ import {
     useEffect,
     useCallback,
     PropsWithChildren,
+    useRef,
 } from "react";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import AuthenticatedLayoutStatic from "@/Layouts/AuthenticatedLayoutStatic";
 import { Head } from "@inertiajs/react";
 import ButtonMap from "@/Components/Map/ButtonMap";
 import TaskGallery from "@/Components/TaskGallery/TaskGallery";
@@ -20,14 +21,22 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
 import Filter from "@/Components/PhotoGallery/Filter";
-import Pagination from "@/Components/Pagination/Pagination";
+import PhotoGalleryMap from "@/Components/PhotoGallery/PhotoGalleryMap";
+import Pagination from "@/Components/PhotoGallery/Pagination";
+import PhotoItem from "@/Components/PhotoGallery/PhotoItem";
 
-export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
-    console.log(paginatedPhotos,"paginatedPhotos")
-    const [isMapVisible, setIsMapVisible] = useState(true);
-    const [selectedTask, setSelectedTask] = useState("");     
-    const [photosIds, setPhotosIds] = useState("");    
-   
+export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
+
+    // Static card count
+    const staticCardItems = Array.from({ length: 5 });
+    const [openCardId, setOpenCardId] = useState<number | null>(null);
+
+    // Show & Hide MAP
+    const [isPhotoMap, setPhotoMap] = useState(true);
+
+    const [selectedTask, setSelectedTask] = useState("");
+    const [photosIds, setPhotosIds] = useState("");
+
     const [unassignedTasks, setUnassignedTasks] = useState<Array<Task>>([]);
 
     const [isChooseTaskPopupOpen, setIsChooseTaskPopupOpen] = useState(false);
@@ -44,10 +53,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     useEffect(() => {
         loadData();
     }, []);
-
-    useEffect(() => {
-        console.log("Photo: " , isMapVisible)
-    }, [isMapVisible]);
 
     function loadData() {
         const tasks_photos_array: Array<TaskPhotos> = [];
@@ -81,11 +86,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                 },
             });
         }
-    }
-
-    function setMapVisibility(){
-        let mapVisibility = isMapVisible;
-        setIsMapVisible(!mapVisibility);
     }
 
     const handleZoomFilter = (leaves: String[] | undefined) => {
@@ -154,7 +154,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
         router.post(route('assign-task'),{
             photo_ids : photosIds,
             task_id : selectedTask
-        }, {    
+        }, {
             onSuccess: () => {
                 const deselectIds = photosIds.split(",");
                 set_filter_tasks_photos(
@@ -177,24 +177,17 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
         });
     };
 
-    
+
     const selectAll = () => {
-        setPhotos(prevPhotos => prevPhotos.map((photo) => {
+        const allPhotos = photo_;
+        const withCheckUpdate = allPhotos.map((photo) => {
             let check = !photo.hasOwnProperty("check")
                 ? true
                 : !photo?.check;
             return { ...photo, check: check };
-        }));
+        });
+        setPhotos(withCheckUpdate);
     };
-
-    const exportToPdf = () => {
-        const queryString = new URLSearchParams({
-            unassigned: 'true',
-            total: photos.length.toString()
-        }).toString();
-        const exportUrl = route("pdf_preview") + '?' + queryString;
-        window.open(exportUrl,'_blank')
-    }
 
 
     const LeftPane = useCallback (({
@@ -207,31 +200,36 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
     }>) => {
         return (
-            <div
-                className={`w-full py-2  ${splitView.split ? "md:w-[20%]" : ""
-                    } `}
-            >
+
+            //<div className={`w-full py-2  ${splitView.split ? "md:w-1/2" : ""} `}>
+                <div className={`photo-gallery-card-view`}>
                 {" "}
-                <div className="max-w mx-auto sm:px-4 ">
-                    <div className="overflow-hidden sm:rounded-lg">
-                        <div
-                            className={` ${splitView.split
-                                ? "overflow-y-auto h-3/4-screen"
-                                : ""
-                                } `}
-                        >
-                            {" "}
-                            <TaskGallery
-                                photos={photo_}
-                                isUnassigned={true}
-                                destroy={destroy}
-                                setPhotos={setPhotos}
-                                isSplitView={splitView.split}
-                            />
-                            <Pagination pagination={paginatedPhotos}/>
-                        </div>
+                <div className={`photo-gallery-card-view-container`}>
+                    <div className={`photo-gallery-cards`}>
+                        {staticCardItems.map((_, index)=>(
+                            <PhotoItem key={index} isOpen={openCardId === index} onOpen={() => setOpenCardId(index)} onClose={() => setOpenCardId(null)} />
+                        ))}
                     </div>
+                    <Pagination />
                 </div>
+                {/*<div className="max-w mx-auto sm:px-4 ">*/}
+                {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
+                {/*        <div*/}
+                {/*            className={` ${splitView.split*/}
+                {/*                ? "overflow-y-auto h-3/4-screen"*/}
+                {/*                : ""*/}
+                {/*                } `}*/}
+                {/*        >*/}
+                {/*            {" "}*/}
+                {/*            <TaskGallery*/}
+                {/*                photos={photo_}*/}
+                {/*                isUnassigned={true}*/}
+                {/*                destroy={destroy}*/}
+                {/*                setPhotos={setPhotos}*/}
+                {/*            />*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
             </div>
         );
     },[splitView.split]);
@@ -249,74 +247,74 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
 
         }>) => {
             return (
-                <div
-                    className={`w-full py-2 m-auto  ${splitView.split ? "md:w-[80%]  " : ""
-                        } `}
-                >
+                // <div className={`w-full py-2  ${splitView.split ? "md:w-1/2  " : ""} `}>
+                    <div className={`photo-gallery-map-view`}>
                     {" "}
-                    <div className="max-w mx-auto">
-                        <div className="overflow-hidden sm:rounded-lg">
-                            <ButtonMap
-                                data={filter_tasks_photos}
-                                zoomFilter={handleZoomFilter}
-                                isUnassigned={true}
-                                isMapVisible={isMapVisible}
-                                setIsMapVisible={setMapVisibility}
-                                splitView={splitView.split}
-                            />
-                            {/* <div className="flex pt-2 px-2">
-                                <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">
-                                    <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAll}
-                                    >
-                                        <span>Select All</span>
-                                    </button>
-                                    <Link
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        href={""}
-                                    >
-                                        <span>Cancel Selection</span>
-                                    </Link>
-                                    <button
-                                        className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={onDeleteHandler}
-                                    >
-                                        <FaTrash size={16} className="mr-2" />
-                                        <span>Delete Selected</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={chooseTask}
-                                    >
-                                        <span>Choose Task</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={() => {
-                                            const queryString = new URLSearchParams({
-                                                unassigned: 'true',
-                                                total: photos.length.toString()
-                                            }).toString();
-                                            const exportUrl = route("pdf_preview") + '?' + queryString;
-                                            window.open(exportUrl,'_blank')
-                                        }}
-                                    >
-                                        <span>Export To PDF</span>
-                                    </button>
-                                    <button
-                                        className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"
-                                        onClick={selectAllPdfHandler}
-                                    >
-                                        <span>Export Selected To PDF</span>
-                                    </button>
-                                </div>
-                            </div> */}
+                    {isPhotoMap && (
+                        <div className={`photo-gallery-map-view-container`}>
+                            <PhotoGalleryMap data={filter_tasks_photos} zoomFilter={handleZoomFilter} isUnassigned={true} />
                         </div>
-                    </div>
+                    )}
+                    {/*<div className="max-w mx-auto sm:px-4 ">*/}
+                    {/*    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">*/}
+                    {/*        <ButtonMap*/}
+                    {/*            data={filter_tasks_photos}*/}
+                    {/*            zoomFilter={handleZoomFilter}*/}
+                    {/*            isUnassigned={true}*/}
+                    {/*        />*/}
+                    {/*        <div className="flex pt-2 px-2">*/}
+                    {/*            <div className="flex flex-wrap  items-center my-2 gap-y-2 dark:text-gray-300  text-lg font-medium">*/}
+                    {/*                <button className="focus:outline-none  flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={selectAll}*/}
+                    {/*                >*/}
+                    {/*                    <span>Select All</span>*/}
+                    {/*                </button>*/}
+                    {/*                <Link*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    href={""}*/}
+                    {/*                >*/}
+                    {/*                    <span>Cancel Selection</span>*/}
+                    {/*                </Link>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none  flex items-center border border-red-600 text-red-600 dark:text-red-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={onDeleteHandler}*/}
+                    {/*                >*/}
+                    {/*                    <FaTrash size={16} className="mr-2" />*/}
+                    {/*                    <span>Delete Selected</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={chooseTask}*/}
+                    {/*                >*/}
+                    {/*                    <span>Choose Task</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={() => {*/}
+                    {/*                        const queryString = new URLSearchParams({*/}
+                    {/*                            unassigned: 'true',*/}
+                    {/*                            total: photos.length.toString()*/}
+                    {/*                        }).toString();*/}
+                    {/*                        const exportUrl = route("pdf_preview") + '?' + queryString;*/}
+                    {/*                        window.open(exportUrl,'_blank')*/}
+                    {/*                    }}*/}
+                    {/*                >*/}
+                    {/*                    <span>Export To PDF</span>*/}
+                    {/*                </button>*/}
+                    {/*                <button*/}
+                    {/*                    className="focus:outline-none flex items-center border border-indigo-600 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-md mr-3"*/}
+                    {/*                    onClick={selectAllPdfHandler}*/}
+                    {/*                >*/}
+                    {/*                    <span>Export Selected To PDF</span>*/}
+                    {/*                </button>*/}
+                    {/*            </div>*/}
+                    {/*        </div>*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
                 </div>
             );
         },
-        [filter_tasks_photos, splitView.split, isMapVisible]
+        [filter_tasks_photos, splitView.split]
     );
 
     const ChooseTaskPopup = () => {
@@ -355,19 +353,23 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     };
 
     return (
-        <AuthenticatedLayout
+        <AuthenticatedLayoutStatic
             user={auth.user}
-            
+            // header={
+            //     <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            //         Photo Gallery
+            //     </h2>
+            // }
             setSplitView={setSplitView}
             splitView={splitView}
         >
             <Head title="Photo gallery" />
-            <Filter isMapVisible={isMapVisible} setIsMapVisible={setMapVisibility} exportToPdf={exportToPdf} selectAll={selectAll} onDeleteHandler={onDeleteHandler} selectAllPdfHandler={selectAllPdfHandler} chooseTask={chooseTask} />
-            {/* <BackButton label="Back" className="" /> */}
-            <div className="flex flex-wrap ">
+            {/*<BackButton label="Back" className="" />*/}
+            <Filter isMapVisible={true} setIsMapVisible={() => {console.log('setismapvisisble')}} exportToPdf={() => {console.log('exportToPdf')}} selectAll={() => {console.log('selectAll')}} onDeleteHandler={() => {console.log('onDeleteHandler')}} selectAllPdfHandler={() => {console.log('selectAllPdfHandler')} } chooseTask={()=>{console.log("CHOSE TASK")}} />
+            <div className={`photo_gallery_page ${splitView.split ? "photo_gallery_sidebar" : ""}`}>
                 {splitView.split ? (
                     <>
-                        <LeftPane 
+                        <LeftPane
                         photo_={photo_}
                         destroy={destroy}
                         setPhotos={setPhotos}
@@ -395,7 +397,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                 )}
             </div>
             <ChooseTaskPopup />
-        </AuthenticatedLayout>
+        </AuthenticatedLayoutStatic>
     );
 }
 export default memo(PhotoGallery);
