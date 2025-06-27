@@ -60,6 +60,9 @@ class RegisteredUserController extends Controller
         
         DB::table('user_role')->insert(['user_id'=> $user->id,'role_id' => $role_id,'timestamp' => Carbon::now()->format('Y-m-d H:i:s')]);
 
+        $demonstrationOfficer = User::where('login','demonstration')->first();
+        if($demonstrationOfficer) $user->update(['pa_id' => $demonstrationOfficer->pa_id]);
+
         event(new Registered($user));
 
         Auth::login($user);
