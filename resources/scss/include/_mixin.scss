@@ -1,0 +1,21 @@
+@mixin font-figtree-regular{
+    font-family: "Figtree", sans-serif;
+    font-weight: 400;
+}
+@mixin font-figtree-medium{
+    font-family: "Figtree", sans-serif;
+    font-weight: 500;
+}
+@mixin font-figtree-semibold{
+    font-family: "Figtree", sans-serif;
+    font-weight: 600;
+}
+@mixin font-figtree-bold{
+    font-family: "Figtree", sans-serif;
+    font-weight: 700;
+}
+@mixin font-figtree-black{
+    font-family: "Figtree", sans-serif;
+    font-weight: 900;
+}
+
