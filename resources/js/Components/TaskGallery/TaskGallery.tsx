@@ -387,33 +387,6 @@ const TaskGallery = ({
                                     ${isSplitView ? 'split-view-buttons' : ''}`}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {isUnassigned && (
-                                    <FaTrash
-                                        className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            destroy!([photo.id].join(","));
-                                        }}
-                                        title="Delete photo"
-                                    />
-                                )}
-                                <FaSync
-                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
-                                    style={{ transform: "scaleX(-1)" }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRotate(photo.digest, "left");
-                                    }}
-                                    title="Rotate left"
-                                />
-                                <FaSync
-                                    className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRotate(photo.digest, "right");
-                                    }}
-                                    title="Rotate right"
-                                />
                                 <FaCheck 
                                     className={`text-xs sm:text-sm md:text-base lg:text-lg cursor-pointer transition-colors p-1 ${
                                         photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
@@ -683,33 +656,6 @@ const TaskGallery = ({
                                                         className="flex flex-wrap justify-center gap-1 p-1 rounded-md bg-white bg-opacity-80 dark:bg-gray-800 dark:bg-opacity-80 max-w-[95%] max-h-[95%] mobile-portrait-buttons"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        {isUnassigned && (
-                                                            <FaTrash
-                                                                className="text-gray-600 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition-colors text-xs p-0.5"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    destroy!([photo.id].join(","));
-                                                                }}
-                                                                title="Delete photo"
-                                                            />
-                                                        )}
-                                                        <FaSync
-                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
-                                                            style={{ transform: "scaleX(-1)" }}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRotate(photo.digest, "left");
-                                                            }}
-                                                            title="Rotate left"
-                                                        />
-                                                        <FaSync
-                                                            className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRotate(photo.digest, "right");
-                                                            }}
-                                                            title="Rotate right"
-                                                        />
                                                         <FaCheck 
                                                             className={`text-xs cursor-pointer transition-colors p-0.5 ${
                                                                 photo.check ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400'
