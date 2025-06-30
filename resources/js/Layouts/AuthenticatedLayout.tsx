@@ -135,14 +135,7 @@ export default function Authenticated({
                                             Show Paths
                                         </NavLink>
                                         {header ? (
-                                            <NavLink
-                                                href={route("building_height")}
-                                                active={route().current(
-                                                    "user_paths"
-                                                )}
-                                            >
-                                                Building height
-                                            </NavLink>
+                                            ""
                                         ) : (
                                             <>
                                                 <button className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none  border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
@@ -166,6 +159,14 @@ export default function Authenticated({
                                                 </button>
                                             </>
                                         )}
+                                        <NavLink
+                                            href={route("building_height")}
+                                            active={route().current(
+                                                "user_paths"
+                                            )}
+                                        >
+                                            Building height
+                                        </NavLink>
                                         <NavLink
                                             href={route("building_attributes")}
                                             active={route().current(
