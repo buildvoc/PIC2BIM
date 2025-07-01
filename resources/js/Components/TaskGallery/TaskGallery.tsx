@@ -537,7 +537,7 @@ const TaskGallery = ({
                         return photos.length; 
                     }
                     if (width <= 1024) {
-                        if (height > 900) return 6; 
+                        if (height > 900) return 4; 
                         return 4; 
                     }
                     return 6; 
@@ -549,7 +549,7 @@ const TaskGallery = ({
                         if (width >= 900 && width <= 950 && height >= 400 && height <= 450) {
                             return 4; 
                         }
-                        return 6; 
+                        return 4; 
                     }
                     return 9; 
                 }
@@ -582,7 +582,7 @@ const TaskGallery = ({
                         if (width >= 900 && width <= 950 && height >= 400 && height <= 450) {
                             return 'grid-2x2';
                         }
-                        return 'grid-3x2';
+                        return 'grid-2x2';
                     }
                     return 'grid-3x3'; 
                 }
@@ -695,7 +695,7 @@ const TaskGallery = ({
         }
         
         return (
-            <div className="w-full max-w-xl px-2 md:px-4 py-4 dark:bg-gray-900 flex flex-col justify-center mx-auto" style={{minHeight: '100%', boxSizing: 'border-box'}}>
+            <div className="w-full px-2 md:px-4 py-4 dark:bg-gray-900 flex flex-col justify-center mx-auto" style={{minHeight: '100%', boxSizing: 'border-box'}}>
                 <div className="grid-container" style={{width: '100%'}}>
                     <Slider {...split2x3Settings} className="split-3x3-slider">
                         {photoChunks.map((chunk, slideIndex) => (

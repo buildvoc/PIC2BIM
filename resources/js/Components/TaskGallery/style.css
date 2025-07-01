@@ -716,7 +716,7 @@
   
   .grid-3x3 .photo-grid-item {
     min-height: 150px;
-    max-height: 300px;
+    max-height: 260px;
   }
   
   .photo-grid-item .relative img {
@@ -1151,4 +1151,8 @@
     max-height: 120px;
     object-fit: contain;
   }
+}
+
+.slick-list .slick-track {
+   margin-bottom: 1.5rem; /* or margin-left: 8px; adjust as needed */
 }
