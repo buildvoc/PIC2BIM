@@ -162,7 +162,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("building_height")}
                                             active={route().current(
-                                                "user_paths"
+                                                "building_height"
                                             )}
                                         >
                                             Building height
