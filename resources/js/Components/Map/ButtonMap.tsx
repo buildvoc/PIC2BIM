@@ -2,6 +2,9 @@ import Map from "@/Components/Map/Map";
 import { useEffect, useState } from "react";
 import { MapProps } from "@/types";
 import { FaRegMap } from "react-icons/fa6";
+
+const MAP_FROM_PHOTO_DETAIL = "MAP_FROM_PHOTO_DETAIL";
+
 const ButtonMap  = ({
     data,
     onClick,
@@ -14,6 +17,12 @@ const ButtonMap  = ({
 }: MapProps) => {
     const [localIsMapVisible, setLocalIsMapVisible] = useState(true);
     const effectiveMapVisible = typeof isMapVisible === "boolean" ? isMapVisible : localIsMapVisible;
+    
+    useEffect(() => {
+        // Clear returning flag to prevent unwanted map state restoration
+        localStorage.removeItem('returning_from_photo_detail');
+    }, []);
+    
     const toggleVisibility = () => {
       if (typeof isMapVisible === "boolean" && setIsMapVisible) {
         setIsMapVisible();
