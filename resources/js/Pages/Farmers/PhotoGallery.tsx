@@ -43,11 +43,26 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
 
     useEffect(() => {
         loadData();
+        checkReturnFromPhotoDetail();
     }, []);
 
     useEffect(() => {
         console.log("Photo: " , isMapVisible)
     }, [isMapVisible]);
+
+    // Check if we're returning from photo detail
+    function checkReturnFromPhotoDetail() {
+        try {
+            const returningFromDetail = localStorage.getItem("returning_from_photo_detail");
+            
+            if (returningFromDetail === 'true') {
+                console.log("Returning from photo detail, map state should be preserved");
+                // Map.tsx will handle restoring the map state
+            }
+        } catch (error) {
+            console.error('Error checking if returning from photo detail:', error);
+        }
+    }
 
     function loadData() {
         const tasks_photos_array: Array<TaskPhotos> = [];
@@ -115,7 +130,6 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
             confirm("Please select photo!");
         }
     };
-
 
     const onDeleteHandler = () => {
         const photosIds = photo_

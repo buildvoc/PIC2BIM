@@ -13,6 +13,11 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
+const MAP_ZOOM_KEY = "mapbox_last_zoom";
+const MAP_CENTER_KEY = "mapbox_last_center";
+const MAP_STYLE_KEY = "mapbox_last_style";
+const MAP_FROM_PHOTO_DETAIL = "MAP_FROM_PHOTO_DETAIL";
+
 const TaskGallery = ({
     photos,
     isUnassigned,
@@ -316,6 +321,24 @@ const TaskGallery = ({
         setPhotos(withCheckUpdate);
     };
 
+    const handlePhotoDetail = (photoId: number | string) => {
+        // Get map state from a global value that Map component sets
+        try {
+            // This is a safer approach - we'll store what we need in our localStorage
+            localStorage.setItem("map_from_photo_detail", "true");
+            localStorage.setItem("returning_from_photo_detail", "true");
+            localStorage.setItem("photo_gallery_state", JSON.stringify({
+                timestamp: new Date().getTime(),
+                photoId: photoId
+            }));
+        } catch (error) {
+            console.error("Error when navigating to photo detail:", error);
+        }
+        
+        // Navigate to photo detail page
+        router.get(route("photo_detail", photoId));
+    };
+
     if (photos.length === 0) {
         return (
             <div className="flex justify-center items-center p-8 text-gray-500 dark:text-gray-400">
@@ -401,8 +424,7 @@ const TaskGallery = ({
                                     className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs sm:text-sm md:text-base lg:text-lg p-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        localStorage.setItem("map_from_photo_detail", "true");
-                                        router.get(route("photo_detail", photo.id));
+                                        handlePhotoDetail(photo.id);
                                     }}
                                     title="View photo details"
                                 />
@@ -670,8 +692,7 @@ const TaskGallery = ({
                                                             className="text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 cursor-pointer transition-colors text-xs p-0.5"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                localStorage.setItem("map_from_photo_detail", "true");
-                                                                router.get(route("photo_detail", photo.id));
+                                                                handlePhotoDetail(photo.id);
                                                             }}
                                                             title="View photo details"
                                                         />
