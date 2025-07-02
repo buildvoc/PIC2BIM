@@ -393,12 +393,7 @@ export default function Authenticated({
                                     Show Paths
                                 </ResponsiveNavLink>
                                 {header ? (
-                                    <ResponsiveNavLink
-                                        href={route("building_height")}
-                                        active={route().current("user_paths")}
-                                    >
-                                        Building height
-                                    </ResponsiveNavLink>
+                                    ""
                                 ) : (
                                     <>
                                         <ResponsiveNavLink
@@ -426,6 +421,12 @@ export default function Authenticated({
                                         </ResponsiveNavLink>
                                     </>
                                 )}
+                                <ResponsiveNavLink
+                                        href={route("building_height")}
+                                        active={route().current("building_height")}
+                                >
+                                    Building height
+                                </ResponsiveNavLink>
                                 <ResponsiveNavLink
                                     href={route("building_attributes")}
                                     active={route().current("building_attributes")}
