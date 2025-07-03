@@ -58,7 +58,7 @@ export default function Authenticated({
         axios.post(route('set-split-mode-in-session'));
     };
 
-    const isPhotoPage = route().current("photo_gallery") || route().current("building_height");
+    const isBuildingHeightPage = route().current("building_height");
     
     return (
         <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -137,96 +137,79 @@ export default function Authenticated({
                                             Show Paths
                                         </NavLink>
                                         
-                                        {/* Photo options dropdown for photo gallery and building height pages */}
-                                        {isPhotoPage && !header ? (
-                                            <div className="hidden lg:flex space-x-8 sm:-my-px sm:ms-10">
-                                                <button className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
-                                                    Take photo again
-                                                </button>
-                                                <button
-                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
-                                                    onClick={() => uploadPhotoHandler()}
-                                                >
-                                                    Upload photo again
-                                                </button>
-                                                <button
-                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
-                                                    onClick={() => metadataResultsHandler()}
-                                                >
-                                                    Metadata results 
-                                                </button>
-                                            </div>
-                                        ) : !header ? (
+                                        {/* Photo options visible only when building height page is active */}
+                                        {isBuildingHeightPage && !header ? (
                                             <>
-                                                <button className="hidden lg:inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
-                                                    Take photo again
-                                                </button>
-                                                <button
-                                                    className="hidden lg:inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
-                                                    onClick={() => uploadPhotoHandler()}
-                                                >
-                                                    Upload photo again
-                                                </button>
-                                                <button
-                                                    className="hidden lg:inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
-                                                    onClick={() => metadataResultsHandler()}
-                                                >
-                                                    Metadata results 
-                                                </button>
+                                                {/* Photo options for larger screens */}
+                                                <div className="hidden lg:flex space-x-8 sm:-my-px sm:ms-10">
+                                                    <button className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
+                                                        Take photo again
+                                                    </button>
+                                                    <button
+                                                        className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                        onClick={() => uploadPhotoHandler()}
+                                                    >
+                                                        Upload photo again
+                                                    </button>
+                                                    <button
+                                                        className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                        onClick={() => metadataResultsHandler()}
+                                                    >
+                                                        Metadata results 
+                                                    </button>
+                                                </div>
+                                                
+                                                {/* Photo options dropdown for smaller screens */}
+                                                <div className="lg:hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                                    <Dropdown>
+                                                        <Dropdown.Trigger>
+                                                            <span className="inline-flex mt-3 rounded-md">
+                                                                <button
+                                                                    type="button"
+                                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                                >
+                                                                    Photo Options
+                                                                    <svg
+                                                                        className="ms-2 -me-0.5 h-4 w-4"
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        viewBox="0 0 20 20"
+                                                                        fill="currentColor"
+                                                                    >
+                                                                        <path
+                                                                            fillRule="evenodd"
+                                                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                                            clipRule="evenodd"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </span>
+                                                        </Dropdown.Trigger>
+                                                        <Dropdown.Content>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                            >
+                                                                Take photo again
+                                                            </Dropdown.Link>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                                onClick={() => uploadPhotoHandler()}
+                                                            >
+                                                                Upload photo again
+                                                            </Dropdown.Link>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                                onClick={() => metadataResultsHandler()}
+                                                            >
+                                                                Metadata results
+                                                            </Dropdown.Link>
+                                                        </Dropdown.Content>
+                                                    </Dropdown>
+                                                </div>
                                             </>
                                         ) : null}
-                                        
-                                        {/* Photo options dropdown for smaller screens */}
-                                        {!header && (
-                                            <div className="lg:hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                                <Dropdown>
-                                                    <Dropdown.Trigger>
-                                                        <span className="inline-flex mt-3 rounded-md">
-                                                            <button
-                                                                type="button"
-                                                                className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
-                                                            >
-                                                                Photo Options
-                                                                <svg
-                                                                    className="ms-2 -me-0.5 h-4 w-4"
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    viewBox="0 0 20 20"
-                                                                    fill="currentColor"
-                                                                >
-                                                                    <path
-                                                                        fillRule="evenodd"
-                                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                                        clipRule="evenodd"
-                                                                    />
-                                                                </svg>
-                                                            </button>
-                                                        </span>
-                                                    </Dropdown.Trigger>
-                                                    <Dropdown.Content>
-                                                        <Dropdown.Link
-                                                            as="button"
-                                                            href="#"
-                                                        >
-                                                            Take photo again
-                                                        </Dropdown.Link>
-                                                        <Dropdown.Link
-                                                            as="button"
-                                                            href="#"
-                                                            onClick={() => uploadPhotoHandler()}
-                                                        >
-                                                            Upload photo again
-                                                        </Dropdown.Link>
-                                                        <Dropdown.Link
-                                                            as="button"
-                                                            href="#"
-                                                            onClick={() => metadataResultsHandler()}
-                                                        >
-                                                            Metadata results
-                                                        </Dropdown.Link>
-                                                    </Dropdown.Content>
-                                                </Dropdown>
-                                            </div>
-                                        )}
                                         
                                         <NavLink
                                             href={route("building_height")}
@@ -461,9 +444,8 @@ export default function Authenticated({
                                 >
                                     Show Paths
                                 </ResponsiveNavLink>
-                                {header ? (
-                                    ""
-                                ) : (
+                                {/* Photo options in mobile menu - only shown on building height page */}
+                                {isBuildingHeightPage && !header ? (
                                     <>
                                         <div className="py-2 px-4 text-gray-500 dark:text-gray-400 text-sm font-medium">
                                             Photo Options:
@@ -492,7 +474,7 @@ export default function Authenticated({
                                             Metadata results
                                         </ResponsiveNavLink>
                                     </>
-                                )}
+                                ) : null}
                                 <ResponsiveNavLink
                                         href={route("building_height")}
                                         active={route().current("building_height")}
