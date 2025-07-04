@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { Link } from '@inertiajs/react';
 interface FilterProps {
@@ -13,13 +13,30 @@ interface FilterProps {
 
 const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportToPdf, selectAll, onDeleteHandler, selectAllPdfHandler, chooseTask }) => {
     //const [isPhotoMap, setPhotoMap] = useState(true);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkIfMobile = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        
+        // Check on initial load
+        checkIfMobile();
+        
+        // Add event listener for window resize
+        window.addEventListener('resize', checkIfMobile);
+        
+        // Clean up
+        return () => window.removeEventListener('resize', checkIfMobile);
+    }, []);
+
     return (
         <div className={`photo-gallery-filter dark:bg-gray-800`}>
             <div className={`photo-gallery-filter-container`}>
                 <div className={`photo-gallery-filter-heading`}>
                     <h1 className='dark:text-white'>Photo Gallery</h1>
                 </div>
-                <div className={`photo-gallery-filter-actions`}>
+                <div className={`photo-gallery-filter-actions ${isMobile ? 'flex flex-wrap gap-2' : ''}`}>
                     <Menu as="div" className={`relative inline-block text-left photo-gallery-filter-update-dropdown`}>
                         <MenuButton className={`photo-gallery-filter-update-dropdown-toggle`}>
                             <span>
@@ -31,7 +48,7 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                         </MenuButton>
                         <MenuItems transition className={`photo-gallery-filter-update-dropdown-menu absolute right-0 z-10 origin-top-right transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in`}>
                             <MenuItem>
-                                <button  onClick={exportToPdf} type={`button`}>Export To PDF</button>
+                                <button onClick={exportToPdf} type={`button`}>Export To PDF</button>
                             </MenuItem>
                             <MenuItem>
                                 <button type={`button`} onClick={selectAllPdfHandler}>Export Selected To PDF</button>
@@ -72,6 +89,47 @@ const Filter: React.FC<FilterProps> = ({ isMapVisible, setIsMapVisible, exportTo
                     </button>
                 </div>
             </div>
+            
+            {/* Mobile-specific PDF export button that appears at bottom of screen on small devices */}
+            {isMobile && (
+                <div className="fixed bottom-4 right-4 z-50">
+                    <Menu as="div" className="relative inline-block text-left">
+                        <MenuButton className="bg-indigo-600 text-white rounded-full p-3 shadow-lg flex items-center justify-center">
+                            <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="white">
+                                <path d="M0 64C0 28.7 28.7 0 64 0L224 0l0 128c0 17.7 14.3 32 32 32l128 0 0 144-208 0c-35.3 0-64 28.7-64 64l0 144-48 0c-35.3 0-64-28.7-64-64L0 64zm384 64l-128 0L256 0 384 128zM176 352l32 0c30.9 0 56 25.1 56 56s-25.1 56-56 56l-16 0 0 32c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-48 0-80c0-8.8 7.2-16 16-16zm32 80c13.3 0 24-10.7 24-24s-10.7-24-24-24l-16 0 0 48 16 0zm96-80l32 0c26.5 0 48 21.5 48 48l0 64c0 26.5-21.5 48-48 48l-32 0c-8.8 0-16-7.2-16-16l0-128c0-8.8 7.2-16 16-16zm32 128c8.8 0 16-7.2 16-16l0-64c0-8.8-7.2-16-16-16l-16 0 0 96 16 0zm80-112c0-8.8 7.2-16 16-16l48 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 32 32 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 48c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-64 0-64z"/>
+                            </svg>
+                        </MenuButton>
+                        <MenuItems className="absolute bottom-full right-0 mb-2 w-48 origin-bottom-right bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                            <div className="py-1">
+                                <MenuItem>
+                                    {({ active }) => (
+                                        <button
+                                            onClick={exportToPdf}
+                                            className={`${
+                                                active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                                            } block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
+                                        >
+                                            Export To PDF
+                                        </button>
+                                    )}
+                                </MenuItem>
+                                <MenuItem>
+                                    {({ active }) => (
+                                        <button
+                                            onClick={selectAllPdfHandler}
+                                            className={`${
+                                                active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                                            } block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
+                                        >
+                                            Export Selected To PDF
+                                        </button>
+                                    )}
+                                </MenuItem>
+                            </div>
+                        </MenuItems>
+                    </Menu>
+                </div>
+            )}
         </div>
     )
 };
