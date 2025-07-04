@@ -332,7 +332,11 @@ const TaskGallery = ({
                     ${photo.check ? 'ring-2 ring-blue-500' : ''}
                     ${isSplitView ? 'split-view-item' : ''} 
                     ${photos.length === 1 ? 'single-image-item' : ''}`}
-                style={photos.length === 1 ? singleImageStyles : {}}
+                style={{
+                    ...(photos.length === 1 ? singleImageStyles : {
+                        maxWidth: '265px'
+                    })
+                }}
             >
                 <div className="relative">
                     <div 
@@ -347,7 +351,8 @@ const TaskGallery = ({
                         } : isSplitView ? {
                             height: '220px'
                         } : {
-                            aspectRatio: '1/1'
+                            aspectRatio: '1/1',
+                            maxHeight: '265px'
                         }}
                     >
                         <img
