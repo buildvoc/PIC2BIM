@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createRoot } from 'react-dom/client';
+import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker';
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -72,10 +74,42 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const deckRef = useRef<any>(null);
+  const markerRef = useRef<any[]>([]); // Untuk menyimpan marker DOM
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [nearestBuildings, setNearestBuildings] = useState<Record<number, NearestBuildingData | null>>({});
   const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(true);
+
+  const addMarkers = useCallback((photos_: PhotoData[]) => {
+    if (!map.current || !window.maplibregl) {
+      console.warn('MapLibre GL or map instance not available');
+      return;
+    }
+    // Clear existing markers
+    markerRef.current.forEach(marker => marker.remove());
+    markerRef.current = [];
+  
+    photos_.forEach((photo) => {
+      if (!photo || !photo.lat || !photo.lng) {
+        console.warn(`Invalid photo data for ID ${photo?.id}:`, photo);
+        return;
+      }
+      const el = document.createElement('div');
+      try {
+        const root = createRoot(el);
+        root.render(
+          <BuildingAttributesMarker data={photo} onClick={() => {
+          }} />
+        );
+        const marker = new window.maplibregl.Marker({ element: el })
+          .setLngLat([parseFloat(photo.lng), parseFloat(photo.lat)])
+          .addTo(map.current);
+        markerRef.current.push(marker);
+      } catch (error) {
+        console.error(`Failed to render marker for photo ID ${photo.id}:`, error);
+      }
+    });
+  }, []);
 
   // Create a GeoJSON from all building geometries
   const createBuildingGeometriesGeoJSON = () => {
@@ -312,7 +346,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       'top-right'
     );
 
-    map.current.on('load', () => {
+    map.current.on('load', async () => {
       // Add terrain sources
       map.current.addSource('terrainSource', {
         type: "raster-dem",
@@ -388,78 +422,8 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         }
       });
       
-      // Add photos source
-      const photosGeoJSON = createPhotosGeoJSON();
-      map.current.addSource('photos-source', {
-        type: 'geojson',
-        data: photosGeoJSON
-      });
-      
-      // Add photos layer
-      map.current.addLayer({
-        id: 'photos-layer',
-        type: 'circle',
-        source: 'photos-source',
-        minzoom: 0,
-        paint: {
-          'circle-radius': 8,
-          'circle-color': [
-            'case',
-            ['get', 'hasGeometry'], '#E91E63',
-            ['!=', ['get', 'nearestBuildingId'], null], '#4CAF50',
-            '#3887be'
-          ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      }, 'building');
-
-      // Add click handlers
-      map.current.on('click', 'photos-layer', (e: any) => {
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          const properties = feature.properties;
-          const photoId = parseInt(properties.id);
-          const photoUrl = properties.link;
-          
-          const description = `
-            <div style="display: flex; align-items: center;">
-              <img 
-                src="${photoUrl}" 
-                alt="Photo ${properties.id}"
-                style="width: 80px; height: auto;"
-              />
-              <div style="margin-left: 10px; width: 200px;">
-                <div style="font-size: 1rem; font-weight: bold; text-align: left;">
-                  Photo ID: ${properties.id}
-                </div>
-                <div style="font-size: 10px; text-align: left; display: flex; align-items: center;">
-                  <span style="margin-right: 4px;">📍</span>
-                  ${feature.geometry.coordinates[1].toFixed(5)}, ${feature.geometry.coordinates[0].toFixed(5)}
-                </div>
-                <div style="font-size: 10px; text-align: left; display: flex; align-items: center;">
-                  <span style="margin-right: 4px;">📅</span>
-                  Heading: ${properties.heading}°
-                </div>
-              </div>
-            </div>
-          `;
-          
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(description)
-            .addTo(map.current);
-        }
-      });
-
-      // Add hover effects
-      map.current.on('mouseenter', 'photos-layer', () => {
-        map.current.getCanvas().style.cursor = 'pointer';
-      });
-      
-      map.current.on('mouseleave', 'photos-layer', () => {
-        map.current.getCanvas().style.cursor = '';
-      });
+      // Add photo markers as DOM elements using React
+      addMarkers(photos);
     });
 
     // Disable road labels
@@ -473,13 +437,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     });
   };
 
-  // Update layers when data changes
+  // Update photo markers when data changes
   useEffect(() => {
-    if (map.current && map.current.getSource('photos-source')) {
-      const photosGeoJSON = createPhotosGeoJSON();
-      map.current.getSource('photos-source').setData(photosGeoJSON);
+    if (map.current) {
+      addMarkers(photos);
     }
-  }, [nearestBuildings]);
+  }, [photos, addMarkers]);
 
   useEffect(() => {
     if (map.current && map.current.getSource('api-buildings-source')) {
