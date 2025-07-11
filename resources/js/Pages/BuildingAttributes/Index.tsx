@@ -74,7 +74,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const deckRef = useRef<any>(null);
-  const markerRef = useRef<any[]>([]); // Untuk menyimpan marker DOM
+  const markerRef = useRef<any[]>([]);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [nearestBuildings, setNearestBuildings] = useState<Record<number, NearestBuildingData | null>>({});
   const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
@@ -424,6 +424,36 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       
       // Add photo markers as DOM elements using React
       addMarkers(photos);
+
+      map.current.on('render', () => {
+        if (!markerRef.current || !photos) return;
+        markerRef.current.forEach((marker, idx) => {
+          const photo = photos[idx];
+          if (!photo || !photo.lat || !photo.lng) return;
+
+          const point = map.current.project([
+            parseFloat(photo.lng),
+            parseFloat(photo.lat)
+          ]);
+
+          const features = map.current.queryRenderedFeatures([point.x, point.y], {
+            layers: ['api-buildings', 'api-roofs']
+          });
+
+          let hidden = false;
+          for (const feature of features) {
+            const extrusionHeight = feature.properties?.height || feature.properties?.base || 0;
+            const markerHeight = photo.base || 0;
+            if (extrusionHeight > markerHeight) {
+              hidden = true;
+              break;
+            }
+          }
+
+          const el = marker.getElement();
+          el.style.display = hidden ? 'none' : '';
+        });
+      });
     });
 
     // Disable road labels
