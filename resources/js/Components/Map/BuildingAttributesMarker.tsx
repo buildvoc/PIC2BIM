@@ -1,12 +1,15 @@
 import styles from "./task_photo.module.css";
 
-const BuildingAttributesMarker: any = ({ data, onClick }: any) => {
+const BuildingAttributesMarker: any = ({ data, onClick, visible = true }: any) => {
   const imageSrc: any = data.link
     ? data.link
     : null;
 
   return (
-    <div style={{ cursor: "pointer" }} onClick={() => onClick && onClick(data.id,data.digest)}>
+    <div
+      style={{ cursor: "pointer", display: visible ? 'block' : 'none' }}
+      onClick={() => onClick && onClick(data.id,data.digest)}
+    >
       <div className={styles.js_popup}>
         <div className={styles.js_popup_border}>
           <div className={styles.js_azimuth}>
