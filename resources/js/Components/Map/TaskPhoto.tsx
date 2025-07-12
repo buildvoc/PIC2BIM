@@ -2,7 +2,6 @@ import styles from "./task_photo.module.css";
 
 const TaskPhoto: any = ({ data, mapBearing = 0, onClick }: any) => {
   const { farmer_name, name, photo, id } = data;
-  console.log(mapBearing);
   const imageSrc: any = photo.link
     ? photo.link
     : null;

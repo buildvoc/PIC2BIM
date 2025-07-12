@@ -1,7 +1,6 @@
 import styles from "./task_photo.module.css";
 
 const BuildingAttributesMarker: any = ({ data, onClick, visible = true, mapBearing = 0 }: any) => {
-  console.log(mapBearing);
   const imageSrc: any = data.link
     ? data.link
     : null;

@@ -40,7 +40,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       try {
         const root = createRoot(el);
         const mapBearing = map.current && typeof map.current.getBearing === 'function' ? map.current.getBearing() : 0;
-        console.log(mapBearing);
         root.render(
           <BuildingAttributesMarker data={photo} mapBearing={mapBearing} onClick={() => setSelectedPhoto(photo)} />
         );
