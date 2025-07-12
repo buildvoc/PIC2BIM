@@ -380,12 +380,25 @@ function Map({
                 });
             });
         });
+
+        // Listen for map rotation and update marker bearings
+        mapRef.current?.on('rotate', () => {
+            const mapBearing = mapRef.current && typeof mapRef.current.getBearing === 'function' ? mapRef.current.getBearing() : 0;
+            markerRef.current.forEach((marker: any, idx: number) => {
+                const markerData = data[idx];
+                if (!marker || !marker.getElement()) return;
+                const el = marker.getElement();
+                const root = createRoot(el);
+                root.render(<TaskPhoto data={markerData} mapBearing={mapBearing} onClick={onClick} />);
+            });
+        });
     };
 
     const addMarkers = (data_: any) => {
         const el = document.createElement("div");
         const root = createRoot(el);
-        root.render(<TaskPhoto data={data_} onClick={onClick} />);
+        const mapBearing = mapRef.current && typeof mapRef.current.getBearing === 'function' ? mapRef.current.getBearing() : 0;
+        root.render(<TaskPhoto data={data_} mapBearing={mapBearing} onClick={onClick} />);
         const marker = new mapboxgl.Marker(el).setLngLat(data_?.location);
         markerRef.current.push(marker);
     };

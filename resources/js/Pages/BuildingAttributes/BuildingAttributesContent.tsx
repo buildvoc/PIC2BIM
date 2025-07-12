@@ -39,8 +39,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       const el = document.createElement('div');
       try {
         const root = createRoot(el);
+        const mapBearing = map.current && typeof map.current.getBearing === 'function' ? map.current.getBearing() : 0;
         root.render(
-          <BuildingAttributesMarker data={photo} onClick={() => setSelectedPhoto(photo)} />
+          <BuildingAttributesMarker data={photo} mapBearing={mapBearing} onClick={() => setSelectedPhoto(photo)} />
         );
         const marker = new window.maplibregl.Marker({ element: el })
           .setLngLat([parseFloat(photo.lng), parseFloat(photo.lat)])
@@ -51,6 +52,17 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       }
     });
   }, [setSelectedPhoto]);
+
+  useEffect(() => {
+    if (!map.current) return;
+    const handleRotate = () => {
+      addMarkers(photos);
+    };
+    map.current.on('rotate', handleRotate);
+    return () => {
+      map.current.off('rotate', handleRotate);
+    };
+  }, [map.current, photos, addMarkers]);
 
   // Create a GeoJSON from all building geometries
   const createBuildingGeometriesGeoJSON = () => {
