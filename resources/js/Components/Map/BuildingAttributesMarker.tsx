@@ -1,6 +1,7 @@
 import styles from "./task_photo.module.css";
 
-const BuildingAttributesMarker: any = ({ data, onClick, visible = true }: any) => {
+const BuildingAttributesMarker: any = ({ data, onClick, visible = true, mapBearing = 0 }: any) => {
+  console.log(mapBearing);
   const imageSrc: any = data.link
     ? data.link
     : null;
@@ -17,7 +18,7 @@ const BuildingAttributesMarker: any = ({ data, onClick, visible = true }: any) =
               className={styles.azimuth}
     
               src="/icon_azimuth.png"
-              style={{ transform: `rotate(${data.photo_heading}deg)` }}
+              style={{ transform: `rotate(${data.photo_heading - mapBearing}deg)` }}
             />
           </div>
           <div className={styles.marker_image}>

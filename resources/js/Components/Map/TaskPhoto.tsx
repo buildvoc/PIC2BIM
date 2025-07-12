@@ -1,7 +1,8 @@
 import styles from "./task_photo.module.css";
 
-const TaskPhoto: any = ({ data, onClick }: any) => {
+const TaskPhoto: any = ({ data, mapBearing = 0, onClick }: any) => {
   const { farmer_name, name, photo, id } = data;
+  console.log(mapBearing);
   const imageSrc: any = photo.link
     ? photo.link
     : null;
@@ -17,7 +18,7 @@ const TaskPhoto: any = ({ data, onClick }: any) => {
               className={styles.azimuth}
     
               src="/icon_azimuth.png"
-              style={{ transform: `rotate(${photo.photo_heading}deg)` }}
+              style={{ transform: `rotate(${photo.photo_heading - mapBearing}deg)` }}
             />
           </div>
           <div className={styles.marker_image}>
