@@ -14,7 +14,8 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
     const controller = new AbortController();
     const fetchAttributes = async () => {
       try {
-        const response = await fetch(`/comm_get_building_attributes?osid=${osid}`, {
+        console.log(selectedPhoto);
+        const response = await fetch(`/comm_get_building_attributes?osid=${osid}&latitude=${selectedPhoto.lat}&longitude=${selectedPhoto.lng}`, {
           signal: controller.signal
         });
         if (!response.ok) {
@@ -73,19 +74,19 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
 
         {/* Construction Material */}
         <div className="text-gray-500 dark:text-gray-400">Construction Material</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.constructionMaterial}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.constructionmaterial}</div>
 
         {/* Roof Material */}
         <div className="text-gray-500 dark:text-gray-400">Roof Material </div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.roofMaterial}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.roofmaterial}</div>
 
         {/* Building Use */}
         <div className="text-gray-500 dark:text-gray-400">Building Use</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.buildingUse}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.buildinguse}</div>
 
         {/* Number of Floors */}
         <div className="text-gray-500 dark:text-gray-400">Number of Floors</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.numberOfFloors}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.numberoffloors}</div>
       </div>
     </div>
   );

@@ -844,7 +844,7 @@ class ApiController extends Controller
         }
     
         $building = Building::where('osid', $buildingPartLink->buildingid)->with('buildingAddresses.uprn')->get();
-        $building[0]->postcode = $this->getPostcodeByBoundingBox($building[0]->buildingAddresses[0]->uprn()->first()->latitude, $building[0]->buildingAddresses[0]->uprn()->first()->longitude);
+        $building[0]->postcode = $this->getPostcodeByBoundingBox($request->latitude, $request->longitude);
 
         if (!$building) {
             return response()->json([
