@@ -23,6 +23,7 @@ use App\Http\Resources\ShapeCollection;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Resources\CodepointCollection;
 use App\Http\Resources\LandRegistryInspireCollection;
+use App\Models\Attr\Building;
 
 class ApiController extends Controller
 {
@@ -825,5 +826,59 @@ class ApiController extends Controller
         ]);
 
         return new LandRegistryInspireCollection($data);
+    }
+
+    public function comm_get_building_attributes(Request $request){
+        $latitude = $request->latitude;
+        $longitude = $request->longitude;
+        $distance = $request->distance ?: 10;
+        $imagedirection = $request->imagedirection ?: 9;
+
+        $query = NHLE::query();
+
+        if ($latitude && $longitude) {
+            // Calculate target point based on direction
+            $radians = deg2rad($imagedirection);
+            $targetLng = $longitude + (sin($radians) * $distance * 0.00001);
+            $targetLat = $latitude + (cos($radians) * $distance * 0.00001);
+            
+            // Using buffer to create a corridor for intersection
+            $query
+                ->whereRaw("ST_Intersects(
+                    geom,
+                    ST_Transform(
+                        ST_SetSRID(
+                            ST_Buffer(
+                                ST_MakeLine(
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry,
+                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry
+                                ),
+                                0.0002
+                            ),
+                            4326
+                        ),
+                        ST_SRID(geom)
+                    )
+                )",
+                [
+                    $longitude, $latitude,
+                    $targetLng, $targetLat
+                ])
+                // Just order by the direction the user is facing
+                ->orderByRaw("
+                    ST_Distance(
+                        geom,
+                        ST_Transform(
+                            ST_SetSRID(ST_MakePoint(?, ?), 4326),
+                            ST_SRID(geom)
+                        )
+                    ) ASC
+                ",
+                [
+                    $targetLng, $targetLat
+                ]);
+        }
+        
+        $data = $query->limit(1)->get();
     }
 }

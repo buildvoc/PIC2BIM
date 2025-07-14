@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import BuildingDataGrid from "./BuildingDataGrid";
 import { createRoot } from 'react-dom/client';
 import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker';
 import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
@@ -113,31 +114,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     return {
       type: 'FeatureCollection',
       features
-    };
-  };
-
-  // Convert photos to GeoJSON for map display
-  const createPhotosGeoJSON = () => {
-    return {
-      type: 'FeatureCollection',
-      features: photos.map(photo => ({
-        type: 'Feature',
-        properties: {
-          id: photo.id,
-          heading: photo.photo_heading,
-          fileName: photo.file_name,
-          path: photo.path,
-          nearestBuildingId: nearestBuildings[photo.id]?.buildingPartId || null,
-          nearestBuildingDistance: nearestBuildings[photo.id]?.distance || null,
-          hasGeometry: buildingGeometries[photo.id] ? true : false,
-          link: photo.link,
-          altitude: photo.altitude || 0
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [parseFloat(photo.lng), parseFloat(photo.lat)]
-        }
-      }))
     };
   };
 
@@ -465,7 +441,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   }, [buildingGeometries]);
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)]">
+    <div className="relative w-full h-[calc(100vh-74px)]">
       {/* Slide-in panel */}
       <div
         className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedPhoto ? 'translate-x-0' : '-translate-x-full'}`}
@@ -485,75 +461,10 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
                   return <div className="text-gray-500">No building data.</div>;
                 }
                 const properties = buildingData.geojson?.features?.[0]?.properties;
+                console.log("as",properties);
                 return (
-                    <div className="px-6 py-4 text-sm bg-gray-50 dark:bg-gray-900">
-                        <div className="grid grid-cols-2 gap-y-2">
-                        {/* Building Part ID */}
-                        <div className="text-gray-500 dark:text-gray-400">Building Part ID</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData.buildingPartId}</div>
-
-                        {/* Name */}
-                        <div className="text-gray-500 dark:text-gray-400">Name</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData.name || '-'}</div>
-
-                        {/* Distance */}
-                        <div className="text-gray-500 dark:text-gray-400">Distance</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingData.distance ? `${buildingData.distance.toFixed(2)} m` : '-'}</div>
-
-                        {/* Photo ID */}
-                        <div className="text-gray-500 dark:text-gray-400">Photo ID</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{selectedPhoto.id}</div>
-
-                        {/* TOID */}
-                        <div className="text-gray-500 dark:text-gray-400">TOID</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.TOID || '-'}</div>
-
-                        {/* Description */}
-                        <div className="text-gray-500 dark:text-gray-400">Description</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.description || '-'}</div>
-
-                        {/* Area */}
-                        <div className="text-gray-500 dark:text-gray-400">Area</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.geometry_area || '-'}</div>
-
-                        {/* Absolute Height Max */}
-                        <div className="text-gray-500 dark:text-gray-400">Absolute Height Max</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightmaximum || '-'}</div>
-
-                        {/* Absolute Height Min */}
-                        <div className="text-gray-500 dark:text-gray-400">Absolute Height Min</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightminimum || '-'}</div>
-
-                        {/* Absolute Height Roof Base */}
-                        <div className="text-gray-500 dark:text-gray-400">Absolute Height Roof Base</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightroofbase || '-'}</div>
-
-                        {/* Relative Height Max */}
-                        <div className="text-gray-500 dark:text-gray-400">Relative Height Max</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.relativeheightmaximum || '-'}</div>
-
-                        {/* Relative Height Roof Base */}
-                        <div className="text-gray-500 dark:text-gray-400">Relative Height Roof Base</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.relativeheightroofbase || '-'}</div>
-
-                        {/* Physical Level */}
-                        <div className="text-gray-500 dark:text-gray-400">Physical Level</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.physicallevel || '-'}</div>
-
-                        {/* Theme */}
-                        <div className="text-gray-500 dark:text-gray-400">Theme</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.theme || '-'}</div>
-
-                        {/* Land Use A */}
-                        <div className="text-gray-500 dark:text-gray-400">Land Use A</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.oslandusetiera || '-'}</div>
-
-                        {/* Land Use B */}
-                        <div className="text-gray-500 dark:text-gray-400">Land Use B</div>
-                        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.oslandusetierb || '-'}</div>
-                        </div>
-                    </div>
-                    );
+                  <BuildingDataGrid buildingData={buildingData} selectedPhoto={selectedPhoto} properties={properties} />
+                );
               })()}
             </div>
           </div>
