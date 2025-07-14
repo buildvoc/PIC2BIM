@@ -46,4 +46,9 @@ class Uprn extends Model
             DB::raw('public.ST_AsGeoJSON(st_transform(geom, 4326)) as geom')
         );
     }
+
+    public function buildingAddresses()
+    {
+        return $this->hasMany(BuildingAddress::class, 'uprn', 'uprn');
+    }
 }

@@ -160,4 +160,9 @@ class BuildingPart extends Model
         );
     }
 
+    public function buildingPartLinks()
+    {
+        return $this->hasMany(BuildingPartLink::class, 'buildingpartid', 'osid');
+    }
+
 }
