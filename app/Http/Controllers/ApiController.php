@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Artisan;
 use App\Http\Resources\CodepointCollection;
 use App\Http\Resources\LandRegistryInspireCollection;
 use App\Models\Attr\Building;
+use App\Models\Attr\BuildingPartLink;
+use App\Models\Attr\BuildingAddress;
+use App\Http\Resources\BuildingCollection;
 
 class ApiController extends Controller
 {
@@ -829,56 +832,43 @@ class ApiController extends Controller
     }
 
     public function comm_get_building_attributes(Request $request){
-        $latitude = $request->latitude;
-        $longitude = $request->longitude;
-        $distance = $request->distance ?: 10;
-        $imagedirection = $request->imagedirection ?: 9;
+        $osid = $request->osid;
 
-        $query = NHLE::query();
-
-        if ($latitude && $longitude) {
-            // Calculate target point based on direction
-            $radians = deg2rad($imagedirection);
-            $targetLng = $longitude + (sin($radians) * $distance * 0.00001);
-            $targetLat = $latitude + (cos($radians) * $distance * 0.00001);
-            
-            // Using buffer to create a corridor for intersection
-            $query
-                ->whereRaw("ST_Intersects(
-                    geom,
-                    ST_Transform(
-                        ST_SetSRID(
-                            ST_Buffer(
-                                ST_MakeLine(
-                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry,
-                                    ST_SetSRID(ST_MakePoint(?, ?), 4326)::geometry
-                                ),
-                                0.0002
-                            ),
-                            4326
-                        ),
-                        ST_SRID(geom)
-                    )
-                )",
-                [
-                    $longitude, $latitude,
-                    $targetLng, $targetLat
-                ])
-                // Just order by the direction the user is facing
-                ->orderByRaw("
-                    ST_Distance(
-                        geom,
-                        ST_Transform(
-                            ST_SetSRID(ST_MakePoint(?, ?), 4326),
-                            ST_SRID(geom)
-                        )
-                    ) ASC
-                ",
-                [
-                    $targetLng, $targetLat
-                ]);
-        }
+        $buildingPartLink = BuildingPartLink::where('buildingpartid', $osid)->first();
         
-        $data = $query->limit(1)->get();
+        if (!$buildingPartLink) {
+            return response()->json([
+                'success' => false,
+                'message' => 'BuildingPartLink not found'
+            ], 404);
+        }
+    
+        $building = Building::where('osid', $buildingPartLink->buildingid)->with('buildingAddresses.uprn')->get();
+        $building[0]->postcode = $this->getPostcodeByBoundingBox($building[0]->buildingAddresses[0]->uprn()->first()->latitude, $building[0]->buildingAddresses[0]->uprn()->first()->longitude);
+
+        if (!$building) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Building not found'
+            ], 404);
+        }
+    
+        return new BuildingCollection($building);
+    }
+
+    private function getPostcodeByBoundingBox($latitude, $longitude)
+    {
+        $max_lat = $latitude + 0.0009;
+        $min_lat = $latitude - 0.0009;
+        $max_lng = $longitude + 0.0009;
+        $min_lng = $longitude - 0.0009;
+
+        $postcode = Codepoint::query();
+        if ($min_lng && $min_lat && $max_lng && $max_lat) {
+            $postcode->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))",
+                [$min_lng, $min_lat, $max_lng, $max_lat]);
+        }
+        $postcode = $postcode->select('postcode')->first();
+        return $postcode->value('postcode');
     }
 }

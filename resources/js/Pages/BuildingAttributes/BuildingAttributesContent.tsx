@@ -456,14 +456,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
             <div className="p-4 flex-1 overflow-auto">
               {(() => {
                 const buildingData = nearestBuildings[selectedPhoto.id];
-                console.log(buildingData);
                 if (!buildingData) {
                   return <div className="text-gray-500">No building data.</div>;
                 }
                 const properties = buildingData.geojson?.features?.[0]?.properties;
-                console.log("as",properties);
+                const osid = buildingData.geojson?.features?.[0]?.id;
                 return (
-                  <BuildingDataGrid buildingData={buildingData} selectedPhoto={selectedPhoto} properties={properties} />
+                  <BuildingDataGrid selectedPhoto={selectedPhoto} properties={properties} osid={osid} />
                 );
               })()}
             </div>
