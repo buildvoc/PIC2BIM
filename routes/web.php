@@ -131,6 +131,8 @@ Route::middleware('auth:sanctum')->group(function () {
     //Spatial Boundaries API
     Route::get('/comm_land_registry_inspire', [ApiController::class, 'comm_land_registry_inspire']);
     //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
+
+    Route::get('/comm_get_building_attributes', [ApiController::class, 'comm_get_building_attributes']);
 });
 
 Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');
