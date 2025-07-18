@@ -656,7 +656,9 @@ class ApiController extends Controller
         $min_lat = $request->query('min_lat');
         $max_lng = $request->query('max_lng');
         $max_lat = $request->query('max_lat');
-        
+        $lng = $request->query('lng');
+        $lat = $request->query('lat');
+
         $query = Codepoint::query();
         
         if ($postcode) {
@@ -666,6 +668,9 @@ class ApiController extends Controller
         if ($min_lng && $min_lat && $max_lng && $max_lat) {
             $query->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))", 
                 [$min_lng, $min_lat, $max_lng, $max_lat]);
+        
+            $query->selectRaw("*, ST_DistanceSphere(ST_Transform(geometry, 4326), ST_MakePoint(?, ?)) as distance", [$lng, $lat])
+                ->orderBy('distance', 'asc');
         }
         
         $data = $query->paginate(100);
@@ -845,7 +850,6 @@ class ApiController extends Controller
     
         $building = Building::where('osid', $buildingPartLink->buildingid)->with('buildingAddresses.uprn')->get();
         $building[0]->postcode = $this->getPostcodeByBoundingBox($request->latitude, $request->longitude);
-
         if (!$building) {
             return response()->json([
                 'success' => false,
@@ -863,12 +867,18 @@ class ApiController extends Controller
         $max_lng = $longitude + 0.0009;
         $min_lng = $longitude - 0.0009;
 
-        $postcode = Codepoint::query();
-        if ($min_lng && $min_lat && $max_lng && $max_lat) {
-            $postcode->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))",
-                [$min_lng, $min_lat, $max_lng, $max_lat]);
-        }
-        $postcode = $postcode->select('postcode')->first();
-        return $postcode->value('postcode');
+        $query = new \Illuminate\Http\Request([
+            'min_lng' => $min_lng,
+            'min_lat' => $min_lat,
+            'max_lng' => $max_lng,
+            'max_lat' => $max_lat,
+            'lng' => $longitude,
+            'lat' => $latitude
+        ]);
+
+        $codepointCollection = $this->comm_codepoint($query);
+
+        $first = $codepointCollection->collection->first();
+        return $first ? $first->postcode : null;
     }
 }
