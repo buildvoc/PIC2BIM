@@ -668,9 +668,6 @@ class ApiController extends Controller
         if ($min_lng && $min_lat && $max_lng && $max_lat) {
             $query->whereRaw("ST_Intersects(geometry, ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), ST_SRID(geometry)))", 
                 [$min_lng, $min_lat, $max_lng, $max_lat]);
-        
-            $query->selectRaw("*, ST_DistanceSphere(ST_Transform(geometry, 4326), ST_MakePoint(?, ?)) as distance", [$lng, $lat])
-                ->orderBy('distance', 'asc');
         }
         
         $data = $query->paginate(100);
@@ -849,7 +846,6 @@ class ApiController extends Controller
         }
     
         $building = Building::where('osid', $buildingPartLink->buildingid)->with('buildingAddresses.uprn')->get();
-        $building[0]->postcode = $this->getPostcodeByBoundingBox($request->latitude, $request->longitude);
         if (!$building) {
             return response()->json([
                 'success' => false,
@@ -858,27 +854,5 @@ class ApiController extends Controller
         }
     
         return new BuildingCollection($building);
-    }
-
-    private function getPostcodeByBoundingBox($latitude, $longitude)
-    {
-        $max_lat = $latitude + 0.0009;
-        $min_lat = $latitude - 0.0009;
-        $max_lng = $longitude + 0.0009;
-        $min_lng = $longitude - 0.0009;
-
-        $query = new \Illuminate\Http\Request([
-            'min_lng' => $min_lng,
-            'min_lat' => $min_lat,
-            'max_lng' => $max_lng,
-            'max_lat' => $max_lat,
-            'lng' => $longitude,
-            'lat' => $latitude
-        ]);
-
-        $codepointCollection = $this->comm_codepoint($query);
-
-        $first = $codepointCollection->collection->first();
-        return $first ? $first->postcode : null;
     }
 }
