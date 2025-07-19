@@ -3,6 +3,7 @@ import {FaSync, FaTimes, FaEye } from "react-icons/fa";
 import { GalleryModalProps } from "@/types";
 import { router } from "@inertiajs/react";
 import axios from "axios";
+import { fetchAllBuildingData, findNearestFeature } from "@/Pages/BuildingHeight/api/fetch-building";
 
 const Modal_ = ({
     modal,
@@ -31,372 +32,51 @@ const Modal_ = ({
         const fetchBuildingData = async () => {
             if (modal.isShow && photos[modal.index]) {
                 const photo = photos[modal.index];
-                
                 if (photo.lat && photo.lng) {
-                    try {
-                        const response = await axios.get("/comm_building_part_nearest", {
-                            params: {
-                                latitude: photo.lat,
-                                longitude: photo.lng,
-                                imagedirection: photo.photo_heading || 0
-                            }
-                        });
-                        
-                        if (response.data.success && response.data.data.building_part.length > 0) {
-                            setBuildingData(response.data.data.building_part[0].geojson.features[0].properties);
-                        } else {
-                            setBuildingData(null);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching building data:", error);
-                        setBuildingData(null);
-                    }
-                }
-            }
-        };
+                    const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
+                    const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
+                    const data = await fetchAllBuildingData(
+                        lat.toString(),
+                        lng.toString(),
+                        photo.altitude?.toString() ?? "0",
+                        photo.photo_heading?.toString() ?? "0",
+                        "",
+                        false
+                    );
         
-        const fetchShapeData = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
-                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
-                        
-                        const params = {
-                            max_lat: (lat + distance).toString(),
-                            min_lat: (lat - distance).toString(),
-                            max_lng: (lng + distance).toString(),
-                            min_lng: (lng - distance).toString()
-                        };
-                        
-                        const response = await axios.post("/comm_shapes", params);
-
-                        if (response.data && response.data.data.features && response.data.data.features.length > 0) {
-                            setShapeData(response.data.data.features[0].properties);
-                        } else {
-                            setShapeData(null);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching shape data:", error);
-                        setShapeData(null);
-                    }
-                }
-            }
-        };
-
-        const fetchCodepointData = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
-                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
-                        
-                        const params = {
-                            min_lat: (lat - distance).toString(),
-                            max_lat: (lat + distance).toString(),
-                            min_lng: (lng - distance).toString(),
-                            max_lng: (lng + distance).toString()
-                        };
-                        
-                        const response = await axios.get("/comm_codepoint", { params });
-                        console.log(response.data);
-                        
-                        if (response.data && 
-                            response.data.data && 
-                            response.data.data.features && 
-                            response.data.data.features.length > 0) {
-                            
-                            const features = response.data.data.features;
-
-                            if (features.length === 1) {
-                                setCodepointData(features[0].properties);
-                            } else {
-                                let closestFeature = features[0];
-                                let minDistance = calculateDistance(
-                                    lat, 
-                                    lng, 
-                                    features[0].geometry.coordinates[1], 
-                                    features[0].geometry.coordinates[0]
-                                );
-                                
-                                for (let i = 1; i < features.length; i++) {
-                                    const feature = features[i];
-                                    const distance = calculateDistance(
-                                        lat, 
-                                        lng, 
-                                        feature.geometry.coordinates[1], 
-                                        feature.geometry.coordinates[0]
-                                    );
-                                    
-                                    if (distance < minDistance) {
-                                        minDistance = distance;
-                                        closestFeature = feature;
-                                    }
-                                }
-                                
-                                setCodepointData(closestFeature.properties);
-                            }
-                        } else {
-                            setCodepointData(null);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching codepoint data:", error);
-                        setCodepointData(null);
-                    }
-                }
-            }
-        };
+                    const buildingPart = data?.building?.data?.building_part?.[0];
         
-        const fetchUprnData = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
-                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
-                        
-                        const params = {
-                            min_lat: (lat - distance).toString(),
-                            max_lat: (lat + distance).toString(),
-                            min_lng: (lng - distance).toString(),
-                            max_lng: (lng + distance).toString()
-                        };
-                        
-                        const response = await axios.get("/comm_uprn", { params });
-                        
-                        if (response.data && 
-                            response.data.data && 
-                            response.data.data.features && 
-                            response.data.data.features.length > 0) {
-                            
-                            const features = response.data.data.features;
-                            
-                            // Find the closest UPRN
-                            if (features.length === 1) {
-                                setUprnData(features[0].properties);
-
-                            } else {
-                                let closestUprn = null;
-                                let minDistance = Number.MAX_VALUE;
-                                
-                                for (const feature of features) {
-                                    if (feature.geometry && feature.geometry.coordinates) {
-                                        const distance = calculateDistance(
-                                            lat, 
-                                            lng, 
-                                            feature.geometry.coordinates[1], // latitude 
-                                            feature.geometry.coordinates[0]  // longitude
-                                        );
-                                        
-                                        if (distance < minDistance) {
-                                            minDistance = distance;
-                                            closestUprn = feature.properties;
-                                        }
-                                    }
-                                }
-
-                                setUprnData(closestUprn);
-                                
-                            }
-                        }
-                    } catch (error) {
-                        setUprnData(null);
-                        console.error("Error fetching UPRN data:", error);
-                    }
-                }
-            }
-        };
+                    const codepointFeatures = data?.codepoint?.data?.features || [];
+                    const nearestCodepoint = findNearestFeature(codepointFeatures, lat, lng);
         
-        const fetchLandData = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
-                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
-                        
-                        const bbox = `${lng - distance},${lat - distance},${lng + distance},${lat + distance}`;
-                        const params = { bbox };
-                        
-                        const response = await axios.get("/comm_get_lpis", { params });
-                        
-                        if (response.data && 
-                            response.data.features && 
-                            response.data.features.length > 0) {
-                            
-                            const features = response.data.features;
-                            
-                            // Find the closest land feature
-                            if (features.length === 1) {
-                                setLandData(features[0].properties);
-                            } else {
-                                let closestLand = null;
-                                let minDistance = Number.MAX_VALUE;
-                                
-                                for (const feature of features) {
-                                    if (feature.geometry && feature.geometry.coordinates) {
-                                        // For Point geometries
-                                        if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
-                                            const distance = calculateDistance(
-                                                lat, 
-                                                lng, 
-                                                feature.geometry.coordinates[1], // latitude 
-                                                feature.geometry.coordinates[0]  // longitude
-                                            );
-                                            
-                                            if (distance < minDistance) {
-                                                minDistance = distance;
-                                                closestLand = feature.properties;
-                                            }
-                                        }
-                                        // For Polygon geometries, use the first coordinate of the first ring
-                                        else if ((feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') 
-                                                && feature.geometry.coordinates && feature.geometry.coordinates.length > 0) {
-                                            // Get center of bbox instead
-                                            setLandData(feature.properties);
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (!landData) {
-                                    setLandData(closestLand);
-                                }
-                            }
-                        } else {
-                            setLandData(null);
-                        }
-                    } catch (error) {
-                        setLandData(null);
-                        console.error("Error fetching land data:", error);
-                    }
-                }
-            }
-        };
+                    const uprnFeatures = data?.uprn?.data?.features || [];
+                    const nearestUprn = findNearestFeature(uprnFeatures, lat, lng);
         
-        const fetchNhleData = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const response = await axios.get("/comm_nhle", {
-                            params: {
-                                latitude: photo.lat,
-                                longitude: photo.lng,
-                                imagedirection: photo.photo_heading || 0
-                            }
-                        });
-                        if (response.data && response.data.data.features.length > 0) {
-                            setNhleData(response.data.data.features[0].properties);
-                        } else {
-                            setNhleData(null);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching nhle data:", error);
-                        setNhleData(null);
-                    }
-                }
-            }
-        };
-
-        const fetchLandRegistryInspire = async () => {
-            if (modal.isShow && photos[modal.index]) {
-                const photo = photos[modal.index];
-                
-                if (photo.lat && photo.lng) {
-                    try {
-                        const lat = typeof photo.lat === 'string' ? parseFloat(photo.lat) : photo.lat;
-                        const lng = typeof photo.lng === 'string' ? parseFloat(photo.lng) : photo.lng;
-                        
-                        const params = {
-                            min_lat: (lat - distance).toString(),
-                            max_lat: (lat + distance).toString(),
-                            min_lng: (lng - distance).toString(),
-                            max_lng: (lng + distance).toString()
-                        };
-                        
-                        const response = await axios.get("/comm_land_registry_inspire", { params });
-
-                        if (response.data && 
-                            response.data.data && 
-                            response.data.data.features && 
-                            response.data.data.features.length > 0) {
-                            
-                            const features = response.data.data.features;
-
-                            if (features.length === 1) {
-                                setLandRegistryInspireData(features[0].properties);
-                            } else {
-                                let closestInspire = null;
-                                let minDistance = Number.MAX_VALUE;
-                                
-                                for (const feature of features) {
-                                    if (feature.geometry && feature.geometry.coordinates) {
-                                        if (feature.geometry.type === 'MultiPolygon') {
-                                            for (const polygon of feature.geometry.coordinates) {
-                                                for (const ring of polygon) {
-                                                    for (const point of ring) {
-                                                        const distance = calculateDistance(
-                                                            lat,
-                                                            lng,
-                                                            point[1], // latitude
-                                                            point[0]  // longitude
-                                                        );
-                                                        
-                                                        if (distance < minDistance) {
-                                                            minDistance = distance;
-                                                            closestInspire = feature.properties;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                setLandRegistryInspireData(closestInspire);
-                            }
-                        } else {
-                            setLandRegistryInspireData(null);
-                        }
-                    } catch (error) {
-                        setLandRegistryInspireData(null);
-                        console.error("Error fetching Land Registry Inspire data:", error);
-                    }
-                }
-            }
-        };
-
-        const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-            const R = 6371e3; // radius of Earth in meters
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
-            const Δφ = (lat2 - lat1) * Math.PI / 180;
-            const Δλ = (lon2 - lon1) * Math.PI / 180;
-            
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                    Math.cos(φ1) * Math.cos(φ2) *
-                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            
-            return R * c; // distance in meters
-        };
+                    const inspireFeatures = data?.inspire?.data?.features || [];
+                    const nearestInspire = findNearestFeature(inspireFeatures, lat, lng);
         
+                    const landFeatures = data?.land?.features || [];
+                    const nearestLand = findNearestFeature(landFeatures, lat, lng);
+        
+                    const nhleFeatures = data?.nhle?.data?.features || [];
+                    const nearestNhle = findNearestFeature(nhleFeatures, lat, lng);
+        
+                    const shapeFeatures = data?.shape?.data?.features || [];
+                    const nearestShape = findNearestFeature(shapeFeatures, lat, lng);
+        
+                    setBuildingData(buildingPart?.geojson?.features?.[0]?.properties ?? null);
+                    setCodepointData(nearestCodepoint?.properties ?? null);
+                    setUprnData(nearestUprn?.properties ?? null);
+                    setLandRegistryInspireData(nearestInspire?.properties ?? null);
+                    setLandData(nearestLand?.properties ?? null);
+                    setNhleData(nearestNhle?.properties ?? null);
+                    setShapeData(nearestShape?.properties ?? null);
+                }
+            }
+        };
+
         fetchBuildingData();
-        fetchShapeData();
-        fetchCodepointData();
-        fetchUprnData();
-        fetchLandData();
-        fetchNhleData();
-        fetchLandRegistryInspire();
-        
+
         // Reset all data when modal is closed
         if (!modal.isShow) {
             setBuildingData(null);
@@ -408,30 +88,6 @@ const Modal_ = ({
             setLandRegistryInspireData(null);
         }
     }, [modal.isShow, modal.index, photos]);
-
-    const handleImageLeft = () => {
-        let indexCheck = modal.index;
-        if (--indexCheck >= 0) {
-            let image = photos[indexCheck];
-            setModal((prevData: any) => ({
-                ...prevData,
-                index: indexCheck,
-            }));
-            setImage(image.link);
-        }
-    };
-
-    const handleImageRight = () => {
-        let indexCheck = modal.index;
-        if (++indexCheck < photos.length) {
-            let image = photos[indexCheck];
-            setModal((prevData: any) => ({
-                ...prevData,
-                index: indexCheck,
-            }));
-            setImage(image.link);
-        }
-    };
 
     // Modified handleClose function to reset all data
     const onCloseModal = () => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fetchAllBuildingData, findNearestFeature } from "@/Pages/BuildingHeight/api/fetch-building";
 
 interface BuildingDataGridProps {
   selectedPhoto: any;
@@ -8,23 +9,27 @@ interface BuildingDataGridProps {
 
 const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid, properties }) => {
   const [buildingAttributes, setBuildingAttributes] = useState<any>(properties);
+  const [codepointData, setCodepointData] = useState<any>(null);
+  const [uprnData, setUprnData] = useState<any>(null);
 
   useEffect(() => {
     if (!osid) return;
     const controller = new AbortController();
     const fetchAttributes = async () => {
       try {
-        console.log(selectedPhoto);
-        const response = await fetch(`/comm_get_building_attributes?osid=${osid}&latitude=${selectedPhoto.lat}&longitude=${selectedPhoto.lng}`, {
-          signal: controller.signal
-        });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        if (data && data.data) {
-          setBuildingAttributes(data.data.features[0].properties);
-        }
+        const response = await fetchAllBuildingData(selectedPhoto.lat, selectedPhoto.lng, "", "", osid, true);
+
+        const codepointFeatures = response?.codepoint?.data?.features || [];
+        const nearestCodepoint = findNearestFeature(codepointFeatures, selectedPhoto.lat, selectedPhoto.lng);
+
+        const uprnFeatures = response?.uprn?.data?.features || [];
+        const nearestUprn = findNearestFeature(uprnFeatures, selectedPhoto.lat, selectedPhoto.lng);
+
+        setCodepointData(nearestCodepoint?.properties ?? null);
+        setUprnData(nearestUprn?.properties ?? null);
+        setBuildingAttributes(response?.attributes?.data?.features?.[0]?.properties ?? null);
+        console.log(uprnData);
+
       } catch (error) {
         console.error('Failed to fetch building attributes', error);
       }
@@ -38,11 +43,11 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
       <div className="grid grid-cols-2 gap-y-2">
         {/* UPRN */}
         <div className="text-gray-500 dark:text-gray-400">UPRN</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.uprn}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{uprnData?.uprn}</div>
 
         {/* Postcode */}
         <div className="text-gray-500 dark:text-gray-400">Postcode</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.postcode}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{codepointData?.postcode}</div>
 
         {/* Absolute Height Min */}
         <div className="text-gray-500 dark:text-gray-400">Absolute Height Min</div>
@@ -74,11 +79,11 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
 
         {/* Construction Material */}
         <div className="text-gray-500 dark:text-gray-400">Construction Material</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.constructionmaterial}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes?.constructionmaterial}</div>
 
         {/* Roof Material */}
         <div className="text-gray-500 dark:text-gray-400">Roof Material </div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.roofmaterial}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes?.roofmaterial}</div>
 
         {/* Building Use */}
         <div className="text-gray-500 dark:text-gray-400">Building Use</div>
