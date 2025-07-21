@@ -227,6 +227,15 @@ export default function Authenticated({
                                         >
                                             Building attributes
                                         </NavLink>
+
+                                        <NavLink
+                                            href={route("building_attributes_2")}
+                                            active={route().current(
+                                                "building_attributes_2"
+                                            )}
+                                        >
+                                            Building attributes V2
+                                        </NavLink>
                                     </div>
                                 </>
                             )}
@@ -486,6 +495,12 @@ export default function Authenticated({
                                     active={route().current("building_attributes")}
                                 >
                                     Building attributes
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route("building_attributes_2")}
+                                    active={route().current("building_attributes_2")}
+                                >
+                                    Building attributes V2
                                 </ResponsiveNavLink>
                             </>
                         )}

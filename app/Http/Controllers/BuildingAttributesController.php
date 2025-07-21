@@ -14,4 +14,11 @@ class BuildingAttributesController extends Controller
         $photos =  getPhotosWithoutTask($user->id);
         return Inertia::render('BuildingAttributes/Index',compact('photos'));
     }
+    
+    public function index_2()
+    {
+        $user = Auth::user();
+        $photos =  getPhotosWithoutTask($user->id);
+        return Inertia::render('BuildingAttributes/Index_2',compact('photos'));
+    }
 }
