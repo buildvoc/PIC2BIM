@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import BuildingDataGrid from "./BuildingDataGrid";
 import { createRoot } from 'react-dom/client';
 import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker';
+import { getOffsetBehindCamera } from '../BuildingHeight/utils/geo-operations';
 import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
 
 const INITIAL_VIEW_STATE = {
@@ -41,8 +42,20 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       try {
         const root = createRoot(el);
         const mapBearing = map.current && typeof map.current.getBearing === 'function' ? map.current.getBearing() : 0;
+        const polygonElevation = photo.altitude ? photo.altitude : 0;
+        const cameraCoordinates = map.current && typeof map.current.getCenter === 'function'
+          ? [map.current.getCenter().lng, map.current.getCenter().lat, polygonElevation]
+          : undefined;
+        const offset = getOffsetBehindCamera(mapBearing, polygonElevation, cameraCoordinates);
+        const zoom = map.current && typeof map.current.getZoom === 'function' ? map.current.getZoom() : 20;
         root.render(
-          <BuildingAttributesMarker data={photo} mapBearing={mapBearing} onClick={() => setSelectedPhoto(photo)} />
+          <BuildingAttributesMarker
+            data={photo}
+            mapBearing={mapBearing}
+            onClick={() => setSelectedPhoto(photo)}
+            zoom={zoom}
+            offset={offset}
+          />
         );
         const marker = new window.maplibregl.Marker({ element: el })
           .setLngLat([parseFloat(photo.lng), parseFloat(photo.lat)])
@@ -59,9 +72,14 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     const handleRotate = () => {
       addMarkers(photos);
     };
+    const handleZoom = () => {
+      addMarkers(photos);
+    };
     map.current.on('rotate', handleRotate);
+    map.current.on('zoom', handleZoom);
     return () => {
       map.current.off('rotate', handleRotate);
+      map.current.off('zoom', handleZoom);
     };
   }, [map.current, photos, addMarkers]);
 
