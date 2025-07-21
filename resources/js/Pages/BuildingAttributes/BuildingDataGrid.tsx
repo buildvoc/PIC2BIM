@@ -51,31 +51,31 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
 
         {/* Absolute Height Min */}
         <div className="text-gray-500 dark:text-gray-400">Absolute Height Min</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.absoluteheightminimum} m</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightminimum} m</div>
 
         {/* Absolute Height Roof Base */}
         <div className="text-gray-500 dark:text-gray-400">Absolute Height Roof Base</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.absoluteheightroofbase} m</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightroofbase} m</div>
 
         {/* Absolute Height Max */}
         <div className="text-gray-500 dark:text-gray-400">Absolute Height Max</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.absoluteheightmaximum} m</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.absoluteheightmaximum} m</div>
 
         {/* Relative Height Min */}
         <div className="text-gray-500 dark:text-gray-400">Relative Height Min</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.relativeheightminimum} m</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.relativeheightminimum} m</div>
 
         {/* Relative Height Roof Base */}
         <div className="text-gray-500 dark:text-gray-400">Relative Height Roof Base</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.relativeheightroofbase} m</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.relativeheightroofbase} m</div>
 
         {/* Building Height Confidence */}
         <div className="text-gray-500 dark:text-gray-400">Accuracy</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{selectedPhoto.accuracy}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{selectedPhoto?.accuracy}</div>
 
         {/* Description */}
         <div className="text-gray-500 dark:text-gray-400">Description</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties.description}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{properties?.description}</div>
 
         {/* Construction Material */}
         <div className="text-gray-500 dark:text-gray-400">Construction Material</div>
@@ -87,11 +87,11 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
 
         {/* Building Use */}
         <div className="text-gray-500 dark:text-gray-400">Building Use</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.buildinguse}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes?.buildinguse}</div>
 
         {/* Number of Floors */}
         <div className="text-gray-500 dark:text-gray-400">Number of Floors</div>
-        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes.numberoffloors}</div>
+        <div className="text-right font-medium text-gray-700 dark:text-gray-200">{buildingAttributes?.numberoffloors}</div>
       </div>
     </div>
   );
