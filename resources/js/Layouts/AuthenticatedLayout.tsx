@@ -211,7 +211,7 @@ export default function Authenticated({
                                             </>
                                         ) : null}
                                         
-                                        <NavLink
+                                        {/* <NavLink
                                             href={route("building_height")}
                                             active={route().current(
                                                 "building_height"
@@ -235,7 +235,7 @@ export default function Authenticated({
                                             )}
                                         >
                                             Building attributes V2
-                                        </NavLink>
+                                        </NavLink> */}
                                     </div>
                                 </>
                             )}
@@ -484,7 +484,7 @@ export default function Authenticated({
                                         </ResponsiveNavLink>
                                     </>
                                 ) : null}
-                                <ResponsiveNavLink
+                                {/* <ResponsiveNavLink
                                         href={route("building_height")}
                                         active={route().current("building_height")}
                                 >
@@ -501,7 +501,7 @@ export default function Authenticated({
                                     active={route().current("building_attributes_2")}
                                 >
                                     Building attributes V2
-                                </ResponsiveNavLink>
+                                </ResponsiveNavLink> */}
                             </>
                         )}
                     </div>
