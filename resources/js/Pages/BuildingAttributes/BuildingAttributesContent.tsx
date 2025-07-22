@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client';
 import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker';
 import { getOffsetBehindCamera } from '../BuildingHeight/utils/geo-operations';
 import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
+import { NginxFile } from "../BuildingHeight/types/nginx";
+import { LAZ_FILES_DIRECTORY } from "../BuildingHeight/constants";
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -458,8 +460,99 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     }
   }, [buildingGeometries]);
 
+  const [showLazSection, setShowLazSection] = useState(false);
+
+  const [lazList, setLazList] = useState<NginxFile[]>([]);
+  const [selectedLaz, setSelectedLaz] = useState<string>("");
+  const [metrics, setMetrics] = useState<{ landArea?: number; buildingArea?: number; volume?: number; buildingHeight?: number }>({});
+
+  useEffect(() => {
+      const getLazFilesList = async () => {
+        const response = await fetch(LAZ_FILES_DIRECTORY);
+        const result = await response.json();
+        setLazList(result as NginxFile[]);
+      };
+      getLazFilesList();
+    }, []);
+
+  const handleDrawLaz = () => {
+    setMetrics({
+      landArea: 1,
+      buildingArea: 1,
+      volume: 1,
+      buildingHeight: 1
+    });
+  }
+
   return (
-    <div className="relative w-full h-[calc(100vh-74px)]">
+    <div className="relative w-full h-[calc(100vh-74px)] flex flex-col">
+      {/* Collapsible LAZ Section */}
+      <div className="w-full bg-white shadow mb-2">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 font-semibold text-left text-lg border-b hover:bg-gray-50 focus:outline-none transition"
+          onClick={() => setShowLazSection((v) => !v)}
+        >
+          <span>Load LAZ</span>
+          <svg className={`w-5 h-5 transform transition-transform duration-200 ${showLazSection ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {showLazSection && (
+          <div className="px-4 py-4 border-t bg-gray-50 flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <button
+                onClick={handleDrawLaz}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Draw
+              </button>
+              <div className="flex flex-col gap-1 w-full max-w-xs">
+                <select
+                  id="laz-select"
+                  className="border rounded px-2 py-1"
+                  value={selectedLaz}
+                  onChange={e => setSelectedLaz(e.target.value)}
+                >
+                  <option value="">Select a file</option>
+                  {lazList.map((file) => (
+                    <option key={file.name} value={file.name}>
+                      {file.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {metrics && (metrics.landArea || metrics.buildingArea || metrics.volume || metrics.buildingHeight) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                {metrics.landArea !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Land Area</div>
+                    <div className="font-bold">{metrics.landArea.toFixed(2)} m²</div>
+                  </div>
+                )}
+                {metrics.buildingArea !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Building Area</div>
+                    <div className="font-bold">{metrics.buildingArea.toFixed(2)} m²</div>
+                  </div>
+                )}
+                {metrics.volume !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Volume</div>
+                    <div className="font-bold">{metrics.volume.toFixed(2)} m³</div>
+                  </div>
+                )}
+                {metrics.buildingHeight !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Building Height</div>
+                    <div className="font-bold">{metrics.buildingHeight.toFixed(2)} m</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       {/* Slide-in panel */}
       <div
         className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedPhoto ? 'translate-x-0' : '-translate-x-full'}`}
@@ -488,7 +581,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         )}
       </div>
 
-      <div ref={mapContainer} id="map" className="w-full h-full"></div>
+      <div ref={mapContainer} id="map" className="w-full flex-1 min-h-[300px]"></div>
       {loadingPhotos && (
         <div className="fixed top-4 right-4 bg-white p-2 rounded shadow z-10">
           Loading nearest buildings data...
