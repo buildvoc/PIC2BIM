@@ -34,6 +34,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [showLazSection, setShowLazSection] = useState(false);
   const [lazList, setLazList] = useState<NginxFile[]>([]);
   const [selectedLaz, setSelectedLaz] = useState<string>("");
+  const [terrainEnabled, setTerrainEnabled] = useState(true);
 
   const addMarkers = useCallback((photos_: PhotoData[]) => {
     if (!map.current || !window.maplibregl) {
@@ -334,6 +335,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         source: "terrainSource",
         exaggeration: 1
       });
+      // Patch setTerrain to track terrain state
+      const originalSetTerrain = map.current.setTerrain;
+      map.current.setTerrain = function(options: any) {
+        setTerrainEnabled(!!(options && options.source));
+        return originalSetTerrain.apply(this, arguments);
+      };
 
       // Add hillshade layer
       map.current.addLayer({
@@ -480,30 +487,34 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     }
   }, [buildingGeometries]);
 
-  const handleDrawLaz = useCallback(async () => {
-  try {
-    const url = `${LAZ_FILES_LIST_URL}${selectedLaz}`;
-    const data :any = await load(url, LASLoader);
-    transformLazData(data);
-    const layer = new window.deck.PointCloudLayer({
-      id: "laz-pointcloud",
-      data,
-      getPosition: (d: any) => d.position,
-      getColor: (d: any) => (d && d.color && Array.isArray(d.color)) ? d.color : [0,0,255],
-      pointSize: 1,
-      pickable: false
-    });
-    if (overlay) {
-      map.current.removeControl(overlay);
+  useEffect(() => {
+    handleDrawLaz(!terrainEnabled);
+  }, [terrainEnabled]);
+
+  const handleDrawLaz = useCallback(async (flattenZ: boolean = false) => {
+    try {
+      const url = `${LAZ_FILES_LIST_URL}${selectedLaz}`;
+      const data :any = await load(url, LASLoader);
+      transformLazData(data, flattenZ);
+      const layer = new window.deck.PointCloudLayer({
+        id: "laz-pointcloud",
+        data,
+        getPosition: (d: any) => d.position,
+        getColor: (d: any) => (d && d.color && Array.isArray(d.color)) ? d.color : [0,0,255],
+        pointSize: 1,
+        pickable: false
+      });
+      if (overlay) {
+        map.current.removeControl(overlay);
+      }
+      const newOverlay = new window.deck.MapboxOverlay({ layers: [layer] });
+      map.current.addControl(newOverlay);
+      setOverlay(newOverlay);
+      setLazLayer(layer);
+    } catch (e) {
+      console.error(e);
     }
-    const newOverlay = new window.deck.MapboxOverlay({ layers: [layer] });
-    map.current.addControl(newOverlay);
-    setOverlay(newOverlay);
-    setLazLayer(layer);
-  } catch (e) {
-    console.error(e);
-  }
-}, [selectedLaz, overlay, map, setOverlay, setLazLayer]);
+  }, [selectedLaz, overlay, map, setOverlay, setLazLayer]);
 
   useEffect(() => {
     return () => {
@@ -539,7 +550,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
           <div className="px-4 py-4 border-t bg-gray-50 flex flex-col gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4">
               <button
-                onClick={handleDrawLaz}
+                onClick={() => handleDrawLaz(false)}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
               >
                 Draw
