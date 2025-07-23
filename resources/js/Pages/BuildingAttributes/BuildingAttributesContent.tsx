@@ -5,7 +5,10 @@ import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker'
 import { getOffsetBehindCamera } from '../BuildingHeight/utils/geo-operations';
 import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
 import { NginxFile } from "../BuildingHeight/types/nginx";
-import { LAZ_FILES_DIRECTORY } from "../BuildingHeight/constants";
+import { LAZ_FILES_DIRECTORY, LAZ_FILES_LIST_URL } from "../BuildingHeight/constants";
+import { transformLazData } from "../BuildingHeight/utils/projection";
+import { load } from '@loaders.gl/core';
+import { LASLoader } from '@loaders.gl/las';
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -25,6 +28,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(true);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoData | null>(null); // State for selected marker
+  const [overlay, setOverlay] = useState<any>(null); // Deck.gl overlay for LAZ
+  const [lazLayer, setLazLayer] = useState<any>(null); // For future extension if needed
+  const [metrics, setMetrics] = useState<{ landArea?: number; buildingArea?: number; volume?: number; buildingHeight?: number }>({}); // <-- Fix for ReferenceError
+  const [showLazSection, setShowLazSection] = useState(false);
+  const [lazList, setLazList] = useState<NginxFile[]>([]);
+  const [selectedLaz, setSelectedLaz] = useState<string>("");
 
   const addMarkers = useCallback((photos_: PhotoData[]) => {
     if (!map.current || !window.maplibregl) {
@@ -251,6 +260,17 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         });
       }
 
+      // Load Deck.gl
+      if (!window.deck) {
+        const deckScript = document.createElement('script');
+        deckScript.src = 'https://unpkg.com/deck.gl@^9.0.0/dist.min.js';
+        deckScript.async = true;
+        document.head.appendChild(deckScript);
+        await new Promise<void>((resolve) => {
+          deckScript.onload = () => resolve();
+        });
+      }
+
       initializeMap();
     };
 
@@ -460,11 +480,40 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     }
   }, [buildingGeometries]);
 
-  const [showLazSection, setShowLazSection] = useState(false);
+  const handleDrawLaz = useCallback(async () => {
+  try {
+    const url = `${LAZ_FILES_LIST_URL}${selectedLaz}`;
+    console.log('Loading LAZ file:', url);
+    const data = await load(url, LASLoader);
+    console.log('LAZ data loaded', data);
+    transformLazData(data);
+    const layer = new window.deck.PointCloudLayer({
+      id: "laz-pointcloud",
+      data,
+      getPosition: (d: any) => d.position,
+      getColor: (d: any) => (d && d.color && Array.isArray(d.color)) ? d.color : [0,0,255],
+      pointSize: 1,
+      pickable: false
+    });
+    if (overlay) {
+      map.current.removeControl(overlay);
+    }
+    const newOverlay = new window.deck.MapboxOverlay({ layers: [layer] });
+    map.current.addControl(newOverlay);
+    setOverlay(newOverlay);
+    setLazLayer(layer);
+  } catch (e) {
+    console.error(e);
+  }
+}, [selectedLaz, overlay, map, setOverlay, setLazLayer]);
 
-  const [lazList, setLazList] = useState<NginxFile[]>([]);
-  const [selectedLaz, setSelectedLaz] = useState<string>("");
-  const [metrics, setMetrics] = useState<{ landArea?: number; buildingArea?: number; volume?: number; buildingHeight?: number }>({});
+  useEffect(() => {
+    return () => {
+      if (overlay && map.current) {
+        try { map.current.removeControl(overlay); } catch {}
+      }
+    };
+  }, [overlay]);
 
   useEffect(() => {
       const getLazFilesList = async () => {
@@ -474,15 +523,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
       getLazFilesList();
     }, []);
-
-  const handleDrawLaz = () => {
-    setMetrics({
-      landArea: 1,
-      buildingArea: 1,
-      volume: 1,
-      buildingHeight: 1
-    });
-  }
 
   return (
     <div className="relative w-full h-[calc(100vh-74px)] flex flex-col">
