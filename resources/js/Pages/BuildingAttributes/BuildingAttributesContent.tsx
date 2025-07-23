@@ -483,9 +483,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const handleDrawLaz = useCallback(async () => {
   try {
     const url = `${LAZ_FILES_LIST_URL}${selectedLaz}`;
-    console.log('Loading LAZ file:', url);
-    const data = await load(url, LASLoader);
-    console.log('LAZ data loaded', data);
+    const data :any = await load(url, LASLoader);
     transformLazData(data);
     const layer = new window.deck.PointCloudLayer({
       id: "laz-pointcloud",
