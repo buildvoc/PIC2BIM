@@ -85,7 +85,7 @@ export default function Authenticated({
                                     href={route("dashboard")}
                                     active={route().current("dashboard") || route().current("user_task.index")}
                                 >
-                                    Home
+                                    Tasks
                                 </NavLink>
                             </div>
                             {userRoles.includes(2) && userRoles.length > 0 && (
@@ -418,7 +418,7 @@ export default function Authenticated({
                             href={route("dashboard")}
                             active={route().current("dashboard") || route().current("user_task.index")}
                         >
-                            Home
+                            Tasks
                         </ResponsiveNavLink>
                         
                         {userRoles.includes(2) && userRoles.length > 0 && (
