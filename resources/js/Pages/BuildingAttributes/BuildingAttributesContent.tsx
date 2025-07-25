@@ -36,16 +36,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [selectedLaz, setSelectedLaz] = useState<string>("");
   const [terrainEnabled, setTerrainEnabled] = useState(true);
 
-  const addMarkers = useCallback((photos_: PhotoData[]) => {
-    if (!map.current || !window.maplibregl) {
-      console.warn('MapLibre GL or map instance not available');
-      return;
-    }
-    // Clear existing markers
-    markerRef.current.forEach(marker => marker.remove());
+  const addMarkers = (photo: PhotoData) => {
     markerRef.current = [];
 
-    photos_.forEach((photo) => {
       if (!photo || !photo.lat || !photo.lng) {
         console.warn(`Invalid photo data for ID ${photo?.id}:`, photo);
         return;
@@ -76,24 +69,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       } catch (error) {
         console.error(`Failed to render marker for photo ID ${photo.id}:`, error);
       }
-    });
-  }, [setSelectedPhoto]);
-
-  useEffect(() => {
-    if (!map.current) return;
-    const handleRotate = () => {
-      addMarkers(photos);
-    };
-    const handleZoom = () => {
-      addMarkers(photos);
-    };
-    map.current.on('rotate', handleRotate);
-    map.current.on('zoom', handleZoom);
-    return () => {
-      map.current.off('rotate', handleRotate);
-      map.current.off('zoom', handleZoom);
-    };
-  }, [map.current, photos, addMarkers]);
+    }
 
   // Create a GeoJSON from all building geometries
   const createBuildingGeometriesGeoJSON = () => {
@@ -399,7 +375,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       });
       
       // Add photo markers as DOM elements using React
-      addMarkers(photos);
+      photos.forEach((photo: PhotoData) => {
+        addMarkers(photo);
+      });
 
       map.current.on('render', () => {
         if (!markerRef.current || !photos) return;
@@ -467,13 +445,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
     });
   };
-
-  // Update photo markers when data changes
-  useEffect(() => {
-    if (map.current) {
-      addMarkers(photos);
-    }
-  }, [photos, addMarkers]);
 
   useEffect(() => {
     if (map.current && map.current.getSource('api-buildings-source')) {
