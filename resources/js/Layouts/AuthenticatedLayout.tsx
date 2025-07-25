@@ -211,7 +211,7 @@ export default function Authenticated({
                                             </>
                                         ) : null}
                                         
-                                        {/* <NavLink
+                                        <NavLink
                                             href={route("building_height")}
                                             active={route().current(
                                                 "building_height"
@@ -228,7 +228,7 @@ export default function Authenticated({
                                             Building attributes
                                         </NavLink>
 
-                                        <NavLink
+                                        {/* <NavLink
                                             href={route("building_attributes_2")}
                                             active={route().current(
                                                 "building_attributes_2"
