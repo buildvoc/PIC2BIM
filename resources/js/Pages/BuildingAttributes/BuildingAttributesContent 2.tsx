@@ -226,6 +226,16 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     };
   }, []);
 
+  const getElevation = (lngLat: { lng: number; lat: number }): number | null => {
+    if (!map.current) return null;
+    try {
+      return map.current.queryTerrainElevation(lngLat);
+    } catch (e) {
+      console.warn('Could not get elevation:', e);
+      return null;
+    }
+  };
+
   const initializeMap = () => {
     const maplibregl = window.maplibregl;
     const pmtiles = window.pmtiles;
@@ -341,30 +351,40 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       });
     });
 
-    setTimeout(() => {
+    map.current.on('sourcedata', function waitForTerrain(e: any) {
+      if (e.sourceId === 'terrainSource' && map.current.isSourceLoaded('terrainSource')) {
+        map.current.off('sourcedata', waitForTerrain);
       if (!window.deck || !map.current) return;
       if (overlayCamera) {
         try { map.current.removeControl(overlayCamera); } catch {}
       }
       const cameraLayer = new window.deck.ScenegraphLayer({
         id: "exif3d-camera-layer",
-        data: photos.map(photo => ({
-          ...photo,
-          coordinates: [parseFloat(photo.lng), parseFloat(photo.lat), Number(photo.altitude) + 5],
-          bearing: photo.photo_heading || 0,
-        })),
-        scenegraph: "./cam.gltf",
-        getPosition: (d: any) => d.coordinates,
-        getColor: (d: any) => [203, 24, 226],
-        getOrientation: (d: any) => [0, -d.bearing, 90],
-        pickable: true,
-        opacity: 1,
-        sizeScale: 2,
+        data: photos.map(photo => {
+          const lng = parseFloat(photo.lng);
+          const lat = parseFloat(photo.lat);
+          const lngLat = { lng: lng, lat: lat };
+          const elevation = getElevation(lngLat) || 0;
+          const altitude = elevation + (Number(photo.altitude) - elevation);
+          return {
+            ...photo,
+            coordinates: [lng, lat, altitude],
+            bearing: photo.photo_heading || 0,
+          };
+        }),
+          scenegraph: "./cam.gltf",
+          getPosition: (d: any) => d.coordinates,
+          getColor: (d: any) => [203, 24, 226],
+          getOrientation: (d: any) => [0, -d.bearing, 90],
+          pickable: true,
+          opacity: 1,
+          sizeScale: 1,
+        });
+          const newOverlayCamera = new window.deck.MapboxOverlay({ layers: [cameraLayer] });
+          map.current.addControl(newOverlayCamera);
+          setOverlayCamera(newOverlayCamera);
+        }
       });
-      const newOverlayCamera = new window.deck.MapboxOverlay({ layers: [cameraLayer] });
-      map.current.addControl(newOverlayCamera);
-      setOverlayCamera(newOverlayCamera);
-    }, 500);
 
     // Disable road labels
     map.current.on('style.load', () => {
@@ -392,8 +412,50 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
   useEffect(() => {
     handleDrawLaz(!terrainEnabled);
+    updateOverlayCamera();
   }, [terrainEnabled]);
 
+  const updateOverlayCamera = () => {
+    if (!window.deck || !map.current) return;
+    if (overlayCamera) {
+      try { map.current.removeControl(overlayCamera); } catch {}
+    }
+    const cameraLayer = new window.deck.ScenegraphLayer({
+      id: "exif3d-camera-layer",
+      data: photos.map(photo => {
+        const lng = parseFloat(photo.lng);
+        const lat = parseFloat(photo.lat);
+        const lngLat = { lng: lng, lat: lat };
+        const elevation = getElevation(lngLat) || 0;
+        const altitude = terrainEnabled ? elevation + (Number(photo.altitude) - elevation) : 0;
+        return {
+          ...photo,
+          coordinates: [lng, lat, altitude],
+          bearing: photo.photo_heading || 0,
+        };
+      }),
+      scenegraph: "./cam.gltf",
+      getPosition: (d: any) => d.coordinates,
+      getColor: (d: any) => [203, 24, 226],
+      getOrientation: (d: any) => [0, -d.bearing, 90],
+      pickable: true,
+      opacity: 1,
+      sizeScale: 1,
+      onClick: (info: any) => {
+        if (info && info.object) {
+          setSelectedPhoto(info.object);
+        }
+      },
+      onHover: (info: any) => {
+        if (map.current && map.current.getCanvas) {
+          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+        }
+      }
+    });
+    const newOverlayCamera = new window.deck.MapboxOverlay({ layers: [cameraLayer] });
+    map.current.addControl(newOverlayCamera);
+    setOverlayCamera(newOverlayCamera);
+  };
   // Handle LAZ overlay terpisah dari overlayCamera
   const handleDrawLaz = useCallback(async (flattenZ: boolean = false) => {
     try {
@@ -482,34 +544,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
                 </select>
               </div>
             </div>
-            {metrics && (metrics.landArea || metrics.buildingArea || metrics.volume || metrics.buildingHeight) && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                {metrics.landArea !== undefined && (
-                  <div className="bg-white rounded shadow p-2 text-center">
-                    <div className="text-xs text-gray-500">Land Area</div>
-                    <div className="font-bold">{metrics.landArea.toFixed(2)} m²</div>
-                  </div>
-                )}
-                {metrics.buildingArea !== undefined && (
-                  <div className="bg-white rounded shadow p-2 text-center">
-                    <div className="text-xs text-gray-500">Building Area</div>
-                    <div className="font-bold">{metrics.buildingArea.toFixed(2)} m²</div>
-                  </div>
-                )}
-                {metrics.volume !== undefined && (
-                  <div className="bg-white rounded shadow p-2 text-center">
-                    <div className="text-xs text-gray-500">Volume</div>
-                    <div className="font-bold">{metrics.volume.toFixed(2)} m³</div>
-                  </div>
-                )}
-                {metrics.buildingHeight !== undefined && (
-                  <div className="bg-white rounded shadow p-2 text-center">
-                    <div className="text-xs text-gray-500">Building Height</div>
-                    <div className="font-bold">{metrics.buildingHeight.toFixed(2)} m</div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
