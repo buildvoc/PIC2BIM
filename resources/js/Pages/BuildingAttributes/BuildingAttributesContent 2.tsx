@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import BuildingDataGrid from "./BuildingDataGrid";
 import { createRoot } from 'react-dom/client';
 import BuildingAttributesMarker from '@/Components/Map/BuildingAttributesMarker';
-import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
 import { getOffsetBehindCamera } from '../BuildingHeight/utils/geo-operations';
+import type { ViewState, PhotoData, NearestBuildingData, BuildingGeometryData } from './types';
+import { NginxFile } from "../BuildingHeight/types/nginx";
+import { LAZ_FILES_DIRECTORY, LAZ_FILES_LIST_URL } from "../BuildingHeight/constants";
+import { transformLazData } from "../BuildingHeight/utils/projection";
+import { load } from '@loaders.gl/core';
+import { LASLoader } from '@loaders.gl/las';
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -15,58 +21,23 @@ const INITIAL_VIEW_STATE = {
 const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
-  const markerRef = useRef<any[]>([]);
-  const [viewState] = useState<ViewState>(INITIAL_VIEW_STATE);
-  const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
+  const deckRef = useRef<any>(null);
+  // const markerRef = useRef<any[]>([]); // Tidak perlu marker DOM, digantikan Deck.gl ScenegraphLayer
+  const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [nearestBuildings, setNearestBuildings] = useState<Record<number, NearestBuildingData | null>>({});
+  const [buildingGeometries, setBuildingGeometries] = useState<Record<number, BuildingGeometryData>>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(true);
-  const [selectedPhoto, setSelectedPhoto] = useState<PhotoData | null>(null);
-  
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoData | null>(null); // State for selected marker
+  const [overlayCamera, setOverlayCamera] = useState<any>(null); // Deck.gl overlay for Camera 3D
+  const [overlayLaz, setOverlayLaz] = useState<any>(null); // Deck.gl overlay for LAZ
+  const [lazLayer, setLazLayer] = useState<any>(null); // For future extension if needed
+  const [metrics, setMetrics] = useState<{ landArea?: number; buildingArea?: number; volume?: number; buildingHeight?: number }>({}); // <-- Fix for ReferenceError
+  const [showLazSection, setShowLazSection] = useState(false);
+  const [lazList, setLazList] = useState<NginxFile[]>([]);
+  const [selectedLaz, setSelectedLaz] = useState<string>("");
+  const [terrainEnabled, setTerrainEnabled] = useState(true);
 
-  const addMarkers = useCallback((photos_: PhotoData[]) => {
-    if (!map.current || !window.maplibregl) {
-      console.warn('MapLibre GL or map instance not available');
-      return;
-    }
-    // Clear existing markers
-    markerRef.current.forEach(marker => marker.remove());
-    markerRef.current = [];
 
-    photos_.forEach((photo) => {
-      if (!photo || !photo.lat || !photo.lng) {
-        console.warn(`Invalid photo data for ID ${photo?.id}:`, photo);
-        return;
-      }
-      const el = document.createElement('div');
-      try {
-        const root = createRoot(el);
-        const mapBearing = map.current && typeof map.current.getBearing === 'function' ? map.current.getBearing() : 0;
-        const polygonElevation = photo.altitude ? photo.altitude : 0;
-        const cameraCoordinates = map.current && typeof map.current.getCenter === 'function'
-          ? [map.current.getCenter().lng, map.current.getCenter().lat, polygonElevation]
-          : undefined;
-        const offset = getOffsetBehindCamera(mapBearing, polygonElevation, cameraCoordinates);
-        const zoom = map.current && typeof map.current.getZoom === 'function' ? map.current.getZoom() : 20;
-        root.render(
-          <BuildingAttributesMarker
-            data={photo}
-            mapBearing={mapBearing}
-            onClick={() => setSelectedPhoto(photo)}
-            zoom={zoom}
-            offset={offset}
-          />
-        );
-        const marker = new window.maplibregl.Marker({ element: el })
-          .setLngLat([parseFloat(photo.lng), parseFloat(photo.lat)])
-          .addTo(map.current);
-        markerRef.current.push(marker);
-      } catch (error) {
-        console.error(`Failed to render marker for photo ID ${photo.id}:`, error);
-      }
-    });
-  }, [setSelectedPhoto]);
-
-  // Create a GeoJSON from all building geometries
   const createBuildingGeometriesGeoJSON = () => {
     const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
       if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
@@ -117,31 +88,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       features
     };
   };
-  useEffect(() => {
-      if (map.current && map.current.getSource('api-buildings-source')) {
-        const buildingsGeoJSON = createBuildingGeometriesGeoJSON();
-        map.current.getSource('api-buildings-source').setData(buildingsGeoJSON);
-      }
-      
-      if (map.current && map.current.getSource('api-roofs-source')) {
-        const roofsGeoJSON = createRoofGeometriesGeoJSON();
-        map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
-      }
-    }, [buildingGeometries]); 
 
-  useEffect(() => {
-    if (!map.current) return;
-    const handleRotate = () => {
-      addMarkers(photos);
-    };
-    map.current.on('rotate', handleRotate);
-    return () => {
-      map.current.off('rotate', handleRotate);
-    };
-  }, [photos, addMarkers]);
-
-
-const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, direction: string) => {
+  // Fetch nearest building data for a photo
+  const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, direction: string) => {
     try {
       const controller = new AbortController();
       const response = await fetch(
@@ -222,7 +171,6 @@ const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, d
     }
   }, [photos]);
 
-
   useEffect(() => {
     const loadScripts = async () => {
       // Load MapLibre CSS
@@ -255,6 +203,17 @@ const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, d
         });
       }
 
+      // Load Deck.gl
+      if (!window.deck) {
+        const deckScript = document.createElement('script');
+        deckScript.src = 'https://unpkg.com/deck.gl@^9.0.0/dist.min.js';
+        deckScript.async = true;
+        document.head.appendChild(deckScript);
+        await new Promise<void>((resolve) => {
+          deckScript.onload = () => resolve();
+        });
+      }
+
       initializeMap();
     };
 
@@ -269,57 +228,81 @@ const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, d
 
   const initializeMap = () => {
     const maplibregl = window.maplibregl;
-    if (!maplibregl || !mapContainer.current) return;
+    const pmtiles = window.pmtiles;
 
-    // MapTiler API key required for hybrid/terrain sources
-    const MAPTILER_KEY = 'o74xOBrSwGwrCBX2apxI'; // <-- Replace with your MapTiler API key
-    const hybridStyle = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
-    const terrainUrl = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`;
+    if (!maplibregl || !pmtiles || !mapContainer.current) return;
 
+    // Initialize the pmtiles protocol
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+    const tilesURL = "https://pic2bim.co.uk/output.pmtiles";
+
+    // Create the map
     map.current = new maplibregl.Map({
       container: mapContainer.current,
+      style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [viewState.longitude, viewState.latitude],
       zoom: viewState.zoom,
       pitch: viewState.pitch,
       bearing: viewState.bearing,
-      maxPitch: 95
+      maxPitch: 90,
+      maxZoom: 21
     });
-
-    map.current.setStyle(hybridStyle);
 
     map.current.addControl(
       new maplibregl.NavigationControl({
         visualizePitch: true,
         showZoom: true,
-        showCompass: true
+        showCompass: true,
       }),
       'top-right'
     );
 
-    map.current.addControl(new maplibregl.GlobeControl());
+    map.current.on('load', async () => {
+      // Add terrain sources
+      map.current.addSource('terrainSource', {
+        type: "raster-dem",
+        url: "pmtiles://" + tilesURL,
+        tileSize: 256
+      });
 
-    // Add terrain source and TerrainControl after style is loaded
-    map.current.on('style.load', () => {
-      // Add terrain source if it does not exist
-      if (!map.current.getSource('terrainSource')) {
-        map.current.addSource('terrainSource', {
-          type: 'raster-dem',
-          url: terrainUrl,
-          tileSize: 256,
-          maxzoom: 14
-        });
-      }
-      // Set terrain
-      map.current.setTerrain({ source: 'terrainSource', exaggeration: 1 });
-      // Add TerrainControl if not already present
-      if (!map.current._controls.some((ctrl: any) => ctrl instanceof maplibregl.TerrainControl)) {
-        map.current.addControl(
-          new maplibregl.TerrainControl({
-            source: 'terrainSource',
-            exaggeration: 1
-          })
-        );
-      }
+      map.current.addSource('hillshadeSource', {
+        type: "raster-dem",
+        url: "pmtiles://" + tilesURL,
+        tileSize: 256,
+      });
+
+      // Set up the terrain
+      map.current.setTerrain({
+        source: "terrainSource",
+        exaggeration: 1
+      });
+      // Patch setTerrain to track terrain state
+      const originalSetTerrain = map.current.setTerrain;
+      map.current.setTerrain = function(options: any) {
+        setTerrainEnabled(!!(options && options.source));
+        return originalSetTerrain.apply(this, arguments);
+      };
+
+      // Add hillshade layer
+      map.current.addLayer({
+        id: 'hillshadeLayer',
+        type: 'hillshade',
+        source: 'terrainSource',
+        paint: {
+          'hillshade-shadow-color': '#000000',
+          'hillshade-highlight-color': '#ffffff',
+          'hillshade-accent-color': '#888888'
+        }
+      });
+
+      // Add terrain control
+      map.current.addControl(
+        new maplibregl.TerrainControl({
+          source: "terrainSource",
+          exaggeration: 1
+        })
+      );
 
       // Add building sources
       map.current.addSource('api-buildings-source', {
@@ -356,28 +339,236 @@ const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, d
           'fill-extrusion-opacity': 0.8
         }
       });
+    });
 
-      addMarkers(photos);
-      // Optionally hide road labels if needed, but with hybrid/satellite, may not be needed
-      // map.current.setLayoutProperty('highway-name-path', 'visibility', 'none');
-      // map.current.setLayoutProperty('highway-name-minor', 'visibility', 'none');
-      // map.current.setLayoutProperty('highway-name-major', 'visibility', 'none');
-      // map.current.setLayoutProperty('highway-shield-non-us', 'visibility', 'none');
-      // map.current.setLayoutProperty('highway-shield-us-interstate', 'visibility', 'none');
-      // map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
+    setTimeout(() => {
+      if (!window.deck || !map.current) return;
+      if (overlayCamera) {
+        try { map.current.removeControl(overlayCamera); } catch {}
+      }
+      const cameraLayer = new window.deck.ScenegraphLayer({
+        id: "exif3d-camera-layer",
+        data: photos.map(photo => ({
+          ...photo,
+          coordinates: [parseFloat(photo.lng), parseFloat(photo.lat), Number(photo.altitude) + 5],
+          bearing: photo.photo_heading || 0,
+        })),
+        scenegraph: "./cam.gltf",
+        getPosition: (d: any) => d.coordinates,
+        getColor: (d: any) => [203, 24, 226],
+        getOrientation: (d: any) => [0, -d.bearing, 90],
+        pickable: true,
+        opacity: 1,
+        sizeScale: 2,
+      });
+      const newOverlayCamera = new window.deck.MapboxOverlay({ layers: [cameraLayer] });
+      map.current.addControl(newOverlayCamera);
+      setOverlayCamera(newOverlayCamera);
+    }, 500);
+
+    // Disable road labels
+    map.current.on('style.load', () => {
+      map.current.setLayoutProperty('highway-name-path', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-name-minor', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-name-major', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-shield-non-us', 'visibility', 'none');
+      map.current.setLayoutProperty('highway-shield-us-interstate', 'visibility', 'none');
+      map.current.setLayoutProperty('road_shield_us', 'visibility', 'none');
     });
   };
 
-  // Update photo markers when data changes
+
   useEffect(() => {
-    if (map.current) {
-      addMarkers(photos);
+    if (map.current && map.current.getSource('api-buildings-source')) {
+      const buildingsGeoJSON = createBuildingGeometriesGeoJSON();
+      map.current.getSource('api-buildings-source').setData(buildingsGeoJSON);
     }
-  }, [photos, addMarkers]);
+    
+    if (map.current && map.current.getSource('api-roofs-source')) {
+      const roofsGeoJSON = createRoofGeometriesGeoJSON();
+      map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
+    }
+  }, [buildingGeometries]);
+
+  useEffect(() => {
+    handleDrawLaz(!terrainEnabled);
+  }, [terrainEnabled]);
+
+  // Handle LAZ overlay terpisah dari overlayCamera
+  const handleDrawLaz = useCallback(async (flattenZ: boolean = false) => {
+    try {
+      const url = `${LAZ_FILES_LIST_URL}${selectedLaz}`;
+      const data :any = await load(url, LASLoader);
+      transformLazData(data, flattenZ);
+      const layer = new window.deck.PointCloudLayer({
+        id: "laz-pointcloud",
+        data,
+        getPosition: (d: any) => d.position,
+        getColor: (d: any) => (d && d.color && Array.isArray(d.color)) ? d.color : [0,0,255],
+        pointSize: 1,
+        pickable: false
+      });
+      // Remove previous overlayLaz if any
+      if (overlayLaz && map.current) {
+        try { map.current.removeControl(overlayLaz); } catch {}
+      }
+      // Add new LAZ overlay
+      const newOverlayLaz = new window.deck.MapboxOverlay({ layers: [layer] });
+      map.current.addControl(newOverlayLaz);
+      setOverlayLaz(newOverlayLaz);
+      setLazLayer(layer);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [selectedLaz, map, overlayLaz, setLazLayer]);
+
+  // Bersihkan overlay saat unmount
+  useEffect(() => {
+    return () => {
+      if (overlayCamera && map.current) {
+        try { map.current.removeControl(overlayCamera); } catch {}
+      }
+      if (overlayLaz && map.current) {
+        try { map.current.removeControl(overlayLaz); } catch {}
+      }
+    };
+  }, [overlayCamera, overlayLaz]);
+
+
+  useEffect(() => {
+      const getLazFilesList = async () => {
+        const response = await fetch(LAZ_FILES_DIRECTORY);
+        const result = await response.json();
+        setLazList(result as NginxFile[]);
+      };
+      getLazFilesList();
+    }, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-74px)]">
-      <div ref={mapContainer} id="map" className="w-full h-full"></div>
+    <div className="relative w-full h-[calc(100vh-74px)] flex flex-col">
+      {/* Collapsible LAZ Section */}
+      <div className="w-full bg-white shadow mb-2">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 font-semibold text-left text-lg border-b hover:bg-gray-50 focus:outline-none transition"
+          onClick={() => setShowLazSection((v) => !v)}
+        >
+          <span>Load LAZ</span>
+          <svg className={`w-5 h-5 transform transition-transform duration-200 ${showLazSection ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {showLazSection && (
+          <div className="px-4 py-4 border-t bg-gray-50 flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <button
+                onClick={() => handleDrawLaz(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Draw
+              </button>
+              <div className="flex flex-col gap-1 w-full max-w-xs">
+                <select
+                  id="laz-select"
+                  className="border rounded px-2 py-1"
+                  value={selectedLaz}
+                  onChange={e => setSelectedLaz(e.target.value)}
+                >
+                  <option value="">Select a file</option>
+                  {lazList.map((file) => (
+                    <option key={file.name} value={file.name}>
+                      {file.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {metrics && (metrics.landArea || metrics.buildingArea || metrics.volume || metrics.buildingHeight) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                {metrics.landArea !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Land Area</div>
+                    <div className="font-bold">{metrics.landArea.toFixed(2)} m²</div>
+                  </div>
+                )}
+                {metrics.buildingArea !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Building Area</div>
+                    <div className="font-bold">{metrics.buildingArea.toFixed(2)} m²</div>
+                  </div>
+                )}
+                {metrics.volume !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Volume</div>
+                    <div className="font-bold">{metrics.volume.toFixed(2)} m³</div>
+                  </div>
+                )}
+                {metrics.buildingHeight !== undefined && (
+                  <div className="bg-white rounded shadow p-2 text-center">
+                    <div className="text-xs text-gray-500">Building Height</div>
+                    <div className="font-bold">{metrics.buildingHeight.toFixed(2)} m</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* Slide-in panel */}
+      <div
+        className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedPhoto ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{ width: 350, maxWidth: '90vw' }}
+      >
+        {selectedPhoto && (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <span className="font-bold text-lg">Building Data</span>
+              <button onClick={() => setSelectedPhoto(null)} className="text-gray-600 hover:text-black">✕</button>
+            </div>
+            <div className="p-4 flex-1 overflow-auto">
+              {(() => {
+                const buildingData = nearestBuildings[selectedPhoto.id];
+                if (!buildingData) {
+                  return <div className="text-gray-500">No building data.</div>;
+                }
+                const properties = buildingData.geojson?.features?.[0]?.properties;
+                const osid = buildingData.geojson?.features?.[0]?.id;
+                return (
+                  <BuildingDataGrid selectedPhoto={selectedPhoto} properties={properties} osid={osid} />
+                );
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div ref={mapContainer} id="map" className="w-full flex-1 min-h-[300px]"></div>
+      {loadingPhotos && (
+        <div className="fixed top-4 right-4 bg-white p-2 rounded shadow z-10">
+          Loading nearest buildings data...
+        </div>
+      )}
+      <div className="fixed bottom-4 right-4 bg-white p-2 rounded shadow z-10">
+        <div className="flex items-center mb-1">
+          <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
+          <span className="text-sm">Photo</span>
+        </div>
+        <div className="flex items-center mb-1">
+          <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+          <span className="text-sm">Photo with building data</span>
+        </div>
+        <div className="flex items-center mb-1">
+          <div className="w-4 h-4 bg-pink-500 rounded-full mr-2"></div>
+          <span className="text-sm">Photo with building geometry</span>
+        </div>
+        <div className="flex items-center mb-1">
+          <div className="w-4 h-4 bg-yellow-400 mr-2" style={{ height: '10px' }}></div>
+          <span className="text-sm">Building base (ground to roof base)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-blue-500 mr-2" style={{ height: '10px' }}></div>
+          <span className="text-sm">Building roof (roof base to max)</span>
+        </div>
+      </div>
     </div>
   );
 };
