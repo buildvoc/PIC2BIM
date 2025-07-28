@@ -16,6 +16,8 @@ const apiJson = "{{asset('api.json')}}"
     window.ui = SwaggerUIBundle({
       url: apiJson,
       dom_id: '#swagger-ui',
+      tagsSorter: 'alpha', // or a custom function
+      operationsSorter: 'alpha', // or a custom function
     });
   };
 </script>

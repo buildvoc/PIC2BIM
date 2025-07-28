@@ -5,6 +5,2137 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/comm_get_paths": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Get user paths",
+                "description": "Retrieve all paths for a specific user with their associated points",
+                "operationId": "e41a4154a8bdadcb990ef55989b8e34d",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID of the user to get paths for",
+                                        "type": "integer",
+                                        "example": 4
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response with user paths",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "paths": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Morning Walk"
+                                                    },
+                                                    "start": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-05-01 12:00:00"
+                                                    },
+                                                    "end": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-05-01 13:00:00"
+                                                    },
+                                                    "area": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 150.5
+                                                    },
+                                                    "device_manufacture": {
+                                                        "type": "string",
+                                                        "example": "Apple"
+                                                    },
+                                                    "device_model": {
+                                                        "type": "string",
+                                                        "example": "iPhone 14"
+                                                    },
+                                                    "device_platform": {
+                                                        "type": "string",
+                                                        "example": "iOS"
+                                                    },
+                                                    "device_version": {
+                                                        "type": "string",
+                                                        "example": "17.0"
+                                                    },
+                                                    "points": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "lat": {
+                                                                    "type": "number",
+                                                                    "format": "double",
+                                                                    "example": 51.5074
+                                                                },
+                                                                "lng": {
+                                                                    "type": "number",
+                                                                    "format": "double",
+                                                                    "example": -0.1278
+                                                                },
+                                                                "altitude": {
+                                                                    "type": "number",
+                                                                    "format": "double",
+                                                                    "example": 35.5
+                                                                },
+                                                                "accuracy": {
+                                                                    "type": "number",
+                                                                    "format": "double",
+                                                                    "example": 5
+                                                                },
+                                                                "created": {
+                                                                    "type": "string",
+                                                                    "format": "date-time",
+                                                                    "example": "2024-05-01T12:00:00Z"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing or invalid user_id"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_unassigned": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Get unassigned photo IDs by user ID",
+                "description": "Retrieve all photo IDs that belong to a user but are not assigned to any task",
+                "operationId": "b54ebf8e0aafa348ef97ce52a5aada13",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID of the user to get unassigned photos for",
+                                        "type": "integer",
+                                        "example": 4
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response with unassigned photo IDs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "photos_ids": {
+                                            "description": "Array of photo IDs that are not assigned to any task",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer",
+                                                "example": 18021
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing or invalid user_id"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_tasks": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get tasks by user ID",
+                "description": "Retrieve all tasks assigned to a specific user with their details, photos count, and flags",
+                "operationId": "39eb5b48ccbb46e01ead123f5c685b42",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID of the user to get tasks for",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response with user tasks",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "tasks": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 125950
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "new"
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Survey Building A"
+                                                    },
+                                                    "text": {
+                                                        "type": "string",
+                                                        "example": "Please survey the building and take photos"
+                                                    },
+                                                    "text_returned": {
+                                                        "type": "string",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "date_created": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-15T10:30:00Z"
+                                                    },
+                                                    "task_due_date": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-20T17:00:00Z"
+                                                    },
+                                                    "note": {
+                                                        "type": "string",
+                                                        "example": "Urgent task",
+                                                        "nullable": true
+                                                    },
+                                                    "number_of_photos": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "flag_valid": {
+                                                        "type": "string",
+                                                        "example": "1"
+                                                    },
+                                                    "flag_invalid": {
+                                                        "type": "string",
+                                                        "example": "0"
+                                                    },
+                                                    "reopen_reason": {
+                                                        "type": "string",
+                                                        "example": "Photos unclear",
+                                                        "nullable": true
+                                                    },
+                                                    "purpose": {
+                                                        "type": "string",
+                                                        "example": "Building Survey"
+                                                    },
+                                                    "photos_ids": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "integer",
+                                                            "example": 18021
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing or invalid user_id"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_status": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Update task status",
+                "description": "Update the status of a task with optional note. Valid status transitions: new->open, new/open/returned->data provided",
+                "operationId": "f5013947c32abda68bd092beef7c23ba",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "task_id",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "task_id": {
+                                        "description": "ID of the task to update",
+                                        "type": "integer",
+                                        "example": 123
+                                    },
+                                    "status": {
+                                        "description": "New status for the task",
+                                        "type": "string",
+                                        "enum": [
+                                            "new",
+                                            "open",
+                                            "data provided"
+                                        ],
+                                        "example": "new"
+                                    },
+                                    "note": {
+                                        "description": "Optional note for the status change",
+                                        "type": "string",
+                                        "example": "test",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful status update",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Invalid status transition or missing required fields"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_path": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Create a new path",
+                "description": "Create a new path with GPS coordinates, device information, and timing data",
+                "operationId": "ee34dbd58c0d21d12cc8c2e98e49916f",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id",
+                                    "start",
+                                    "end",
+                                    "points"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID of the user creating the path",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "name": {
+                                        "description": "Name of the path",
+                                        "type": "string",
+                                        "example": "Test example path",
+                                        "nullable": true
+                                    },
+                                    "deviceManufacture": {
+                                        "description": "Device manufacturer",
+                                        "type": "string",
+                                        "example": "Manufacturer",
+                                        "nullable": true
+                                    },
+                                    "deviceModel": {
+                                        "description": "Device model",
+                                        "type": "string",
+                                        "example": "Model",
+                                        "nullable": true
+                                    },
+                                    "devicePlatform": {
+                                        "description": "Device platform (iOS, Android, etc.)",
+                                        "type": "string",
+                                        "example": "Platform",
+                                        "nullable": true
+                                    },
+                                    "deviceVersion": {
+                                        "description": "Device version",
+                                        "type": "string",
+                                        "example": "Version",
+                                        "nullable": true
+                                    },
+                                    "start": {
+                                        "description": "Start time of the path",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2024-05-01 12:00:00"
+                                    },
+                                    "end": {
+                                        "description": "End time of the path",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2024-05-01 13:00:00"
+                                    },
+                                    "area": {
+                                        "description": "Area covered by the path",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 150.5,
+                                        "nullable": true
+                                    },
+                                    "points": {
+                                        "description": "JSON string containing GPS coordinates and metadata",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Path created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing mandatory data or invalid JSON in points"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Upload a photo",
+                "description": "Upload a photo with metadata and assign it to a task. Task must be in editable status (new, open, or returned)",
+                "operationId": "61b7db4b632a883fdce7c3a0bc35325b",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id",
+                                    "photo"
+                                ],
+                                "properties": {
+                                    "task_id": {
+                                        "description": "ID of the task to assign the photo to",
+                                        "type": "integer",
+                                        "example": 125950,
+                                        "nullable": true
+                                    },
+                                    "user_id": {
+                                        "description": "ID of the user uploading the photo",
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "photo": {
+                                        "description": "JSON string containing photo metadata and base64 image data",
+                                        "type": "string"
+                                    },
+                                    "digest": {
+                                        "description": "Digest value for photo verification",
+                                        "type": "string",
+                                        "example": "abc123digestvalue",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photo uploaded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing user ID, invalid photo JSON, or task not in editable status"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Get photo by ID",
+                "description": "Retrieve a photo by its ID with all associated metadata",
+                "operationId": "9001524d6d295fd07653c59c97515753",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Accept header for response format",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo_id"
+                                ],
+                                "properties": {
+                                    "photo_id": {
+                                        "description": "ID of the photo to retrieve",
+                                        "type": "integer",
+                                        "example": 18021
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photo retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "photo": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 18021
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "task_id": {
+                                                    "type": "integer",
+                                                    "example": 123
+                                                },
+                                                "lat": {
+                                                    "type": "string",
+                                                    "example": "34.052235"
+                                                },
+                                                "lng": {
+                                                    "type": "string",
+                                                    "example": "-118.243683"
+                                                },
+                                                "altitude": {
+                                                    "type": "string",
+                                                    "example": "89.5"
+                                                },
+                                                "bearing": {
+                                                    "type": "string",
+                                                    "example": "120"
+                                                },
+                                                "magnetic_azimuth": {
+                                                    "type": "string",
+                                                    "example": "180"
+                                                },
+                                                "photo_heading": {
+                                                    "type": "string",
+                                                    "example": "45"
+                                                },
+                                                "accuracy": {
+                                                    "type": "string",
+                                                    "example": "5"
+                                                },
+                                                "orientation": {
+                                                    "type": "string",
+                                                    "example": "123"
+                                                },
+                                                "pitch": {
+                                                    "type": "string",
+                                                    "example": "10"
+                                                },
+                                                "roll": {
+                                                    "type": "string",
+                                                    "example": "5"
+                                                },
+                                                "photo_angle": {
+                                                    "type": "string",
+                                                    "example": "90"
+                                                },
+                                                "created": {
+                                                    "type": "string",
+                                                    "example": "2024-10-17 10:00:00"
+                                                },
+                                                "note": {
+                                                    "type": "string",
+                                                    "example": "This is a sample note"
+                                                },
+                                                "photo": {
+                                                    "type": "string",
+                                                    "example": "base64_image_data"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Photo not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Photo not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_update": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Submit task photos and update task status",
+                "description": "Submit multiple photos for a task and update the task status to 'data provided'",
+                "operationId": "12b717e54de180285ca39e4cb0caf025",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "user_id",
+                                    "task_id",
+                                    "photos",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID of the user submitting the photos",
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "task_id": {
+                                        "description": "ID of the task to update",
+                                        "type": "integer",
+                                        "example": 125950
+                                    },
+                                    "photos": {
+                                        "description": "JSON array of photo objects with metadata and base64 image data",
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "description": "New status for the task (typically 'data provided')",
+                                        "type": "string",
+                                        "example": "data provided"
+                                    },
+                                    "note": {
+                                        "description": "Optional note for the task",
+                                        "type": "string",
+                                        "example": "TEST TASK NOTE"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task updated successfully"
+                                        },
+                                        "photos_count": {
+                                            "type": "integer",
+                                            "example": 3
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or task not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task not found or invalid status"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "task_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Task ID is required"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_task_photos": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get task photos",
+                "description": "Retrieve all photos associated with a specific task",
+                "operationId": "e2e23556f59c29f52b2732d2c304e375",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "task_id",
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "task_id": {
+                                        "description": "ID of the task to get photos for",
+                                        "type": "integer",
+                                        "example": 125950
+                                    },
+                                    "user_id": {
+                                        "description": "ID of the user requesting the photos",
+                                        "type": "integer",
+                                        "example": 4
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task photos retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "photos": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 18021
+                                                    },
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "example": 4
+                                                    },
+                                                    "task_id": {
+                                                        "type": "integer",
+                                                        "example": 125950
+                                                    },
+                                                    "lat": {
+                                                        "type": "string",
+                                                        "example": "34.052235"
+                                                    },
+                                                    "lng": {
+                                                        "type": "string",
+                                                        "example": "-118.243683"
+                                                    },
+                                                    "altitude": {
+                                                        "type": "string",
+                                                        "example": "89.5"
+                                                    },
+                                                    "bearing": {
+                                                        "type": "string",
+                                                        "example": "120"
+                                                    },
+                                                    "magnetic_azimuth": {
+                                                        "type": "string",
+                                                        "example": "180"
+                                                    },
+                                                    "photo_heading": {
+                                                        "type": "string",
+                                                        "example": "45"
+                                                    },
+                                                    "accuracy": {
+                                                        "type": "string",
+                                                        "example": "5"
+                                                    },
+                                                    "orientation": {
+                                                        "type": "string",
+                                                        "example": "123"
+                                                    },
+                                                    "pitch": {
+                                                        "type": "string",
+                                                        "example": "10"
+                                                    },
+                                                    "roll": {
+                                                        "type": "string",
+                                                        "example": "5"
+                                                    },
+                                                    "photo_angle": {
+                                                        "type": "string",
+                                                        "example": "90"
+                                                    },
+                                                    "created": {
+                                                        "type": "string",
+                                                        "example": "2024-10-17 10:00:00"
+                                                    },
+                                                    "note": {
+                                                        "type": "string",
+                                                        "example": "This is a sample note"
+                                                    },
+                                                    "photo": {
+                                                        "type": "string",
+                                                        "example": "base64_image_data"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total_photos": {
+                                            "type": "integer",
+                                            "example": 3
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Access denied to this task"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_delete_path": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Delete a path",
+                "description": "Delete a specific path and all its associated points",
+                "operationId": "d7edc942edc262442a771400e3afc1d0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "path_id"
+                                ],
+                                "properties": {
+                                    "path_id": {
+                                        "description": "ID of the path to delete",
+                                        "type": "integer",
+                                        "example": 373
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Path deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Path deleted successfully"
+                                        },
+                                        "deleted_path_id": {
+                                            "type": "integer",
+                                            "example": 373
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Path not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Path not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Access denied to delete this path"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to delete path"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_delete_unassigned_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Delete unassigned photo",
+                "description": "Delete a photo that is not assigned to any task",
+                "operationId": "00d5288d8355203eaccfa61af7291f1e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo_id"
+                                ],
+                                "properties": {
+                                    "photo_id": {
+                                        "description": "ID of the unassigned photo to delete",
+                                        "type": "integer",
+                                        "example": 17804
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photo deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Photo deleted successfully"
+                                        },
+                                        "deleted_photo_id": {
+                                            "type": "integer",
+                                            "example": 17804
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Photo not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Photo not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Photo is assigned to a task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Cannot delete photo that is assigned to a task"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Access denied to delete this photo"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_lpis": {
+            "get": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Retrieve a list of LPIS records based on filters or bounding box",
+                "description": "Get LPIS (Land Parcel Identification System) records using bounding box coordinates or other filters",
+                "operationId": "f9efb0602b57a91d7b056a0e10f1278f",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    },
+                    {
+                        "name": "bbox",
+                        "in": "query",
+                        "description": "Bounding box coordinates in format: min_lng,min_lat,max_lng,max_lat",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "-0.6000,51.2000,-0.5900,51.2100"
+                    },
+                    {
+                        "name": "numberOfRecords",
+                        "in": "query",
+                        "description": "Number of records per page for pagination",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "example": 20
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "LPIS records retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "records": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "parcel_id": {
+                                                        "type": "string",
+                                                        "example": "GB123456789"
+                                                    },
+                                                    "area_ha": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 2.5
+                                                    },
+                                                    "land_use": {
+                                                        "type": "string",
+                                                        "example": "Arable"
+                                                    },
+                                                    "geometry": {
+                                                        "type": "string",
+                                                        "example": "POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total_records": {
+                                            "type": "integer",
+                                            "example": 150
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "records_per_page": {
+                                            "type": "integer",
+                                            "example": 20
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid bounding box format",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid bounding box format"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "bbox": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Bounding box must be in correct format"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_lpis": {
+            "post": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Save LPIS",
+                "description": "Save a new LPIS (Land Parcel Identification System) record with geometry and metadata",
+                "operationId": "7e4afd1126fca994aad1bb6a98e179ea",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Accept header for response format",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "identificator",
+                                    "wgs_geometry",
+                                    "wgs_max_lat",
+                                    "wgs_min_lat",
+                                    "wgs_max_lng",
+                                    "wgs_min_lng"
+                                ],
+                                "properties": {
+                                    "identificator": {
+                                        "description": "Unique identifier for the LPIS record",
+                                        "type": "string",
+                                        "example": "identificator"
+                                    },
+                                    "pa_description": {
+                                        "description": "Description of the parcel area",
+                                        "type": "string",
+                                        "example": "pa description"
+                                    },
+                                    "wkt": {
+                                        "description": "Well-Known Text representation of the geometry",
+                                        "type": "string",
+                                        "example": "wkt data"
+                                    },
+                                    "wgs_geometry": {
+                                        "description": "JSON array of coordinate objects with latitude and longitude",
+                                        "type": "string"
+                                    },
+                                    "wgs_max_lat": {
+                                        "description": "Maximum latitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 21.22
+                                    },
+                                    "wgs_min_lat": {
+                                        "description": "Minimum latitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -98.32
+                                    },
+                                    "wgs_max_lng": {
+                                        "description": "Maximum longitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 3.21
+                                    },
+                                    "wgs_min_lng": {
+                                        "description": "Minimum longitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 12.01
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "LPIS record saved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "LPIS record saved successfully"
+                                        },
+                                        "lpis_id": {
+                                            "type": "integer",
+                                            "example": 123
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "identificator": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Identificator is required"
+                                                    }
+                                                },
+                                                "wgs_geometry": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Invalid geometry format"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to save LPIS record"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_lpis_record": {
+            "post": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Get a single LPIS record",
+                "description": "Retrieve a specific LPIS record by its ID",
+                "operationId": "2fd96eb8b9cf2dde38d3251f9e09feee",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Accept header for response format",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "id"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "description": "ID of the LPIS record to retrieve",
+                                        "type": "integer",
+                                        "example": 627847
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "LPIS record retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "record": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 627847
+                                                },
+                                                "identificator": {
+                                                    "type": "string",
+                                                    "example": "GB123456789"
+                                                },
+                                                "pa_description": {
+                                                    "type": "string",
+                                                    "example": "Agricultural land parcel"
+                                                },
+                                                "wkt": {
+                                                    "type": "string",
+                                                    "example": "POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"
+                                                },
+                                                "wgs_geometry": {
+                                                    "description": "JSON array of coordinate objects",
+                                                    "type": "string"
+                                                },
+                                                "wgs_max_lat": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 51.21
+                                                },
+                                                "wgs_min_lat": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 51.2
+                                                },
+                                                "wgs_max_lng": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": -0.59
+                                                },
+                                                "wgs_min_lng": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": -0.6
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2024-01-01T00:00:00Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2024-01-01T00:00:00Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "LPIS record not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "LPIS record not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "ID is required"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_shapes": {
+            "post": {
+                "tags": [
+                    "Shapes"
+                ],
+                "summary": "Get shapes by coordinates",
+                "description": "Retrieve shapes based on bounding box coordinates",
+                "operationId": "152f1361375915ef681579c05cd6bb22",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Accept header for response format",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "max_lat",
+                                    "min_lat",
+                                    "max_lng",
+                                    "min_lng"
+                                ],
+                                "properties": {
+                                    "max_lat": {
+                                        "description": "Maximum latitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 51.21
+                                    },
+                                    "min_lat": {
+                                        "description": "Minimum latitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 51.2
+                                    },
+                                    "max_lng": {
+                                        "description": "Maximum longitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -0.59
+                                    },
+                                    "min_lng": {
+                                        "description": "Minimum longitude of the bounding box",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -0.6
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Shapes retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "shapes": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "shape_type": {
+                                                        "type": "string",
+                                                        "example": "polygon"
+                                                    },
+                                                    "geometry": {
+                                                        "type": "string",
+                                                        "example": "POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"
+                                                    },
+                                                    "properties": {
+                                                        "description": "JSON object containing shape properties",
+                                                        "type": "string"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total_shapes": {
+                                            "type": "integer",
+                                            "example": 5
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid coordinates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid coordinate values"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "max_lat": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Maximum latitude is required"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/comm_building_part": {
             "get": {
                 "tags": [
@@ -95,25 +2226,6 @@
                     "Codepoint"
                 ],
                 "operationId": "2ed2aa5f7d39387ccfc3df90c97789c3",
-                "parameters": [
-                    {
-                        "name": "postcode",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "example": "BA1 0AH"
-                    },
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "List of codepoint",
@@ -172,6 +2284,349 @@
                     }
                 ]
             }
+        },
+        "/comm_nhle": {
+            "get": {
+                "tags": [
+                    "NHLE"
+                ],
+                "operationId": "d9134c641e9b2fe9333c268d16ee8161",
+                "responses": {
+                    "200": {
+                        "description": "List of NHLE",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_land_registry_inspire": {
+            "get": {
+                "tags": [
+                    "Land Registry Inspire"
+                ],
+                "summary": "Get land registry inspire records",
+                "description": "Retrieve land registry inspire records based on filters or bounding box coordinates",
+                "operationId": "d4c45ce517f94ba5e7db189884b83439",
+                "parameters": [
+                    {
+                        "name": "inspire_id",
+                        "in": "query",
+                        "description": "INSPIRE ID to filter records",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "31444717"
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "description": "Minimum longitude for bounding box",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.5"
+                    },
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "description": "Minimum latitude for bounding box",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.2"
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "description": "Maximum longitude for bounding box",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-2.2"
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "description": "Maximum latitude for bounding box",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.6"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of spatial boundary records",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "gmlId": {
+                                                        "type": "string",
+                                                        "example": "gml123"
+                                                    },
+                                                    "inspireId": {
+                                                        "type": "integer",
+                                                        "example": 31444717
+                                                    },
+                                                    "label": {
+                                                        "type": "integer",
+                                                        "example": 123
+                                                    },
+                                                    "nationalCadastralReference": {
+                                                        "type": "integer",
+                                                        "example": 456
+                                                    },
+                                                    "validFrom": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    },
+                                                    "beginLifespanVersion": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-01-01T00:00:00Z"
+                                                    },
+                                                    "geom": {
+                                                        "description": "GeoJSON geometry",
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 100
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 150
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing bearer token"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_login": {
+            "post": {
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Get Bearer Token",
+                "description": "Authenticate user credentials and return a bearer token for API access. The token should be included in subsequent API requests in the Authorization header.",
+                "operationId": "99cb246244957a02da9da286fa780536",
+                "parameters": [
+                    {
+                        "name": "Accept",
+                        "in": "header",
+                        "description": "Specifies the content type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "application/json"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "login",
+                                    "pswd"
+                                ],
+                                "properties": {
+                                    "login": {
+                                        "description": "User login/username",
+                                        "type": "string",
+                                        "example": "user"
+                                    },
+                                    "pswd": {
+                                        "description": "User password (will be hashed with SHA1)",
+                                        "type": "string",
+                                        "example": "1234"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "John"
+                                                },
+                                                "surname": {
+                                                    "type": "string",
+                                                    "example": "Doe"
+                                                },
+                                                "identification_number": {
+                                                    "type": "string",
+                                                    "example": "ID123456"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "john.doe@example.com"
+                                                },
+                                                "vat": {
+                                                    "type": "string",
+                                                    "example": "GB123456789",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "token": {
+                                            "description": "Bearer token for API authentication",
+                                            "type": "string",
+                                            "example": "1|abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing required fields",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": "bad login or password"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid credentials",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": "bad login or password"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": "bad login or password"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -188,6 +2643,26 @@
     },
     "tags": [
         {
+            "name": "Paths",
+            "description": "Paths"
+        },
+        {
+            "name": "Photos",
+            "description": "Photos"
+        },
+        {
+            "name": "Tasks",
+            "description": "Tasks"
+        },
+        {
+            "name": "LPIS",
+            "description": "LPIS"
+        },
+        {
+            "name": "Shapes",
+            "description": "Shapes"
+        },
+        {
             "name": "Building Part",
             "description": "Building Part"
         },
@@ -198,6 +2673,18 @@
         {
             "name": "UPRN",
             "description": "UPRN"
+        },
+        {
+            "name": "NHLE",
+            "description": "NHLE"
+        },
+        {
+            "name": "Land Registry Inspire",
+            "description": "Land Registry Inspire"
+        },
+        {
+            "name": "Authorization",
+            "description": "Authorization"
         }
     ]
 }

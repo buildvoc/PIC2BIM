@@ -264,7 +264,106 @@ class UserController extends Controller
         return $return;
       }
 
-      public function createToken(Request $request){
+    /**
+     * @OA\Post(
+     *     path="/comm_login",
+     *     summary="Get Bearer Token",
+     *     description="Authenticate user credentials and return a bearer token for API access. The token should be included in subsequent API requests in the Authorization header.",
+     *     tags={"Authorization"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"login", "pswd"},
+     *                 @OA\Property(
+     *                     property="login",
+     *                     type="string",
+     *                     description="User login/username",
+     *                     example="user"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="pswd",
+     *                     type="string",
+     *                     description="User password (will be hashed with SHA1)",
+     *                     example="1234"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Authentication successful",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_message",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             ),
+     *             @OA\Property(
+     *                 property="user",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="John"),
+     *                 @OA\Property(property="surname", type="string", example="Doe"),
+     *                 @OA\Property(property="identification_number", type="string", example="ID123456"),
+     *                 @OA\Property(property="email", type="string", example="john.doe@example.com"),
+     *                 @OA\Property(property="vat", type="string", example="GB123456789", nullable=true)
+     *             ),
+     *             @OA\Property(
+     *                 property="token",
+     *                 type="string",
+     *                 description="Bearer token for API authentication",
+     *                 example="1|abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing required fields",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="error_msg", type="string", example="bad login or password")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid credentials",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="error_msg", type="string", example="bad login or password")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="error_msg", type="string", example="bad login or password")
+     *         )
+     *     )
+     * )
+     */
+    public function createToken(Request $request){
         
         $validator = Validator::make($request->all(),[
             'login' => 'required',
