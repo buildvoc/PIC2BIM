@@ -25,6 +25,98 @@ use App\Http\Resources\LandRegistryInspireCollection;
 
 class ApiController extends Controller
 {
+    /**
+     * @OA\Post(
+     *     path="/comm_get_paths",
+     *     summary="Get user paths",
+     *     description="Retrieve all paths for a specific user with their associated points",
+     *     tags={"Paths"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id"},
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user to get paths for",
+     *                     example=4
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response with user paths",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             ),
+     *             @OA\Property(
+     *                 property="paths",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="Morning Walk"),
+     *                     @OA\Property(property="start", type="string", format="date-time", example="2024-05-01 12:00:00"),
+     *                     @OA\Property(property="end", type="string", format="date-time", example="2024-05-01 13:00:00"),
+     *                     @OA\Property(property="area", type="number", format="float", example=150.50),
+     *                     @OA\Property(property="device_manufacture", type="string", example="Apple"),
+     *                     @OA\Property(property="device_model", type="string", example="iPhone 14"),
+     *                     @OA\Property(property="device_platform", type="string", example="iOS"),
+     *                     @OA\Property(property="device_version", type="string", example="17.0"),
+     *                     @OA\Property(
+     *                         property="points",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="id", type="integer", example=1),
+     *                             @OA\Property(property="lat", type="number", format="double", example=51.5074),
+     *                             @OA\Property(property="lng", type="number", format="double", example=-0.1278),
+     *                             @OA\Property(property="altitude", type="number", format="double", example=35.5),
+     *                             @OA\Property(property="accuracy", type="number", format="double", example=5.0),
+     *                             @OA\Property(property="created", type="string", format="date-time", example="2024-05-01T12:00:00Z")
+     *                         )
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing or invalid user_id"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_get_paths(Request $request){
 
         $user_id = $request->user_id;
@@ -67,6 +159,79 @@ class ApiController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_unassigned",
+     *     summary="Get unassigned photo IDs by user ID",
+     *     description="Retrieve all photo IDs that belong to a user but are not assigned to any task",
+     *     tags={"Photos"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id"},
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user to get unassigned photos for",
+     *                     example=4
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response with unassigned photo IDs",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             ),
+     *             @OA\Property(
+     *                 property="photos_ids",
+     *                 type="array",
+     *                 description="Array of photo IDs that are not assigned to any task",
+     *                 @OA\Items(
+     *                     type="integer",
+     *                     example=18021
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing or invalid user_id"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     * 
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_unassigned(Request $request){
         $user_id = $request->user_id;
 
@@ -80,6 +245,94 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_tasks",
+     *     summary="Get tasks by user ID",
+     *     description="Retrieve all tasks assigned to a specific user with their details, photos count, and flags",
+     *     tags={"Tasks"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id"},
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user to get tasks for",
+     *                     example=3
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response with user tasks",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             ),
+     *             @OA\Property(
+     *                 property="tasks",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=125950),
+     *                     @OA\Property(property="status", type="string", example="new"),
+     *                     @OA\Property(property="name", type="string", example="Survey Building A"),
+     *                     @OA\Property(property="text", type="string", example="Please survey the building and take photos"),
+     *                     @OA\Property(property="text_returned", type="string", nullable=true, example=null),
+     *                     @OA\Property(property="date_created", type="string", format="date-time", example="2024-01-15T10:30:00Z"),
+     *                     @OA\Property(property="task_due_date", type="string", format="date-time", example="2024-01-20T17:00:00Z"),
+     *                     @OA\Property(property="note", type="string", nullable=true, example="Urgent task"),
+     *                     @OA\Property(property="number_of_photos", type="integer", example=5),
+     *                     @OA\Property(property="flag_valid", type="string", example="1"),
+     *                     @OA\Property(property="flag_invalid", type="string", example="0"),
+     *                     @OA\Property(property="reopen_reason", type="string", nullable=true, example="Photos unclear"),
+     *                     @OA\Property(property="purpose", type="string", example="Building Survey"),
+     *                     @OA\Property(
+     *                         property="photos_ids",
+     *                         type="array",
+     *                         @OA\Items(type="integer", example=18021)
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing or invalid user_id"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_tasks(Request $request){
         $user_id = $request->user_id;
         
@@ -123,6 +376,83 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_status",
+     *     summary="Update task status",
+     *     description="Update the status of a task with optional note. Valid status transitions: new->open, new/open/returned->data provided",
+     *     tags={"Tasks"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"task_id", "status"},
+     *                 @OA\Property(
+     *                     property="task_id",
+     *                     type="integer",
+     *                     description="ID of the task to update",
+     *                     example=123
+     *                 ),
+     *                 @OA\Property(
+     *                     property="status",
+     *                     type="string",
+     *                     description="New status for the task",
+     *                     example="new",
+     *                     enum={"new", "open", "data provided"}
+     *                 ),
+     *                 @OA\Property(
+     *                     property="note",
+     *                     type="string",
+     *                     description="Optional note for the status change",
+     *                     example="test",
+     *                     nullable=true
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful status update",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Invalid status transition or missing required fields"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_status(Request $request){
 
         $task_id = trim($request->task_id);
@@ -150,6 +480,131 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_path",
+     *     summary="Create a new path",
+     *     description="Create a new path with GPS coordinates, device information, and timing data",
+     *     tags={"Paths"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id", "start", "end", "points"},
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user creating the path",
+     *                     example=3
+     *                 ),
+     *                 @OA\Property(
+     *                     property="name",
+     *                     type="string",
+     *                     description="Name of the path",
+     *                     example="Test example path",
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="deviceManufacture",
+     *                     type="string",
+     *                     description="Device manufacturer",
+     *                     example="Manufacturer",
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="deviceModel",
+     *                     type="string",
+     *                     description="Device model",
+     *                     example="Model",
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="devicePlatform",
+     *                     type="string",
+     *                     description="Device platform (iOS, Android, etc.)",
+     *                     example="Platform",
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="deviceVersion",
+     *                     type="string",
+     *                     description="Device version",
+     *                     example="Version",
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="start",
+     *                     type="string",
+     *                     format="date-time",
+     *                     description="Start time of the path",
+     *                     example="2024-05-01 12:00:00"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="end",
+     *                     type="string",
+     *                     format="date-time",
+     *                     description="End time of the path",
+     *                     example="2024-05-01 13:00:00"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="area",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Area covered by the path",
+     *                     example=150.50,
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="points",
+     *                     type="string",
+     *                     description="JSON string containing GPS coordinates and metadata"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Path created successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing mandatory data or invalid JSON in points"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_path(Request $request){
         $user_id = $request->input('user_id');
         $name = $request->input('name');
@@ -190,6 +645,88 @@ class ApiController extends Controller
  
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_photo",
+     *     summary="Upload a photo",
+     *     description="Upload a photo with metadata and assign it to a task. Task must be in editable status (new, open, or returned)",
+     *     tags={"Photos"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id", "photo"},
+     *                 @OA\Property(
+     *                     property="task_id",
+     *                     type="integer",
+     *                     description="ID of the task to assign the photo to",
+     *                     example=125950,
+     *                     nullable=true
+     *                 ),
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user uploading the photo",
+     *                     example=4
+     *                 ),
+     *                 @OA\Property(
+     *                     property="photo",
+     *                     type="string",
+     *                     description="JSON string containing photo metadata and base64 image data"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="digest",
+     *                     type="string",
+     *                     description="Digest value for photo verification",
+     *                     example="abc123digestvalue",
+     *                     nullable=true
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         @OA\Schema(type="string"),
+     *         example="application/json",
+     *         description="Specifies the content type"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Photo uploaded successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="ok"
+     *             ),
+     *             @OA\Property(
+     *                 property="error_msg",
+     *                 type="string",
+     *                 nullable=true,
+     *                 example=null
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Bad Request - Missing user ID, invalid photo JSON, or task not in editable status"
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_photo(Request $request){
         $task_id = trim($request->input('task_id'));
         $user_id = trim($request->input('user_id'));
@@ -235,6 +772,80 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_get_photo",
+     *     summary="Get photo by ID",
+     *     description="Retrieve a photo by its ID with all associated metadata",
+     *     tags={"Photos"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"photo_id"},
+     *                 @OA\Property(
+     *                     property="photo_id",
+     *                     type="integer",
+     *                     description="ID of the photo to retrieve",
+     *                     example=18021
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         description="Accept header for response format",
+     *         @OA\Schema(type="string"),
+     *         example="application/json"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Photo retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="photo",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=18021),
+     *                 @OA\Property(property="user_id", type="integer", example=4),
+     *                 @OA\Property(property="task_id", type="integer", example=123),
+     *                 @OA\Property(property="lat", type="string", example="34.052235"),
+     *                 @OA\Property(property="lng", type="string", example="-118.243683"),
+     *                 @OA\Property(property="altitude", type="string", example="89.5"),
+     *                 @OA\Property(property="bearing", type="string", example="120"),
+     *                 @OA\Property(property="magnetic_azimuth", type="string", example="180"),
+     *                 @OA\Property(property="photo_heading", type="string", example="45"),
+     *                 @OA\Property(property="accuracy", type="string", example="5"),
+     *                 @OA\Property(property="orientation", type="string", example="123"),
+     *                 @OA\Property(property="pitch", type="string", example="10"),
+     *                 @OA\Property(property="roll", type="string", example="5"),
+     *                 @OA\Property(property="photo_angle", type="string", example="90"),
+     *                 @OA\Property(property="created", type="string", example="2024-10-17 10:00:00"),
+     *                 @OA\Property(property="note", type="string", example="This is a sample note"),
+     *                 @OA\Property(property="photo", type="string", example="base64_image_data")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Photo not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Photo not found")
+     *         )
+     *     )
+     * )
+     */
     public function comm_get_photo(Request $request){
         $photo_id = trim($request->input('photo_id'));
 
@@ -253,6 +864,99 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_update",
+     *     summary="Submit task photos and update task status",
+     *     description="Submit multiple photos for a task and update the task status to 'data provided'",
+     *     tags={"Tasks"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"user_id", "task_id", "photos", "status"},
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user submitting the photos",
+     *                     example=4
+     *                 ),
+     *                 @OA\Property(
+     *                     property="task_id",
+     *                     type="integer",
+     *                     description="ID of the task to update",
+     *                     example=125950
+     *                 ),
+     *                 @OA\Property(
+     *                     property="photos",
+     *                     type="string",
+     *                     description="JSON array of photo objects with metadata and base64 image data"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="status",
+     *                     type="string",
+     *                     description="New status for the task (typically 'data provided')",
+     *                     example="data provided"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="note",
+     *                     type="string",
+     *                     description="Optional note for the task",
+     *                     example="TEST TASK NOTE"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Task updated successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="Task updated successfully"
+     *             ),
+     *             @OA\Property(
+     *                 property="photos_count",
+     *                 type="integer",
+     *                 example=3
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid request or task not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Task not found or invalid status")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Validation failed"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="task_id", type="array", @OA\Items(type="string", example="Task ID is required"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function comm_update(Request $request){
         $task_id = trim($request->input('task_id'));
         $user_id = trim($request->input('user_id'));
@@ -316,6 +1020,96 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_task_photos",
+     *     summary="Get task photos",
+     *     description="Retrieve all photos associated with a specific task",
+     *     tags={"Tasks"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"task_id", "user_id"},
+     *                 @OA\Property(
+     *                     property="task_id",
+     *                     type="integer",
+     *                     description="ID of the task to get photos for",
+     *                     example=125950
+     *                 ),
+     *                 @OA\Property(
+     *                     property="user_id",
+     *                     type="integer",
+     *                     description="ID of the user requesting the photos",
+     *                     example=4
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Task photos retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="photos",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=18021),
+     *                     @OA\Property(property="user_id", type="integer", example=4),
+     *                     @OA\Property(property="task_id", type="integer", example=125950),
+     *                     @OA\Property(property="lat", type="string", example="34.052235"),
+     *                     @OA\Property(property="lng", type="string", example="-118.243683"),
+     *                     @OA\Property(property="altitude", type="string", example="89.5"),
+     *                     @OA\Property(property="bearing", type="string", example="120"),
+     *                     @OA\Property(property="magnetic_azimuth", type="string", example="180"),
+     *                     @OA\Property(property="photo_heading", type="string", example="45"),
+     *                     @OA\Property(property="accuracy", type="string", example="5"),
+     *                     @OA\Property(property="orientation", type="string", example="123"),
+     *                     @OA\Property(property="pitch", type="string", example="10"),
+     *                     @OA\Property(property="roll", type="string", example="5"),
+     *                     @OA\Property(property="photo_angle", type="string", example="90"),
+     *                     @OA\Property(property="created", type="string", example="2024-10-17 10:00:00"),
+     *                     @OA\Property(property="note", type="string", example="This is a sample note"),
+     *                     @OA\Property(property="photo", type="string", example="base64_image_data")
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="total_photos",
+     *                 type="integer",
+     *                 example=3
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Task not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Task not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Access denied",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Access denied to this task")
+     *         )
+     *     )
+     * )
+     */
     public function comm_task_photos(Request $request){
         $task_id = trim($request->input('task_id'));
         $user_id = trim($request->input('user_id'));
@@ -329,6 +1123,81 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    
+    /**
+     * @OA\Post(
+     *     path="/comm_delete_path",
+     *     summary="Delete a path",
+     *     description="Delete a specific path and all its associated points",
+     *     tags={"Paths"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"path_id"},
+     *                 @OA\Property(
+     *                     property="path_id",
+     *                     type="integer",
+     *                     description="ID of the path to delete",
+     *                     example=373
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Path deleted successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="Path deleted successfully"
+     *             ),
+     *             @OA\Property(
+     *                 property="deleted_path_id",
+     *                 type="integer",
+     *                 example=373
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Path not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Path not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Access denied",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Access denied to delete this path")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Failed to delete path")
+     *         )
+     *     )
+     * )
+     */
     public function comm_delete_path(Request $request){
         $uid = trim($request->input('path_id'));
 
@@ -341,6 +1210,81 @@ class ApiController extends Controller
         return response()->json($output);
     }
 
+    
+    /**
+     * @OA\Post(
+     *     path="/comm_delete_unassigned_photo",
+     *     summary="Delete unassigned photo",
+     *     description="Delete a photo that is not assigned to any task",
+     *     tags={"Photos"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"photo_id"},
+     *                 @OA\Property(
+     *                     property="photo_id",
+     *                     type="integer",
+     *                     description="ID of the unassigned photo to delete",
+     *                     example=17804
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Photo deleted successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="Photo deleted successfully"
+     *             ),
+     *             @OA\Property(
+     *                 property="deleted_photo_id",
+     *                 type="integer",
+     *                 example=17804
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Photo not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Photo not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Photo is assigned to a task",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Cannot delete photo that is assigned to a task")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Access denied",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Access denied to delete this photo")
+     *         )
+     *     )
+     * )
+     */
     public function comm_delete_unassigned_photo(Request $request){
         $uid = trim($request->input('photo_id'));
 
@@ -355,6 +1299,103 @@ class ApiController extends Controller
     }
 
 
+    /**
+     * @OA\Get(
+     *     path="/comm_get_lpis",
+     *     summary="Retrieve a list of LPIS records based on filters or bounding box",
+     *     description="Get LPIS (Land Parcel Identification System) records using bounding box coordinates or other filters",
+     *     tags={"LPIS"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         required=true,
+     *         description="Specifies the content type",
+     *         @OA\Schema(type="string"),
+     *         example="application/json"
+     *     ),
+     *     @OA\Parameter(
+     *         name="bbox",
+     *         in="query",
+     *         required=false,
+     *         description="Bounding box coordinates in format: min_lng,min_lat,max_lng,max_lat",
+     *         @OA\Schema(type="string"),
+     *         example="-0.6000,51.2000,-0.5900,51.2100"
+     *     ),
+     *     @OA\Parameter(
+     *         name="numberOfRecords",
+     *         in="query",
+     *         required=false,
+     *         description="Number of records per page for pagination",
+     *         @OA\Schema(type="integer", default=20),
+     *         example=20
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="LPIS records retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="records",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="parcel_id", type="string", example="GB123456789"),
+     *                     @OA\Property(property="area_ha", type="number", format="float", example=2.5),
+     *                     @OA\Property(property="land_use", type="string", example="Arable"),
+     *                     @OA\Property(property="geometry", type="string", example="POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2024-01-01T00:00:00Z"),
+     *                     @OA\Property(property="updated_at", type="string", format="date-time", example="2024-01-01T00:00:00Z")
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="total_records",
+     *                 type="integer",
+     *                 example=150
+     *             ),
+     *             @OA\Property(
+     *                 property="current_page",
+     *                 type="integer",
+     *                 example=1
+     *             ),
+     *             @OA\Property(
+     *                 property="records_per_page",
+     *                 type="integer",
+     *                 example=20
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid bounding box format",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Invalid bounding box format")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Validation failed"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="bbox", type="array", @OA\Items(type="string", example="Bounding box must be in correct format"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function comm_get_lpis(Request $request){
         
         $bbox = explode(",",$request->bbox);
@@ -407,6 +1448,129 @@ class ApiController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_lpis",
+     *     summary="Save LPIS",
+     *     description="Save a new LPIS (Land Parcel Identification System) record with geometry and metadata",
+     *     tags={"LPIS"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"identificator", "wgs_geometry", "wgs_max_lat", "wgs_min_lat", "wgs_max_lng", "wgs_min_lng"},
+     *                 @OA\Property(
+     *                     property="identificator",
+     *                     type="string",
+     *                     description="Unique identifier for the LPIS record",
+     *                     example="identificator"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="pa_description",
+     *                     type="string",
+     *                     description="Description of the parcel area",
+     *                     example="pa description"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wkt",
+     *                     type="string",
+     *                     description="Well-Known Text representation of the geometry",
+     *                     example="wkt data"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wgs_geometry",
+     *                     type="string",
+     *                     description="JSON array of coordinate objects with latitude and longitude"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wgs_max_lat",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Maximum latitude of the bounding box",
+     *                     example=21.22
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wgs_min_lat",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Minimum latitude of the bounding box",
+     *                     example=-98.32
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wgs_max_lng",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Maximum longitude of the bounding box",
+     *                     example=3.21
+     *                 ),
+     *                 @OA\Property(
+     *                     property="wgs_min_lng",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Minimum longitude of the bounding box",
+     *                     example=12.01
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         description="Accept header for response format",
+     *         @OA\Schema(type="string"),
+     *         example="application/json"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="LPIS record saved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="LPIS record saved successfully"
+     *             ),
+     *             @OA\Property(
+     *                 property="lpis_id",
+     *                 type="integer",
+     *                 example=123
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Validation failed"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="identificator", type="array", @OA\Items(type="string", example="Identificator is required")),
+     *                 @OA\Property(property="wgs_geometry", type="array", @OA\Items(type="string", example="Invalid geometry format"))
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Failed to save LPIS record")
+     *         )
+     *     )
+     * )
+     */
     public function comm_save_lpis(Request $request){
         try{
             $request->validate([
@@ -441,6 +1605,88 @@ class ApiController extends Controller
         }
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_get_lpis_record",
+     *     summary="Get a single LPIS record",
+     *     description="Retrieve a specific LPIS record by its ID",
+     *     tags={"LPIS"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"id"},
+     *                 @OA\Property(
+     *                     property="id",
+     *                     type="integer",
+     *                     description="ID of the LPIS record to retrieve",
+     *                     example=627847
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         description="Accept header for response format",
+     *         @OA\Schema(type="string"),
+     *         example="application/json"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="LPIS record retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="record",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=627847),
+     *                 @OA\Property(property="identificator", type="string", example="GB123456789"),
+     *                 @OA\Property(property="pa_description", type="string", example="Agricultural land parcel"),
+     *                 @OA\Property(property="wkt", type="string", example="POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"),
+     *                 @OA\Property(property="wgs_geometry", type="string", description="JSON array of coordinate objects"),
+     *                 @OA\Property(property="wgs_max_lat", type="number", format="float", example=51.21),
+     *                 @OA\Property(property="wgs_min_lat", type="number", format="float", example=51.2),
+     *                 @OA\Property(property="wgs_max_lng", type="number", format="float", example=-0.59),
+     *                 @OA\Property(property="wgs_min_lng", type="number", format="float", example=-0.6),
+     *                 @OA\Property(property="created_at", type="string", format="date-time", example="2024-01-01T00:00:00Z"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time", example="2024-01-01T00:00:00Z")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="LPIS record not found",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="LPIS record not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Validation failed"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="array", @OA\Items(type="string", example="ID is required"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function comm_get_lpis_by_id(Request $request){
         $request->validate([
             'id' => 'required',
@@ -461,6 +1707,113 @@ class ApiController extends Controller
         }
     }
 
+    /**
+     * @OA\Post(
+     *     path="/comm_shapes",
+     *     summary="Get shapes by coordinates",
+     *     description="Retrieve shapes based on bounding box coordinates",
+     *     tags={"Shapes"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"max_lat", "min_lat", "max_lng", "min_lng"},
+     *                 @OA\Property(
+     *                     property="max_lat",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Maximum latitude of the bounding box",
+     *                     example=51.21
+     *                 ),
+     *                 @OA\Property(
+     *                     property="min_lat",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Minimum latitude of the bounding box",
+     *                     example=51.2
+     *                 ),
+     *                 @OA\Property(
+     *                     property="max_lng",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Maximum longitude of the bounding box",
+     *                     example=-0.59
+     *                 ),
+     *                 @OA\Property(
+     *                     property="min_lng",
+     *                     type="number",
+     *                     format="float",
+     *                     description="Minimum longitude of the bounding box",
+     *                     example=-0.6
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Parameter(
+     *         name="Accept",
+     *         in="header",
+     *         description="Accept header for response format",
+     *         @OA\Schema(type="string"),
+     *         example="application/json"
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Shapes retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="success",
+     *                 type="boolean",
+     *                 example=true
+     *             ),
+     *             @OA\Property(
+     *                 property="shapes",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="shape_type", type="string", example="polygon"),
+     *                     @OA\Property(property="geometry", type="string", example="POLYGON((-0.6 51.2, -0.59 51.2, -0.59 51.21, -0.6 51.21, -0.6 51.2))"),
+     *                     @OA\Property(property="properties", type="string", description="JSON object containing shape properties"),
+     *                     @OA\Property(property="created_at", type="string", format="date-time", example="2024-01-01T00:00:00Z"),
+     *                     @OA\Property(property="updated_at", type="string", format="date-time", example="2024-01-01T00:00:00Z")
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="total_shapes",
+     *                 type="integer",
+     *                 example=5
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid coordinates",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Invalid coordinate values")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Validation failed"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="max_lat", type="array", @OA\Items(type="string", example="Maximum latitude is required"))
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function comm_shapes(Request $request){
         $maxEasting = $request->max_lng;
         $maxNorthing = $request->max_lat;
@@ -646,6 +1999,14 @@ class ApiController extends Controller
         ], 200);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_codepoint",
+     * security={{"bearerAuth":{}}},
+     * tags={"Codepoint"},
+     * @OA\Response(response=200, description="List of codepoint", @OA\JsonContent()),
+     * )
+     */
     public function comm_codepoint(Request $request)
     {
         $postcode = $request->query('postcode');
@@ -735,6 +2096,14 @@ class ApiController extends Controller
         return new UprnCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     * path="/comm_nhle",
+     * security={{"bearerAuth":{}}},
+     * tags={"NHLE"},
+     * @OA\Response(response=200, description="List of NHLE", @OA\JsonContent()),
+     * )
+     */
     public function comm_nhle(Request $request)
     {
         $request->validate([
@@ -796,6 +2165,107 @@ class ApiController extends Controller
         return new NhleCollection($data);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/comm_land_registry_inspire",
+     *     summary="Get land registry inspire records",
+     *     description="Retrieve land registry inspire records based on filters or bounding box coordinates",
+     *     tags={"Land Registry Inspire"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="inspire_id",
+     *         in="query",
+     *         required=false,
+     *         description="INSPIRE ID to filter records",
+     *         @OA\Schema(type="string"),
+     *         example="31444717"
+     *     ),
+     *     @OA\Parameter(
+     *         name="min_lng",
+     *         in="query",
+     *         required=false,
+     *         description="Minimum longitude for bounding box",
+     *         @OA\Schema(type="number", format="double"),
+     *         example="-2.5"
+     *     ),
+     *     @OA\Parameter(
+     *         name="min_lat",
+     *         in="query",
+     *         required=false,
+     *         description="Minimum latitude for bounding box",
+     *         @OA\Schema(type="number", format="double"),
+     *         example="51.2"
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lng",
+     *         in="query",
+     *         required=false,
+     *         description="Maximum longitude for bounding box",
+     *         @OA\Schema(type="number", format="double"),
+     *         example="-2.2"
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lat",
+     *         in="query",
+     *         required=false,
+     *         description="Maximum latitude for bounding box",
+     *         @OA\Schema(type="number", format="double"),
+     *         example="51.6"
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         required=false,
+     *         description="Page number for pagination",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of spatial boundary records",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="current_page",
+     *                 type="integer",
+     *                 example=1
+     *             ),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="gmlId", type="string", example="gml123"),
+     *                     @OA\Property(property="inspireId", type="integer", example=31444717),
+     *                     @OA\Property(property="label", type="integer", example=123),
+     *                     @OA\Property(property="nationalCadastralReference", type="integer", example=456),
+     *                     @OA\Property(property="validFrom", type="string", format="date-time", example="2024-01-01T00:00:00Z"),
+     *                     @OA\Property(property="beginLifespanVersion", type="string", format="date-time", example="2024-01-01T00:00:00Z"),
+     *                     @OA\Property(property="geom", type="object", description="GeoJSON geometry")
+     *                 )
+     *             ),
+     *             @OA\Property(
+     *                 property="per_page",
+     *                 type="integer",
+     *                 example=100
+     *             ),
+     *             @OA\Property(
+     *                 property="total",
+     *                 type="integer",
+     *                 example=150
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing bearer token"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Internal server error"
+     *     )
+     * )
+     */
     public function comm_land_registry_inspire(Request $request)
     {
         $inspire_id = $request->query('inspire_id');
