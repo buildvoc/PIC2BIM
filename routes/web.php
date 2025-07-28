@@ -19,6 +19,7 @@ use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\BuildingHeightController;
 use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\BuildingAttributesController;
+use App\Http\Controllers\NhleController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -61,6 +62,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/building_attributes_2', [BuildingAttributesController::class, 'index_2'])
         ->name('building_attributes_2');
+
+        Route::get('/nhle', [NhleController::class, 'index'])
+        ->name('nhle.index');
+
+        Route::get('/nhle-viewer', [NhleController::class, 'nhleViewer'])
+        ->name('nhle.viewer');
     });
     
 
