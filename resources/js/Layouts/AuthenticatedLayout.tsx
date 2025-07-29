@@ -505,14 +505,14 @@ export default function Authenticated({
                                         active={route().current("building_height")}
                                 >
                                     Building height
-                                </ResponsiveNavLink>
+                                </ResponsiveNavLink> */}
                                 <ResponsiveNavLink
                                     href={route("building_attributes")}
                                     active={route().current("building_attributes")}
                                 >
                                     Building attributes
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink
+                                {/* <ResponsiveNavLink
                                     href={route("building_attributes_2")}
                                     active={route().current("building_attributes_2")}
                                 >
