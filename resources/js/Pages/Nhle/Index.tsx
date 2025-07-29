@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Head, router, usePage, } from '@inertiajs/react';
+import { Head, router, usePage, useRemember, } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 import type { Feature } from "geojson";
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -11,12 +11,14 @@ import * as checkGeoJson from '@placemarkio/check-geojson';
 
 export function Index({ auth }: PageProps) {
 
-  const { shapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
+  const { shapes: mShapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
     shapes: any;
     selectedShape?: any;
     nhles: any;
     ogc_fid: string|null;
   }>().props;
+
+  const [shapes, setShapes] = useRemember(mShapes, `shapes`);
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -213,10 +215,19 @@ export function Index({ auth }: PageProps) {
   };
 
   const clearNhle = () => {
-    const geojsonSource = mapRef.current?.getSource(`nhle-${ogc_fid}`);
-    if (geojsonSource) {
-      mapRef.current?.removeLayer(`nhle-layer-${ogc_fid}`);
-      mapRef.current?.removeSource(`nhle-${ogc_fid}`);
+    const layers = mapRef.current?.getStyle()?.layers;
+    const sources = mapRef.current?.getStyle()?.sources;
+
+    layers?.forEach(layer => {
+      if (layer.id == `nhle-layer-${ogc_fid}`) {
+        mapRef.current?.removeLayer(layer.id);
+      }
+    });
+
+    for (const sourceId in sources) {
+      if (sourceId == `nhle-${ogc_fid}`) {
+        mapRef.current?.removeSource(sourceId);
+      }
     }
   }
 
