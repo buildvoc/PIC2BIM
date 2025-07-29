@@ -20,6 +20,8 @@ class NHLE extends Model
         'grade',
         'hyperlink',
         'ngr',
+        'latitude',
+        'longitude',
         'geom'
     ];
 
@@ -34,6 +36,8 @@ class NHLE extends Model
         'hyperlink' => 'string',
         'ngr' => 'string',
         'geom' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 
     public function newQuery()
@@ -46,6 +50,8 @@ class NHLE extends Model
             'grade',
             'hyperlink',
             'ngr',
+            'latitude',
+            'longitude',
             DB::raw('public.ST_AsGeoJSON(st_transform(geom, 4326)) as geom')
         );
     }

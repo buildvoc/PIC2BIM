@@ -19,6 +19,7 @@ use App\Http\Controllers\PhotoGalleryController;
 use App\Http\Controllers\BuildingHeightController;
 use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\BuildingAttributesController;
+use App\Http\Controllers\NhleController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -94,6 +95,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
         Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
         Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
+        Route::get('/nhle', [NhleController::class, 'index'])->name('nhle.index');
+        Route::get('/nhle-viewer', [NhleController::class, 'nhleViewer'])->name('nhle.viewer');
     });
     
     

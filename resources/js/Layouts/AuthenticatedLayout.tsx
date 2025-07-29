@@ -99,6 +99,22 @@ export default function Authenticated({
                                         >
                                             Unassigned Farmers
                                         </NavLink>
+                                        <NavLink
+                                            href={route("nhle.index")}
+                                            active={route().current(
+                                                "nhle.index"
+                                            )}
+                                        >
+                                            NHLE
+                                        </NavLink>
+                                        <NavLink
+                                            href={route("nhle.viewer")}
+                                            active={route().current(
+                                                "nhle.viewer"
+                                            )}
+                                        >
+                                            GeoJSON Validator
+                                        </NavLink>
                                     </div>
                                 </>
                             )}
