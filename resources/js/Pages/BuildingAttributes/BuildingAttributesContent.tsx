@@ -510,6 +510,16 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       getOrientation: (d:any) => [0, -d.bearing, 90],
       pickable: true,
       opacity: 1,
+      onClick: (info: any) => {
+        if (info && info.object) {
+          setSelectedPhoto(info.object);
+        }
+      },
+      onHover: (info: any) => {
+        if (map.current && map.current.getCanvas) {
+          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+        }
+      }
     });
     
 
