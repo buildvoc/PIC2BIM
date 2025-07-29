@@ -49,31 +49,6 @@ function NhleViewer({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any}
     mapRef.current.addControl(new mapboxgl.NavigationControl());
   };
 
-  const debounce = (func: (...args: any[]) => void, wait: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  };
-
-  useEffect(() => {
-    if (mapRef.current) {
-      const debouncedMoveEnd = debounce(() => {
-        if (mapRef.current && mapRef.current.getZoom() > 9) {
-          let bounds = getBoundingBox();
-          if (bounds) showPolygons(bounds);
-        }
-      }, 1000);
-
-      mapRef.current.on('moveend', debouncedMoveEnd);
-
-      return () => {
-        mapRef.current?.off('moveend', debouncedMoveEnd);
-      };
-    }
-  }, []);
-
   const showPolygons = async ({ maxLat, minLat, maxLng, minLng }: { maxLat: number | undefined, minLat: number | undefined, maxLng: number | undefined, minLng: number | undefined }) => {
     try {
       const response = await axios.post(route('comm_shapes'), {
@@ -108,7 +83,7 @@ function NhleViewer({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any}
         });
 
         mapRef.current?.addLayer({
-          id: `outline_${polygon.id}`,
+          id: `polygon_outline_${polygon.id}`,
           type: 'line',
           source: `polygon_${polygon.id}`,
           layout: {},
@@ -123,29 +98,13 @@ function NhleViewer({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any}
     }
   };
 
-  const getBoundingBox = () => {
-    if (mapRef.current) {
-      const bounds = mapRef.current.getBounds();
-      const maxLat = bounds?.getNorth();
-      const minLat = bounds?.getSouth();
-      const maxLng = bounds?.getEast();
-      const minLng = bounds?.getWest();
-
-
-      return {
-        maxLat,
-        minLat,
-        maxLng,
-        minLng
-      };
-    }
-    return null;
-  };
-
   useEffect(() => {
     if (mapRef.current && geoJsonKey && geoJson) {
       showNhle();
-      return () => clearNhle();
+      return () => {
+        clearNhle();
+        clearShapes();
+      }
     }
   }, [geoJsonKey, geoJson]);
 
@@ -177,8 +136,10 @@ function NhleViewer({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any}
 
     mapRef.current?.jumpTo({
       center: bounds.getCenter(),
-      zoom: 10,
+      zoom: 9,
     });
+
+    showPolygons({ maxLat: bounds.getNorth(), minLat: bounds.getSouth(), maxLng: bounds.getEast(), minLng: bounds.getWest() })
 
     mapRef.current?.on('click', `nhle-layer-${geoJsonKey}`, (e) => {
       new mapboxgl.Popup()
@@ -195,8 +156,37 @@ function NhleViewer({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any}
   };
 
   const clearNhle = () => {
-    mapRef.current?.removeLayer(`nhle-layer-${geoJsonKey}`);
-    mapRef.current?.removeSource(geoJsonKey);
+    const layers = mapRef.current?.getStyle()?.layers;
+    const sources = mapRef.current?.getStyle()?.sources;
+
+    layers?.forEach(layer => {
+      if (layer.id == `nhle-layer-${geoJsonKey}`) {
+        mapRef.current?.removeLayer(layer.id);
+      }
+    });
+
+    for (const sourceId in sources) {
+      if (sourceId == geoJsonKey) {
+        mapRef.current?.removeSource(sourceId);
+      }
+    }
+  }
+
+  const clearShapes = () => {
+    const layers = mapRef.current?.getStyle()?.layers;
+    const sources = mapRef.current?.getStyle()?.sources;
+
+    layers?.forEach(layer => {
+      if (layer.id.startsWith('polygon_')) {
+        mapRef.current?.removeLayer(layer.id);
+      }
+    });
+
+    for (const sourceId in sources) {
+      if (sourceId.startsWith('polygon_')) {
+        mapRef.current?.removeSource(sourceId);
+      }
+    }
   }
 
   const getCoordinatesFromFeature = (feature: Feature) => {
