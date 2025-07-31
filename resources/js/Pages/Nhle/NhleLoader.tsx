@@ -10,6 +10,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Button from '@mui/material/Button';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import NhleViewer from './NhleViewer';
+import NhleViewerDeckgl from './NhleViewerDeckgl';
 
 export function NhleLoader({ auth }: PageProps) {
 
@@ -87,7 +88,7 @@ export function NhleLoader({ auth }: PageProps) {
             </AccordionDetails>
           </Accordion>
 
-          <NhleViewer geoJsonKey={geoJsonKey} geoJson={geoJson} />
+          <NhleViewerDeckgl geoJsonKey={geoJsonKey} geoJson={geoJson} />
         </>
       </AuthenticatedLayout>
     </>
