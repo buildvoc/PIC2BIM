@@ -171,9 +171,7 @@ export function Index({ auth }: PageProps) {
       iconMapping: ICON_MAPPING,
       getPosition: d => d.coordinates,
       getIcon: d => `marker-${romanToInt(d.properties.grade)}`, 
-      sizeUnits: 'pixels',
-      sizeScale: 2,
-      getSize: 15,
+      getSize: 40,
       getPixelOffset: [0, -7], 
       onHover: info => {
         if (info.object && info.object.properties) {
