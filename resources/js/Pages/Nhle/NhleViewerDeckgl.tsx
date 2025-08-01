@@ -4,26 +4,36 @@ import { DeckGL } from '@deck.gl/react';
 import { IconLayer, GeoJsonLayer, IconLayerProps } from '@deck.gl/layers';
 import Map from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import type { GeoJSON, Feature, Position, Point, Geometry, GeoJsonProperties } from 'geojson';
+import type { GeoJSON, Feature, Position, Geometry } from 'geojson';
 import type { MapViewState } from '@deck.gl/core';
 import { WebMercatorViewport } from '@deck.gl/core';
 import { bbox } from '@turf/turf';
 
-interface NhleProperties {
-  id: string;
+interface NhleFeatureState {
+  id: string|number;
   coordinates: [longitude: number, latitude: number];
   properties: {Name: string;}
+}
+
+interface NhleFeature extends GeoJSON.Feature {
+  id: string|number;
+  geometry: Geometry;
+  properties: {Name: string;};
 }
 
 interface FetchedPolygonsData extends GeoJSON.FeatureCollection {
   features: Feature[];
 }
 
-function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: any }) {
+interface MGeoJson extends GeoJSON.FeatureCollection {
+  features: NhleFeature[];
+}
+
+function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson: MGeoJson }) {
 
   const mapRef = useRef<any>(null);
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/streets-v11");
-  const [iconLayerData, setIconLayerData] = useState<any>([]);
+  const [iconLayerData, setIconLayerData] = useState<NhleFeatureState[]>([]);
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: 0.1,
     latitude: 52.5,
@@ -34,7 +44,7 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
 
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
 
-  const [hoverInfo, setHoverInfo] = useState<any>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
 
   const mapViewClickHandler = useCallback(() => {
     setMapStyle("mapbox://styles/mapbox/streets-v11");
@@ -45,14 +55,15 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
   }, []);
 
   useEffect(() => {
-    if (geoJson) {
-      const extractedCoords = extractAllPointCoordinates(geoJson);
-      const formattedData = extractedCoords.map((coords: Position, index: number) => ({
+    if (geoJson && geoJson.features) {
+      console.log(geoJson);
+
+      const extractedData = geoJson.features.map((feature, index) => ({
         id: `marker-${index}`,
-        coordinates: coords,
-        Name: 'Test'
+        coordinates: extractCoordsFromGeometry(feature.geometry)[0] as [longitude: number, latitude: number],
+        properties: feature.properties,
       }));
-      setIconLayerData(formattedData);
+      setIconLayerData(extractedData);
 
       try {
         const boundingBox = bbox(geoJson); // [minLng, minLat, maxLng, maxLat]
@@ -74,7 +85,6 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
   }, [geoJson]);
 
   useEffect(() => {
-
     const fetchPolygons = async () => {
       let maxLat, minLat, maxLng, minLng;
 
@@ -96,17 +106,17 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
         }
       }
     };
-    fetchPolygons();
+    if (geoJson) fetchPolygons();
   }, [geoJson]);
 
-  const iconLayerProps: IconLayerProps<NhleProperties> = {
+  const iconLayerProps: IconLayerProps<NhleFeatureState> = {
     id: geoJsonKey,
     data: iconLayerData,
     pickable: true,
     iconAtlas: ICON_ATLAS,
     iconMapping: ICON_MAPPING,
     getPosition: d => d.coordinates,
-    getIcon: d => d.id,
+    getIcon: d => d.id.toString(), 
   };
 
   const layers = [
@@ -144,19 +154,15 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
     // }),
     new IconLayer({
       ...iconLayerProps,
-      getSize: 1000,
-      sizeUnits: 'meters',
-      sizeScale: 2,
-      sizeMinPixels: 6,
-      getPixelOffset: [0, -10], // Adjust if icon origin is not centered at the bottom
+      getSize: 40,
       onClick: (info) => {
         if (info.object && info.object.properties) {
           console.log('Clicked:', info.object.properties.Name);
-          setHoverInfo(info);
+          setHoverInfo(info as any);
         }
       },
       onHover: (info) => {
-        setHoverInfo(info.object ? info : null);
+        setHoverInfo(info.object ? info as any : null);
       },
       updateTriggers: {
         data: iconLayerData,
@@ -168,7 +174,7 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
       pickable: false,
       stroked: true,
       filled: true,
-      lineWidthMinPixels: 2,
+      lineWidthMinPixels: 1,
       getFillColor: [234, 49, 34, 0],
       getLineColor: [234, 49, 34, 255],
     }),
@@ -178,72 +184,42 @@ function NhleViewerDeckgl({ geoJsonKey, geoJson }: { geoJsonKey: string, geoJson
     return info.isPicking ? 'pointer' : 'grab';
   }, []);
 
-  const extractAllPointCoordinates = (geojsonData: GeoJSON) => {
+  const extractCoordsFromGeometry = (geometry: Geometry) => {
     const allCoords: Position[] = [];
 
-    let parsedGeojson = geojsonData
+    if (!geometry || !geometry.type) {
+      return allCoords;
+    }
 
-    const extractCoordsFromGeometry = (geometry: Geometry) => {
-      if (!geometry || !geometry.type) {
-        return;
-      }
-
-      switch (geometry.type) {
-        case 'Point':
-          allCoords.push(geometry.coordinates);
-          break;
-        case 'MultiPoint':
-        case 'LineString':
-          geometry.coordinates.forEach(coord => allCoords.push(coord));
-          break;
-        case 'Polygon':
-        case 'MultiLineString':
-          geometry.coordinates.forEach(ringOrLine => {
-            ringOrLine.forEach(coord => allCoords.push(coord));
+    switch (geometry.type) {
+      case 'Point':
+        allCoords.push(geometry.coordinates);
+        break;
+      case 'MultiPoint':
+      case 'LineString':
+        geometry.coordinates.forEach(coord => allCoords.push(coord));
+        break;
+      case 'Polygon':
+      case 'MultiLineString':
+        geometry.coordinates.forEach(ringOrLine => {
+          ringOrLine.forEach(coord => allCoords.push(coord));
+        });
+        break;
+      case 'MultiPolygon':
+        geometry.coordinates.forEach(polygon => {
+          polygon.forEach(ring => {
+            ring.forEach(coord => allCoords.push(coord));
           });
-          break;
-        case 'MultiPolygon':
-          geometry.coordinates.forEach(polygon => {
-            polygon.forEach(ring => {
-              ring.forEach(coord => allCoords.push(coord));
-            });
-          });
-          break;
-        case 'GeometryCollection':
-          geometry.geometries.forEach(geom => extractCoordsFromGeometry(geom));
-          break;
-        default:
-          break;
-      }
-    };
-
-    if (parsedGeojson.type === 'Feature') {
-      extractCoordsFromGeometry(parsedGeojson.geometry);
-    } else if (parsedGeojson.type === 'FeatureCollection') {
-      parsedGeojson.features.forEach(feature => {
-        extractCoordsFromGeometry(feature.geometry);
-      });
-    } else if (parsedGeojson.type) {
-      extractCoordsFromGeometry(parsedGeojson);
+        });
+        break;
+      case 'GeometryCollection':
+        geometry.geometries.forEach(geom => extractCoordsFromGeometry(geom));
+        break;
+      default:
+        break;
     }
 
     return allCoords;
-  };
-
-  const extractAllPointData = (geoJson: any): { id: string; coordinates: Position; properties: GeoJsonProperties }[] => {
-    const points: { id: string; coordinates: Position; properties: GeoJsonProperties }[] = [];
-    if (geoJson && geoJson.features as Feature[]) {
-      geoJson.features.forEach((feature: Feature, index: number) => {
-        if (feature.geometry && feature.geometry.type === 'Point') {
-          points.push({
-            id: `marker-${index}`,
-            coordinates: feature.geometry.coordinates as Position,
-            properties: feature.properties,
-          });
-        }
-      });
-    }
-    return points;
   };
 
   return (
@@ -313,4 +289,4 @@ const ToggleControl: React.FC<ToggleControlProps> = ({ onMapViewClick, onSatelli
 };
 
 
-export default NhleViewerDeckgl;
+export default memo(NhleViewerDeckgl);
