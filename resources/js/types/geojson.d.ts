@@ -1,171 +1,202 @@
+// Note: as of the RFC 7946 version of GeoJSON, Coordinate Reference Systems
+// are no longer supported. (See https://tools.ietf.org/html/rfc7946#appendix-B)}
+
+export as namespace GeoJSON;
+
 /**
- * Typescript types for the GeoJSON RFC7946 specification. This is not fully RFC-compliant due to lack of support for
- * ranged number data types.
- *
- * See https://tools.ietf.org/html/rfc7946
+ * The valid values for the "type" property of GeoJSON geometry objects.
+ * https://tools.ietf.org/html/rfc7946#section-1.4
  */
-export declare namespace GeoJSON {
+export type GeoJsonGeometryTypes = Geometry["type"];
+
+/**
+ * The value values for the "type" property of GeoJSON Objects.
+ * https://tools.ietf.org/html/rfc7946#section-1.4
+ */
+export type GeoJsonTypes = GeoJSON["type"];
+
+/**
+ * Bounding box
+ * https://tools.ietf.org/html/rfc7946#section-5
+ */
+export type BBox = [number, number, number, number] | [number, number, number, number, number, number];
+
+/**
+ * A Position is an array of coordinates.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.1
+ * Array should contain between two and three elements.
+ * The previous GeoJSON specification allowed more elements (e.g., which could be used to represent M values),
+ * but the current specification only allows X, Y, and (optionally) Z to be defined.
+ *
+ * Note: the type will not be narrowed down to `[number, number] | [number, number, number]` due to
+ * marginal benefits and the large impact of breaking change.
+ *
+ * See previous discussions on the type narrowing:
+ * - {@link https://github.com/DefinitelyTyped/DefinitelyTyped/pull/21590|Nov 2017}
+ * - {@link https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/67773|Dec 2023}
+ * - {@link https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/71441| Dec 2024}
+ *
+ * One can use a
+ * {@link https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates|user-defined type guard that returns a type predicate}
+ * to determine if a position is a 2D or 3D position.
+ *
+ * @example
+ * import type { Position } from 'geojson';
+ *
+ * type StrictPosition = [x: number, y: number] | [x: number, y: number, z: number]
+ *
+ * function isStrictPosition(position: Position): position is StrictPosition {
+ *   return position.length === 2 || position.length === 3
+ * };
+ *
+ * let position: Position = [-116.91, 45.54];
+ *
+ * let x: number;
+ * let y: number;
+ * let z: number | undefined;
+ *
+ * if (isStrictPosition(position)) {
+ *   // `tsc` would throw an error if we tried to destructure a fourth parameter
+ * 	 [x, y, z] = position;
+ * } else {
+ * 	 throw new TypeError("Position is not a 2D or 3D point");
+ * }
+ */
+export type Position = number[];
+
+/**
+ * The base GeoJSON object.
+ * https://tools.ietf.org/html/rfc7946#section-3
+ * The GeoJSON specification also allows foreign members
+ * (https://tools.ietf.org/html/rfc7946#section-6.1)
+ * Developers should use "&" type in TypeScript or extend the interface
+ * to add these foreign members.
+ */
+export interface GeoJsonObject {
+    // Don't include foreign members directly into this type def.
+    // in order to preserve type safety.
+    // [key: string]: any;
     /**
-     * Inside this document, the term "geometry type" refers to seven case-sensitive strings: "Point", "MultiPoint",
-     * "LineString", "MultiLineString", "Polygon", "MultiPolygon", and "GeometryCollection".
+     * Specifies the type of GeoJSON object.
      */
-    export type Geometry = Point | MultiPoint | LineString | MultiLineString | Polygon | MultiPolygon
-        | GeometryCollection;
-    export type GeometryType = Geometry["type"];
-
+    type: GeoJsonTypes;
     /**
-     * ...the term "GeoJSON types" refers to nine case-sensitive strings: "Feature", "FeatureCollection", and the
-     * geometry types listed above.
+     * Bounding box of the coordinate range of the object's Geometries, Features, or Feature Collections.
+     * The value of the bbox member is an array of length 2*n where n is the number of dimensions
+     * represented in the contained geometries, with all axes of the most southwesterly point
+     * followed by all axes of the more northeasterly point.
+     * The axes order of a bbox follows the axes order of geometries.
+     * https://tools.ietf.org/html/rfc7946#section-5
      */
-    export type GeoJson = Geometry | Feature | FeatureCollection;
-    export type GeoJsonType = GeoJson["type"];
+    bbox?: BBox | undefined;
+}
 
-    // types
+/**
+ * Union of GeoJSON objects.
+ */
+export type GeoJSON<G extends Geometry | null = Geometry, P = GeoJsonProperties> =
+    | G
+    | Feature<G, P>
+    | FeatureCollection<G, P>;
 
+/**
+ * Geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3
+ */
+export type Geometry = Point | MultiPoint | LineString | MultiLineString | Polygon | MultiPolygon | GeometryCollection;
+export type GeometryObject = Geometry;
+
+/**
+ * Point geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.2
+ */
+export interface Point extends GeoJsonObject {
+    type: "Point";
+    coordinates: Position;
+}
+
+/**
+ * MultiPoint geometry object.
+ *  https://tools.ietf.org/html/rfc7946#section-3.1.3
+ */
+export interface MultiPoint extends GeoJsonObject {
+    type: "MultiPoint";
+    coordinates: Position[];
+}
+
+/**
+ * LineString geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.4
+ */
+export interface LineString extends GeoJsonObject {
+    type: "LineString";
+    coordinates: Position[];
+}
+
+/**
+ * MultiLineString geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.5
+ */
+export interface MultiLineString extends GeoJsonObject {
+    type: "MultiLineString";
+    coordinates: Position[][];
+}
+
+/**
+ * Polygon geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.6
+ */
+export interface Polygon extends GeoJsonObject {
+    type: "Polygon";
+    coordinates: Position[][];
+}
+
+/**
+ * MultiPolygon geometry object.
+ * https://tools.ietf.org/html/rfc7946#section-3.1.7
+ */
+export interface MultiPolygon extends GeoJsonObject {
+    type: "MultiPolygon";
+    coordinates: Position[][][];
+}
+
+/**
+ * Geometry Collection
+ * https://tools.ietf.org/html/rfc7946#section-3.1.8
+ */
+export interface GeometryCollection<G extends Geometry = Geometry> extends GeoJsonObject {
+    type: "GeometryCollection";
+    geometries: G[];
+}
+
+export type GeoJsonProperties = { [name: string]: any } | null;
+
+/**
+ * A feature object which contains a geometry and associated properties.
+ * https://tools.ietf.org/html/rfc7946#section-3.2
+ */
+export interface Feature<G extends Geometry | null = Geometry, P = GeoJsonProperties> extends GeoJsonObject {
+    type: "Feature";
     /**
-     * A position is an array of numbers. There MUST be two or more elements. The first two elements are longitude and
-     * latitude, or easting and northing, precisely in that order and using decimal numbers. Altitude or elevation MAY
-     * be included as an optional third element.
-     *
-     * Implementations SHOULD NOT extend positions beyond three elements because the semantics of extra elements are
-     * unspecified and ambiguous.
+     * The feature's geometry
      */
-    export type Position = [longitude: number, latitude: number, elevation?: number]
-
-    export type Record = { [key in string | number]: unknown };
-
+    geometry: G;
     /**
-     * Properties inherit to all GeoJSON types
+     * A value that uniquely identifies this feature in a
+     * https://tools.ietf.org/html/rfc7946#section-3.2.
      */
-    export interface GeometryBase extends Record {
-        /**
-         * A GeoJSON object MAY have a member named "bbox" to include information on the coordinate range for its
-         * Geometries, Features, or FeatureCollections. The value of the bbox member MUST be an array of length 2*n
-         * where n is the number of dimensions represented in the contained geometries, with all axes of the most
-         * southwesterly point followed by all axes of the more northeasterly point. The axes order of a bbox follows
-         * the axes order of geometries.
-         */
-        bbox?: number[];
-
-        /**
-         * A GeoJSON object MAY have other members.
-         *
-         * Members not described in this specification ("foreign members") MAY be used in a GeoJSON document. Note that
-         * support for foreign members can vary across implementations, and no normative processing model for foreign
-         * members is defined.
-         */
-    }
-
-    // geometry types
-
-    export interface Point extends GeometryBase {
-        type: "Point";
-        /**
-         * For type "Point", the "coordinates" member is a single position.
-         */
-        coordinates: Position;
-    }
-
-    export interface MultiPoint extends GeometryBase {
-        type: "MultiPoint";
-        /**
-         * For type "MultiPoint", the "coordinates" member is an array of positions.
-         */
-        coordinates: Position[];
-    }
-
-    export interface LineString extends GeometryBase {
-        type: "LineString";
-        /**
-         * For type "LineString", the "coordinates" member is an array of two or more positions.
-         */
-        coordinates: { 0: Position, 1: Position } & Position[]
-    }
-
-    export interface MultiLineString extends GeometryBase {
-        type: "MultiLineString";
-        /**
-         *  For type "MultiLineString", the "coordinates" member is an array of LineString coordinate arrays.
-         */
-        coordinates: LineString["coordinates"][];
-    }
-
+    id?: string | number | undefined;
     /**
-     * To specify a constraint specific to Polygons, it is useful to introduce the concept of a linear ring:
-     *  - A linear ring is a closed LineString with four or more positions.
-     *  - The first and last positions are equivalent, and they MUST contain identical values; their representation
-     *    SHOULD also be identical.
-     *  - A linear ring is the boundary of a surface or the boundary of a hole in a surface.
-     *  - A linear ring MUST follow the right-hand rule with respect to the area it bounds, i.e., exterior rings are
-     *  counterclockwise, and holes are clockwise.
+     * Properties associated with this feature.
      */
-    export type LinearRing = { 0: Position, 1: Position, 2: Position, 3: Position } & Position[];
+    properties: P;
+}
 
-    export interface Polygon extends GeometryBase {
-        type: "Polygon";
-        /**
-         * For type "Polygon", the "coordinates" member MUST be an array of linear ring coordinate arrays.
-         *
-         * For Polygons with more than one of these rings, the first MUST be the exterior ring, and any others MUST be
-         * interior rings. The exterior ring bounds the surface, and the interior rings (if present) bound holes within
-         * the surface.
-         */
-        coordinates: LinearRing[];
-    }
-
-    export interface MultiPolygon extends GeometryBase {
-        type: "MultiPolygon";
-        /**
-         * For type "MultiPolygon", the "coordinates" member is an array of Polygon coordinate arrays.
-         */
-        coordinates: Polygon["coordinates"][];
-    }
-
-    export interface GeometryCollection {
-        /**
-         * A GeoJSON object with type "GeometryCollection" is a Geometry object.
-         */
-        type: "GeometryCollection";
-        /**
-         *  A GeometryCollection has a member with the name "geometries". The value of "geometries" is an array. Each
-         *  element of this array is a GeoJSON Geometry object. It is possible for this array to be empty.
-         */
-        geometries: Geometry[];
-    }
-
-    // GeoJSON types
-
-    export interface Feature {
-        /**
-         * A Feature object has a "type" member with the value "Feature".
-         */
-        type: "Feature";
-        /**
-         * If a Feature has a commonly used identifier, that identifier SHOULD be included as a member of the Feature object
-         * with the name "id", and the value of this member is either a JSON string or number.
-         */
-        id?: string | number;
-        /**
-         * A Feature object has a member with the name "geometry". The value of the geometry member SHALL be either a
-         * Geometry object as defined above or, in the case that the Feature is unlocated, a JSON null value.
-         */
-        geometry: Geometry | null;
-        /**
-         * A Feature object has a member with the name "properties". The value of the properties member is an object
-         * (any JSON object or a JSON null value).
-         */
-        properties: Record | null;
-    }
-
-    export interface FeatureCollection {
-        /**
-         * A GeoJSON object with the type "FeatureCollection" is a FeatureCollection object.
-         */
-        type: "FeatureCollection";
-        /**
-         * A FeatureCollection object has a member with the name "features". The value of "features" is a JSON array. Each
-         * element of the array is a Feature object as defined above. It is possible for this array to be empty.
-         */
-        features: Feature[];
-    }
+/**
+ * A collection of feature objects.
+ *  https://tools.ietf.org/html/rfc7946#section-3.3
+ */
+export interface FeatureCollection<G extends Geometry | null = Geometry, P = GeoJsonProperties> extends GeoJsonObject {
+    type: "FeatureCollection";
+    features: Array<Feature<G, P>>;
 }
