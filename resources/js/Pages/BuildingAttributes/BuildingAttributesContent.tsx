@@ -556,7 +556,10 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         height: 256,
         anchorY: 128
       }),
-      getPosition: (d: any) => [d.coordinates[0], d.coordinates[1], d.coordinates[2] + 5],
+      getPosition: (d: any) => {
+        const offsetLng = 0.00003;
+        return [d.coordinates[0] + offsetLng, d.coordinates[1], d.coordinates[2] + 5];
+      },
       getSize: 80,
       getAngle: (d: any) => (d.bearing || 0),
       pickable: true,
@@ -660,7 +663,10 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         height: 256,
         anchorY: 128
       }),
-      getPosition: (d: any) => [d.coordinates[0], d.coordinates[1], d.coordinates[2] + 5],
+      getPosition: (d: any) => {
+        const offsetLng = 0.00003;
+        return [d.coordinates[0] + offsetLng, d.coordinates[1], d.coordinates[2] + 5];
+      },
       getSize: 80,
       getAngle: (d: any) => (d.bearing || 0),
       pickable: true,
