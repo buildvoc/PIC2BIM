@@ -107,14 +107,6 @@ export default function Authenticated({
                                         >
                                             NHLE
                                         </NavLink>
-                                        <NavLink
-                                            href={route("nhle.viewer")}
-                                            active={route().current(
-                                                "nhle.viewer"
-                                            )}
-                                        >
-                                            GeoJSON Validator
-                                        </NavLink>
                                     </div>
                                 </>
                             )}
@@ -438,12 +430,20 @@ export default function Authenticated({
                         </ResponsiveNavLink>
                         
                         {userRoles.includes(2) && userRoles.length > 0 && (
+                          <>
                             <ResponsiveNavLink
                                 href={route("users.unassigned")}
                                 active={route().current("users.unassigned")}
                             >
                                 Unassigned Farmers
                             </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                href={route("nhle.index")}
+                                active={route().current("nhle.index")}
+                            >
+                                NHLE
+                            </ResponsiveNavLink>
+                          </>
                         )}
 
                         {userRoles.includes(3) && userRoles.length > 0 && (
