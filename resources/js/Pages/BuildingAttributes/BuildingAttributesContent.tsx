@@ -807,7 +807,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       {/* Slide-in panel */}
       <div
         className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedPhoto ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: 350, maxWidth: '90vw' }}
+        style={{
+          width: 350,
+          maxWidth: '90vw',
+          top: 'auto',
+          bottom: 0,
+          maxHeight: showLazSection ? 'calc(100vh - 194px)' : 'calc(100vh - 124px)'
+        }}
       >
         {selectedPhoto && (
           <div className="h-full flex flex-col">
