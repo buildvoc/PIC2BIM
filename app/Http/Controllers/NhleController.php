@@ -39,9 +39,4 @@ class NhleController extends Controller
             'ogc_fid' => $ogc_fid
         ]);
     }
-
-    public function nhleViewer()
-    {
-        return Inertia::render('Nhle/NhleLoader');
-    }
 }
