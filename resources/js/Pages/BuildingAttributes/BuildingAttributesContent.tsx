@@ -9,6 +9,7 @@ import { LAZ_FILES_DIRECTORY, LAZ_FILES_LIST_URL } from "../BuildingHeight/const
 import { transformLazData } from "../BuildingHeight/utils/projection";
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
+import * as THREE from 'three';
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -506,7 +507,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       const cameraLayer = new window.deck.ScenegraphLayer({
         id: 'deckgl-exif3d-camera-layer',
         data,
-        scenegraph: "./marker.glb",
+        scenegraph: "./marker.gltf",
         getPosition: (d:any) => d.coordinates,
         getColor: (d:any) => [64, 64, 64],
         getOrientation: (d:any) => [0, -d.bearing, 90],
@@ -535,17 +536,15 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
           id: d.id,
           mask: false,
         }),
-        getPosition: (d: any) => [
-          d.coordinates[0],
-          d.coordinates[1],
-          d.coordinates[2] + 10,
-        ],
+        getPosition: (d: any) => {
+          const bearing = d.bearing || 0;
+          return getOffsetPosition(d.coordinates, bearing, -1); // 1.5 meters behind
+        },
         getAngle: (d: any) => (d.bearing || 0),
-        getSize: () => 2,
-        sizeScale: 2,
+        getSize: () => 5,
+        sizeScale: 15,
         billboard: true,
         pickable: true,
-        sizeUnits: 'meters',
         onClick: (info: any) => {
           if (info && info.object) {
             setSelectedPhoto(info.object);
@@ -593,6 +592,18 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   }, [terrainReady, processedBuildingData, processedPhotoData]);
   
 
+  // Helper function to calculate offset position based on bearing
+  const getOffsetPosition = (coordinates: [number, number, number], bearing: number, distance: number) => {
+    const rad = (bearing * Math.PI) / 180;
+    const offsetLat = distance * Math.cos(rad) / 111111; // Rough meters to degrees conversion
+    const offsetLon = distance * Math.sin(rad) / (111111 * Math.cos(coordinates[1] * Math.PI / 180));
+    return [
+      coordinates[0] + offsetLon,
+      coordinates[1] + offsetLat,
+      coordinates[2] + 6
+    ];
+  };
+
   // Create combined photo layers (camera and photo icon)
   const createPhotoLayers = (data: any[]) => {
     const cameraLayer = new window.deck.ScenegraphLayer({
@@ -605,6 +616,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       getScale: [0.2, 0.2, 0.2],
       pickable: true,
       opacity: 1,
+      getScene: (scene:any, d: any) => {
+        const mesh = scene.children[0];
+        mesh.material.map = new THREE.TextureLoader().load(d.photo.link);
+        mesh.material.needsUpdate = true;
+        return scene;
+      },
       onClick: (info: any) => {
         if (info && info.object) {
           setSelectedPhoto(info.object);
@@ -627,17 +644,15 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         id: d.id,
         mask: false,
       }),
-      getPosition: (d: any) => [
-        d.coordinates[0],
-        d.coordinates[1],
-        d.coordinates[2] +10,
-      ],
+      getPosition: (d: any) => {
+        const bearing = d.bearing || 0;
+        return getOffsetPosition(d.coordinates, bearing, -1); // 1.5 meters behind
+      },
       getAngle: (d: any) => (d.bearing || 0),
-      getSize: () => 2,
-      sizeScale: 2,
+      getSize: () => 5,
+      sizeScale: 15,
       billboard: true,
       pickable: true,
-      sizeUnits: 'meters',
       onClick: (info: any) => {
         if (info && info.object) {
           setSelectedPhoto(info.object);
@@ -656,7 +671,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const debouncedCreateOverlay = useMemo(
     () => debounce(createBuildingOverlay, 300),
     [createBuildingOverlay, debounce]
-  );
+  )
   
 
   useEffect(() => {
