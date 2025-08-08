@@ -9,7 +9,6 @@ import { LAZ_FILES_DIRECTORY, LAZ_FILES_LIST_URL } from "../BuildingHeight/const
 import { transformLazData } from "../BuildingHeight/utils/projection";
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
-import * as THREE from 'three';
 
 const INITIAL_VIEW_STATE = {
   longitude: -0.7934,
@@ -616,12 +615,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       getScale: [0.2, 0.2, 0.2],
       pickable: true,
       opacity: 1,
-      getScene: (scene:any, d: any) => {
-        const mesh = scene.children[0];
-        mesh.material.map = new THREE.TextureLoader().load(d.photo.link);
-        mesh.material.needsUpdate = true;
-        return scene;
-      },
       onClick: (info: any) => {
         if (info && info.object) {
           setSelectedPhoto(info.object);
