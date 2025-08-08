@@ -501,28 +501,67 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     });
     
 
-    const cameraLayer = new window.deck.ScenegraphLayer({
-      id: 'deckgl-exif3d-camera-layer',
-      data: photoData,
-      scenegraph: "./marker.glb",
-      getPosition: (d:any) => d.coordinates,
-      getColor: (d:any) => [64, 64, 64],
-      getOrientation: (d:any) => [0, -d.bearing, 90],
-      getScale: [0.2, 0.2, 0.2],
-      pickable: true,
-      opacity: 1,
-      onClick: (info: any) => {
-        if (info && info.object) {
-          setSelectedPhoto(info.object);
+    // Create combined photo layers (camera and photo icon)
+    const createPhotoLayers = (data: any[]) => {
+      const cameraLayer = new window.deck.ScenegraphLayer({
+        id: 'deckgl-exif3d-camera-layer',
+        data,
+        scenegraph: "./marker.glb",
+        getPosition: (d:any) => d.coordinates,
+        getColor: (d:any) => [64, 64, 64],
+        getOrientation: (d:any) => [0, -d.bearing, 90],
+        getScale: [0.2, 0.2, 0.2],
+        pickable: true,
+        opacity: 1,
+        onClick: (info: any) => {
+          if (info && info.object) {
+            setSelectedPhoto(info.object);
+          }
+        },
+        onHover: (info: any) => {
+          if (map.current && map.current.getCanvas) {
+            map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+          }
         }
-      },
-      onHover: (info: any) => {
-        if (map.current && map.current.getCanvas) {
-          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+      });
+
+      const photoIconLayer = new window.deck.IconLayer({
+        id: "photo-icon-layer",
+        data,
+        getIcon: (d: any) => ({
+          url: d.link,
+          height: 240,
+          width: 180,
+          id: d.id,
+          mask: false,
+        }),
+        getPosition: (d: any) => [
+          d.coordinates[0],
+          d.coordinates[1],
+          d.coordinates[2] + 10,
+        ],
+        getAngle: (d: any) => (d.bearing || 0),
+        getSize: () => 2,
+        sizeScale: 2,
+        billboard: true,
+        pickable: true,
+        sizeUnits: 'meters',
+        onClick: (info: any) => {
+          if (info && info.object) {
+            setSelectedPhoto(info.object);
+          }
+        },
+        onHover: (info: any) => {
+          if (map.current && map.current.getCanvas) {
+            map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+          }
         }
-      }
-    });
-    
+      });
+
+      return [cameraLayer, photoIconLayer];
+    };
+
+    const [cameraLayer, photoIconLayer] = createPhotoLayers(photoData);
 
     const markerLayer = new window.deck.IconLayer({
       id: 'deckgl-exif-icon-layer',
@@ -545,25 +584,27 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       },
       getTooltip: (info: any) => info.object ? `Photo ID: ${info.object.id}` : null
     });
-    
-    // Add IconLayer with photos as icons
-    const photoIconLayer = new window.deck.IconLayer({
-      id: "photo-icon-layer",
-      data: photoData,
-      getIcon: (d: any) => ({
-        url: d.link,
-        width: 256,
-        height: 256,
-        anchorY: 128
-      }),
-      getPosition: (d: any) => {
-        const offsetLng = 0.00003;
-        return [d.coordinates[0] + offsetLng, d.coordinates[1], d.coordinates[2] + 5];
-      },
-      getSize: 80,
-      getAngle: (d: any) => (d.bearing || 0),
+
+    const newOverlayBuilding = new window.deck.MapboxOverlay({
+      layers: [groundLayer, storeyLayer, roofLayer, markerLayer, cameraLayer, photoIconLayer]
+    });
+    map.current.addControl(newOverlayBuilding);
+    setOverlayBuilding(newOverlayBuilding);
+  }, [terrainReady, processedBuildingData, processedPhotoData]);
+  
+
+  // Create combined photo layers (camera and photo icon)
+  const createPhotoLayers = (data: any[]) => {
+    const cameraLayer = new window.deck.ScenegraphLayer({
+      id: 'deckgl-exif3d-camera-layer',
+      data,
+      scenegraph: "./marker.gltf",
+      getPosition: (d:any) => d.coordinates,
+      getColor: (d:any) => [64, 64, 64],
+      getOrientation: (d:any) => [0, -d.bearing, 90],
+      getScale: [0.2, 0.2, 0.2],
       pickable: true,
-      billboard: true,
+      opacity: 1,
       onClick: (info: any) => {
         if (info && info.object) {
           setSelectedPhoto(info.object);
@@ -576,13 +617,41 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       }
     });
 
-    const newOverlayBuilding = new window.deck.MapboxOverlay({
-      layers: [groundLayer, storeyLayer, roofLayer, markerLayer, cameraLayer, photoIconLayer]
+    const photoIconLayer = new window.deck.IconLayer({
+      id: "photo-icon-layer",
+      data,
+      getIcon: (d: any) => ({
+        url: d.link,
+        height: 240,
+        width: 180,
+        id: d.id,
+        mask: false,
+      }),
+      getPosition: (d: any) => [
+        d.coordinates[0],
+        d.coordinates[1],
+        d.coordinates[2] +10,
+      ],
+      getAngle: (d: any) => (d.bearing || 0),
+      getSize: () => 2,
+      sizeScale: 2,
+      billboard: true,
+      pickable: true,
+      sizeUnits: 'meters',
+      onClick: (info: any) => {
+        if (info && info.object) {
+          setSelectedPhoto(info.object);
+        }
+      },
+      onHover: (info: any) => {
+        if (map.current && map.current.getCanvas) {
+          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
+        }
+      }
     });
-    map.current.addControl(newOverlayBuilding);
-    setOverlayBuilding(newOverlayBuilding);
-  }, [terrainReady, processedBuildingData, processedPhotoData]);
-  
+
+    return [cameraLayer, photoIconLayer];
+  };
 
   const debouncedCreateOverlay = useMemo(
     () => debounce(createBuildingOverlay, 300),
@@ -630,58 +699,8 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
     });
 
-    const cameraLayer = new window.deck.ScenegraphLayer({
-      id: "exif3d-camera-layer",
-      data: photoData,
-      scenegraph: "./marker.glb",
-      getPosition: (d: any) => d.coordinates,
-      getColor: (d: any) => [64, 64, 64],
-      getOrientation: (d: any) => [0, -d.bearing, 90],
-      getScale: [0.2, 0.2, 0.2],
-      pickable: true,
-      opacity: 1,
-      sizeScale: 1,   
-      onClick: (info: any) => {
-        if (info && info.object) {
-          setSelectedPhoto(info.object);
-        }
-      },
-      onHover: (info: any) => {
-        if (map.current && map.current.getCanvas) {
-          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
-        }
-      }
-    });
-
-    // Add IconLayer with photos as icons
-    const photoIconLayer = new window.deck.IconLayer({
-      id: "photo-icon-layer",
-      data: photoData,
-      getIcon: (d: any) => ({
-        url: d.link,
-        width: 256,
-        height: 256,
-        anchorY: 128
-      }),
-      getPosition: (d: any) => {
-        const offsetLng = 0.00003;
-        return [d.coordinates[0] + offsetLng, d.coordinates[1], d.coordinates[2] + 5];
-      },
-      getSize: 80,
-      getAngle: (d: any) => (d.bearing || 0),
-      pickable: true,
-      billboard: true,
-      onClick: (info: any) => {
-        if (info && info.object) {
-          setSelectedPhoto(info.object);
-        }
-      },
-      onHover: (info: any) => {
-        if (map.current && map.current.getCanvas) {
-          map.current.getCanvas().style.cursor = info && info.object ? 'pointer' : '';
-        }
-      }
-    });
+    // Use the same photo layers creation function
+    const [cameraLayer, photoIconLayer] = createPhotoLayers(photoData);
 
     const newOverlayCamera = new window.deck.MapboxOverlay({ layers: [cameraLayer, photoIconLayer] });
     map.current.addControl(newOverlayCamera);
