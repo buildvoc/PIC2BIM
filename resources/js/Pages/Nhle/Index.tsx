@@ -151,7 +151,6 @@ export function Index({ auth }: PageProps) {
   useEffect(() => {
     if (ogc_fid && nhles) {
       const centroids: BuildingCentroidState[] = [];
-      console.log("1",nhles.data.features);
       for (const feature of nhles.data.features) {
         if (feature.geometry) {
           try {
@@ -169,40 +168,44 @@ export function Index({ auth }: PageProps) {
         }
       }
       setBuildingCentroidsData(centroids);
-      console.log("2",centroids);
-      
+    }
+  }, [nhles, ogc_fid]);
+  
+  // Effect khusus untuk menghitung dan memperbarui viewport berdasarkan bounding box
+  useEffect(() => {
+    if (ogc_fid && nhles && nhles.data.features && nhles.data.features.length > 0) {
       try {
-        if (nhles.data.features && nhles.data.features.length > 0) {
-          const validFeatures = nhles.data.features.filter(f => f.geometry);
-          if (validFeatures.length > 0) {
-            const boundingBox = turf.bbox({
-              type: 'FeatureCollection',
-              features: validFeatures
-            });
+        // Memastikan data geometri valid sebelum menghitung bounding box
+        const validFeatures = nhles.data.features.filter(f => f.geometry);
+        if (validFeatures.length > 0) {
+          const boundingBox = turf.bbox({
+            type: 'FeatureCollection',
+            features: validFeatures
+          });
+          
+          if (boundingBox && boundingBox.every(coord => typeof coord === 'number' && !isNaN(coord))) {
+            const [minLng, minLat, maxLng, maxLat] = boundingBox;
             
-            if (boundingBox && boundingBox.every(coord => typeof coord === 'number' && !isNaN(coord))) {
-              const [minLng, minLat, maxLng, maxLat] = boundingBox;
-              
-              const viewport = new WebMercatorViewport(viewState);
-              const { longitude, latitude, zoom } = viewport.fitBounds(
-                [[minLng, minLat], [maxLng, maxLat]],
-                { padding: 100 }
-              );
-              
-              setViewState(prev => ({
-                ...prev,
-                longitude,
-                latitude,
-                zoom,
-              }));
-            }
+            const viewport = new WebMercatorViewport(viewState);
+            const { longitude, latitude, zoom } = viewport.fitBounds(
+              [[minLng, minLat], [maxLng, maxLat]],
+              { padding: 100 }
+            );
+            
+            // Hanya perbarui viewState jika ada perubahan signifikan
+            setViewState(prev => {
+              if (prev.longitude !== longitude || prev.latitude !== latitude || prev.zoom !== zoom) {
+                return { ...prev, longitude, latitude, zoom };
+              }
+              return prev;
+            });
           }
         }
       } catch (error) {
         console.error('Error calculating bounding box:', error);
       }
     }
-  }, [nhles, ogc_fid, viewState]);
+  }, [nhles, ogc_fid]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
