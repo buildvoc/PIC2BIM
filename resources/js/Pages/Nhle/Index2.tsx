@@ -8,7 +8,7 @@ import Map from 'react-map-gl/maplibre';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
-import { GeoJsonLayer, IconLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport } from '@deck.gl/core';
 import { romanToInt } from '@/Constants/Constants';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
@@ -16,6 +16,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/mate
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { NhleProperties } from '@/types/nhle';
+import type { BuildingProperties, BuildingFeature, BuildingGeoJson } from '@/types/building';
 import type { GeoJSON } from 'geojson';
 import type { PageProps } from '@/types';
 
@@ -32,6 +33,24 @@ interface NhleFeature extends GeoJSON.Feature {
 
 interface NhleGeoJson extends GeoJSON.FeatureCollection {
   features: NhleFeature[];
+}
+
+// Interfaces for Building data
+interface BuildingFeatureState extends GeoJSON.Feature {
+  id: string;
+  geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon;
+  properties: BuildingProperties;
+}
+
+interface BuildingCentroidState {
+  id: string;
+  coordinates: [number, number];
+  properties: BuildingProperties;
+}
+
+interface BuildingGeoJsonState {
+  type: 'FeatureCollection';
+  features: BuildingFeatureState[];
 }
 
 interface ShapeFeature extends GeoJSON.Feature {
@@ -62,6 +81,12 @@ interface LoadedNhleFeature extends GeoJSON.Feature {
   properties: {Name: string;};
 }
 
+interface PolygonFeature extends GeoJSON.Feature {
+  id: string|number;
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  properties: any;
+}
+
 interface FetchedPolygonsData extends GeoJSON.FeatureCollection {
   features: Feature[];
 }
@@ -70,11 +95,19 @@ interface MGeoJson extends GeoJSON.FeatureCollection {
   features: LoadedNhleFeature[];
 }
 
+interface ValidationError {
+  message?: string;
+  severity?: string;
+  from?: number;
+  to?: number;
+  [key: string]: any; // Allow additional properties
+}
+
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
     shapes: {data: ShapesGeoJson};
     selectedShape?: { data: SelectedShapeData };
-    nhles: { data: NhleGeoJson };
+    nhles: { data: BuildingGeoJson }; // Changed from NhleGeoJson to BuildingGeoJson
     ogc_fid: string | null;
   }>().props;
 
@@ -90,6 +123,7 @@ export function Index({ auth }: PageProps) {
   });
 
   const [nhlePointsData, setNhlePointsData] = useState<NhleFeatureState[]>([]);
+  const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
 
@@ -102,7 +136,7 @@ export function Index({ auth }: PageProps) {
     }, []);
 
   const applyFilters = useCallback((params: { bbox?: string; ogc_fid?: string }) => {
-    router.visit(route('nhle.index'), {
+    router.visit(route('nhle.index2'), {
       method: 'get',
       preserveState: true,
       data: {
@@ -112,40 +146,66 @@ export function Index({ auth }: PageProps) {
     });
   }, []);
 
+  // State for GeoJSON validation and visualization
+
   useEffect(() => {
     if (ogc_fid && nhles) {
-      const extractedData = nhles.data.features.map(feature => ({
-        id: feature.id,
-        coordinates: getCoordinatesFromFeature(feature)[0] as [longitude: number, latitude: number],
-        properties: feature.properties,
-      }));
-      setNhlePointsData(extractedData);
-      
-      try {
-        const boundingBox = turf.bbox(nhles.data);
-        if (boundingBox && boundingBox.every(coord => typeof coord === 'number' && !isNaN(coord))) {
-          const [minLng, minLat, maxLng, maxLat] = boundingBox;
-          
-          const viewport = new WebMercatorViewport(viewState);
-          const { longitude, latitude, zoom } = viewport.fitBounds(
-            [[minLng, minLat], [maxLng, maxLat]],
-            { padding: 50 }
-          );
-          setViewState(prev => ({ ...prev, longitude, latitude, zoom: Math.min(zoom, 10) }));
+      const centroids: BuildingCentroidState[] = [];
+      for (const feature of nhles.data.features) {
+        if (feature.geometry) {
+          try {
+            const centroid = turf.centroid(feature.geometry as any);
+            const coordinates = centroid.geometry.coordinates as [number, number];
+            
+            centroids.push({
+              id: feature.id as string,
+              coordinates,
+              properties: feature.properties as BuildingProperties
+            });
+          } catch (error) {
+            console.error('Error calculating centroid for feature:', feature.id, error);
+          }
         }
-      } catch (e) {
-        console.error("Error calculating NHLE GeoJSON bounds:", e);
       }
-
-    } else {
-      setNhlePointsData([]);
+      setBuildingCentroidsData(centroids);
     }
-
-    return () => {
-      setNhlePointsData([]);
-      setHoverInfo(null);
-    };
-  }, [ogc_fid, nhles]);
+  }, [nhles, ogc_fid]);
+  
+  // Effect khusus untuk menghitung dan memperbarui viewport berdasarkan bounding box
+  useEffect(() => {
+    if (ogc_fid && nhles && nhles.data.features && nhles.data.features.length > 0) {
+      try {
+        // Memastikan data geometri valid sebelum menghitung bounding box
+        const validFeatures = nhles.data.features.filter(f => f.geometry);
+        if (validFeatures.length > 0) {
+          const boundingBox = turf.bbox({
+            type: 'FeatureCollection',
+            features: validFeatures
+          });
+          
+          if (boundingBox && boundingBox.every(coord => typeof coord === 'number' && !isNaN(coord))) {
+            const [minLng, minLat, maxLng, maxLat] = boundingBox;
+            
+            const viewport = new WebMercatorViewport(viewState);
+            const { longitude, latitude, zoom } = viewport.fitBounds(
+              [[minLng, minLat], [maxLng, maxLat]],
+              { padding: 100 }
+            );
+            
+            // Hanya perbarui viewState jika ada perubahan signifikan
+            setViewState(prev => {
+              if (prev.longitude !== longitude || prev.latitude !== latitude || prev.zoom !== zoom) {
+                return { ...prev, longitude, latitude, zoom };
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating bounding box:', error);
+      }
+    }
+  }, [nhles, ogc_fid]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -185,6 +245,9 @@ export function Index({ auth }: PageProps) {
   const [geoJson, setGeoJson] = useState<MGeoJson>();
   const [iconLayerData, setIconLayerData] = useState<LoadedNhleFeatureState[]>([]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
+  // Additional state for polygon handling
+  const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
+  const [validationResult, setValidationResult] = useState<{valid: boolean, errors: (string | ValidationError)[]} | null>(null);
 
   const handleFileChange = (event: any) => {
     const file = event.target.files[0];
@@ -202,16 +265,30 @@ export function Index({ auth }: PageProps) {
           setError('Invalid GeoJSON format. Expected FeatureCollection.');
           throw new Error('Invalid GeoJSON format. Expected FeatureCollection.');
         }
+        
+        // Validate GeoJSON using @placemarkio/check-geojson
+        try {
+          const validationResult = checkGeoJson.check(JSON.stringify(content));
+          console.log('Validation result:', validationResult);
+          setValidationResult({ valid: true, errors: [] });
+        } catch (validationError: any) {
+          console.log('Validation errors:', validationError.issues);
+          setValidationResult({ valid: false, errors: validationError.issues || ['Validation failed'] });
+          setError(`GeoJSON validation failed: ${validationError.issues || 'Unknown error'}`);
+        }
+        
         setFileContent(content);
       } catch (err: any) {
         setError(`Error parsing GeoJSON: ${err.message}`);
         setFileContent(null);
+        setValidationResult({ valid: false, errors: [err.message] });
       }
     };
 
     reader.onerror = () => {
       setError('Error reading file');
       setFileContent(null);
+      setValidationResult({ valid: false, errors: ['Error reading file'] });
     };
 
     reader.readAsText(file);
@@ -224,12 +301,16 @@ export function Index({ auth }: PageProps) {
     }
 
     try {
+      console.log("Processing GeoJSON:", fileContent);
+      // Validate again before processing
       const result = checkGeoJson.check(JSON.stringify(fileContent));
       setGeoJsonKey(geoJsonKey + 1);
       setGeoJson(result as MGeoJson);
+      setError(null); // Clear any previous errors
     } catch (e: any) {
       console.log(e.issues);
       setError(e.issues);
+      setValidationResult({ valid: false, errors: e.issues || ['Processing failed'] });
     }
   }
 
@@ -275,6 +356,31 @@ export function Index({ auth }: PageProps) {
     if (geoJson && geoJson.features) {
       console.log("geoJson", geoJson);
 
+      // Extract centroids from polygon features for ScatterplotLayer visualization
+      const centroidData = geoJson.features
+        .filter(feature => feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
+        .map((feature, index) => {
+          try {
+            // Calculate centroid of the polygon
+            const centroid = turf.centroid(feature);
+            return {
+              coordinates: centroid.geometry.coordinates as [number, number],
+              properties: feature.properties || {}
+            };
+          } catch (e) {
+            console.error("Error calculating centroid for feature:", feature, e);
+            // Fallback to first coordinate if centroid calculation fails
+            const coords = extractCoordsFromGeometry(feature.geometry);
+            return {
+              coordinates: coords[0] as [number, number],
+              properties: feature.properties || {}
+            };
+          }
+        });
+      
+      setPolygonCentroids(centroidData);
+
+      // Also extract data for IconLayer (using first coordinate of each feature)
       const extractedData = geoJson.features.map((feature, index) => ({
         id: `marker-${index}`,
         coordinates: extractCoordsFromGeometry(feature.geometry)[0] as [longitude: number, latitude: number],
@@ -313,6 +419,7 @@ export function Index({ auth }: PageProps) {
       }
     } else {
       setIconLayerData([]);
+      setPolygonCentroids([]);
     }
   }, [geoJson]);
 
@@ -356,16 +463,22 @@ export function Index({ auth }: PageProps) {
       }
     }),
 
-    nhlePointsData.length > 0 && new IconLayer<NhleFeatureState>({
-      id: `nhle-layer-${ogc_fid}`,
-      data: nhlePointsData,
+    // Layer for Building centroids (using ScatterplotLayer)
+    buildingCentroidsData.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+      id: `building-layer-${ogc_fid}`,
+      data: buildingCentroidsData,
       pickable: true,
-      iconAtlas: ICON_ATLAS,
-      iconMapping: ICON_MAPPING,
+      opacity: 0.8,
+      stroked: true,
+      filled: true,
+      radiusScale: 6,
+      radiusMinPixels: 5,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
-      getIcon: d => `marker-${romanToInt(d.properties.grade)}`,
-      getSize: 40,
-      getPixelOffset: [0, -7],
+      getRadius: d => 10,
+      getFillColor: d => [0, 0, 255, 200], // Blue color
+      getLineColor: d => [0, 0, 255, 255],
       onHover: info => {
         if (info.object && info.object.properties) {
           setHoverInfo(info as any);
@@ -373,8 +486,46 @@ export function Index({ auth }: PageProps) {
           setHoverInfo(null);
         }
       },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          console.log('Clicked building:', info.object);
+          setHoverInfo(info as any);
+        }
+      },
       updateTriggers: {
-        data: nhlePointsData,
+        data: buildingCentroidsData,
+      },
+    }),
+
+
+    // ScatterplotLayer for polygon centroids
+    geoJson && polygonCentroids.length > 0 && new ScatterplotLayer({
+      id: `polygon-centroids-${geoJsonKey}`,
+      data: polygonCentroids,
+      pickable: true,
+      opacity: 0.8,
+      stroked: true,
+      filled: true,
+      radiusScale: 6,
+      radiusMinPixels: 5,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => 10,
+      getFillColor: d => [255, 140, 0, 200],
+      getLineColor: d => [255, 140, 0, 255],
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          console.log('Clicked polygon centroid:', info.object);
+          setHoverInfo(info as any);
+        }
       },
     }),
 
@@ -389,7 +540,7 @@ export function Index({ auth }: PageProps) {
       getSize: 40,
       onClick: (info) => {
         if (info.object && info.object.properties) {
-          console.log('Clicked:', info.object.properties.Name);
+          console.log('Clicked:', info.object);
           setHoverInfo(info as any);
         }
       },
@@ -433,6 +584,26 @@ export function Index({ auth }: PageProps) {
               <Button size='small' variant="contained" onClick={handleClick}>Draw</Button>
             </div>
             {error && <p className='text-red-500'>{error}</p>}
+            {validationResult && (
+              <div className={`p-2 rounded ${validationResult.valid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <strong>Validation Result:</strong> {validationResult.valid ? 'Valid GeoJSON' : 'Invalid GeoJSON'}
+                {!validationResult.valid && validationResult.errors.length > 0 && (
+                  <ul className='list-disc pl-5 mt-2'>
+                    {validationResult.errors.map((error, index) => {
+                      if (typeof error === 'string') {
+                        return <li key={index}>{error}</li>;
+                      } else if (error && typeof error === 'object') {
+                        const validationError = error as ValidationError;
+                        const errorMessage = validationError.message || JSON.stringify(validationError);
+                        return <li key={index}>{errorMessage}</li>;
+                      } else {
+                        return <li key={index}>{String(error)}</li>;
+                      }
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
         <div style={{ width: '100%', minHeight: '91vh', position: 'relative' }}>
@@ -453,7 +624,7 @@ export function Index({ auth }: PageProps) {
             onSatelliteViewClick={satelliteViewClickHandler}
           />
 
-          {hoverInfo && hoverInfo.object && hoverInfo.layer?.id.startsWith('nhle-layer-') && (
+          {hoverInfo && hoverInfo.object && (
             <div
               style={{
                 position: 'absolute',
@@ -466,9 +637,25 @@ export function Index({ auth }: PageProps) {
                 borderRadius: '4px',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
                 transform: 'translate(-50%, -100%)',
+                maxWidth: '300px',
+                wordWrap: 'break-word',
               }}
             >
-              {hoverInfo.object.properties?.name || hoverInfo.object.properties?.Name}
+              {(hoverInfo.layer?.id.startsWith('nhle-layer-') || hoverInfo.layer?.id.startsWith('building-layer-')) && 
+                (hoverInfo.object.properties?.name || 
+                 hoverInfo.object.properties?.Name ||
+                 hoverInfo.object.properties?.description ||
+                 hoverInfo.object.properties?.buildinguse ||
+                 `Building ID: ${hoverInfo.object.id}`)
+              }
+              {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
+                <div>
+                  <div><strong>Polygon Feature</strong></div>
+                  {hoverInfo.object.properties && Object.keys(hoverInfo.object.properties).map(key => (
+                    <div key={key}><strong>{key}:</strong> {String(hoverInfo.object.properties[key])}</div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
