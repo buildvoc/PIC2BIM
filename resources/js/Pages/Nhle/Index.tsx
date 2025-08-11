@@ -1,10 +1,10 @@
 import React, { memo, useEffect, useState, useCallback } from 'react';
-import "mapbox-gl/dist/mapbox-gl.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { Head, router, usePage, useRemember, } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 import DeckGL from '@deck.gl/react';
-import Map from 'react-map-gl';
+import Map from 'react-map-gl/maplibre';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
@@ -80,7 +80,7 @@ export function Index({ auth }: PageProps) {
 
   const [shapes] = useRemember(mShapes, `shapes`);
 
-  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/streets-v11");
+  const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: mSelectedShape && mSelectedShape.data.properties.longitude || 0.1,
     latitude: mSelectedShape && mSelectedShape.data.properties.latitude || 52.5,
@@ -94,12 +94,12 @@ export function Index({ auth }: PageProps) {
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
 
   const mapViewClickHandler = useCallback(() => {
-    setMapStyle("mapbox://styles/mapbox/streets-v11");
+    setMapStyle("https://tiles.openfreemap.org/styles/liberty");
   }, []);
 
   const satelliteViewClickHandler = useCallback(() => {
-    setMapStyle("mapbox://styles/mapbox/satellite-v9");
-  }, []);
+      setMapStyle("https://api.maptiler.com/maps/hybrid/style.json?key=tBAEj5fg0DU85lCuGbNM");
+    }, []);
 
   const applyFilters = useCallback((params: { bbox?: string; ogc_fid?: string }) => {
     router.visit(route('nhle.index'), {
@@ -440,11 +440,10 @@ export function Index({ auth }: PageProps) {
             initialViewState={viewState}
             controller={true}
             layers={layers}
-            onViewStateChange={({ viewState }) => setViewState(viewState as MapViewState)}
+            onViewStateChange={(params) => setViewState(params.viewState as MapViewState)}
             getCursor={getCursor}
           >
             <Map
-              mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
               mapStyle={mapStyle}
             />
           </DeckGL>
