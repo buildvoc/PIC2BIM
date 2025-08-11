@@ -6,8 +6,9 @@ use App\Http\Resources\NhleCollection;
 use App\Http\Resources\NhleFeatureResource;
 use App\Http\Resources\ShapeCollection;
 use App\Http\Resources\ShapeFeatureResource;
+use App\Http\Resources\BuildingCollection;
 use App\Models\Attr\Shape;
-use App\Models\NHLE;
+use App\Models\Attr\Building;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
@@ -24,10 +25,10 @@ class NhleController extends Controller
         $nhle = [];
         
         if ($ogc_fid){
-            $nhle = NHLE::query()
+            $nhle = Building::query()
             ->when($selectedShape, function ($query) use ($selectedShape) {
                 $geoJson = json_encode($selectedShape->geometry);
-                $query->whereRaw("ST_WITHIN(ST_Transform(ST_SetSRID(ST_MakePoint(nhle_.longitude, nhle_.latitude)::geometry, 4326)::geometry, 27700),ST_Transform(ST_SetSRID( ST_AsText(ST_GeomFromGeoJSON('$geoJson')), 4326), 27700))");
+                $query->whereRaw("ST_INTERSECTS(geometry::geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('$geoJson')::geometry, 4326)::geometry, 27700))");
             })
             ->get();
         }
@@ -35,7 +36,7 @@ class NhleController extends Controller
         return Inertia::render('Nhle/Index', [
             'shapes' => new ShapeCollection($shapes),
             'selectedShape' => $selectedShape ? new ShapeFeatureResource($selectedShape): null,
-            'nhles' => new NhleCollection($nhle),
+            'nhles' => new BuildingCollection($nhle),
             'ogc_fid' => $ogc_fid
         ]);
     }
@@ -51,10 +52,10 @@ class NhleController extends Controller
         $nhle = [];
         
         if ($ogc_fid){
-            $nhle = NHLE::query()
+            $nhle = Building::query()
             ->when($selectedShape, function ($query) use ($selectedShape) {
                 $geoJson = json_encode($selectedShape->geometry);
-                $query->whereRaw("ST_WITHIN(ST_Transform(ST_SetSRID(ST_MakePoint(nhle_.longitude, nhle_.latitude)::geometry, 4326)::geometry, 27700),ST_Transform(ST_SetSRID( ST_AsText(ST_GeomFromGeoJSON('$geoJson')), 4326), 27700))");
+                $query->whereRaw("ST_INTERSECTS(geometry::geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('$geoJson')::geometry, 4326)::geometry, 27700))");
             })
             ->get();
         }
@@ -62,7 +63,7 @@ class NhleController extends Controller
         return Inertia::render('Nhle/Index2', [
             'shapes' => new ShapeCollection($shapes),
             'selectedShape' => $selectedShape ? new ShapeFeatureResource($selectedShape): null,
-            'nhles' => new NhleCollection($nhle),
+            'nhles' => new BuildingCollection($nhle),
             'ogc_fid' => $ogc_fid
         ]);
     }
