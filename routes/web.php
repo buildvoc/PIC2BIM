@@ -96,6 +96,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
         Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
         Route::get('/nhle', [NhleController::class, 'index'])->name('nhle.index');
+        Route::get('/nhle2', [NhleController::class, 'index2'])->name('nhle.index2');
     });
     
     
