@@ -136,7 +136,7 @@ export function Index({ auth }: PageProps) {
     }, []);
 
   const applyFilters = useCallback((params: { bbox?: string; ogc_fid?: string }) => {
-    router.visit(route('nhle.index2'), {
+    router.visit(route('nhle.index'), {
       method: 'get',
       preserveState: true,
       data: {
