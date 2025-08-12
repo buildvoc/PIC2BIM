@@ -12,6 +12,7 @@ import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport } from '@deck.gl/core';
 import { romanToInt } from '@/Constants/Constants';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
+import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -25,32 +26,11 @@ interface NhleFeatureState {
   coordinates: [longitude: number, latitude: number];
   properties: NhleProperties;
 }
-interface NhleFeature extends GeoJSON.Feature {
-  id: string|number;
-  geometry: GeoJSON.MultiPoint;
-  properties: NhleProperties;
-}
-
-interface NhleGeoJson extends GeoJSON.FeatureCollection {
-  features: NhleFeature[];
-}
-
-// Interfaces for Building data
-interface BuildingFeatureState extends GeoJSON.Feature {
-  id: string;
-  geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon;
-  properties: BuildingProperties;
-}
 
 interface BuildingCentroidState {
   id: string;
   coordinates: [number, number];
   properties: BuildingProperties;
-}
-
-interface BuildingGeoJsonState {
-  type: 'FeatureCollection';
-  features: BuildingFeatureState[];
 }
 
 interface ShapeFeature extends GeoJSON.Feature {
@@ -79,12 +59,6 @@ interface LoadedNhleFeature extends GeoJSON.Feature {
   id: string|number;
   geometry: Geometry;
   properties: {Name: string;};
-}
-
-interface PolygonFeature extends GeoJSON.Feature {
-  id: string|number;
-  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
-  properties: any;
 }
 
 interface FetchedPolygonsData extends GeoJSON.FeatureCollection {
@@ -171,11 +145,9 @@ export function Index({ auth }: PageProps) {
     }
   }, [nhles, ogc_fid]);
   
-  // Effect khusus untuk menghitung dan memperbarui viewport berdasarkan bounding box
   useEffect(() => {
     if (ogc_fid && nhles && nhles.data.features && nhles.data.features.length > 0) {
       try {
-        // Memastikan data geometri valid sebelum menghitung bounding box
         const validFeatures = nhles.data.features.filter(f => f.geometry);
         if (validFeatures.length > 0) {
           const boundingBox = turf.bbox({
@@ -192,7 +164,6 @@ export function Index({ auth }: PageProps) {
               { padding: 100 }
             );
             
-            // Hanya perbarui viewState jika ada perubahan signifikan
             setViewState(prev => {
               if (prev.longitude !== longitude || prev.latitude !== latitude || prev.zoom !== zoom) {
                 return { ...prev, longitude, latitude, zoom };
@@ -240,14 +211,16 @@ export function Index({ auth }: PageProps) {
   };
 
   const [error, setError] = useState<string|null>(null);
-  const [fileContent, setFileContent] = useState<string|null>(null);
+  // Store parsed GeoJSON object
+  const [fileContent, setFileContent] = useState<any>(null);
   const [geoJsonKey, setGeoJsonKey] = useState<string>('');
   const [geoJson, setGeoJson] = useState<MGeoJson>();
   const [iconLayerData, setIconLayerData] = useState<LoadedNhleFeatureState[]>([]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
   // Additional state for polygon handling
   const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
-  const [validationResult, setValidationResult] = useState<{valid: boolean, errors: (string | ValidationError)[]} | null>(null);
+  // Worker-based validator hook
+  const { status: validationStatus, result: validationResultFull, limited: validationLimited, validate } = useGeoJsonValidation();
 
   const handleFileChange = (event: any) => {
     const file = event.target.files[0];
@@ -259,36 +232,38 @@ export function Index({ auth }: PageProps) {
 
     reader.onload = (e) => {
       try {
-        const content = JSON.parse(e.target?.result as string);
+        const text = e.target?.result as string;
+        const content = JSON.parse(text);
 
         if (content.type !== 'FeatureCollection' || !Array.isArray(content.features)) {
           setError('Invalid GeoJSON format. Expected FeatureCollection.');
-          throw new Error('Invalid GeoJSON format. Expected FeatureCollection.');
+          // Stop further validation if basic structure is wrong
+          setFileContent(null);
+          return;
         }
         
-        // Validate GeoJSON using @placemarkio/check-geojson
-        try {
-          const validationResult = checkGeoJson.check(JSON.stringify(content));
-          console.log('Validation result:', validationResult);
-          setValidationResult({ valid: true, errors: [] });
-        } catch (validationError: any) {
-          console.log('Validation errors:', validationError.issues);
-          setValidationResult({ valid: false, errors: validationError.issues || ['Validation failed'] });
-          setError(`GeoJSON validation failed: ${validationError.issues || 'Unknown error'}`);
-        }
-        
-        setFileContent(content);
+        // Run validation in Web Worker or fallback (expects string input)
+        validate(text).then((res) => {
+          if (!res.valid) {
+            setError('GeoJSON validation failed. See issues below.');
+          } else {
+            setError(null);
+          }
+          // Keep the parsed content regardless; drawing may still be gated by user action
+          setFileContent(content);
+        }).catch((err: any) => {
+          setError(`Validation error: ${err?.message || 'Unknown error'}`);
+          setFileContent(content);
+        });
       } catch (err: any) {
         setError(`Error parsing GeoJSON: ${err.message}`);
         setFileContent(null);
-        setValidationResult({ valid: false, errors: [err.message] });
       }
     };
 
     reader.onerror = () => {
       setError('Error reading file');
       setFileContent(null);
-      setValidationResult({ valid: false, errors: ['Error reading file'] });
     };
 
     reader.readAsText(file);
@@ -302,15 +277,17 @@ export function Index({ auth }: PageProps) {
 
     try {
       console.log("Processing GeoJSON:", fileContent);
-      // Validate again before processing
-      const result = checkGeoJson.check(JSON.stringify(fileContent));
+      // Validate again before processing with string input
+      // If invalid, check() will throw with `issues`
+      checkGeoJson.check(JSON.stringify(fileContent));
       setGeoJsonKey(geoJsonKey + 1);
-      setGeoJson(result as MGeoJson);
+      setGeoJson(fileContent as MGeoJson);
       setError(null); // Clear any previous errors
     } catch (e: any) {
-      console.log(e.issues);
-      setError(e.issues);
-      setValidationResult({ valid: false, errors: e.issues || ['Processing failed'] });
+      console.log(e.issues || e.message);
+      const issues = e?.issues || [e?.message || 'Processing failed'];
+      setError('GeoJSON invalid. Fix issues before drawing.');
+      // Keep validation result in hook state; UI will reflect issues
     }
   }
 
@@ -584,23 +561,45 @@ export function Index({ auth }: PageProps) {
               <Button size='small' variant="contained" onClick={handleClick}>Draw</Button>
             </div>
             {error && <p className='text-red-500'>{error}</p>}
-            {validationResult && (
-              <div className={`p-2 rounded ${validationResult.valid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                <strong>Validation Result:</strong> {validationResult.valid ? 'Valid GeoJSON' : 'Invalid GeoJSON'}
-                {!validationResult.valid && validationResult.errors.length > 0 && (
-                  <ul className='list-disc pl-5 mt-2'>
-                    {validationResult.errors.map((error, index) => {
-                      if (typeof error === 'string') {
-                        return <li key={index}>{error}</li>;
-                      } else if (error && typeof error === 'object') {
-                        const validationError = error as ValidationError;
-                        const errorMessage = validationError.message || JSON.stringify(validationError);
-                        return <li key={index}>{errorMessage}</li>;
-                      } else {
-                        return <li key={index}>{String(error)}</li>;
-                      }
-                    })}
-                  </ul>
+            {validationStatus !== 'idle' && (
+              <div className={`p-2 rounded ${validationLimited.valid ? 'bg-green-100 text-green-800' : (validationStatus === 'validating' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')}`}>
+                <div className='flex items-center justify-between'>
+                  <strong>Validation:</strong>
+                  <span>
+                    {validationStatus === 'validating' && 'Validating…'}
+                    {validationStatus === 'success' && 'Valid GeoJSON'}
+                    {validationStatus === 'error' && (validationLimited.valid ? 'Valid GeoJSON' : 'Invalid GeoJSON')}
+                  </span>
+                </div>
+                {!validationLimited.valid && validationLimited.errors.length > 0 && (
+                  <div className='mt-2'>
+                    <strong>Errors (showing up to 50):</strong>
+                    <ul className='list-disc pl-5 mt-2'>
+                      {validationLimited.errors.map((errItem, index) => {
+                        if (typeof errItem === 'string') return <li key={index}>{errItem}</li>;
+                        const ve = errItem as ValidationError;
+                        return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {validationLimited.warnings.length > 0 && (
+                  <div className='mt-2'>
+                    <strong>Warnings (showing up to 50):</strong>
+                    <ul className='list-disc pl-5 mt-2'>
+                      {validationLimited.warnings.map((wItem, index) => {
+                        if (typeof wItem === 'string') return <li key={index}>{wItem}</li>;
+                        const vw = wItem as ValidationError;
+                        return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {(validationLimited as any).overflowErrors > 0 && (
+                  <div className='mt-2 text-sm'>+{(validationLimited as any).overflowErrors} more errors not shown</div>
+                )}
+                {(validationLimited as any).overflowWarnings > 0 && (
+                  <div className='mt-1 text-sm'>+{(validationLimited as any).overflowWarnings} more warnings not shown</div>
                 )}
               </div>
             )}
