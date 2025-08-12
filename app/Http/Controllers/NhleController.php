@@ -11,6 +11,7 @@ use App\Models\Attr\Shape;
 use App\Models\Attr\Building;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class NhleController extends Controller
 {
@@ -18,7 +19,13 @@ class NhleController extends Controller
     {
         $ogc_fid = $request->ogc_fid;
 
-        $shapes = Shape::query()->get();
+        $shapes = Shape::query()
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('bld_fts_building')
+                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(bld_fts_building.geometry, 27700))");
+            })
+            ->get();
 
         $selectedShape = $shapes->first(fn (Shape $item) => $item->ogc_fid == $ogc_fid);
 
@@ -45,8 +52,13 @@ class NhleController extends Controller
     {
         $ogc_fid = $request->ogc_fid;
 
-        $shapes = Shape::query()->get();
-
+        $shapes = Shape::query()
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('bld_fts_building')
+                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(bld_fts_building.geometry, 27700))");
+            })
+            ->get();
         $selectedShape = $shapes->first(fn (Shape $item) => $item->ogc_fid == $ogc_fid);
 
         $nhle = [];
