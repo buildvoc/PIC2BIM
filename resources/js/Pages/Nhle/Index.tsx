@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, useCallback } from 'react';
+import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Head, router, usePage, useRemember, } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -77,6 +77,42 @@ interface ValidationError {
   [key: string]: any; // Allow additional properties
 }
 
+// Helper function to generate a consistent pastel color from a string
+const  stringToColor = (str: string): [number, number, number] => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+
+  const safeMod = (n: number, m: number) => ((n % m) + m) % m;
+
+  const h = safeMod(hash, 360);
+
+  const s = 65 + safeMod(hash >> 8, 26); // 65..90
+
+  const l = 72 + safeMod(hash >> 16, 17); // 72..88
+
+  const sNorm = s / 100;
+  const lNorm = l / 100;
+  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lNorm - c / 2;
+
+  let rTemp = 0, gTemp = 0, bTemp = 0;
+  if (h < 60) { rTemp = c; gTemp = x; bTemp = 0; }
+  else if (h < 120) { rTemp = x; gTemp = c; bTemp = 0; }
+  else if (h < 180) { rTemp = 0; gTemp = c; bTemp = x; }
+  else if (h < 240) { rTemp = 0; gTemp = x; bTemp = c; }
+  else if (h < 300) { rTemp = x; gTemp = 0; bTemp = c; }
+  else { rTemp = c; gTemp = 0; bTemp = x; }
+
+  const r = Math.round((rTemp + m) * 255);
+  const g = Math.round((gTemp + m) * 255);
+  const b = Math.round((bTemp + m) * 255);
+
+  return [r, g, b];
+};
+
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
     shapes: {data: ShapesGeoJson};
@@ -96,10 +132,11 @@ export function Index({ auth }: PageProps) {
     bearing: 0,
   });
 
-  const [nhlePointsData, setNhlePointsData] = useState<NhleFeatureState[]>([]);
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
+  const [category1, setCategory1] = useState<string>('All');
+  const [category2, setCategory2] = useState<string>('All');
 
   const mapViewClickHandler = useCallback(() => {
     setMapStyle("https://tiles.openfreemap.org/styles/liberty");
@@ -449,10 +486,36 @@ export function Index({ auth }: PageProps) {
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
       getRadius: d => 10,
-      getFillColor: d => [0, 0, 255, 200], // Blue color
-      getLineColor: d => [0, 0, 255, 255],
+      getFillColor: (d: any) => {
+        const groupByMapping: { [key: string]: string } = {
+          'Material': 'constructionmaterial',
+          'Usage': 'buildinguse',
+        };
+        const propertyName = groupByMapping[category2];
+
+        if (!propertyName || !d.properties) {
+          return [0, 0, 255, 200]; // Default color
+        }
+
+        const propValue = d.properties[propertyName];
+        return propValue ? [...stringToColor(String(propValue)), 200] : [128, 128, 128, 200]; // Gray for undefined
+      },
+      getLineColor: (d: any) => {
+        const groupByMapping: { [key: string]: string } = {
+          'Material': 'constructionmaterial',
+          'Usage': 'buildinguse',
+        };
+        const propertyName = groupByMapping[category2];
+
+        if (!propertyName || !d.properties) {
+          return [0, 0, 255, 255]; // Default color
+        }
+
+        const propValue = d.properties[propertyName];
+        return propValue ? [...stringToColor(String(propValue)), 255] : [128, 128, 128, 255]; // Gray for undefined
+      },
       onHover: info => {
-        if (info.object && info.object.properties) {
+        if (info.object && info.object.properties) {  
           setHoverInfo(info as any);
         } else {
           setHoverInfo(null);
@@ -465,7 +528,8 @@ export function Index({ auth }: PageProps) {
         }
       },
       updateTriggers: {
-        data: buildingCentroidsData,
+        getFillColor: [category2],
+        getLineColor: [category2],
       },
     }),
 
@@ -616,6 +680,14 @@ export function Index({ auth }: PageProps) {
           <ToggleControl
             onMapViewClick={mapViewClickHandler}
             onSatelliteViewClick={satelliteViewClickHandler}
+            currentMapStyle={mapStyle}
+          />
+
+          <FilterPanel
+            category1={category1}
+            category2={category2}
+            onCategory1Change={setCategory1}
+            onCategory2Change={setCategory2}
           />
 
           {hoverInfo && hoverInfo.object && (
@@ -664,22 +736,198 @@ const ICON_MAPPING = 'https://raw.githubusercontent.com/visgl/deck.gl/refs/heads
 interface ToggleControlProps {
   onMapViewClick: () => void;
   onSatelliteViewClick: () => void;
+  currentMapStyle: string;
 }
 
-const ToggleControl: React.FC<ToggleControlProps> = ({ onMapViewClick, onSatelliteViewClick }) => {
+const ToggleControl: React.FC<ToggleControlProps> = ({ onMapViewClick, onSatelliteViewClick, currentMapStyle }) => {
+  const baseStyle: React.CSSProperties = {
+    padding: '6px 12px',
+    cursor: 'pointer',
+    border: 'none',
+    backgroundColor: 'transparent',
+    fontWeight: 500,
+    transition: 'background-color 0.2s ease, color 0.2s ease',
+  };
+
+  const activeStyle: React.CSSProperties = {
+    ...baseStyle,
+    backgroundColor: '#e0e0e0',
+    borderRadius: '4px',
+  };
+
+  const isMapView = !currentMapStyle.includes('hybrid');
+
   return (
     <div style={{
       position: 'absolute',
       top: 10,
       left: 10,
       backgroundColor: 'white',
-      padding: '8px',
-      borderRadius: '4px',
-      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-      zIndex: 1
+      padding: '4px',
+      borderRadius: '6px',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      zIndex: 1,
+      display: 'flex',
     }}>
-      <button onClick={onMapViewClick} style={{ marginRight: '8px', padding: '6px 10px', cursor: 'pointer' }}>Map View</button>
-      <button onClick={onSatelliteViewClick} style={{ padding: '6px 10px', cursor: 'pointer' }}>Satellite View</button>
+      <button onClick={onMapViewClick} style={isMapView ? activeStyle : baseStyle}>Map</button>
+      <button onClick={onSatelliteViewClick} style={!isMapView ? activeStyle : baseStyle}>Satellite</button>
+    </div>
+  );
+};
+
+interface FilterPanelProps {
+  category1: string;
+  category2: string;
+  onCategory1Change: (val: string) => void;
+  onCategory2Change: (val: string) => void;
+}
+
+const CustomDropdown: React.FC<{ 
+  title: string;
+  options: string[]; 
+  value: string; 
+  onChange: (value: string) => void;
+  icon: React.ReactNode;
+}> = ({ title, options, value, onChange, icon }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleOptionClick = (option: string) => {
+    onChange(option);
+    setIsOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const buttonStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    backgroundColor: 'white',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: 500,
+    color: '#374151',
+    cursor: 'pointer',
+    minWidth: '160px',
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    justifyContent: 'space-between',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+    outline: 'none',
+  };
+
+  if (isOpen || isFocused) {
+    buttonStyle.borderColor = '#a5b4fc';
+    buttonStyle.boxShadow = '0 0 0 3px rgba(165, 180, 252, 0.3)';
+  }
+
+  return (
+    <div style={{ position: 'relative' }} ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        style={buttonStyle}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {icon}
+          {value}
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          backgroundColor: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '6px',
+          marginTop: '4px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          zIndex: 10,
+          padding: '4px',
+          opacity: 1,
+          transform: 'scale(1)',
+          transition: 'opacity 0.1s ease-out, transform 0.1s ease-out',
+        }}>
+          <div style={{ padding: '8px 12px', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>{title}</div>
+          {options.map(option => (
+            <div
+              key={option}
+              onClick={() => handleOptionClick(option)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                backgroundColor: value === option ? '#f3f4f6' : 'transparent',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : '#f9fafb')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : 'transparent')}
+            >
+              {icon}
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const FilterPanel: React.FC<FilterPanelProps> = ({ category1, category2, onCategory1Change, onCategory2Change }) => {
+  const filterByOptions = ['No Filter', 'Option A', 'Option B'];
+  const groupByOptions = ['Material', 'Usage'];
+
+  const icon1 = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <rect x="7" y="8" width="3" height="8"/>
+      <rect x="14" y="12" width="3" height="4"/>
+    </svg>
+  );
+
+  const icon2 = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  );
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        display: 'flex',
+        gap: '8px',
+        alignItems: 'center',
+        zIndex: 1,
+      }}
+    >
+      <CustomDropdown title="Filter by" options={filterByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
+      <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
     </div>
   );
 };
