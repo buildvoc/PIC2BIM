@@ -568,7 +568,7 @@ export function Index({ auth }: PageProps) {
 
   return (
     <>
-      <Head title="The National Heritage List for England" />
+      <Head title="Data Map" />
       <AuthenticatedLayout user={auth.user}>
         <Accordion style={{ margin: 0 }}>
           <AccordionSummary

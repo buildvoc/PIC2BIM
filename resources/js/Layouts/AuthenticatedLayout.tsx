@@ -105,7 +105,7 @@ export default function Authenticated({
                                                 "nhle.index"
                                             )}
                                         >
-                                            NHLE
+                                            Data Map
                                         </NavLink>
                                     </div>
                                 </>
@@ -441,7 +441,7 @@ export default function Authenticated({
                                 href={route("nhle.index")}
                                 active={route().current("nhle.index")}
                             >
-                                NHLE
+                                Data Map
                             </ResponsiveNavLink>
                           </>
                         )}
