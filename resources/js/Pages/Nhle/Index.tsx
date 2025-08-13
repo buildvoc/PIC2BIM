@@ -146,21 +146,8 @@ export function Index({ auth }: PageProps) {
       setMapStyle("https://api.maptiler.com/maps/hybrid/style.json?key=tBAEj5fg0DU85lCuGbNM");
     }, []);
 
-  const applyFilters = useCallback((params: { bbox?: string; ogc_fid?: string }) => {
-    router.visit(route('nhle.index'), {
-      method: 'get',
-      preserveState: true,
-      data: {
-        ogc_fid: params.ogc_fid || '',
-      },
-      except: ['shapes'],
-    });
-  }, []);
-
-  // State for GeoJSON validation and visualization
-
   useEffect(() => {
-    if (ogc_fid && nhles) {
+    if (nhles) {
       const centroids: BuildingCentroidState[] = [];
       for (const feature of nhles.data.features) {
         if (feature.geometry) {
@@ -459,12 +446,6 @@ export function Index({ auth }: PageProps) {
         const isHighlighted = ogc_fid?.includes(String(f.properties.ogc_fid));
         return isHighlighted ? 2 : 1;
       },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          const clickedOgcFid = String(info.object.properties.ogc_fid);
-          applyFilters({ ogc_fid: clickedOgcFid });
-        }
-      },
       updateTriggers: {
         getFillColor: [shapes.data],
         getLineColor: [shapes.data, ogc_fid],
@@ -565,28 +546,6 @@ export function Index({ auth }: PageProps) {
       },
     }),
 
-    geoJson && new IconLayer<LoadedNhleFeatureState>({
-      id: `nhle-layer-${geoJsonKey}`,
-      data: iconLayerData,
-      pickable: true,
-      iconAtlas: ICON_ATLAS,
-      iconMapping: ICON_MAPPING,
-      getPosition: d => d.coordinates,
-      getIcon: d => d.id.toString(),
-      getSize: 40,
-      onClick: (info) => {
-        if (info.object && info.object.properties) {
-          console.log('Clicked:', info.object);
-          setHoverInfo(info as any);
-        }
-      },
-      onHover: (info) => {
-        setHoverInfo(info.object ? info as any : null);
-      },
-      updateTriggers: {
-        data: iconLayerData,
-      },
-    }),
     geoJson && fetchedPolygons && new GeoJsonLayer<Feature>({
       id: 'fetched-polygons-layer',
       data: fetchedPolygons,

@@ -17,8 +17,6 @@ class NhleController extends Controller
 {
     public function index(Request $request)
     {
-        $ogc_fid = $request->ogc_fid;
-
         $shapes = Shape::query()
             ->whereExists(function ($query) {
                 $query->select(DB::raw(1))
@@ -27,24 +25,20 @@ class NhleController extends Controller
             })
             ->get();
 
-        $selectedShape = $shapes->first(fn (Shape $item) => $item->ogc_fid == $ogc_fid);
-
-        $nhle = [];
-        
-        if ($ogc_fid){
-            $nhle = Building::query()
-            ->when($selectedShape, function ($query) use ($selectedShape) {
-                $geoJson = json_encode($selectedShape->geometry);
-                $query->whereRaw("ST_INTERSECTS(geometry::geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('$geoJson')::geometry, 4326)::geometry, 27700))");
+        $nhle = Building::query()
+            ->where(function ($query) use ($shapes) {
+                foreach ($shapes as $shape) {
+                    $geoJson = json_encode($shape->geometry);
+                    $query->orWhereRaw("ST_INTERSECTS(geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))", [$geoJson]);
+                }
             })
             ->get();
-        }
 
         return Inertia::render('Nhle/Index', [
             'shapes' => new ShapeCollection($shapes),
-            'selectedShape' => $selectedShape ? new ShapeFeatureResource($selectedShape): null,
+            'selectedShape' => null,
             'nhles' => new BuildingCollection($nhle),
-            'ogc_fid' => $ogc_fid
+            'ogc_fid' => null
         ]);
     }
     
