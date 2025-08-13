@@ -10,108 +10,27 @@ import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
 import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport } from '@deck.gl/core';
-import { romanToInt } from '@/Constants/Constants';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
+import ToggleControl from './components/ToggleControl';
+import FilterPanel from './components/FilterPanel';
+import { getColorForValue } from '@/utils/colors';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
-import type { NhleProperties } from '@/types/nhle';
-import type { BuildingProperties, BuildingFeature, BuildingGeoJson } from '@/types/building';
-import type { GeoJSON } from 'geojson';
+import type { BuildingProperties, BuildingGeoJson } from '@/types/building';
 import type { PageProps } from '@/types';
+import type { 
+    BuildingCentroidState, 
+    ShapesGeoJson, 
+    SelectedShapeData, 
+    MGeoJson, 
+    FetchedPolygonsData,
+    LoadedNhleFeatureState,
+    ValidationError
+} from './types';
 
-interface NhleFeatureState { 
-  id: string|number; 
-  coordinates: [longitude: number, latitude: number];
-  properties: NhleProperties;
-}
 
-interface BuildingCentroidState {
-  id: string;
-  coordinates: [number, number];
-  properties: BuildingProperties;
-}
-
-interface ShapeFeature extends GeoJSON.Feature {
-  id: string|number;
-  properties: ShapeProperties;
-  geometry: GeoJSON.MultiPolygon;
-}
-
-interface ShapesGeoJson extends GeoJSON.FeatureCollection {
-  features: ShapeFeature[];
-}
-
-interface SelectedShapeData extends GeoJSON.Feature {
-  id: string|number; // Corresponds to ogc_fid
-  geometry: GeoJSON.MultiPolygon;
-  properties: ShapeProperties;
-}
-
-interface LoadedNhleFeatureState {
-  id: string|number;
-  coordinates: [longitude: number, latitude: number];
-  properties: {Name: string;}
-}
-
-interface LoadedNhleFeature extends GeoJSON.Feature {
-  id: string|number;
-  geometry: Geometry;
-  properties: {Name: string;};
-}
-
-interface FetchedPolygonsData extends GeoJSON.FeatureCollection {
-  features: Feature[];
-}
-
-interface MGeoJson extends GeoJSON.FeatureCollection {
-  features: LoadedNhleFeature[];
-}
-
-interface ValidationError {
-  message?: string;
-  severity?: string;
-  from?: number;
-  to?: number;
-  [key: string]: any; // Allow additional properties
-}
-
-// Helper function to generate a consistent pastel color from a string
-const  stringToColor = (str: string): [number, number, number] => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-
-  const safeMod = (n: number, m: number) => ((n % m) + m) % m;
-
-  const h = safeMod(hash, 360);
-
-  const s = 65 + safeMod(hash >> 8, 26); // 65..90
-
-  const l = 72 + safeMod(hash >> 16, 17); // 72..88
-
-  const sNorm = s / 100;
-  const lNorm = l / 100;
-  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = lNorm - c / 2;
-
-  let rTemp = 0, gTemp = 0, bTemp = 0;
-  if (h < 60) { rTemp = c; gTemp = x; bTemp = 0; }
-  else if (h < 120) { rTemp = x; gTemp = c; bTemp = 0; }
-  else if (h < 180) { rTemp = 0; gTemp = c; bTemp = x; }
-  else if (h < 240) { rTemp = 0; gTemp = x; bTemp = c; }
-  else if (h < 300) { rTemp = x; gTemp = 0; bTemp = c; }
-  else { rTemp = c; gTemp = 0; bTemp = x; }
-
-  const r = Math.round((rTemp + m) * 255);
-  const g = Math.round((gTemp + m) * 255);
-  const b = Math.round((bTemp + m) * 255);
-
-  return [r, g, b];
-};
 
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
@@ -135,8 +54,24 @@ export function Index({ auth }: PageProps) {
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [category1, setCategory1] = useState<string>('All');
-  const [category2, setCategory2] = useState<string>('All');
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingCentroidState | null>(null);
+  const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
+  const [category1, setCategory1] = useState<string>('Fixed Size');
+  const [category2, setCategory2] = useState<string>('Usage');
+  const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
+  const accordionDetailsRef = useRef<HTMLDivElement>(null);
+  const [accordionHeight, setAccordionHeight] = useState(0);
+
+  const groupByMapping: { [key: string]: string } = {
+    'Material': 'constructionmaterial',
+    'Usage': 'buildinguse',
+    'Connectivity': 'connectivity',
+    'Theme': 'theme',
+  };
+
+  const handleLegendItemClick = useCallback((value: any) => {
+    setSelectedLegendItem((prev: any) => (prev === value ? null : value));
+  }, []);
 
   const mapViewClickHandler = useCallback(() => {
     setMapStyle("https://tiles.openfreemap.org/styles/liberty");
@@ -146,21 +81,8 @@ export function Index({ auth }: PageProps) {
       setMapStyle("https://api.maptiler.com/maps/hybrid/style.json?key=tBAEj5fg0DU85lCuGbNM");
     }, []);
 
-  const applyFilters = useCallback((params: { bbox?: string; ogc_fid?: string }) => {
-    router.visit(route('nhle.index'), {
-      method: 'get',
-      preserveState: true,
-      data: {
-        ogc_fid: params.ogc_fid || '',
-      },
-      except: ['shapes'],
-    });
-  }, []);
-
-  // State for GeoJSON validation and visualization
-
   useEffect(() => {
-    if (ogc_fid && nhles) {
+    if (nhles) {
       const centroids: BuildingCentroidState[] = [];
       for (const feature of nhles.data.features) {
         if (feature.geometry) {
@@ -362,6 +284,14 @@ export function Index({ auth }: PageProps) {
   };
 
   useEffect(() => {
+    if (isAccordionExpanded && accordionDetailsRef.current) {
+      setAccordionHeight(accordionDetailsRef.current.scrollHeight);
+    } else if (!isAccordionExpanded) {
+      setAccordionHeight(0);
+    }
+  }, [isAccordionExpanded, validationStatus, error, fileContent]);
+
+  useEffect(() => {
     if (geoJson && geoJson.features) {
       console.log("geoJson", geoJson);
 
@@ -459,12 +389,6 @@ export function Index({ auth }: PageProps) {
         const isHighlighted = ogc_fid?.includes(String(f.properties.ogc_fid));
         return isHighlighted ? 2 : 1;
       },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          const clickedOgcFid = String(info.object.properties.ogc_fid);
-          applyFilters({ ogc_fid: clickedOgcFid });
-        }
-      },
       updateTriggers: {
         getFillColor: [shapes.data],
         getLineColor: [shapes.data, ogc_fid],
@@ -474,47 +398,48 @@ export function Index({ auth }: PageProps) {
 
     // Layer for Building centroids (using ScatterplotLayer)
     buildingCentroidsData.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
-      id: `building-layer-${ogc_fid}`,
+      id: `building-layer-${geoJsonKey}`,
       data: buildingCentroidsData,
       pickable: true,
-      opacity: 0.8,
       stroked: true,
       filled: true,
-      radiusScale: 6,
-      radiusMinPixels: 5,
+      radiusScale: 1,
       radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
-      getRadius: d => 10,
+      getRadius: d => {
+        let baseRadius;
+        if (category1 === 'Size by Area') {
+          const area = d.properties?.area || 0;
+          baseRadius = Math.sqrt(area);
+        } else { // Fixed Size
+          baseRadius = 10;
+        }
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = d.properties?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
       getFillColor: (d: any) => {
-        const groupByMapping: { [key: string]: string } = {
-          'Material': 'constructionmaterial',
-          'Usage': 'buildinguse',
-        };
         const propertyName = groupByMapping[category2];
-
-        if (!propertyName || !d.properties) {
-          return [0, 0, 255, 200]; // Default color
-        }
+        if (!propertyName || !d.properties) return [0, 0, 255, 200];
 
         const propValue = d.properties[propertyName];
-        return propValue ? [...stringToColor(String(propValue)), 200] : [128, 128, 128, 200]; // Gray for undefined
-      },
-      getLineColor: (d: any) => {
-        const groupByMapping: { [key: string]: string } = {
-          'Material': 'constructionmaterial',
-          'Usage': 'buildinguse',
-        };
-        const propertyName = groupByMapping[category2];
+        const uniqueValues = Array.from(new Set(buildingCentroidsData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
 
-        if (!propertyName || !d.properties) {
-          return [0, 0, 255, 255]; // Default color
-        }
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
 
-        const propValue = d.properties[propertyName];
-        return propValue ? [...stringToColor(String(propValue)), 255] : [128, 128, 128, 255]; // Gray for undefined
+        return [...color, alpha];
       },
+      getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
+        getCursor;
         if (info.object && info.object.properties) {  
           setHoverInfo(info as any);
         } else {
@@ -523,70 +448,15 @@ export function Index({ auth }: PageProps) {
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          console.log('Clicked building:', info.object);
-          setHoverInfo(info as any);
+          setSelectedBuilding(info.object);
         }
       },
       updateTriggers: {
-        getFillColor: [category2],
-        getLineColor: [category2],
+        getFillColor: [category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem],
       },
     }),
-
-
-    // ScatterplotLayer for polygon centroids
-    geoJson && polygonCentroids.length > 0 && new ScatterplotLayer({
-      id: `polygon-centroids-${geoJsonKey}`,
-      data: polygonCentroids,
-      pickable: true,
-      opacity: 0.8,
-      stroked: true,
-      filled: true,
-      radiusScale: 6,
-      radiusMinPixels: 5,
-      radiusMaxPixels: 20,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => 10,
-      getFillColor: d => [255, 140, 0, 200],
-      getLineColor: d => [255, 140, 0, 255],
-      onHover: info => {
-        if (info.object && info.object.properties) {
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          console.log('Clicked polygon centroid:', info.object);
-          setHoverInfo(info as any);
-        }
-      },
-    }),
-
-    geoJson && new IconLayer<LoadedNhleFeatureState>({
-      id: `nhle-layer-${geoJsonKey}`,
-      data: iconLayerData,
-      pickable: true,
-      iconAtlas: ICON_ATLAS,
-      iconMapping: ICON_MAPPING,
-      getPosition: d => d.coordinates,
-      getIcon: d => d.id.toString(),
-      getSize: 40,
-      onClick: (info) => {
-        if (info.object && info.object.properties) {
-          console.log('Clicked:', info.object);
-          setHoverInfo(info as any);
-        }
-      },
-      onHover: (info) => {
-        setHoverInfo(info.object ? info as any : null);
-      },
-      updateTriggers: {
-        data: iconLayerData,
-      },
-    }),
+    
     geoJson && fetchedPolygons && new GeoJsonLayer<Feature>({
       id: 'fetched-polygons-layer',
       data: fetchedPolygons,
@@ -606,7 +476,11 @@ export function Index({ auth }: PageProps) {
     <>
       <Head title="Data Map" />
       <AuthenticatedLayout user={auth.user}>
-        <Accordion style={{ margin: 0 }}>
+        <Accordion 
+          style={{ margin: 0 }} 
+          expanded={isAccordionExpanded} 
+          onChange={(event, isExpanded) => setIsAccordionExpanded(isExpanded)}
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="panel1-content"
@@ -614,7 +488,7 @@ export function Index({ auth }: PageProps) {
           >
             Load GeoJson file
           </AccordionSummary>
-          <AccordionDetails>
+          <AccordionDetails ref={accordionDetailsRef}>
             <div className='flex flex-col gap-4 md:flex-row'>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' />
               <Button size='small' variant="contained" onClick={handleClick}>Draw</Button>
@@ -664,7 +538,11 @@ export function Index({ auth }: PageProps) {
             )}
           </AccordionDetails>
         </Accordion>
-        <div style={{ width: '100%', minHeight: '91vh', position: 'relative' }}>
+        <div style={{
+            width: '100%', 
+            position: 'relative',
+            height: isAccordionExpanded ? `calc(86vh - ${accordionHeight}px)` : '88vh'
+          }}>
           <DeckGL
             initialViewState={viewState}
             controller={true}
@@ -725,211 +603,43 @@ export function Index({ auth }: PageProps) {
             </div>
           )}
         </div>
+
+        {/* Slide-in panel */}
+        <div
+          className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedBuilding ? 'translate-x-0' : '-translate-x-full'}`}
+          style={{
+            width: 350,
+            maxWidth: '90vw',
+            top: 'auto',
+            bottom: 0,
+            maxHeight: isAccordionExpanded ? `calc(100vh - ${125 + accordionHeight}px)` : 'calc(100vh - 110px)'
+          }}
+        >
+          {selectedBuilding && (
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b">
+                <span className="font-bold text-lg">Building Details</span>
+                <button onClick={() => setSelectedBuilding(null)} className="text-gray-600 hover:text-black">✕</button>
+              </div>
+              <div className="p-4 flex-1 overflow-auto">
+                {selectedBuilding.properties && Object.entries(selectedBuilding.properties)
+                  .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
+                  .map(([key, value]) => (
+                  <div key={key} className="mb-2">
+                    <strong className="uppercase">{key.replace(/_/g, ' ')}:</strong>
+                    <div className='text-gray-700'>{String(value)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
       </AuthenticatedLayout>
     </>
   );
 }
 
-const ICON_ATLAS = 'https://raw.githubusercontent.com/visgl/deck.gl/refs/heads/9.1-release/examples/website/icon/data/location-icon-atlas.png';
-const ICON_MAPPING = 'https://raw.githubusercontent.com/visgl/deck.gl/refs/heads/9.1-release/examples/website/icon/data/location-icon-mapping.json';
 
-interface ToggleControlProps {
-  onMapViewClick: () => void;
-  onSatelliteViewClick: () => void;
-  currentMapStyle: string;
-}
-
-const ToggleControl: React.FC<ToggleControlProps> = ({ onMapViewClick, onSatelliteViewClick, currentMapStyle }) => {
-  const baseStyle: React.CSSProperties = {
-    padding: '6px 12px',
-    cursor: 'pointer',
-    border: 'none',
-    backgroundColor: 'transparent',
-    fontWeight: 500,
-    transition: 'background-color 0.2s ease, color 0.2s ease',
-  };
-
-  const activeStyle: React.CSSProperties = {
-    ...baseStyle,
-    backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-  };
-
-  const isMapView = !currentMapStyle.includes('hybrid');
-
-  return (
-    <div style={{
-      position: 'absolute',
-      top: 10,
-      left: 10,
-      backgroundColor: 'white',
-      padding: '4px',
-      borderRadius: '6px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      zIndex: 1,
-      display: 'flex',
-    }}>
-      <button onClick={onMapViewClick} style={isMapView ? activeStyle : baseStyle}>Map</button>
-      <button onClick={onSatelliteViewClick} style={!isMapView ? activeStyle : baseStyle}>Satellite</button>
-    </div>
-  );
-};
-
-interface FilterPanelProps {
-  category1: string;
-  category2: string;
-  onCategory1Change: (val: string) => void;
-  onCategory2Change: (val: string) => void;
-}
-
-const CustomDropdown: React.FC<{ 
-  title: string;
-  options: string[]; 
-  value: string; 
-  onChange: (value: string) => void;
-  icon: React.ReactNode;
-}> = ({ title, options, value, onChange, icon }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const handleOptionClick = (option: string) => {
-    onChange(option);
-    setIsOpen(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const buttonStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    backgroundColor: 'white',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: '#d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 500,
-    color: '#374151',
-    cursor: 'pointer',
-    minWidth: '160px',
-    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    justifyContent: 'space-between',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
-    outline: 'none',
-  };
-
-  if (isOpen || isFocused) {
-    buttonStyle.borderColor = '#a5b4fc';
-    buttonStyle.boxShadow = '0 0 0 3px rgba(165, 180, 252, 0.3)';
-  }
-
-  return (
-    <div style={{ position: 'relative' }} ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        style={buttonStyle}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {icon}
-          {value}
-        </div>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </button>
-
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          backgroundColor: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          marginTop: '4px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          zIndex: 10,
-          padding: '4px',
-          opacity: 1,
-          transform: 'scale(1)',
-          transition: 'opacity 0.1s ease-out, transform 0.1s ease-out',
-        }}>
-          <div style={{ padding: '8px 12px', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>{title}</div>
-          {options.map(option => (
-            <div
-              key={option}
-              onClick={() => handleOptionClick(option)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                backgroundColor: value === option ? '#f3f4f6' : 'transparent',
-                transition: 'background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : '#f9fafb')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : 'transparent')}
-            >
-              {icon}
-              {option}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const FilterPanel: React.FC<FilterPanelProps> = ({ category1, category2, onCategory1Change, onCategory2Change }) => {
-  const filterByOptions = ['No Filter', 'Option A', 'Option B'];
-  const groupByOptions = ['Material', 'Usage'];
-
-  const icon1 = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-      <rect x="7" y="8" width="3" height="8"/>
-      <rect x="14" y="12" width="3" height="4"/>
-    </svg>
-  );
-
-  const icon2 = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-      <line x1="18" y1="20" x2="18" y2="10"/>
-      <line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  );
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        display: 'flex',
-        gap: '8px',
-        alignItems: 'center',
-        zIndex: 1,
-      }}
-    >
-      <CustomDropdown title="Filter by" options={filterByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
-      <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
-    </div>
-  );
-};
 
 export default memo(Index);

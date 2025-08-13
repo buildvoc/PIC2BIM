@@ -29,7 +29,10 @@ class BuildingFeatureResource extends JsonResource
                 'constructionmaterial' => $this->constructionmaterial ?? null,
                 'roofmaterial' => $this->roofmaterial_primarymaterial ?? null,
                 'buildinguse' => $this->buildinguse ?? null,
-                'numberoffloors' => $this->numberoffloors ?? null
+                'numberoffloors' => $this->numberoffloors ?? null,
+                'connectivity' => $this->connectivity ?? null,
+                'theme' => $this->theme ?? null,
+                'area' => $this->geometry_area_m2 ?? null
             ],
             'geometry' => $geoJson ? json_decode($geoJson->geojson) : null
         ];
