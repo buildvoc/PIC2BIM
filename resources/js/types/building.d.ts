@@ -1,4 +1,5 @@
 export interface BuildingProperties {
+    [key: string]: any;
     osid: string;
     uprn?: string;
     postcode?: string;
