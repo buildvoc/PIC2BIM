@@ -457,6 +457,35 @@ export function Index({ auth }: PageProps) {
       },
     }),
     
+    
+    // ScatterplotLayer for polygon centroids
+    geoJson && polygonCentroids.length > 0 && new ScatterplotLayer({
+      id: `polygon-centroids-${geoJsonKey}`,
+      data: polygonCentroids,
+      pickable: true,
+      opacity: 0.4,
+      stroked: true,
+      filled: true,
+      getPosition: d => d.coordinates,
+      getRadius: d => 10,
+      getFillColor: d => [255, 140, 0, 200],
+      getLineColor: d => [255, 140, 0, 255],
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          console.log('Clicked polygon centroid:', info.object);
+          setHoverInfo(info as any);
+        }
+      },
+    }),
+    
+
     geoJson && fetchedPolygons && new GeoJsonLayer<Feature>({
       id: 'fetched-polygons-layer',
       data: fetchedPolygons,
