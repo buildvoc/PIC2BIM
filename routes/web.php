@@ -97,6 +97,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
         Route::get('/data_map', [DataMapController::class, 'index'])->name('data_map.index');
         Route::get('/nhle2', [DataMapController::class, 'index2'])->name('data_map.index2');
+        Route::post('/data_map_validation', [DataMapController::class, 'validation'])->name('data_map.validation');
+        Route::post('/data_map_import', [DataMapController::class, 'import'])->name('data_map.import');
     });
     
     

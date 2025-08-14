@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 import DeckGL from '@deck.gl/react';
 import Map from 'react-map-gl/maplibre';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
@@ -12,6 +13,7 @@ import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport } from '@deck.gl/core';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
+import ValidationReportModal from './components/ValidationReportModal';
 import ToggleControl from './components/ToggleControl';
 import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
@@ -136,10 +138,12 @@ export function Index({ auth }: PageProps) {
     }
   };
 
-  const [error, setError] = useState<string|null>(null);
+  const [validationResults, setValidationResults] = useState<any[]>([]);
+  const [validationGeoJson, setValidationGeoJson] = useState<any|null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   // Store parsed GeoJSON object
   const [fileContent, setFileContent] = useState<any>(null);
-  const [geoJsonKey, setGeoJsonKey] = useState<string>('');
   const [geoJson, setGeoJson] = useState<MGeoJson>();
   const [iconLayerData, setIconLayerData] = useState<LoadedNhleFeatureState[]>([]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
@@ -150,7 +154,8 @@ export function Index({ auth }: PageProps) {
     const file = event.target.files[0];
     if (!file) return;
 
-    setError(null);
+    setStatusMessage(null);
+    setValidationResults([]);
 
     const reader = new FileReader();
 
@@ -160,55 +165,89 @@ export function Index({ auth }: PageProps) {
         const content = JSON.parse(text);
 
         if (content.type !== 'FeatureCollection' || !Array.isArray(content.features)) {
-          setError('Invalid GeoJSON format. Expected FeatureCollection.');
-          // Stop further validation if basic structure is wrong
+          setStatusMessage('Invalid GeoJSON format. Expected FeatureCollection.');
           setFileContent(null);
           return;
         }
         
-        // Run validation in Web Worker or fallback (expects string input)
         validate(text).then((res) => {
           if (!res.valid) {
-            setError('GeoJSON validation failed. See issues below.');
+            // Don't set status message here; let the hook's state handle the UI.
+            setStatusMessage('GeoJSON has format errors. See details below.');
           } else {
-            setError(null);
+            setStatusMessage('Local validation passed. Checking for duplicates on the server...');
+            axios.post(route('data_map.validation'), { geojson: content })
+              .then((response: { data: { results: any[]; }; }) => {
+                const results = response.data.results || [];
+                setValidationResults(results);
+                const readyCount = results.filter(r => r.status === 'ok').length;
+                const warningCount = results.length - readyCount;
+                setStatusMessage(`Validation complete: ${readyCount} features ready to import, ${warningCount} with warnings.`);
+              })
+              .catch((error: any) => {
+                console.error('Duplicate check error:', error);
+                setStatusMessage('An error occurred while checking for duplicates on the server.');
+              });
           }
-          // Keep the parsed content regardless; drawing may still be gated by user action
           setFileContent(content);
         }).catch((err: any) => {
-          setError(`Validation error: ${err?.message || 'Unknown error'}`);
+          setStatusMessage(`Validation error: ${err?.message || 'Unknown error'}`);
           setFileContent(content);
         });
       } catch (err: any) {
-        setError(`Error parsing GeoJSON: ${err.message}`);
+        setStatusMessage(`Error parsing GeoJSON: ${err.message}`);
         setFileContent(null);
       }
     };
 
     reader.onerror = () => {
-      setError('Error reading file');
+      setStatusMessage('Error reading file');
       setFileContent(null);
     };
 
     reader.readAsText(file);
   };
 
+  const handleImportSuccess = () => {
+    setValidationResults([]);
+    setValidationGeoJson(null);
+    window.location.reload();
+  };
+
+  const handleReviewForImport = async () => {
+    const sourceGeoJson = geoJson && geoJson.features.length > 0 ? geoJson : fileContent;
+
+    if (!sourceGeoJson) {
+      alert('No GeoJSON data available to review. Please upload a file or draw features on the map.');
+      return;
+    }
+
+    try {
+      const response = await axios.post(route('data_map.validation'), { geojson: sourceGeoJson });
+      setValidationResults(response.data.results);
+      setValidationGeoJson(sourceGeoJson); // Set the correct geojson for import
+      setIsReportModalOpen(true);
+    } catch (error) { 
+      console.error('Validation failed:', error);
+      alert('An error occurred during validation.');
+    }
+  };
+
   const handleClick = () => {
     if (!fileContent) {
-      setError('Invalid GeoJson file!');
+      setStatusMessage('Invalid GeoJson file!');
       return;
     }
 
     try {
       console.log("Processing GeoJSON:", fileContent);
       checkGeoJson.check(JSON.stringify(fileContent));
-      setGeoJsonKey(geoJsonKey + 1);
       setGeoJson(fileContent as MGeoJson);
-      setError(null);
+      setStatusMessage(null);
     } catch (e: any) {
       console.log(e.issues || e.message);
       const issues = e?.issues || [e?.message || 'Processing failed'];
-      setError('GeoJSON invalid. Fix issues before drawing.');
+      setStatusMessage('GeoJSON invalid. Fix issues before drawing.');
     }
   }
 
@@ -256,7 +295,7 @@ export function Index({ auth }: PageProps) {
     } else if (!isAccordionExpanded) {
       setAccordionHeight(0);
     }
-  }, [isAccordionExpanded, validationStatus, error, fileContent]);
+  }, [isAccordionExpanded, validationStatus, validationResults, statusMessage]);
 
   useEffect(() => {
     if (geoJson && geoJson.features) {
@@ -357,7 +396,7 @@ export function Index({ auth }: PageProps) {
 
     // Layer for Building centroids (using ScatterplotLayer)
     buildingCentroidsData.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
-      id: `building-layer-${geoJsonKey}`,
+      id: `building-layer`,
       data: buildingCentroidsData,
       pickable: true,
       stroked: true,
@@ -419,7 +458,7 @@ export function Index({ auth }: PageProps) {
     
     // ScatterplotLayer for polygon centroids
     geoJson && polygonCentroids.length > 0 && new ScatterplotLayer({
-      id: `polygon-centroids-${geoJsonKey}`,
+      id: `polygon-centroids`,
       data: polygonCentroids,
       pickable: true,
       opacity: 0.4,
@@ -481,46 +520,42 @@ export function Index({ auth }: PageProps) {
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' />
               <Button size='small' variant="contained" onClick={handleClick}>Draw</Button>
             </div>
-            {error && <p className='text-red-500'>{error}</p>}
-            {validationStatus !== 'idle' && (
-              <div className={`p-2 rounded ${validationLimited.valid ? 'bg-green-100 text-green-800' : (validationStatus === 'validating' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')}`}>
+            {/* Server-side validation summary */}
+            {statusMessage && (
+              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('failed') ? 'red' : 'green'), marginTop: '10px' }}>
+                {statusMessage}
+              </div>
+            )}
+
+            {/* Review for Import button */}
+            {validationResults.length > 0 && (
+              <Button variant="contained" onClick={handleReviewForImport} style={{ marginTop: '10px' }}>
+                Review for Import
+              </Button>
+            )}
+
+            {/* Detailed local validation errors from the hook */}
+            {validationStatus !== 'idle' && !validationLimited.valid && (
+              <div className={`p-2 rounded mt-2 bg-red-100 text-red-800`}>
                 <div className='flex items-center justify-between'>
-                  <strong>Validation:</strong>
-                  <span>
-                    {validationStatus === 'validating' && 'Validating…'}
-                    {validationStatus === 'success' && 'Valid GeoJSON'}
-                    {validationStatus === 'error' && (validationLimited.valid ? 'Valid GeoJSON' : 'Invalid GeoJSON')}
-                  </span>
+                  <strong>Validation Errors (showing up to 50):</strong>
                 </div>
-                {!validationLimited.valid && validationLimited.errors.length > 0 && (
-                  <div className='mt-2'>
-                    <strong>Errors (showing up to 50):</strong>
-                    <ul className='list-disc pl-5 mt-2'>
-                      {validationLimited.errors.map((errItem, index) => {
-                        if (typeof errItem === 'string') return <li key={index}>{errItem}</li>;
-                        const ve = errItem as ValidationError;
-                        return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
-                      })}
-                    </ul>
-                  </div>
-                )}
+                <ul className='list-disc pl-5 mt-2'>
+                  {validationLimited.errors.map((errItem, index) => {
+                    const ve = errItem as ValidationError;
+                    return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
+                  })}
+                </ul>
                 {validationLimited.warnings.length > 0 && (
                   <div className='mt-2'>
                     <strong>Warnings (showing up to 50):</strong>
                     <ul className='list-disc pl-5 mt-2'>
                       {validationLimited.warnings.map((wItem, index) => {
-                        if (typeof wItem === 'string') return <li key={index}>{wItem}</li>;
                         const vw = wItem as ValidationError;
                         return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
                       })}
                     </ul>
                   </div>
-                )}
-                {(validationLimited as any).overflowErrors > 0 && (
-                  <div className='mt-2 text-sm'>+{(validationLimited as any).overflowErrors} more errors not shown</div>
-                )}
-                {(validationLimited as any).overflowWarnings > 0 && (
-                  <div className='mt-1 text-sm'>+{(validationLimited as any).overflowWarnings} more warnings not shown</div>
                 )}
               </div>
             )}
@@ -623,6 +658,13 @@ export function Index({ auth }: PageProps) {
           )}
         </div>
 
+        <ValidationReportModal 
+          open={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          results={validationResults}
+          geoJson={validationGeoJson}
+          onImportSuccess={handleImportSuccess}
+        />
       </AuthenticatedLayout>
     </>
   );
