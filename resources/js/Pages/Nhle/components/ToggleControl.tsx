@@ -7,37 +7,15 @@ interface ToggleControlProps {
 }
 
 const ToggleControl: React.FC<ToggleControlProps> = ({ onMapViewClick, onSatelliteViewClick, currentMapStyle }) => {
-  const baseStyle: React.CSSProperties = {
-    padding: '6px 12px',
-    cursor: 'pointer',
-    border: 'none',
-    backgroundColor: 'transparent',
-    fontWeight: 500,
-    transition: 'background-color 0.2s ease, color 0.2s ease',
-  };
-
-  const activeStyle: React.CSSProperties = {
-    ...baseStyle,
-    backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-  };
+  const baseStyle = 'px-3 py-1.5 cursor-pointer border-none bg-transparent font-medium transition-colors duration-200 ease-in-out';
+  const activeStyle = `${baseStyle} bg-gray-200 rounded-md`;
 
   const isMapView = !currentMapStyle.includes('hybrid');
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: 10,
-      left: 10,
-      backgroundColor: 'white',
-      padding: '4px',
-      borderRadius: '6px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      zIndex: 1,
-      display: 'flex',
-    }}>
-      <button onClick={onMapViewClick} style={isMapView ? activeStyle : baseStyle}>Map</button>
-      <button onClick={onSatelliteViewClick} style={!isMapView ? activeStyle : baseStyle}>Satellite</button>
+    <div className="absolute top-2.5 left-2.5 bg-white p-1 rounded-lg shadow-lg z-10 flex">
+      <button onClick={onMapViewClick} className={isMapView ? activeStyle : baseStyle}>Map</button>
+      <button onClick={onSatelliteViewClick} className={!isMapView ? activeStyle : baseStyle}>Satellite</button>
     </div>
   );
 };
