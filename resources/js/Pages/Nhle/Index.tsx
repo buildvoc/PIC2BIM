@@ -17,6 +17,7 @@ import ValidationReportModal from './components/ValidationReportModal';
 import ToggleControl from './components/ToggleControl';
 import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
+import Legend from '@/Components/DataMap/Legend';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -483,7 +484,7 @@ export function Index({ auth }: PageProps) {
       },
     }),
     
-
+    
     geoJson && fetchedPolygons && new GeoJsonLayer<Feature>({
       id: 'fetched-polygons-layer',
       data: fetchedPolygons,
@@ -589,6 +590,14 @@ export function Index({ auth }: PageProps) {
             category2={category2}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
+          />
+
+          <Legend 
+            data={buildingCentroidsData}
+            category={category2}
+            groupByMapping={groupByMapping}
+            onItemClick={handleLegendItemClick}
+            selectedItem={selectedLegendItem}
           />
 
           {hoverInfo && hoverInfo.object && (
