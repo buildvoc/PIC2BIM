@@ -33,20 +33,20 @@ import type {
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, selectedShape: mSelectedShape, nhles, ogc_fid } = usePage<{
+  const { shapes: mShapes, selectedShape: mSelectedShape, nhles, center } = usePage<{
     shapes: {data: ShapesGeoJson};
     selectedShape?: { data: SelectedShapeData };
     nhles: { data: BuildingGeoJson }; // Changed from NhleGeoJson to BuildingGeoJson
-    ogc_fid: string | null;
+    center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
 
   const [shapes] = useRemember(mShapes, `shapes`);
 
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
-    longitude: mSelectedShape && mSelectedShape.data.properties.longitude || 0.1,
-    latitude: mSelectedShape && mSelectedShape.data.properties.latitude || 52.5,
-    zoom: mSelectedShape ? 10: 6,
+    longitude: center ? center.coordinates[0] : (mSelectedShape && mSelectedShape.data.properties.longitude || 0.1),
+    latitude: center ? center.coordinates[1] : (mSelectedShape && mSelectedShape.data.properties.latitude || 52.5),
+    zoom: center ? 15 : (mSelectedShape ? 10: 6),
     pitch: 0,
     bearing: 0,
   });
@@ -102,52 +102,19 @@ export function Index({ auth }: PageProps) {
       }
       setBuildingCentroidsData(centroids);
     }
-  }, [nhles, ogc_fid]);
-  
-  useEffect(() => {
-    if (ogc_fid && nhles && nhles.data.features && nhles.data.features.length > 0) {
-      try {
-        const validFeatures = nhles.data.features.filter(f => f.geometry);
-        if (validFeatures.length > 0) {
-          const boundingBox = turf.bbox({
-            type: 'FeatureCollection',
-            features: validFeatures
-          });
-          
-          if (boundingBox && boundingBox.every(coord => typeof coord === 'number' && !isNaN(coord))) {
-            const [minLng, minLat, maxLng, maxLat] = boundingBox;
-            
-            const viewport = new WebMercatorViewport(viewState);
-            const { longitude, latitude, zoom } = viewport.fitBounds(
-              [[minLng, minLat], [maxLng, maxLat]],
-              { padding: 100 }
-            );
-            
-            setViewState(prev => {
-              if (prev.longitude !== longitude || prev.latitude !== latitude || prev.zoom !== zoom) {
-                return { ...prev, longitude, latitude, zoom };
-              }
-              return prev;
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error calculating bounding box:', error);
-      }
-    }
-  }, [nhles, ogc_fid]);
+  }, [nhles]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
   }) => {
     if (info.isPicking) {
-      const interactiveLayerIds = ['shapes-layer', `nhle-layer-${ogc_fid}`];
-      if (info.objects && info.objects.some((obj: any) => interactiveLayerIds.includes(obj.layer.id))) {
+      const interactiveLayerIds = ['shapes-layer', 'building-layer'];
+      if (info.objects && info.objects.some((obj: any) => interactiveLayerIds.some(id => obj.layer.id.startsWith(id)))) {
         return 'pointer';
       }
     }
     return 'grab';
-  }, [ogc_fid]);
+  }, []);
 
   const getCoordinatesFromFeature = (feature: Feature) => {
     const geometry = feature.geometry;
@@ -381,18 +348,10 @@ export function Index({ auth }: PageProps) {
         }
         return [234, 49, 34, 0.1 * 255];
       },
-      getLineColor: f => {
-        const isHighlighted = ogc_fid?.includes(String(f.properties.ogc_fid));
-        return isHighlighted ? [234, 49, 34, 255] : [100, 100, 100, 100];
-      },
-      getLineWidth: f => {
-        const isHighlighted = ogc_fid?.includes(String(f.properties.ogc_fid));
-        return isHighlighted ? 2 : 1;
-      },
+      getLineColor: [100, 100, 100, 100],
+      getLineWidth: 1,
       updateTriggers: {
         getFillColor: [shapes.data],
-        getLineColor: [shapes.data, ogc_fid],
-        getLineWidth: [shapes.data, ogc_fid],
       }
     }),
 
