@@ -32,11 +32,23 @@ class DataMapController extends Controller
             })
             ->get();
 
+        $center = null;
+        if ($shapes->isNotEmpty()) {
+            $centerData = DB::table('shape')
+                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(wkb_geometry)), 4326)) as center'))
+                ->whereIn('ogc_fid', $shapes->pluck('ogc_fid'))
+                ->first();
+
+            if ($centerData && $centerData->center) {
+                $center = json_decode($centerData->center);
+            }
+        }
+
         return Inertia::render('Nhle/Index', [
             'shapes' => new ShapeCollection($shapes),
             'selectedShape' => null,
             'nhles' => new BuildingCollection($nhle),
-            'ogc_fid' => null
+            'center' => $center,
         ]);
     }
     
