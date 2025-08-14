@@ -10,7 +10,6 @@ interface CustomDropdownProps {
 
 const CustomDropdown: React.FC<CustomDropdownProps> = ({ title, options, value, onChange, icon }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleOptionClick = (option: string) => {
@@ -28,81 +27,45 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ title, options, value, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const buttonStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    backgroundColor: 'white',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: '#d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 500,
-    color: '#374151',
-    cursor: 'pointer',
-    minWidth: '160px',
-    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    justifyContent: 'space-between',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
-    outline: 'none',
-  };
+  const buttonClasses = `
+    flex items-center justify-between gap-2 px-3 py-2 bg-white 
+    border border-gray-300 rounded-md text-sm font-medium text-gray-700 
+    cursor-pointer min-w-[160px] shadow-sm transition-all duration-200 
+    focus:outline-none focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+  `;
 
-  if (isOpen || isFocused) {
-    buttonStyle.borderColor = '#a5b4fc';
-    buttonStyle.boxShadow = '0 0 0 3px rgba(165, 180, 252, 0.3)';
-  }
+  const dropdownMenuClasses = `
+    absolute top-full left-0 right-0 bg-white border border-gray-200 
+    rounded-md mt-1 shadow-lg z-10 p-1 transition-all duration-100 ease-out
+  `;
+
+  const optionClasses = (option: string) => `
+    flex items-center gap-2 px-3 py-2 cursor-pointer rounded-md 
+    transition-colors duration-150 
+    ${value === option ? 'bg-gray-100' : 'hover:bg-gray-50'}
+  `;
 
   return (
-    <div style={{ position: 'relative' }} ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        style={buttonStyle}
+        className={buttonClasses}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           {icon}
           {value}
         </div>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
       </button>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          backgroundColor: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          marginTop: '4px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          zIndex: 10,
-          padding: '4px',
-          opacity: 1,
-          transform: 'scale(1)',
-          transition: 'opacity 0.1s ease-out, transform 0.1s ease-out',
-        }}>
-          <div style={{ padding: '8px 12px', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>{title}</div>
+        <div className={dropdownMenuClasses}>
+          <div className="px-3 py-2 text-xs font-medium text-gray-500">{title}</div>
           {options.map(option => (
             <div
               key={option}
               onClick={() => handleOptionClick(option)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                backgroundColor: value === option ? '#f3f4f6' : 'transparent',
-                transition: 'background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : '#f9fafb')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = value === option ? '#f3f4f6' : 'transparent')}
+              className={optionClasses(option)}
             >
               {icon}
               {option}

@@ -29,17 +29,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ category1, category2, onCateg
   );
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        display: 'flex',
-        gap: '8px',
-        alignItems: 'center',
-        zIndex: 1,
-      }}
-    >
+    <div className="absolute top-2.5 right-2.5 z-10 flex flex-col sm:flex-row gap-2 items-center">
       <CustomDropdown title="Map View" options={mapByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
       <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
     </div>
