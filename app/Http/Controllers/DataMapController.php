@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\NhleCollection;
-use App\Http\Resources\NhleFeatureResource;
 use App\Http\Resources\ShapeCollection;
 use App\Http\Resources\ShapeFeatureResource;
 use App\Http\Resources\BuildingCollection;
@@ -13,7 +11,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class NhleController extends Controller
+class DataMapController extends Controller
 {
     public function index(Request $request)
     {

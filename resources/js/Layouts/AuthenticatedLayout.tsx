@@ -100,9 +100,9 @@ export default function Authenticated({
                                             Unassigned Farmers
                                         </NavLink>
                                         <NavLink
-                                            href={route("nhle.index")}
+                                            href={route("data_map.index")}
                                             active={route().current(
-                                                "nhle.index"
+                                                "data_map.index"
                                             )}
                                         >
                                             Data Map
@@ -438,8 +438,8 @@ export default function Authenticated({
                                 Unassigned Farmers
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
-                                href={route("nhle.index")}
-                                active={route().current("nhle.index")}
+                                href={route("data_map.index")}
+                                active={route().current("data_map.index")}
                             >
                                 Data Map
                             </ResponsiveNavLink>
