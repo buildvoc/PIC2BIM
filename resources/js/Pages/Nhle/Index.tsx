@@ -630,7 +630,8 @@ export function Index({ auth }: PageProps) {
             maxWidth: '90vw',
             top: 'auto',
             bottom: 0,
-            maxHeight: isAccordionExpanded ? `calc(100vh - ${125 + accordionHeight}px)` : 'calc(100vh - 110px)'
+            maxHeight: isAccordionExpanded ? `calc(100vh - ${129 + accordionHeight}px)` : 'calc(100vh - 113px)',
+            border: '1px solid #ccc',
           }}
         >
           {selectedBuilding && (
