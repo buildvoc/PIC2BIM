@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
+import React, { memo, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Head, router, usePage, useRemember, } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -10,7 +10,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
 import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { MapViewState, WebMercatorViewport } from '@deck.gl/core';
+import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
@@ -61,6 +61,20 @@ export function Index({ auth }: PageProps) {
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Usage');
+  const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
+
+  const maxFloors = useMemo(() => {
+    if (buildingCentroidsData.length === 0) {
+      return 50; // Default max if no data
+    }
+    const max = Math.max(...buildingCentroidsData.map(d => d.properties?.numberoffloors || 0));
+    return max > 0 ? max : 50;
+  }, [buildingCentroidsData]);
+
+  useEffect(() => {
+    setFloorRange(prev => ({ ...prev, max: maxFloors }));
+  }, [maxFloors]);
+
   const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
   const accordionDetailsRef = useRef<HTMLDivElement>(null);
   const [accordionHeight, setAccordionHeight] = useState(0);
@@ -165,16 +179,9 @@ export function Index({ auth }: PageProps) {
         const text = e.target?.result as string;
         const content = JSON.parse(text);
 
-        if (content.type !== 'FeatureCollection' || !Array.isArray(content.features)) {
-          setStatusMessage('Invalid GeoJSON format. Expected FeatureCollection.');
-          setFileContent(null);
-          return;
-        }
-        
         validate(text).then((res) => {
           if (!res.valid) {
-            // Don't set status message here; let the hook's state handle the UI.
-            setStatusMessage('GeoJSON has format errors. See details below.');
+            setStatusMessage('GeoJSON has validation errors. See details below.');
           } else {
             setStatusMessage('Local validation passed. Checking for duplicates on the server...');
             axios.post(route('data_map.validation'), { geojson: content })
@@ -369,6 +376,59 @@ export function Index({ auth }: PageProps) {
     }
   }, [geoJson]);
 
+  const filteredBuildingCentroids = useMemo(() => {
+    return buildingCentroidsData.filter(d => {
+      const floors = d.properties?.numberoffloors || 0;
+      return floors >= floorRange.min && floors <= floorRange.max;
+    });
+  }, [buildingCentroidsData, floorRange]);
+
+  const isInitialLoad = useRef(true);
+
+  useEffect(() => {
+    // Skip the first run to avoid overriding the initial viewState zoom
+    if (isInitialLoad.current) {
+      if (buildingCentroidsData.length > 0) {
+        isInitialLoad.current = false;
+      }
+      return;
+    }
+
+    const isFiltered = floorRange.min > 0 || floorRange.max < maxFloors;
+    const dataToBound = isFiltered ? filteredBuildingCentroids : buildingCentroidsData;
+
+    if (dataToBound.length > 0) {
+      try {
+        const points = turf.featureCollection(
+          dataToBound.map(c => turf.point(c.coordinates))
+        );
+        const bbox = turf.bbox(points);
+        const [minLng, minLat, maxLng, maxLat] = bbox;
+
+        const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+        const { longitude, latitude, zoom } = viewport.fitBounds(
+          [[minLng, minLat], [maxLng, maxLat]],
+          { padding: 100 }
+        );
+
+        // When filtered, zoom to fit the data (capped at 18). When not filtered, return to a wider view.
+        const targetZoom = isFiltered ? Math.min(zoom, 18) : (center ? 15 : (mSelectedShape ? 10 : 6));
+
+        setViewState(prev => ({
+          ...prev,
+          longitude,
+          latitude,
+          zoom: targetZoom,
+          transitionDuration: 800,
+          transitionInterpolator: new FlyToInterpolator(),
+        }));
+      } catch (error) {
+        console.error("Error adjusting zoom to data:", error);
+      }
+    }
+  }, [floorRange, filteredBuildingCentroids, buildingCentroidsData, maxFloors]);
+
+
   const layers = [
     new GeoJsonLayer<ShapeProperties>({
       id: 'shapes-layer',
@@ -382,9 +442,9 @@ export function Index({ auth }: PageProps) {
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
-    buildingCentroidsData.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
-      data: buildingCentroidsData,
+      data: filteredBuildingCentroids,
       pickable: true,
       stroked: true,
       filled: true,
@@ -414,7 +474,7 @@ export function Index({ auth }: PageProps) {
         if (!propertyName || !d.properties) return [0, 0, 255, 200];
 
         const propValue = d.properties[propertyName];
-        const uniqueValues = Array.from(new Set(buildingCentroidsData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+        const uniqueValues = Array.from(new Set(filteredBuildingCentroids.map(item => item.properties?.[propertyName]).filter(Boolean)));
         const color = getColorForValue(propValue, uniqueValues);
 
         const isSelected = selectedLegendItem === propValue;
@@ -509,7 +569,7 @@ export function Index({ auth }: PageProps) {
             </div>
             {/* Server-side validation summary */}
             {statusMessage && (
-              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('failed') ? 'red' : 'green'), marginTop: '10px' }}>
+              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
                 {statusMessage}
               </div>
             )}
@@ -551,10 +611,10 @@ export function Index({ auth }: PageProps) {
         <div style={{
             width: '100%', 
             position: 'relative',
-            height: isAccordionExpanded ? `calc(86vh - ${accordionHeight}px)` : '88vh'
+            height: isAccordionExpanded ? `calc(85vh - ${accordionHeight}px)` : '88vh'
           }}>
           <DeckGL
-            initialViewState={viewState}
+            viewState={viewState}
             controller={true}
             layers={layers}
             onViewStateChange={(params) => setViewState(params.viewState as MapViewState)}
@@ -574,12 +634,15 @@ export function Index({ auth }: PageProps) {
           <FilterPanel
             category1={category1}
             category2={category2}
+            floorRange={floorRange}
+            maxFloors={maxFloors}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
+            onFloorRangeChange={setFloorRange}
           />
 
           <Legend 
-            data={buildingCentroidsData}
+            data={filteredBuildingCentroids}
             category={category2}
             groupByMapping={groupByMapping}
             onItemClick={handleLegendItemClick}

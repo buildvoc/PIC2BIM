@@ -1,14 +1,26 @@
 import React from 'react';
 import CustomDropdown from './CustomDropdown';
+import MinMaxSliderDropdown from './MinMaxSliderDropdown';
 
 interface FilterPanelProps {
   category1: string;
   category2: string;
+  floorRange: { min: number; max: number };
+  maxFloors: number;
   onCategory1Change: (val: string) => void;
   onCategory2Change: (val: string) => void;
+  onFloorRangeChange: (values: { min: number; max: number }) => void;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ category1, category2, onCategory1Change, onCategory2Change }) => {
+const FilterPanel: React.FC<FilterPanelProps> = ({ 
+    category1, 
+    category2, 
+    floorRange,
+    maxFloors,
+    onCategory1Change, 
+    onCategory2Change, 
+    onFloorRangeChange 
+}) => {
   const mapByOptions = ['Fixed Size', 'Size by Area'];
   const groupByOptions = ['Material', 'Usage', 'Connectivity', 'Theme'];
 
@@ -28,10 +40,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ category1, category2, onCateg
     </svg>
   );
 
+  const icon3 = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+        <path d="M2 22h20"/>
+        <path d="M4 22V6.83a2 2 0 0 1 .94-1.66l6-4.02a2 2 0 0 1 2.12 0l6 4.02A2 2 0 0 1 20 6.83V22"/>
+        <path d="M10 10h4"/>
+        <path d="M10 14h4"/>
+        <path d="M10 18h4"/>
+    </svg>
+  );
+
   return (
     <div className="absolute top-2.5 right-2.5 z-10 flex flex-col sm:flex-row gap-2 items-center">
       <CustomDropdown title="Map View" options={mapByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
       <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
+      <MinMaxSliderDropdown 
+        title="Floor Range"
+        icon={icon3}
+        min={0}
+        max={maxFloors}
+        values={floorRange}
+        onChange={onFloorRangeChange}
+      />
     </div>
   );
 };
