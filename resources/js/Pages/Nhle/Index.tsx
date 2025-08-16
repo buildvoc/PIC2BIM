@@ -375,24 +375,10 @@ export function Index({ auth }: PageProps) {
       data: shapes.data,
       pickable: true,
       stroked: true,
-      filled: true,
+      filled: false,
       lineWidthMinPixels: 1,
-      getFillColor: f => {
-        const color = f.properties.color;
-        if (color) {
-          const hex = color.startsWith('#') ? color.slice(1) : color;
-          const r = parseInt(hex.substring(0, 2), 16);
-          const g = parseInt(hex.substring(2, 4), 16);
-          const b = parseInt(hex.substring(4, 6), 16);
-          return [r, g, b, 0.1 * 255];
-        }
-        return [234, 49, 34, 0.1 * 255];
-      },
       getLineColor: [100, 100, 100, 100],
-      getLineWidth: 1,
-      updateTriggers: {
-        getFillColor: [shapes.data],
-      }
+      getLineWidth: 1
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
@@ -644,7 +630,8 @@ export function Index({ auth }: PageProps) {
             maxWidth: '90vw',
             top: 'auto',
             bottom: 0,
-            maxHeight: isAccordionExpanded ? `calc(100vh - ${125 + accordionHeight}px)` : 'calc(100vh - 110px)'
+            maxHeight: isAccordionExpanded ? `calc(100vh - ${129 + accordionHeight}px)` : 'calc(100vh - 113px)',
+            border: '1px solid #ccc',
           }}
         >
           {selectedBuilding && (
