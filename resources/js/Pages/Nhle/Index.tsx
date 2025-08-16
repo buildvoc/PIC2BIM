@@ -165,16 +165,9 @@ export function Index({ auth }: PageProps) {
         const text = e.target?.result as string;
         const content = JSON.parse(text);
 
-        if (content.type !== 'FeatureCollection' || !Array.isArray(content.features)) {
-          setStatusMessage('Invalid GeoJSON format. Expected FeatureCollection.');
-          setFileContent(null);
-          return;
-        }
-        
         validate(text).then((res) => {
           if (!res.valid) {
-            // Don't set status message here; let the hook's state handle the UI.
-            setStatusMessage('GeoJSON has format errors. See details below.');
+            setStatusMessage('GeoJSON has validation errors. See details below.');
           } else {
             setStatusMessage('Local validation passed. Checking for duplicates on the server...');
             axios.post(route('data_map.validation'), { geojson: content })
@@ -509,7 +502,7 @@ export function Index({ auth }: PageProps) {
             </div>
             {/* Server-side validation summary */}
             {statusMessage && (
-              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('failed') ? 'red' : 'green'), marginTop: '10px' }}>
+              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
                 {statusMessage}
               </div>
             )}
