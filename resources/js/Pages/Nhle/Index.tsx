@@ -383,35 +383,51 @@ export function Index({ auth }: PageProps) {
     });
   }, [buildingCentroidsData, floorRange]);
 
+  const isInitialLoad = useRef(true);
+
   useEffect(() => {
-    if (filteredBuildingCentroids.length > 0) {
+    // Skip the first run to avoid overriding the initial viewState zoom
+    if (isInitialLoad.current) {
+      if (buildingCentroidsData.length > 0) {
+        isInitialLoad.current = false;
+      }
+      return;
+    }
+
+    const isFiltered = floorRange.min > 0 || floorRange.max < maxFloors;
+    const dataToBound = isFiltered ? filteredBuildingCentroids : buildingCentroidsData;
+
+    if (dataToBound.length > 0) {
       try {
         const points = turf.featureCollection(
-          filteredBuildingCentroids.map(c => turf.point(c.coordinates))
+          dataToBound.map(c => turf.point(c.coordinates))
         );
         const bbox = turf.bbox(points);
-
         const [minLng, minLat, maxLng, maxLat] = bbox;
 
-        const viewport = new WebMercatorViewport(viewState);
+        const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
         const { longitude, latitude, zoom } = viewport.fitBounds(
           [[minLng, minLat], [maxLng, maxLat]],
           { padding: 100 }
         );
 
+        // When filtered, zoom to fit the data (capped at 18). When not filtered, return to a wider view.
+        const targetZoom = isFiltered ? Math.min(zoom, 18) : (center ? 15 : (mSelectedShape ? 10 : 6));
+
         setViewState(prev => ({
           ...prev,
           longitude,
           latitude,
-          zoom: Math.min(zoom, 16),
+          zoom: targetZoom,
           transitionDuration: 800,
           transitionInterpolator: new FlyToInterpolator(),
         }));
       } catch (error) {
-        console.error("Error adjusting zoom to filtered data:", error);
+        console.error("Error adjusting zoom to data:", error);
       }
     }
-  }, [filteredBuildingCentroids]);
+  }, [floorRange, filteredBuildingCentroids, buildingCentroidsData, maxFloors]);
+
 
   const layers = [
     new GeoJsonLayer<ShapeProperties>({
