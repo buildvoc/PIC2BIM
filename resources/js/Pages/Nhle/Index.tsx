@@ -544,7 +544,7 @@ export function Index({ auth }: PageProps) {
         <div style={{
             width: '100%', 
             position: 'relative',
-            height: isAccordionExpanded ? `calc(86vh - ${accordionHeight}px)` : '88vh'
+            height: isAccordionExpanded ? `calc(85vh - ${accordionHeight}px)` : '88vh'
           }}>
           <DeckGL
             initialViewState={viewState}
