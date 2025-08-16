@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TableSortLabel } from '@mui/material';
-import axios from 'axios';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TableSortLabel, Select, MenuItem, Chip } from '@mui/material';
+import axios, { AxiosError } from 'axios';
 
 declare var route: any; // Assuming 'route' is globally available from Ziggy
 
 interface ValidationResult {
   feature_index: number;
   properties: Record<string, any>;
-  status: 'ok' | 'warning';
+    status: 'ok' | 'warning' | 'duplicate' | 'overlap' | 'exact_match';
   details: string;
+  existing_osid?: string;
 }
 
 interface ValidationReportModalProps {
@@ -21,30 +22,59 @@ interface ValidationReportModalProps {
 
 type Order = 'asc' | 'desc';
 
+type FeatureAction = 'import' | 'update' | 'skip';
+
 const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSuccess }: ValidationReportModalProps) => {
   const [sortConfig, setSortConfig] = useState<{ key: keyof ValidationResult; direction: Order }>({ key: 'feature_index', direction: 'asc' });
+  const [featureActions, setFeatureActions] = useState<Record<number, FeatureAction>>({});
+
+  useEffect(() => {
+    if (results.length > 0) {
+        const initialActions = results.reduce((acc: Record<number, FeatureAction>, result) => {
+        acc[result.feature_index] = result.status === 'ok' ? 'import' : 'skip';
+        return acc;
+      }, {} as Record<number, FeatureAction>);
+      setFeatureActions(initialActions);
+    }
+  }, [results]);
+
+  const handleActionChange = (featureIndex: number, action: FeatureAction) => {
+    setFeatureActions(prev => ({ ...prev, [featureIndex]: action }));
+  };
 
   const handleSortRequest = (property: keyof ValidationResult) => {
     const isAsc = sortConfig.key === property && sortConfig.direction === 'asc';
     setSortConfig({ key: property, direction: isAsc ? 'desc' : 'asc' });
   };
 
-  const isReadyToImport = results.length > 0 && results.every(r => r.status === 'ok');
+  const isReadyToImport = useMemo(() => {
+    return Object.values(featureActions).some(action => action === 'import' || action === 'update');
+  }, [featureActions]);
 
   const handleImport = () => {
-    if (!geoJson) {
+    if (!geoJson || !geoJson.features) {
       alert('Cannot import: GeoJSON data is missing.');
       return;
     }
 
-    axios.post(route('data_map.import'), { geojson: geoJson })
+    const featuresToProcess = Object.entries(featureActions).map(([indexStr, action]) => {
+      const featureIndex = parseInt(indexStr, 10);
+      return {
+        action,
+        data: geoJson.features[featureIndex],
+      };
+    });
+
+    const srid = geoJson.crs?.properties?.name ? parseInt(geoJson.crs.properties.name.split(':').pop() || '4326', 10) : 4326;
+
+    axios.post(route('data_map.import'), { features: featuresToProcess, srid })
       .then((response: { data: { message: string } }) => {
         alert(response.data.message);
         onImportSuccess();
         onClose();
       })
-      .catch((error: any) => {
-        const errorMessage = error.response?.data?.error || 'An unknown error occurred during import.';
+        .catch((error: AxiosError) => {
+            const errorMessage = (error.response?.data as { error?: string })?.error || 'An unknown error occurred during import.';
         alert(`Import failed: ${errorMessage}`);
       });
   };
@@ -79,10 +109,13 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
         bValue = b.properties.osid || '';
       }
 
-      if (aValue < bValue) {
+      const valA = aValue ?? '';
+      const valB = bValue ?? '';
+
+      if (valA < valB) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (aValue > bValue) {
+      if (valA > valB) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;
@@ -114,15 +147,44 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                   <TableSortLabel active={sortConfig.key === 'properties'} direction={sortConfig.direction} onClick={() => handleSortRequest('properties')}>OSID</TableSortLabel>
                 </TableCell>
                 <TableCell>Details</TableCell>
+                <TableCell sx={{ width: '15%' }}>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedResults.map((result, index) => (
-                <TableRow key={index}>
-                  <TableCell>{result.status === 'ok' ? '✅' : '⚠️'}</TableCell>
-                  <TableCell>{result.feature_index}</TableCell>
+              {sortedResults.map((result) => (
+                <TableRow key={result.feature_index}>
+                  <TableCell>
+                    {result.status === 'ok' && <Chip label="OK" color="success" size="small" />}
+                    {result.status === 'duplicate' && <Chip label="Duplicate" color="warning" size="small" />}
+                    {result.status === 'overlap' && <Chip label="Overlap" color="warning" size="small" />}
+                    {result.status === 'exact_match' && <Chip label="Exact Match" color="warning" size="small" />}
+                    {result.status === 'warning' && <Chip label="Warning" color="error" size="small" />}
+                  </TableCell>
+                  <TableCell>{result.feature_index + 1}</TableCell>
                   <TableCell>{result.properties.osid || 'N/A'}</TableCell>
                   <TableCell>{result.details}</TableCell>
+                  <TableCell>
+                    {['duplicate', 'overlap', 'exact_match'].includes(result.status) ? (
+                      <Select
+                        value={featureActions[result.feature_index] || 'skip'}
+                        onChange={(e) => handleActionChange(result.feature_index, e.target.value as FeatureAction)}
+                        size="small"
+                        variant="outlined"
+                        fullWidth
+                      >
+                        {result.status === 'duplicate' ? (
+                          <MenuItem value="update">Update Existing</MenuItem>
+                        ) : (
+                          <MenuItem value="import">Import Anyway</MenuItem>
+                        )}
+                        <MenuItem value="skip">Skip</MenuItem>
+                      </Select>
+                    ) : result.status === 'ok' ? (
+                      <Chip label="Import" color="primary" size="small" />
+                    ) : (
+                      <Chip label="Skipped" size="small" />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
