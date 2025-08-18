@@ -78,6 +78,13 @@ export function Index({ auth }: PageProps) {
   const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
   const accordionDetailsRef = useRef<HTMLDivElement>(null);
   const [accordionHeight, setAccordionHeight] = useState(0);
+  const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | ''>('');
+  useEffect(() => {
+    if (selectedBuilding) {
+      setIsImportPanelOpen(false);
+    }
+  }, [selectedBuilding]);
 
   const groupByMapping: { [key: string]: string } = {
     'Material': 'constructionmaterial',
@@ -159,17 +166,35 @@ export function Index({ auth }: PageProps) {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   // Store parsed GeoJSON object
   const [fileContent, setFileContent] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isValidationSuccessful, setIsValidationSuccessful] = useState(false);
   const [geoJson, setGeoJson] = useState<MGeoJson>();
   const [iconLayerData, setIconLayerData] = useState<LoadedNhleFeatureState[]>([]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
   const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
   const { status: validationStatus, result: validationResultFull, limited: validationLimited, validate } = useGeoJsonValidation();
 
-  const handleFileChange = (event: any) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
+    setStatusMessage('File selected. Click Validate to check.');
+    setValidationResults([]);
+    setFileContent(null);
+    setGeoJson(undefined);
+    setIsValidationSuccessful(false);
+  };
 
-    setStatusMessage(null);
+  const handleValidation = () => {
+    if (!selectedFile) {
+      setStatusMessage('Please select a file first.');
+      return;
+    }
+
+    setStatusMessage('Validating... please wait.');
     setValidationResults([]);
 
     const reader = new FileReader();
@@ -182,25 +207,33 @@ export function Index({ auth }: PageProps) {
         validate(text).then((res) => {
           if (!res.valid) {
             setStatusMessage('GeoJSON has validation errors. See details below.');
+            setIsValidationSuccessful(false);
           } else {
             setStatusMessage('Local validation passed. Checking for duplicates on the server...');
-            axios.post(route('data_map.validation'), { geojson: content })
+            const validationRoute = selectedSchema === 'building'
+                ? route('data_map.validateBuilding')
+                : route('data_map.validateSite');
+
+            axios.post(validationRoute, { geojson: content })
               .then((response: { data: { results: any[]; }; }) => {
                 const results = response.data.results || [];
                 setValidationResults(results);
                 const readyCount = results.filter(r => r.status === 'ok').length;
                 const warningCount = results.length - readyCount;
                 setStatusMessage(`Validation complete: ${readyCount} features ready to import, ${warningCount} with warnings.`);
+                setIsValidationSuccessful(true); // Set validation as successful
               })
               .catch((error: any) => {
                 console.error('Duplicate check error:', error);
                 setStatusMessage('An error occurred while checking for duplicates on the server.');
+                setIsValidationSuccessful(false);
               });
           }
           setFileContent(content);
         }).catch((err: any) => {
           setStatusMessage(`Validation error: ${err?.message || 'Unknown error'}`);
           setFileContent(content);
+          setIsValidationSuccessful(false);
         });
       } catch (err: any) {
         setStatusMessage(`Error parsing GeoJSON: ${err.message}`);
@@ -213,7 +246,16 @@ export function Index({ auth }: PageProps) {
       setFileContent(null);
     };
 
-    reader.readAsText(file);
+    reader.readAsText(selectedFile);
+  };
+
+  const handleDraw = () => {
+    if (fileContent && isValidationSuccessful) {
+      setGeoJson(fileContent as MGeoJson);
+      setStatusMessage('Data drawn on map.');
+    } else {
+      setStatusMessage('Please validate a file successfully before drawing.');
+    }
   };
 
   const handleImportSuccess = () => {
@@ -231,7 +273,10 @@ export function Index({ auth }: PageProps) {
     }
 
     try {
-      const response = await axios.post(route('data_map.validation'), { geojson: sourceGeoJson });
+      const validationRoute = selectedSchema === 'building'
+        ? route('data_map.validateBuilding')
+        : route('data_map.validateSite');
+      const response = await axios.post(validationRoute, { geojson: sourceGeoJson });
       setValidationResults(response.data.results);
       setValidationGeoJson(sourceGeoJson); // Set the correct geojson for import
       setIsReportModalOpen(true);
@@ -240,24 +285,6 @@ export function Index({ auth }: PageProps) {
       alert('An error occurred during validation.');
     }
   };
-
-  const handleClick = () => {
-    if (!fileContent) {
-      setStatusMessage('Invalid GeoJson file!');
-      return;
-    }
-
-    try {
-      console.log("Processing GeoJSON:", fileContent);
-      checkGeoJson.check(JSON.stringify(fileContent));
-      setGeoJson(fileContent as MGeoJson);
-      setStatusMessage(null);
-    } catch (e: any) {
-      console.log(e.issues || e.message);
-      const issues = e?.issues || [e?.message || 'Processing failed'];
-      setStatusMessage('GeoJSON invalid. Fix issues before drawing.');
-    }
-  }
 
   const extractCoordsFromGeometry = (geometry: Geometry) => {
     const allCoords: Position[] = [];
@@ -297,13 +324,6 @@ export function Index({ auth }: PageProps) {
     return allCoords;
   };
 
-  useEffect(() => {
-    if (isAccordionExpanded && accordionDetailsRef.current) {
-      setAccordionHeight(accordionDetailsRef.current.scrollHeight);
-    } else if (!isAccordionExpanded) {
-      setAccordionHeight(0);
-    }
-  }, [isAccordionExpanded, validationStatus, validationResults, statusMessage]);
 
   useEffect(() => {
     if (geoJson && geoJson.features) {
@@ -550,68 +570,24 @@ export function Index({ auth }: PageProps) {
     <>
       <Head title="Data Map" />
       <AuthenticatedLayout user={auth.user}>
-        <Accordion 
-          style={{ margin: 0 }} 
-          expanded={isAccordionExpanded} 
-          onChange={(event, isExpanded) => setIsAccordionExpanded(isExpanded)}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel1-content"
-            id="panel1-header"
+        <div className="flex flex-col h-[calc(100vh-65px)]">
+        <div className="flex items-center justify-between p-2 pr-4 bg-white border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800">Data Map</h2>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => {
+              setIsImportPanelOpen(true);
+              setSelectedBuilding(null);
+            }}
           >
-            Load GeoJson file
-          </AccordionSummary>
-          <AccordionDetails ref={accordionDetailsRef}>
-            <div className='flex flex-col gap-4 md:flex-row'>
-              <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' />
-              <Button size='small' variant="contained" onClick={handleClick}>Draw</Button>
-            </div>
-            {/* Server-side validation summary */}
-            {statusMessage && (
-              <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
-                {statusMessage}
-              </div>
-            )}
-
-            {/* Review for Import button */}
-            {validationResults.length > 0 && (
-              <Button variant="contained" onClick={handleReviewForImport} style={{ marginTop: '10px' }}>
-                Review for Import
-              </Button>
-            )}
-
-            {/* Detailed local validation errors from the hook */}
-            {validationStatus !== 'idle' && !validationLimited.valid && (
-              <div className={`p-2 rounded mt-2 bg-red-100 text-red-800`}>
-                <div className='flex items-center justify-between'>
-                  <strong>Validation Errors (showing up to 50):</strong>
-                </div>
-                <ul className='list-disc pl-5 mt-2'>
-                  {validationLimited.errors.map((errItem, index) => {
-                    const ve = errItem as ValidationError;
-                    return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
-                  })}
-                </ul>
-                {validationLimited.warnings.length > 0 && (
-                  <div className='mt-2'>
-                    <strong>Warnings (showing up to 50):</strong>
-                    <ul className='list-disc pl-5 mt-2'>
-                      {validationLimited.warnings.map((wItem, index) => {
-                        const vw = wItem as ValidationError;
-                        return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </AccordionDetails>
-        </Accordion>
+            Import GeoJSON
+          </Button>
+        </div>
         <div style={{
             width: '100%', 
             position: 'relative',
-            height: isAccordionExpanded ? `calc(85vh - ${accordionHeight}px)` : '88vh'
+            flexGrow: 1,
           }}>
           <DeckGL
             viewState={viewState}
@@ -687,22 +663,23 @@ export function Index({ auth }: PageProps) {
 
         {/* Slide-in panel */}
         <div
-          className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedBuilding ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedBuilding || isImportPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
           style={{
             width: 350,
             maxWidth: '90vw',
             top: 'auto',
             bottom: 0,
-            maxHeight: isAccordionExpanded ? `calc(100vh - ${129 + accordionHeight}px)` : 'calc(100vh - 113px)',
+            maxHeight: 'calc(100vh - 113px)',
             border: '1px solid #ccc',
           }}
         >
-          {selectedBuilding && (
-            <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b">
-                <span className="font-bold text-lg">Building Details</span>
-                <button onClick={() => setSelectedBuilding(null)} className="text-gray-600 hover:text-black">✕</button>
-              </div>
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+                <span className="font-bold text-lg">{selectedBuilding ? 'Building Details' : 'Import GeoJSON'}</span>
+                <button onClick={() => { setSelectedBuilding(null); setIsImportPanelOpen(false); }} className="text-gray-600 hover:text-black">✕</button>
+            </div>
+
+            {selectedBuilding ? (
               <div className="p-4 flex-1 overflow-auto">
                 {selectedBuilding.properties && Object.entries(selectedBuilding.properties)
                   .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
@@ -713,8 +690,72 @@ export function Index({ auth }: PageProps) {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="p-4 flex-1 overflow-auto">
+                <div className='flex flex-col gap-4'>
+                  <div>
+                    <label htmlFor="schema-select" className="block text-sm font-medium text-gray-700 mb-1">Select Schema</label>
+                    <select 
+                      id="schema-select"
+                      value={selectedSchema}
+                      onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | '')}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    >
+                      <option value="" disabled>Select a schema</option>
+                      <option value="building">Building</option>
+                      <option value="site">Site</option>
+                    </select>
+                  </div>
+                  <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
+                  <div className="flex gap-2">
+                    <Button size='small' variant="contained" onClick={handleValidation} disabled={!selectedFile}>Validate File</Button>
+                    {isValidationSuccessful && (
+                      <Button size='small' variant="outlined" onClick={handleDraw} disabled={!fileContent}>Draw</Button>
+                    )}
+                  </div>
+                </div>
+                {/* Server-side validation summary */}
+                {statusMessage && (
+                  <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
+                    {statusMessage}
+                  </div>
+                )}
+
+                {/* Review for Import button */}
+                {validationResults.length > 0 && (
+                  <Button variant="contained" onClick={handleReviewForImport} style={{ marginTop: '10px' }}>
+                    Review for Import
+                  </Button>
+                )}
+
+                {/* Detailed local validation errors from the hook */}
+                {validationStatus !== 'idle' && !validationLimited.valid && (
+                  <div className={`p-2 rounded mt-2 bg-red-100 text-red-800`}>
+                    <div className='flex items-center justify-between'>
+                      <strong>Validation Errors:</strong>
+                    </div>
+                    <ul className='list-disc pl-5 mt-2'>
+                      {validationLimited.errors.map((errItem, index) => {
+                        const ve = errItem as ValidationError;
+                        return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
+                      })}
+                    </ul>
+                    {validationLimited.warnings.length > 0 && (
+                      <div className='mt-2'>
+                        <strong>Warnings:</strong>
+                        <ul className='list-disc pl-5 mt-2'>
+                          {validationLimited.warnings.map((wItem, index) => {
+                            const vw = wItem as ValidationError;
+                            return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <ValidationReportModal 
@@ -723,7 +764,9 @@ export function Index({ auth }: PageProps) {
           results={validationResults}
           geoJson={validationGeoJson}
           onImportSuccess={handleImportSuccess}
+          schema={selectedSchema}
         />
+        </div>
       </AuthenticatedLayout>
     </>
   );

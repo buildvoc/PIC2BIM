@@ -7,6 +7,11 @@ use App\Http\Resources\ShapeFeatureResource;
 use App\Http\Resources\BuildingCollection;
 use App\Models\Attr\Shape;
 use App\Models\Attr\Building;
+use App\Models\Attr\Site;
+use App\Models\Attr\SiteAddressReference;
+use App\Models\Attr\BuildingAddress;
+use App\Models\Attr\BuildingPartLink;
+use App\Models\Attr\BuildingSiteLink;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,9 +57,18 @@ class DataMapController extends Controller
         ]);
     }
     
-    public function validation(Request $request)
+    public function validateBuilding(Request $request)
     {
-        $geojson = $request->input('geojson');
+        return $this->performValidation(Building::class, $request->input('geojson'));
+    }
+
+    public function validateSite(Request $request)
+    {
+        return $this->performValidation(Site::class, $request->input('geojson'));
+    }
+
+    private function performValidation($modelClass, $geojson)
+    {
         $results = [];
 
         if (!$geojson || !isset($geojson['features'])) {
@@ -89,39 +103,39 @@ class DataMapController extends Controller
                 continue;
             }
 
-            $existingBuildingByOsid = Building::where('osid', $osid)->first();
-            if ($existingBuildingByOsid) {
+            $existingItemByOsid = $modelClass::where('osid', $osid)->first();
+            if ($existingItemByOsid) {
                 $featureData['status'] = 'duplicate';
-                $featureData['details'] = "Duplicate OSID: Matches existing building with OSID '{$osid}'.";
-                $featureData['existing_osid'] = $existingBuildingByOsid->osid;
+                $featureData['details'] = "Duplicate OSID: Matches existing item with OSID '{$osid}'.";
+                $featureData['existing_osid'] = $existingItemByOsid->osid;
                 $results[] = $featureData;
                 continue;
             }
 
             // 2. Exact Geometry Check
             $geomSql = "ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), ?), 27700)";
-            $exactMatch = Building::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
+            $exactMatch = $modelClass::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
             if ($exactMatch) {
                 $featureData['status'] = 'exact_match';
-                $featureData['details'] = "Exact Geometry: Matches existing building (OSID: {$exactMatch->osid}).";
+                $featureData['details'] = "Exact Geometry: Matches existing item (OSID: {$exactMatch->osid}).";
                 $results[] = $featureData;
                 continue;
             }
 
             // 3. Spatial Overlap Check with Tolerance
             $overlapTolerance = 0.1; // meters squared
-            $overlappingBuilding = Building::select('osid')
+            $overlappingItem = $modelClass::select('osid')
                 ->selectRaw("ST_Area(ST_Intersection(geometry, {$geomSql})) as overlap_area", [$geometry, $sridNumber])
                 ->whereRaw("ST_Intersects(geometry, {$geomSql})", [$geometry, $sridNumber])
                 ->orderBy('overlap_area', 'desc')
                 ->first();
 
-            if ($overlappingBuilding && $overlappingBuilding->overlap_area > $overlapTolerance) {
+            if ($overlappingItem && $overlappingItem->overlap_area > $overlapTolerance) {
                 $featureData['status'] = 'overlap';
                 $featureData['details'] = sprintf(
                     "Spatial Overlap: Overlaps with OSID %s by %.2f m².",
-                    $overlappingBuilding->osid,
-                    $overlappingBuilding->overlap_area
+                    $overlappingItem->osid,
+                    $overlappingItem->overlap_area
                 );
                 $results[] = $featureData;
                 continue;
@@ -133,7 +147,17 @@ class DataMapController extends Controller
         return response()->json(['results' => $results]);
     }
 
-    public function import(Request $request)
+    public function importBuilding(Request $request)
+    {
+        return $this->performImport(Building::class, $request);
+    }
+
+    public function importSite(Request $request)
+    {
+        return $this->performImport(Site::class, $request);
+    }
+
+    private function performImport($modelClass, Request $request)
     {
         $features = $request->input('features');
         $sridNumber = $request->input('srid', 4326);
@@ -161,96 +185,81 @@ class DataMapController extends Controller
 
                     $isUpdate = ($action === 'update');
 
-                    Building::updateOrCreate([
-                        'osid' => $osid
-                    ], [
-                        'versiondate' => $data['properties']['versiondate'] ?? null,
-                        'versionavailablefromdate' => $data['properties']['versionavailablefromdate'] ?? null,
-                        'versionavailabletodate' => $data['properties']['versionavailabletodate'] ?? null,
-                        'changetype' => $data['properties']['changetype'] ?? null,
-                        'geometry' => isset($data['geometry']) ? DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($data['geometry']) . "'), $sridNumber), 27700)") : null,
-                        'geometry_area_m2' => $data['properties']['geometry_area_m2'] ?? null,
-                        'geometry_updatedate' => $data['properties']['geometry_updatedate'] ?? null,
-                        'theme' => $data['properties']['theme'] ?? null,
-                        'description' => $data['properties']['description'] ?? null,
-                        'description_updatedate' => $data['properties']['description_updatedate'] ?? null,
-                        'physicalstate' => $data['properties']['physicalstate'] ?? '',
-                        'physicalstate_updatedate' => date('Y-m-d'),
-                        'buildingpartcount' => $data['properties']['buildingpartcount'] ?? null,
-                        'isinsite' => $data['properties']['isinsite'] ?? null,
-                        'primarysiteid' => $data['properties']['primarysiteid'] ?? null,
-                        'containingsitecount' => $data['properties']['containingsitecount'] ?? null,
-                        'mainbuildingid' => $data['properties']['mainbuildingid'] ?? null,
-                        'mainbuildingid_ismainbuilding' => $data['properties']['mainbuildingid_ismainbuilding'] ?? null,
-                        'mainbuildingid_updatedate' => $data['properties']['mainbuildingid_updatedate'] ?? null,
-                        'buildinguse' => $data['properties']['buildinguse'] ?? null,
-                        'buildinguse_oslandusetiera' => $data['properties']['buildinguse_oslandusetiera'] ?? null,
-                        'buildinguse_addresscount_total' => $data['properties']['buildinguse_addresscount_total'] ?? null,
-                        'buildinguse_addresscount_residential' => $data['properties']['buildinguse_addresscount_residential'] ?? null,
-                        'buildinguse_addresscount_commercial' => $data['properties']['buildinguse_addresscount_commercial'] ?? null,
-                        'buildinguse_addresscount_other' => $data['properties']['buildinguse_addresscount_other'] ?? null,
-                        'buildinguse_updatedate' => $data['properties']['buildinguse_updatedate'] ?? null,
-                        'connectivity' => $data['properties']['connectivity'] ?? null,
-                        'connectivity_count' => $data['properties']['connectivity_count'] ?? null,
-                        'connectivity_updatedate' => $data['properties']['connectivity_updatedate'] ?? null,
-                        'constructionmaterial' => $data['properties']['constructionmaterial'] ?? null,
-                        'constructionmaterial_evidencedate' => $data['properties']['constructionmaterial_evidencedate'] ?? null,
-                        'constructionmaterial_updatedate' => $data['properties']['constructionmaterial_updatedate'] ?? null,
-                        'constructionmaterial_source' => $data['properties']['constructionmaterial_source'] ?? null,
-                        'constructionmaterial_capturemethod' => $data['properties']['constructionmaterial_capturemethod'] ?? null,
-                        'constructionmaterial_thirdpartyprovenance' => $data['properties']['constructionmaterial_thirdpartyprovenance'] ?? null,
-                        'buildingage_period' => $data['properties']['buildingage_period'] ?? null,
-                        'buildingage_year' => $data['properties']['buildingage_year'] ?? null,
-                        'buildingage_evidencedate' => $data['properties']['buildingage_evidencedate'] ?? null,
-                        'buildingage_updatedate' => $data['properties']['buildingage_updatedate'] ?? null,
-                        'buildingage_source' => $data['properties']['buildingage_source'] ?? null,
-                        'buildingage_capturemethod' => $data['properties']['buildingage_capturemethod'] ?? null,
-                        'buildingage_thirdpartyprovenance' => $data['properties']['buildingage_thirdpartyprovenance'] ?? null,
-                        'basementpresence' => $data['properties']['basementpresence'] ?? null,
-                        'basementpresence_selfcontained' => $data['properties']['basementpresence_selfcontained'] ?? null,
-                        'basementpresence_evidencedate' => $data['properties']['basementpresence_evidencedate'] ?? null,
-                        'basementpresence_updatedate' => $data['properties']['basementpresence_updatedate'] ?? null,
-                        'basementpresence_source' => $data['properties']['basementpresence_source'] ?? null,
-                        'basementpresence_capturemethod' => $data['properties']['basementpresence_capturemethod'] ?? null,
-                        'basementpresence_thirdpartyprovenance' => $data['properties']['basementpresence_thirdpartyprovenance'] ?? null,
-                        'numberoffloors' => $data['properties']['numberoffloors'] ?? null,
-                        'numberoffloors_evidencedate' => $data['properties']['numberoffloors_evidencedate'] ?? null,
-                        'numberoffloors_updatedate' => $data['properties']['numberoffloors_updatedate'] ?? null,
-                        'numberoffloors_source' => $data['properties']['numberoffloors_source'] ?? null,
-                        'numberoffloors_capturemethod' => $data['properties']['numberoffloors_capturemethod'] ?? null,
-                        'height_absolutemin_m' => $data['properties']['height_absolutemin_m'] ?? null,
-                        'height_absoluteroofbase_m' => $data['properties']['height_absoluteroofbase_m'] ?? null,
-                        'height_absolutemax_m' => $data['properties']['height_absolutemax_m'] ?? null,
-                        'height_relativeroofbase_m' => $data['properties']['height_relativeroofbase_m'] ?? null,
-                        'height_relativemax_m' => $data['properties']['height_relativemax_m'] ?? null,
-                        'height_confidencelevel' => $data['properties']['height_confidencelevel'] ?? null,
-                        'height_evidencedate' => $data['properties']['height_evidencedate'] ?? null,
-                        'height_updatedate' => $data['properties']['height_updatedate'] ?? null,
-                        'roofmaterial_primarymaterial' => $data['properties']['roofmaterial_primarymaterial'] ?? null,
-                        'roofmaterial_solarpanelpresence' => $data['properties']['roofmaterial_solarpanelpresence'] ?? null,
-                        'roofmaterial_greenroofpresence' => $data['properties']['roofmaterial_greenroofpresence'] ?? null,
-                        'roofmaterial_confidenceindicator' => $data['properties']['roofmaterial_confidenceindicator'] ?? null,
-                        'roofmaterial_evidencedate' => $data['properties']['roofmaterial_evidencedate'] ?? null,
-                        'roofmaterial_updatedate' => $data['properties']['roofmaterial_updatedate'] ?? null,
-                        'roofmaterial_capturemethod' => $data['properties']['roofmaterial_capturemethod'] ?? null,
-                        'roofshapeaspect_shape' => $data['properties']['roofshapeaspect_shape'] ?? null,
-                        'roofshapeaspect_areapitched_m2' => $data['properties']['roofshapeaspect_areapitched_m2'] ?? null,
-                        'roofshapeaspect_areaflat_m2' => $data['properties']['roofshapeaspect_areaflat_m2'] ?? null,
-                        'roofshapeaspect_areafacingnorth_m2' => $data['properties']['roofshapeaspect_areafacingnorth_m2'] ?? null,
-                        'roofshapeaspect_areafacingnortheast_m2' => $data['properties']['roofshapeaspect_areafacingnortheast_m2'] ?? null,
-                        'roofshapeaspect_areafacingeast_m2' => $data['properties']['roofshapeaspect_areafacingeast_m2'] ?? null,
-                        'roofshapeaspect_areafacingsoutheast_m2' => $data['properties']['roofshapeaspect_areafacingsoutheast_m2'] ?? null,
-                        'roofshapeaspect_areafacingsouth_m2' => $data['properties']['roofshapeaspect_areafacingsouth_m2'] ?? null,
-                        'roofshapeaspect_areafacingsouthwest_m2' => $data['properties']['roofshapeaspect_areafacingsouthwest_m2'] ?? null,
-                        'roofshapeaspect_areafacingwest_m2' => $data['properties']['roofshapeaspect_areafacingwest_m2'] ?? null,
-                        'roofshapeaspect_areafacingnorthwest_m2' => $data['properties']['roofshapeaspect_areafacingnorthwest_m2'] ?? null,
-                        'roofshapeaspect_areaindeterminable_m2' => $data['properties']['roofshapeaspect_areaindeterminable_m2'] ?? null,
-                        'roofshapeaspect_areatotal_m2' => $data['properties']['roofshapeaspect_areatotal_m2'] ?? null,
-                        'roofshapeaspect_confidenceindicator' => $data['properties']['roofshapeaspect_confidenceindicator'] ?? null,
-                        'roofshapeaspect_evidencedate' => $data['properties']['roofshapeaspect_evidencedate'] ?? null,
-                        'roofshapeaspect_updatedate' => $data['properties']['roofshapeaspect_updatedate'] ?? null,
-                        'roofshapeaspect_capturemethod' => $data['properties']['roofshapeaspect_capturemethod'] ?? null,
-                    ]);
+                    $model = new $modelClass;
+                    $fillable = $model->getFillable();
+                    $attributes = [];
+
+                    foreach ($fillable as $field) {
+                        if (in_array($field, ['osid', 'geometry'])) {
+                            continue;
+                        }
+
+                        $value = $data['properties'][$field] ?? null;
+
+                        if ($field === 'oslandusetierb' && is_array($value)) {
+                            $attributes[$field] = json_encode($value);
+                        } else {
+                            $attributes[$field] = $value;
+                        }
+                    }
+
+                    if (isset($data['geometry'])) {
+                        $attributes['geometry'] = DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($data['geometry']) . "'), {$sridNumber}), 27700)");
+                    }
+
+                    $instance = $modelClass::updateOrCreate(['osid' => $osid], $attributes);
+
+                    if ($modelClass === Site::class && isset($data['properties']['sitetoaddressreference']) && is_array($data['properties']['sitetoaddressreference'])) {
+                        // Delete existing references to handle updates cleanly
+                        SiteAddressReference::where('siteid', $instance->osid)->delete();
+
+                        foreach ($data['properties']['sitetoaddressreference'] as $ref) {
+                            SiteAddressReference::create([
+                                'uprn' => $ref['uprn'],
+                                'siteid' => $ref['siteid'],
+                                'siteversiondate' => $ref['siteversiondate'],
+                                'relationshiptype' => $ref['relationshiptype'],
+                            ]);
+                        }
+                    }
+
+                    if ($modelClass === Building::class) {
+                        // Handle sitereference
+                        if (isset($data['properties']['sitereference']) && is_array($data['properties']['sitereference'])) {
+                            BuildingSiteLink::where('buildingid', $instance->osid)->delete();
+                            foreach ($data['properties']['sitereference'] as $ref) {
+                                BuildingSiteLink::create([
+                                    'siteid' => $ref['siteid'],
+                                    'buildingid' => $ref['buildingid'],
+                                    'buildingversiondate' => $ref['buildingversiondate'],
+                                ]);
+                            }
+                        }
+
+                        // Handle uprnreference
+                        if (isset($data['properties']['uprnreference']) && is_array($data['properties']['uprnreference'])) {
+                            BuildingAddress::where('buildingid', $instance->osid)->delete();
+                            foreach ($data['properties']['uprnreference'] as $ref) {
+                                BuildingAddress::create([
+                                    'uprn' => $ref['uprn'],
+                                    'buildingid' => $ref['buildingid'],
+                                    'buildingversiondate' => $ref['buildingversiondate'],
+                                ]);
+                            }
+                        }
+
+                        // Handle buildingpartreference
+                        if (isset($data['properties']['buildingpartreference']) && is_array($data['properties']['buildingpartreference'])) {
+                            BuildingPartLink::where('buildingid', $instance->osid)->delete();
+                            foreach ($data['properties']['buildingpartreference'] as $ref) {
+                                BuildingPartLink::create([
+                                    'buildingpartid' => $ref['buildingpartid'],
+                                    'buildingid' => $ref['buildingid'],
+                                    'buildingversiondate' => $ref['buildingversiondate'],
+                                ]);
+                            }
+                        }
+                    }
 
                     if ($isUpdate) {
                         $updatedCount++;
@@ -265,7 +274,8 @@ class DataMapController extends Controller
             return response()->json(['error' => 'An error occurred during import: ' . $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => "Import successful. {$importedCount} new buildings imported, {$updatedCount} buildings updated."]);
+        $modelName = class_basename($modelClass);
+        return response()->json(['message' => "Import successful. {$importedCount} new {$modelName}s imported, {$updatedCount} {$modelName}s updated."]);
     }
 
     private function runValidation($geojson)
