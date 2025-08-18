@@ -18,13 +18,14 @@ interface ValidationReportModalProps {
   results: ValidationResult[];
   geoJson: any; 
   onImportSuccess: () => void;
+  schema: 'building' | 'site' | '';
 }
 
 type Order = 'asc' | 'desc';
 
 type FeatureAction = 'import' | 'update' | 'skip';
 
-const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSuccess }: ValidationReportModalProps) => {
+const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSuccess, schema }: ValidationReportModalProps) => {
   const [sortConfig, setSortConfig] = useState<{ key: keyof ValidationResult; direction: Order }>({ key: 'feature_index', direction: 'asc' });
   const [featureActions, setFeatureActions] = useState<Record<number, FeatureAction>>({});
 
@@ -67,7 +68,11 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
 
     const srid = geoJson.crs?.properties?.name ? parseInt(geoJson.crs.properties.name.split(':').pop() || '4326', 10) : 4326;
 
-    axios.post(route('data_map.import'), { features: featuresToProcess, srid })
+    const importUrl = schema === 'building' 
+      ? route('data_map.import_building') 
+      : route('data_map.import_site');
+
+    axios.post(importUrl, { features: featuresToProcess, srid })
       .then((response: { data: { message: string } }) => {
         alert(response.data.message);
         onImportSuccess();
