@@ -550,8 +550,9 @@ export function Index({ auth }: PageProps) {
     <>
       <Head title="Data Map" />
       <AuthenticatedLayout user={auth.user}>
+        <div className="flex flex-col h-[calc(100vh-65px)]">
         <Accordion 
-          style={{ margin: 0 }} 
+          style={{ margin: 0, flexShrink: 0 }} 
           expanded={isAccordionExpanded} 
           onChange={(event, isExpanded) => setIsAccordionExpanded(isExpanded)}
         >
@@ -611,7 +612,7 @@ export function Index({ auth }: PageProps) {
         <div style={{
             width: '100%', 
             position: 'relative',
-            height: isAccordionExpanded ? `calc(85vh - ${accordionHeight}px)` : '88vh'
+            flexGrow: 1,
           }}>
           <DeckGL
             viewState={viewState}
@@ -724,6 +725,7 @@ export function Index({ auth }: PageProps) {
           geoJson={validationGeoJson}
           onImportSuccess={handleImportSuccess}
         />
+        </div>
       </AuthenticatedLayout>
     </>
   );
