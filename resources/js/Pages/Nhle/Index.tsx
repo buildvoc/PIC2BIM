@@ -9,6 +9,7 @@ import axios, { AxiosResponse, AxiosError } from 'axios';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
 import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
@@ -18,13 +19,16 @@ import ToggleControl from './components/ToggleControl';
 import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
 import Legend from '@/Components/DataMap/Legend';
+import SidePanel from './components/SidePanel';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { BuildingProperties, BuildingGeoJson } from '@/types/building';
+import type { SiteGeoJson } from '@/types/site';
 import type { PageProps } from '@/types';
 import type { 
     BuildingCentroidState, 
+    SiteCentroidState,
     ShapesGeoJson, 
     SelectedShapeData, 
     MGeoJson, 
@@ -36,32 +40,34 @@ import type {
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, selectedShape: mSelectedShape, nhles, center } = usePage<{
+  const { shapes: mShapes, buildings, sites, center } = usePage<{
     shapes: {data: ShapesGeoJson};
-    selectedShape?: { data: SelectedShapeData };
-    nhles: { data: BuildingGeoJson }; // Changed from NhleGeoJson to BuildingGeoJson
+    buildings: { data: BuildingGeoJson }; // Changed from NhleGeoJson to BuildingGeoJson
+    sites: { data: SiteGeoJson };
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
-
   const [shapes] = useRemember(mShapes, `shapes`);
-
+  
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
-    longitude: center ? center.coordinates[0] : (mSelectedShape && mSelectedShape.data.properties.longitude || 0.1),
-    latitude: center ? center.coordinates[1] : (mSelectedShape && mSelectedShape.data.properties.latitude || 52.5),
-    zoom: center ? 15 : (mSelectedShape ? 10: 6),
+    longitude: center ? center.coordinates[0] : (0.1),
+    latitude: center ? center.coordinates[1] : (52.5),
+    zoom: center ? 15 : (6),
     pitch: 0,
     bearing: 0,
   });
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
+  const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [selectedBuilding, setSelectedBuilding] = useState<BuildingCentroidState | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | SiteCentroidState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Usage');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
+  const [dataType, setDataType] = useState({ buildings: false, sites: false });
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -75,16 +81,43 @@ export function Index({ auth }: PageProps) {
     setFloorRange(prev => ({ ...prev, max: maxFloors }));
   }, [maxFloors]);
 
-  const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
-  const accordionDetailsRef = useRef<HTMLDivElement>(null);
-  const [accordionHeight, setAccordionHeight] = useState(0);
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | ''>('');
   useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedFeature) {
       setIsImportPanelOpen(false);
+      setIsFilterPanelOpen(false);
     }
-  }, [selectedBuilding]);
+  }, [selectedFeature]);
+
+  useEffect(() => {
+    if (selectedShapeIds.length === 1) {
+      const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);
+      if (selectedShape) {
+        try {
+          const [minLng, minLat, maxLng, maxLat] = turf.bbox(selectedShape as any);
+          const { longitude, latitude, zoom } = new WebMercatorViewport(viewState).fitBounds(
+            [[minLng, minLat], [maxLng, maxLat]],
+            {
+              padding: 40
+            }
+          );
+
+          setViewState(currentViewState => ({
+            ...currentViewState,
+            longitude,
+            latitude,
+            zoom,
+            transitionDuration: 1000,
+            transitionInterpolator: new FlyToInterpolator(),
+          }));
+        } catch (e) {
+          console.error("Error calculating bounding box for the selected shape:", e);
+        }
+      }
+    }
+  }, [selectedShapeIds, shapes.data.features]);
 
   const groupByMapping: { [key: string]: string } = {
     'Material': 'constructionmaterial',
@@ -106,9 +139,9 @@ export function Index({ auth }: PageProps) {
     }, []);
 
   useEffect(() => {
-    if (nhles) {
+    if (buildings) {
       const centroids: BuildingCentroidState[] = [];
-      for (const feature of nhles.data.features) {
+      for (const feature of buildings.data.features) {
         if (feature.geometry) {
           try {
             const centroid = turf.centroid(feature.geometry as any);
@@ -126,7 +159,39 @@ export function Index({ auth }: PageProps) {
       }
       setBuildingCentroidsData(centroids);
     }
-  }, [nhles]);
+  }, [buildings]);
+
+  useEffect(() => {
+    if (sites) {
+      const centroids: SiteCentroidState[] = [];
+      for (const feature of sites.data.features) {
+        if (feature.geometry) {
+          try {
+            let geometry = feature.geometry;
+
+            // Ensure the geometry is a valid GeoJSON geometry object for turf
+            if (geometry.type === 'MultiPolygon' && geometry.coordinates.length === 1) {
+                // If it's a MultiPolygon with a single polygon, treat it as a Polygon
+                geometry = { type: 'Polygon', coordinates: geometry.coordinates[0] };
+            } else if (geometry.type === 'MultiPolygon') {
+            }
+
+            const centroid = turf.centroid(geometry as any);
+            const coordinates = centroid.geometry.coordinates as [number, number];
+
+            centroids.push({
+              id: feature.id as string,
+              coordinates,
+              properties: feature.properties
+            });
+          } catch (error) {
+            console.error('Error calculating centroid for feature:', feature.id, feature.geometry, error);
+          }
+        }
+      }
+      setSiteCentroidsData(centroids);
+    }
+  }, [sites]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -397,11 +462,63 @@ export function Index({ auth }: PageProps) {
   }, [geoJson]);
 
   const filteredBuildingCentroids = useMemo(() => {
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
     return buildingCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
+          return false;
+        }
+      }
+
       const floors = d.properties?.numberoffloors || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
-  }, [buildingCentroidsData, floorRange]);
+  }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
+
+  const filteredSiteCentroids = useMemo(() => {
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
+    return siteCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
+          return false;
+        }
+      }
+
+      const floors = d.properties?.numberoffloors || 0;
+      return floors >= floorRange.min && floors <= floorRange.max;
+    });
+  }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
+
+  const allFilteredData = useMemo(() => {
+    const isAnyTypeSelected = dataType.buildings || dataType.sites;
+    if (!isAnyTypeSelected) {
+      return [...filteredBuildingCentroids, ...filteredSiteCentroids];
+    }
+    const data = [];
+    if (dataType.buildings) data.push(...filteredBuildingCentroids);
+    if (dataType.sites) data.push(...filteredSiteCentroids);
+    return data;
+  }, [filteredBuildingCentroids, filteredSiteCentroids, dataType]);
 
   const isInitialLoad = useRef(true);
 
@@ -415,7 +532,18 @@ export function Index({ auth }: PageProps) {
     }
 
     const isFiltered = floorRange.min > 0 || floorRange.max < maxFloors;
-    const dataToBound = isFiltered ? filteredBuildingCentroids : buildingCentroidsData;
+    const isAnyTypeSelected = dataType.buildings || dataType.sites;
+    const dataToBound = [];
+
+    const buildingsSource = isFiltered ? filteredBuildingCentroids : buildingCentroidsData;
+    const sitesSource = isFiltered ? filteredSiteCentroids : siteCentroidsData;
+
+    if (!isAnyTypeSelected) {
+      dataToBound.push(...buildingsSource, ...sitesSource);
+    } else {
+      if (dataType.buildings) dataToBound.push(...buildingsSource);
+      if (dataType.sites) dataToBound.push(...sitesSource);
+    }
 
     if (dataToBound.length > 0) {
       try {
@@ -431,8 +559,7 @@ export function Index({ auth }: PageProps) {
           { padding: 100 }
         );
 
-        // When filtered, zoom to fit the data (capped at 18). When not filtered, return to a wider view.
-        const targetZoom = isFiltered ? Math.min(zoom, 18) : (center ? 15 : (mSelectedShape ? 10 : 6));
+        const targetZoom = isFiltered ? Math.min(zoom, 18) : (center ? 15 : 6);
 
         setViewState(prev => ({
           ...prev,
@@ -446,7 +573,7 @@ export function Index({ auth }: PageProps) {
         console.error("Error adjusting zoom to data:", error);
       }
     }
-  }, [floorRange, filteredBuildingCentroids, buildingCentroidsData, maxFloors]);
+  }, [floorRange, filteredBuildingCentroids, buildingCentroidsData, maxFloors, siteCentroidsData, filteredSiteCentroids, dataType]);
 
 
   const layers = [
@@ -461,8 +588,70 @@ export function Index({ auth }: PageProps) {
       getLineWidth: 1
     }),
 
+    // Layer for Site centroids (using ScatterplotLayer)
+    (! (dataType.buildings || dataType.sites) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
+      id: `site-layer`,
+      data: filteredSiteCentroids,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: 1,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => {
+        let baseRadius;
+        if (category1 === 'Size by Area') {
+          const area = d.properties?.area || 0;
+          baseRadius = Math.sqrt(area);
+        } else { // Fixed Size
+          baseRadius = 10;
+        }
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = d.properties?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const propertyName = groupByMapping[category2];
+        if (!propertyName || !d.properties) return [0, 255, 0, 200]; // Default green for sites
+
+        const propValue = d.properties[propertyName];
+        const allData = [...filteredBuildingCentroids, ...filteredSiteCentroids];
+        const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
+
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+        return [...color, alpha];
+      },
+      getLineColor: d => [0, 0, 0, 255],
+      onHover: info => {
+        getCursor;
+        if (info.object && info.object.properties) {  
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object as SiteCentroidState);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredSiteCentroids],
+        getRadius: [category1, category2, selectedLegendItem],
+      },
+    }),
+
     // Layer for Building centroids (using ScatterplotLayer)
-    filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    (! (dataType.buildings || dataType.sites) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
       data: filteredBuildingCentroids,
       pickable: true,
@@ -513,7 +702,7 @@ export function Index({ auth }: PageProps) {
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          setSelectedBuilding(info.object);
+          setSelectedFeature(info.object);
         }
       },
       updateTriggers: {
@@ -573,16 +762,30 @@ export function Index({ auth }: PageProps) {
         <div className="flex flex-col h-[calc(100vh-65px)]">
         <div className="flex items-center justify-between p-2 pr-4 bg-white border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">Data Map</h2>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => {
-              setIsImportPanelOpen(true);
-              setSelectedBuilding(null);
-            }}
-          >
-            Import GeoJSON
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => {
+                setIsFilterPanelOpen(true);
+                setSelectedFeature(null);
+                setIsImportPanelOpen(false);
+              }}
+            >
+              Filter
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => {
+                setIsImportPanelOpen(true);
+                setSelectedFeature(null);
+                setIsFilterPanelOpen(false);
+              }}
+            >
+              Import GeoJSON
+            </Button>
+          </div>
         </div>
         <div style={{
             width: '100%', 
@@ -618,7 +821,7 @@ export function Index({ auth }: PageProps) {
           />
 
           <Legend 
-            data={filteredBuildingCentroids}
+            data={allFilteredData}
             category={category2}
             groupByMapping={groupByMapping}
             onItemClick={handleLegendItemClick}
@@ -649,6 +852,10 @@ export function Index({ auth }: PageProps) {
                  hoverInfo.object.properties?.buildinguse ||
                  `Building ID: ${hoverInfo.object.id}`)
               }
+              {hoverInfo.layer?.id.startsWith('site-layer') && 
+                (hoverInfo.object.properties?.description ||
+                 `Site ID: ${hoverInfo.object.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
                   <div><strong>Polygon Feature</strong></div>
@@ -661,102 +868,167 @@ export function Index({ auth }: PageProps) {
           )}
         </div>
 
-        {/* Slide-in panel */}
-        <div
-          className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${selectedBuilding || isImportPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
-          style={{
-            width: 350,
-            maxWidth: '90vw',
-            top: 'auto',
-            bottom: 0,
-            maxHeight: 'calc(100vh - 113px)',
-            border: '1px solid #ccc',
+        <SidePanel
+          isOpen={!!selectedFeature || isImportPanelOpen || isFilterPanelOpen}
+          onClose={() => {
+            setSelectedFeature(null);
+            setIsImportPanelOpen(false);
+            setIsFilterPanelOpen(false);
           }}
+          title={
+            selectedFeature
+              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 'Site Details')
+              : isImportPanelOpen
+              ? 'Import GeoJSON'
+              : 'Filter Options'
+          }
         >
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-                <span className="font-bold text-lg">{selectedBuilding ? 'Building Details' : 'Import GeoJSON'}</span>
-                <button onClick={() => { setSelectedBuilding(null); setIsImportPanelOpen(false); }} className="text-gray-600 hover:text-black">✕</button>
+          {selectedFeature ? (
+            // Building Details View
+            <div>
+              {selectedFeature.properties && Object.entries(selectedFeature.properties)
+                .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
+                .map(([key, value]) => (
+                <div key={key} className="mb-2">
+                  <strong className="uppercase">{key.replace(/_/g, ' ')}:</strong>
+                  <div className='text-gray-700'>{String(value)}</div>
+                </div>
+              ))}
             </div>
-
-            {selectedBuilding ? (
-              <div className="p-4 flex-1 overflow-auto">
-                {selectedBuilding.properties && Object.entries(selectedBuilding.properties)
-                  .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
-                  .map(([key, value]) => (
-                  <div key={key} className="mb-2">
-                    <strong className="uppercase">{key.replace(/_/g, ' ')}:</strong>
-                    <div className='text-gray-700'>{String(value)}</div>
+          ) : isImportPanelOpen ? (
+            // Import GeoJSON View
+            <div className='flex flex-col gap-4'>
+              <div>
+                <label htmlFor="schema-select" className="block text-sm font-medium text-gray-700 mb-1">Select Schema</label>
+                <select 
+                  id="schema-select"
+                  value={selectedSchema}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | '')}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="" disabled>Select a schema</option>
+                  <option value="building">Building V4</option>
+                  <option value="site">Site V2</option>
+                </select>
+              </div>
+              <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
+              <div className="flex gap-2">
+                <Button size='small' variant="contained" onClick={handleValidation} disabled={!selectedFile}>Validate File</Button>
+                {isValidationSuccessful && (
+                  <Button size='small' variant="outlined" onClick={handleDraw} disabled={!fileContent}>Draw</Button>
+                )}
+              </div>
+              {statusMessage && (
+                <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
+                  {statusMessage}
+                </div>
+              )}
+              {validationResults.length > 0 && (
+                <Button variant="contained" onClick={handleReviewForImport} style={{ marginTop: '10px' }}>
+                  Review for Import
+                </Button>
+              )}
+              {validationStatus !== 'idle' && !validationLimited.valid && (
+                <div className={`p-2 rounded mt-2 bg-red-100 text-red-800`}>
+                  <div className='flex items-center justify-between'>
+                    <strong>Validation Errors:</strong>
                   </div>
+                  <ul className='list-disc pl-5 mt-2'>
+                    {validationLimited.errors.map((errItem, index) => {
+                      const ve = errItem as ValidationError;
+                      return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
+                    })}
+                  </ul>
+                  {validationLimited.warnings.length > 0 && (
+                    <div className='mt-2'>
+                      <strong>Warnings:</strong>
+                      <ul className='list-disc pl-5 mt-2'>
+                        {validationLimited.warnings.map((wItem, index) => {
+                          const vw = wItem as ValidationError;
+                          return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            // Filter Options
+            <div className="p-4">
+              <h4 className="font-semibold mb-4 text-gray-800">Ward Boundary</h4>
+              <div className="space-y-3 mb-4">
+                {shapes.data.features.map(shape => (
+                  <label 
+                    key={shape.id}
+                    htmlFor={`shape-${shape.id}`}
+                    className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                      selectedShapeIds.includes(shape.id as string)
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      id={`shape-${shape.id}`}
+                      checked={selectedShapeIds.includes(shape.id as string)}
+                      onChange={() => {
+                        const shapeId = shape.id as string;
+                        setSelectedShapeIds(prev => 
+                          prev.includes(shapeId) 
+                            ? prev.filter(id => id !== shapeId) 
+                            : [...prev, shapeId]
+                        );
+                      }}
+                      className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="ml-3">
+                      {shape.properties.wd24nm}
+                    </span>
+                  </label>
                 ))}
               </div>
-            ) : (
-              <div className="p-4 flex-1 overflow-auto">
-                <div className='flex flex-col gap-4'>
-                  <div>
-                    <label htmlFor="schema-select" className="block text-sm font-medium text-gray-700 mb-1">Select Schema</label>
-                    <select 
-                      id="schema-select"
-                      value={selectedSchema}
-                      onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | '')}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                    >
-                      <option value="" disabled>Select a schema</option>
-                      <option value="building">Building</option>
-                      <option value="site">Site</option>
-                    </select>
-                  </div>
-                  <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
-                  <div className="flex gap-2">
-                    <Button size='small' variant="contained" onClick={handleValidation} disabled={!selectedFile}>Validate File</Button>
-                    {isValidationSuccessful && (
-                      <Button size='small' variant="outlined" onClick={handleDraw} disabled={!fileContent}>Draw</Button>
-                    )}
-                  </div>
-                </div>
-                {/* Server-side validation summary */}
-                {statusMessage && (
-                  <div style={{ color: validationResults.length > 0 ? 'orange' : (statusMessage.includes('error') || statusMessage.includes('invalid') ? 'red' : 'green'), marginTop: '10px' }}>
-                    {statusMessage}
-                  </div>
-                )}
-
-                {/* Review for Import button */}
-                {validationResults.length > 0 && (
-                  <Button variant="contained" onClick={handleReviewForImport} style={{ marginTop: '10px' }}>
-                    Review for Import
-                  </Button>
-                )}
-
-                {/* Detailed local validation errors from the hook */}
-                {validationStatus !== 'idle' && !validationLimited.valid && (
-                  <div className={`p-2 rounded mt-2 bg-red-100 text-red-800`}>
-                    <div className='flex items-center justify-between'>
-                      <strong>Validation Errors:</strong>
-                    </div>
-                    <ul className='list-disc pl-5 mt-2'>
-                      {validationLimited.errors.map((errItem, index) => {
-                        const ve = errItem as ValidationError;
-                        return <li key={index}>{ve.message || JSON.stringify(ve)}</li>;
-                      })}
-                    </ul>
-                    {validationLimited.warnings.length > 0 && (
-                      <div className='mt-2'>
-                        <strong>Warnings:</strong>
-                        <ul className='list-disc pl-5 mt-2'>
-                          {validationLimited.warnings.map((wItem, index) => {
-                            const vw = wItem as ValidationError;
-                            return <li key={index}>{vw.message || JSON.stringify(vw)}</li>;
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <h4 className="font-semibold mb-4 text-gray-800">Data Types</h4>
+              <div className="space-y-3">
+                <label 
+                  htmlFor="show-buildings"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.buildings
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-buildings"
+                    checked={dataType.buildings}
+                    onChange={() => setDataType(prev => ({ ...prev, buildings: !prev.buildings }))}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    Buildings
+                  </span>
+                </label>
+                <label 
+                  htmlFor="show-sites"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.sites
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-sites"
+                    checked={dataType.sites}
+                    onChange={() => setDataType(prev => ({ ...prev, sites: !prev.sites }))}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    Sites
+                  </span>
+                </label>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </SidePanel>
 
         <ValidationReportModal 
           open={isReportModalOpen}
