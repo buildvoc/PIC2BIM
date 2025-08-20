@@ -10,9 +10,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { GeoJsonLayer, IconLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
-import { Accordion, AccordionDetails, AccordionSummary, Button } from '@mui/material';
+import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
 import ToggleControl from './components/ToggleControl';
@@ -521,60 +521,108 @@ export function Index({ auth }: PageProps) {
   }, [filteredBuildingCentroids, filteredSiteCentroids, dataType]);
 
   const isInitialLoad = useRef(true);
+  const initialZoomApplied = useRef(false);
 
   useEffect(() => {
-    // Skip the first run to avoid overriding the initial viewState zoom
-    if (isInitialLoad.current) {
-      if (buildingCentroidsData.length > 0) {
-        isInitialLoad.current = false;
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...siteCentroidsData];
+      if (allData.length > 0) {
+        try {
+          const points = turf.featureCollection(
+            allData.map(c => turf.point(c.coordinates))
+          );
+          const bbox = turf.bbox(points);
+          const [minLng, minLat, maxLng, maxLat] = bbox;
+
+          const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+          const { longitude, latitude, zoom } = viewport.fitBounds(
+            [[minLng, minLat], [maxLng, maxLat]],
+            { padding: 100 }
+          );
+
+          setViewState(prev => ({
+            ...prev,
+            longitude,
+            latitude,
+            zoom: zoom,
+            transitionDuration: 1000,
+            transitionInterpolator: new FlyToInterpolator(),
+          }));
+
+          initialZoomApplied.current = true;
+        } catch (error) {
+          console.error("Error adjusting initial zoom to data:", error);
+        }
       }
-      return;
+    }
+  }, [buildingCentroidsData, siteCentroidsData]);
+
+  useEffect(() => {
+    if (isInitialLoad.current) {
+        if (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0) {
+            isInitialLoad.current = false;
+        }
+        return;
     }
 
-    const isFiltered = floorRange.min > 0 || floorRange.max < maxFloors;
-    const isAnyTypeSelected = dataType.buildings || dataType.sites;
-    const dataToBound = [];
-
-    const buildingsSource = isFiltered ? filteredBuildingCentroids : buildingCentroidsData;
-    const sitesSource = isFiltered ? filteredSiteCentroids : siteCentroidsData;
-
-    if (!isAnyTypeSelected) {
-      dataToBound.push(...buildingsSource, ...sitesSource);
-    } else {
-      if (dataType.buildings) dataToBound.push(...buildingsSource);
-      if (dataType.sites) dataToBound.push(...sitesSource);
-    }
+    const dataToBound = allFilteredData;
 
     if (dataToBound.length > 0) {
-      try {
-        const points = turf.featureCollection(
-          dataToBound.map(c => turf.point(c.coordinates))
-        );
-        const bbox = turf.bbox(points);
-        const [minLng, minLat, maxLng, maxLat] = bbox;
+        try {
+            const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
+            const bbox = turf.bbox(points);
+            const [minLng, minLat, maxLng, maxLat] = bbox;
 
-        const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
-        const { longitude, latitude, zoom } = viewport.fitBounds(
-          [[minLng, minLat], [maxLng, maxLat]],
-          { padding: 100 }
-        );
+            const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+            const { longitude, latitude, zoom } = viewport.fitBounds(
+                [[minLng, minLat], [maxLng, maxLat]],
+                { padding: 100 }
+            );
 
-        const targetZoom = isFiltered ? Math.min(zoom, 18) : (center ? 15 : 6);
+            setViewState(prev => ({
+                ...prev,
+                longitude,
+                latitude,
+                zoom,
+                transitionDuration: 800,
+                transitionInterpolator: new FlyToInterpolator(),
+            }));
+        } catch (error) {
+            console.error("Error adjusting zoom to filtered data:", error);
+        }
+    } else if (selectedShapeIds.length > 0) {
+        const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+        if (selectedPolygons.length > 0) {
+            try {
+                const featureCollection = turf.featureCollection(selectedPolygons as any[]);
+                const bbox = turf.bbox(featureCollection);
+                const [minLng, minLat, maxLng, maxLat] = bbox;
 
-        setViewState(prev => ({
-          ...prev,
-          longitude,
-          latitude,
-          zoom: targetZoom,
-          transitionDuration: 800,
-          transitionInterpolator: new FlyToInterpolator(),
-        }));
-      } catch (error) {
-        console.error("Error adjusting zoom to data:", error);
-      }
+                const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+                const { longitude, latitude, zoom } = viewport.fitBounds(
+                    [[minLng, minLat], [maxLng, maxLat]],
+                    { padding: 100 }
+                );
+
+                setViewState(prev => ({
+                    ...prev,
+                    longitude,
+                    latitude,
+                    zoom,
+                    transitionDuration: 800,
+                    transitionInterpolator: new FlyToInterpolator(),
+                }));
+            } catch (error) {
+                console.error("Error adjusting zoom to selected wards:", error);
+            }
+        }
     }
-  }, [floorRange, filteredBuildingCentroids, buildingCentroidsData, maxFloors, siteCentroidsData, filteredSiteCentroids, dataType]);
+}, [allFilteredData, selectedShapeIds, shapes.data.features]);
 
+
+  const zoomBasedRadius = useMemo(() => {
+    return Math.max(1, Math.pow(2, 14 - viewState.zoom));
+  }, [viewState.zoom]);
 
   const layers = [
     new GeoJsonLayer<ShapeProperties>({
@@ -588,14 +636,13 @@ export function Index({ auth }: PageProps) {
       getLineWidth: 1
     }),
 
-    // Layer for Site centroids (using ScatterplotLayer)
     (! (dataType.buildings || dataType.sites) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
       data: filteredSiteCentroids,
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
+      radiusScale: zoomBasedRadius,
       radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
@@ -646,7 +693,7 @@ export function Index({ auth }: PageProps) {
       },
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredSiteCentroids],
-        getRadius: [category1, category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
@@ -657,7 +704,7 @@ export function Index({ auth }: PageProps) {
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
+      radiusScale: zoomBasedRadius,
       radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
@@ -707,7 +754,7 @@ export function Index({ auth }: PageProps) {
       },
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem],
-        getRadius: [category1, category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
     
