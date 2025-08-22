@@ -9,6 +9,7 @@ use App\Http\Resources\SiteCollection;
 use App\Models\Attr\Shape;
 use App\Models\Attr\Building;
 use App\Models\Attr\Site;
+use App\Models\NHLE;
 use App\Models\Attr\SiteAddressReference;
 use App\Models\Attr\BuildingAddress;
 use App\Models\Attr\BuildingPartLink;
@@ -32,6 +33,11 @@ class DataMapController extends Controller
                     ->from('lus_fts_site')
                     ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(lus_fts_site.geometry, 27700))");
             })
+            ->orWhereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('nhle_')
+                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(nhle_.geom, 27700))");
+            })
             ->get();
 
         $buildings = Building::query()
@@ -52,6 +58,15 @@ class DataMapController extends Controller
             })
             ->get();
 
+        $nhle = NHLE::query()
+            ->where(function ($query) use ($shapes) {
+                foreach ($shapes as $shape) {
+                    $geoJson = json_encode($shape->geometry);
+                    $query->orWhereRaw("ST_INTERSECTS(geom, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))", [$geoJson]);
+                }
+            })
+            ->get();
+
         $center = null;
         if ($shapes->isNotEmpty()) {
             $centerData = DB::table('shape')
@@ -68,6 +83,7 @@ class DataMapController extends Controller
             'shapes' => new ShapeCollection($shapes),
             'buildings' => new BuildingCollection($buildings),
             'sites' => new SiteCollection($sites),
+            'nhle' => $nhle,
             'center' => $center,
         ]);
     }
