@@ -37,16 +37,16 @@ import type {
     LoadedNhleFeatureState,
     ValidationError
 } from './types';
-import { NhleProperties } from '@/types/nhle';
+import { NhleData } from '@/types/nhle';
 
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, sites, nhle, center, buildingParts } = usePage<{
+  const { shapes: mShapes, buildings, sites, nhle, center } = usePage<{
     shapes: {data: ShapesGeoJson};
     buildings: { data: BuildingGeoJson };
     sites: { data: SiteGeoJson };
-    nhle: NhleProperties[];
+    nhle: NhleData[];
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
@@ -72,6 +72,7 @@ export function Index({ auth }: PageProps) {
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -210,7 +211,7 @@ export function Index({ auth }: PageProps) {
               coordinates,
               properties: {
                 nhle_id: item.objectid,
-                listentry: item.listentry,
+                list_entry: item.listentry,
                 name: item.name,
                 grade: item.grade,
                 hyperlink: item.hyperlink,
@@ -536,9 +537,18 @@ export function Index({ auth }: PageProps) {
           return false;
         }
       }
+
+      // Filter by grade if grades are selected
+      if (selectedGrades.length > 0) {
+        const grade = d.properties?.grade;
+        if (!grade || !selectedGrades.includes(grade)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [nhleCentroidsData, selectedShapeIds, shapes.data.features]);
+  }, [nhleCentroidsData, selectedShapeIds, shapes.data.features, selectedGrades]);
 
   const filteredSiteCentroids = useMemo(() => {
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
@@ -563,6 +573,11 @@ export function Index({ auth }: PageProps) {
       return floors >= floorRange.min && floors <= floorRange.max;
     });
   }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
+
+  const availableGrades = useMemo(() => {
+    const grades = nhleCentroidsData.map(d => d.properties?.grade).filter(Boolean);
+    return Array.from(new Set(grades)).sort();
+  }, [nhleCentroidsData]);
 
   const allFilteredData = useMemo(() => {
     const isAnyTypeSelected = dataType.buildings || dataType.sites || dataType.nhle;
@@ -1162,24 +1177,66 @@ export function Index({ auth }: PageProps) {
                     Sites
                   </span>
                 </label>
-                <label 
-                  htmlFor="show-nhle"
-                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
-                    dataType.nhle
-                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
-                  }`}>
-                  <input
-                    type="checkbox"
-                    id="show-nhle"
-                    checked={dataType.nhle}
-                    onChange={() => setDataType(prev => ({ ...prev, nhle: !prev.nhle }))}
-                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="ml-3">
-                    NHLE
-                  </span>
-                </label>
+                <div>
+                  <label 
+                    htmlFor="show-nhle"
+                    className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                      dataType.nhle
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      id="show-nhle"
+                      checked={dataType.nhle}
+                      onChange={() => {
+                        setDataType(prev => ({ ...prev, nhle: !prev.nhle }));
+                        if (!dataType.nhle) {
+                          setSelectedGrades([]);
+                        }
+                      }}
+                      className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="ml-3">
+                      NHLE
+                    </span>
+                  </label>
+                  
+                  {dataType.nhle && availableGrades.length > 0 && (
+                    <div className="ml-8 mt-2 space-y-2">
+                      <h5 className="text-sm font-medium text-gray-700">Filter by Grade:</h5>
+                      <div className="space-y-1">
+                        {availableGrades.map(grade => (
+                          <label 
+                            key={grade}
+                            htmlFor={`grade-${grade}`}
+                            className={`flex items-center w-full text-left px-3 py-2 rounded text-sm transition-all duration-200 ease-in-out cursor-pointer ${
+                              selectedGrades.includes(grade)
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 border'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-transparent'
+                            }`}>
+                            <input
+                              type="checkbox"
+                              id={`grade-${grade}`}
+                              checked={selectedGrades.includes(grade)}
+                              onChange={() => {
+                                setSelectedGrades(prev => 
+                                  prev.includes(grade) 
+                                    ? prev.filter(g => g !== grade) 
+                                    : [...prev, grade]
+                                );
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="ml-2">
+                              Grade {grade}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

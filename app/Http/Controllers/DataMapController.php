@@ -22,48 +22,50 @@ class DataMapController extends Controller
 {
     public function index(Request $request)
     {
-        $shapes = Shape::query()
-            ->whereExists(function ($query) {
+        $shapeIdsQuery = DB::table('shape as s')
+            ->select('s.ogc_fid')
+            ->crossJoin('bld_fts_building as b')
+            ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(b.geometry, 27700))")
+            ->union(
+                DB::table('shape as s')
+                    ->select('s.ogc_fid')
+                    ->crossJoin('lus_fts_site as l')
+                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(l.geometry, 27700))")
+            )
+            ->union(
+                DB::table('shape as s')
+                    ->select('s.ogc_fid')
+                    ->crossJoin('nhle_ as n')
+                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(n.geom, 27700))")
+            );
+
+        $shapes = Shape::query()->whereIn('ogc_fid', $shapeIdsQuery)->get();
+
+        $shapeGeometriesQuery = Shape::query()
+            ->whereIn('ogc_fid', $shapeIdsQuery)
+            ->select('wkb_geometry');
+
+        $buildings = Building::query()
+            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
                 $query->select(DB::raw(1))
-                    ->from('bld_fts_building')
-                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(bld_fts_building.geometry, 27700))");
-            })
-            ->orWhereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('lus_fts_site')
-                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(lus_fts_site.geometry, 27700))");
-            })
-            ->orWhereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('nhle_')
-                    ->whereRaw("ST_INTERSECTS(shape.wkb_geometry, ST_Transform(nhle_.geom, 27700))");
+                    ->fromSub($shapeGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.wkb_geometry)');
             })
             ->get();
 
-        $buildings = Building::query()
-            ->where(function ($query) use ($shapes) {
-                foreach ($shapes as $shape) {
-                    $geoJson = json_encode($shape->geometry);
-                    $query->orWhereRaw("ST_INTERSECTS(geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))", [$geoJson]);
-                }
-            })
-            ->get();
-        
         $sites = Site::query()
-            ->where(function ($query) use ($shapes) {
-                foreach ($shapes as $shape) {
-                    $geoJson = json_encode($shape->geometry);
-                    $query->orWhereRaw("ST_INTERSECTS(geometry, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))", [$geoJson]);
-                }
+            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($shapeGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.wkb_geometry)');
             })
             ->get();
 
         $nhle = NHLE::query()
-            ->where(function ($query) use ($shapes) {
-                foreach ($shapes as $shape) {
-                    $geoJson = json_encode($shape->geometry);
-                    $query->orWhereRaw("ST_INTERSECTS(geom, ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))", [$geoJson]);
-                }
+            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($shapeGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.wkb_geometry)');
             })
             ->get();
 

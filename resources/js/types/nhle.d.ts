@@ -1,13 +1,21 @@
-import type { Feature, FeatureCollection, MultiPoint } from 'geojson';
+import type { MultiPoint } from 'geojson';
+
+export interface NhleData {
+    gid:        number;
+    objectid:   number;
+    listentry:  number;
+    name:       string;
+    grade:      string;
+    hyperlink:  string;
+    ngr:        string;
+    geom:       MultiPoint;
+}
 
 export interface NhleProperties {
-    gid?:        number;
-    objectid?:   number;
-    listentry?:  number;
-    nhle_id?:    number;
-    name?:       string;
-    grade?:      string;
-    hyperlink?:  string;
-    ngr?:        string;
-    geom?:       any;
+    nhle_id:    number;
+    list_entry: number;
+    name:       string;
+    grade:      string;
+    hyperlink:  string;
+    ngr:        string;
 }
