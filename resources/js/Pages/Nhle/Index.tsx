@@ -73,6 +73,7 @@ export function Index({ auth }: PageProps) {
   const [dataType, setDataType] = useState({ buildings: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
+  const [boundarySearch, setBoundarySearch] = useState<string>('');
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -579,6 +580,13 @@ export function Index({ auth }: PageProps) {
     return Array.from(new Set(grades)).sort();
   }, [nhleCentroidsData]);
 
+  const filteredShapes = useMemo(() => {
+    if (!boundarySearch) return shapes.data.features;
+    return shapes.data.features.filter(shape => 
+      shape.properties.wd24nm.toLowerCase().includes(boundarySearch.toLowerCase())
+    );
+  }, [shapes.data.features, boundarySearch]);
+
   const allFilteredData = useMemo(() => {
     const isAnyTypeSelected = dataType.buildings || dataType.sites || dataType.nhle;
     if (!isAnyTypeSelected) {
@@ -707,7 +715,7 @@ export function Index({ auth }: PageProps) {
       getLineWidth: 1
     }),
 
-    (! (dataType.buildings || dataType.sites) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
+    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
       data: filteredSiteCentroids,
       pickable: true,
@@ -768,7 +776,7 @@ export function Index({ auth }: PageProps) {
       },
     }),
 
-    (! (dataType.buildings || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
+    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
       data: filteredNhleCentroids,
       pickable: true,
@@ -799,7 +807,7 @@ export function Index({ auth }: PageProps) {
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
-    (! (dataType.buildings || dataType.sites) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
       data: filteredBuildingCentroids,
       pickable: true,
@@ -1109,8 +1117,17 @@ export function Index({ auth }: PageProps) {
             // Filter Options
             <div className="p-4">
               <h4 className="font-semibold mb-4 text-gray-800">Ward Boundary</h4>
-              <div className="space-y-3 mb-4">
-                {shapes.data.features.map(shape => (
+              <div className="mb-3">
+                <input
+                  type="text"
+                  placeholder="Search boundaries..."
+                  value={boundarySearch}
+                  onChange={(e) => setBoundarySearch(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                {filteredShapes.map(shape => (
                   <label 
                     key={shape.id}
                     htmlFor={`shape-${shape.id}`}
@@ -1138,6 +1155,11 @@ export function Index({ auth }: PageProps) {
                     </span>
                   </label>
                 ))}
+                {filteredShapes.length === 0 && (
+                  <div className="text-gray-500 text-sm text-center py-4">
+                    No boundaries found matching "{boundarySearch}"
+                  </div>
+                )}
               </div>
               <h4 className="font-semibold mb-4 text-gray-800">Data Types</h4>
               <div className="space-y-3">
