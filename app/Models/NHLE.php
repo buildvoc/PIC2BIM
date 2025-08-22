@@ -12,17 +12,25 @@ class NHLE extends Model
 
     protected $table = 'nhle_';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'gid';
+    public $timestamps = false;
+
     protected $fillable = [
         'gid',
         'objectid',
         'listentry',
         'name',
         'grade',
+        'listdate',
+        'amenddate',
+        'capturesca',
         'hyperlink',
         'ngr',
+        'easting',
+        'northing',
+        'geom',
         'latitude',
-        'longitude',
-        'geom'
+        'longitude'
     ];
 
     protected $spatialFields = ['geom'];
@@ -33,8 +41,13 @@ class NHLE extends Model
         'listentry' => 'integer',
         'name' => 'string',
         'grade' => 'string',
+        'listdate' => 'date',
+        'amenddate' => 'date',
+        'capturesca' => 'string',
         'hyperlink' => 'string',
         'ngr' => 'string',
+        'easting' => 'string',
+        'northing' => 'string',
         'geom' => 'array',
         'latitude' => 'float',
         'longitude' => 'float',

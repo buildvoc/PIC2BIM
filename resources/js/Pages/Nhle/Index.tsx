@@ -29,6 +29,7 @@ import type { PageProps } from '@/types';
 import type { 
     BuildingCentroidState, 
     SiteCentroidState,
+    NhleFeatureState,
     ShapesGeoJson, 
     SelectedShapeData, 
     MGeoJson, 
@@ -36,14 +37,16 @@ import type {
     LoadedNhleFeatureState,
     ValidationError
 } from './types';
+import { NhleProperties } from '@/types/nhle';
 
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, sites, center } = usePage<{
+  const { shapes: mShapes, buildings, sites, nhle, center, buildingParts } = usePage<{
     shapes: {data: ShapesGeoJson};
-    buildings: { data: BuildingGeoJson }; // Changed from NhleGeoJson to BuildingGeoJson
+    buildings: { data: BuildingGeoJson };
     sites: { data: SiteGeoJson };
+    nhle: NhleProperties[];
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
@@ -59,14 +62,15 @@ export function Index({ auth }: PageProps) {
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
+  const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | SiteCentroidState | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Usage');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, sites: false });
+  const [dataType, setDataType] = useState({ buildings: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
 
   const maxFloors = useMemo(() => {
@@ -192,6 +196,35 @@ export function Index({ auth }: PageProps) {
       setSiteCentroidsData(centroids);
     }
   }, [sites]);
+
+  useEffect(() => {
+    if (nhle) {
+      const centroids: NhleFeatureState[] = [];
+      for (const item of nhle) {
+        if (item.geom && item.geom.type === 'MultiPoint' && item.geom.coordinates.length > 0) {
+          try {
+            const coordinates = item.geom.coordinates[0] as [number, number];
+            
+            centroids.push({
+              id: item.gid?.toString() || '',
+              coordinates,
+              properties: {
+                nhle_id: item.objectid,
+                listentry: item.listentry,
+                name: item.name,
+                grade: item.grade,
+                hyperlink: item.hyperlink,
+                ngr: item.ngr,
+              }
+            });
+          } catch (error) {
+            console.error('Error processing NHLE feature:', item.gid, error);
+          }
+        }
+      }
+      setNhleCentroidsData(centroids);
+    }
+  }, [nhle]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -485,6 +518,28 @@ export function Index({ auth }: PageProps) {
     });
   }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
 
+  const filteredNhleCentroids = useMemo(() => {
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
+    return nhleCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [nhleCentroidsData, selectedShapeIds, shapes.data.features]);
+
   const filteredSiteCentroids = useMemo(() => {
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
@@ -510,22 +565,23 @@ export function Index({ auth }: PageProps) {
   }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
 
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.sites;
+    const isAnyTypeSelected = dataType.buildings || dataType.sites || dataType.nhle;
     if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredSiteCentroids];
+      return [...filteredBuildingCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
     }
     const data = [];
     if (dataType.buildings) data.push(...filteredBuildingCentroids);
     if (dataType.sites) data.push(...filteredSiteCentroids);
+    if (dataType.nhle) data.push(...filteredNhleCentroids);
     return data;
-  }, [filteredBuildingCentroids, filteredSiteCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
 
   useEffect(() => {
-    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0)) {
-      const allData = [...buildingCentroidsData, ...siteCentroidsData];
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
       if (allData.length > 0) {
         try {
           const points = turf.featureCollection(
@@ -694,6 +750,36 @@ export function Index({ auth }: PageProps) {
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+      },
+    }),
+
+    (! (dataType.buildings || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
+      id: `nhle-layer`,
+      data: filteredNhleCentroids,
+      pickable: true,
+      stroked: false,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 15,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: 10,
+      getFillColor: [255, 0, 0, 200], // Red for NHLE
+      onHover: info => {
+        getCursor;
+        if (info.object && info.object.properties) {  
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object as NhleFeatureState);
+        }
+      },
+      updateTriggers: {
+        getRadius: [zoomBasedRadius],
       },
     }),
 
@@ -903,6 +989,10 @@ export function Index({ auth }: PageProps) {
                 (hoverInfo.object.properties?.description ||
                  `Site ID: ${hoverInfo.object.id}`)
               }
+              {hoverInfo.layer?.id.startsWith('nhle-layer') && 
+                (hoverInfo.object.properties?.name || 
+                 `NHLE ID: ${hoverInfo.object.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
                   <div><strong>Polygon Feature</strong></div>
@@ -924,7 +1014,7 @@ export function Index({ auth }: PageProps) {
           }}
           title={
             selectedFeature
-              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 'Site Details')
+              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -1070,6 +1160,24 @@ export function Index({ auth }: PageProps) {
                   />
                   <span className="ml-3">
                     Sites
+                  </span>
+                </label>
+                <label 
+                  htmlFor="show-nhle"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.nhle
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-nhle"
+                    checked={dataType.nhle}
+                    onChange={() => setDataType(prev => ({ ...prev, nhle: !prev.nhle }))}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    NHLE
                   </span>
                 </label>
               </div>
