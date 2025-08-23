@@ -71,7 +71,7 @@ export function Index({ auth }: PageProps) {
   const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
-  const [category2, setCategory2] = useState<string>('Usage');
+  const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
@@ -129,10 +129,10 @@ export function Index({ auth }: PageProps) {
   }, [selectedShapeIds, shapes.data.features]);
 
   const groupByMapping: { [key: string]: string } = {
-    'Material': 'constructionmaterial',
-    'Usage': 'buildinguse',
-    'Connectivity': 'connectivity',
-    'Theme': 'theme',
+    'Site': 'changetype',
+    'Building': 'theme',
+    'Building Part': 'physicallevel',
+    'NHLE': 'grade',
   };
 
   const handleLegendItemClick = useCallback((value: any) => {
@@ -937,7 +937,7 @@ export function Index({ auth }: PageProps) {
 
         if (selectedLegendItem !== null) {
           const propertyName = groupByMapping[category2];
-          const propValue = d.properties?.[propertyName];
+          const propValue = (d.properties as any)?.[propertyName];
           return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
         }
 
@@ -998,7 +998,7 @@ export function Index({ auth }: PageProps) {
 
         if (selectedLegendItem !== null) {
           const propertyName = groupByMapping[category2];
-          const propValue = d.properties?.[propertyName];
+          const propValue = (d.properties as any)?.[propertyName];
           return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
         }
 
@@ -1042,14 +1042,38 @@ export function Index({ auth }: PageProps) {
       id: `nhle-layer`,
       data: filteredNhleCentroids,
       pickable: true,
-      stroked: false,
+      stroked: true,
       filled: true,
       radiusScale: zoomBasedRadius,
       radiusMaxPixels: 15,
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
-      getRadius: 10,
-      getFillColor: [255, 0, 0, 200], // Red for NHLE
+      getRadius: d => {
+        let baseRadius = 10;
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const propertyName = groupByMapping[category2];
+        if (!propertyName || !d.properties) return [255, 0, 0, 200]; // Default red for NHLE
+
+        const propValue = (d.properties as any)[propertyName];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+        const uniqueValues = Array.from(new Set(allData.map(item => (item.properties as any)?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
+
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+        return [...color, alpha];
+      },
+      getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
         getCursor;
         if (info.object && info.object.properties) {  
@@ -1064,7 +1088,8 @@ export function Index({ auth }: PageProps) {
         }
       },
       updateTriggers: {
-        getRadius: [zoomBasedRadius],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
+        getRadius: [category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
@@ -1090,7 +1115,7 @@ export function Index({ auth }: PageProps) {
 
         if (selectedLegendItem !== null) {
           const propertyName = groupByMapping[category2];
-          const propValue = d.properties?.[propertyName];
+          const propValue = (d.properties as any)?.[propertyName];
           return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
         }
 
@@ -1306,6 +1331,7 @@ export function Index({ auth }: PageProps) {
             category2={category2}
             floorRange={floorRange}
             maxFloors={maxFloors}
+            dataType={dataType}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
             onFloorRangeChange={setFloorRange}

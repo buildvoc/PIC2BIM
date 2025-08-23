@@ -7,6 +7,7 @@ interface FilterPanelProps {
   category2: string;
   floorRange: { min: number; max: number };
   maxFloors: number;
+  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean };
   onCategory1Change: (val: string) => void;
   onCategory2Change: (val: string) => void;
   onFloorRangeChange: (values: { min: number; max: number }) => void;
@@ -17,12 +18,36 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     category2, 
     floorRange,
     maxFloors,
+    dataType,
     onCategory1Change, 
     onCategory2Change, 
     onFloorRangeChange 
 }) => {
   const mapByOptions = ['Fixed Size', 'Size by Area'];
-  const groupByOptions = ['Material', 'Usage', 'Connectivity', 'Theme'];
+  
+  // Dynamic grouping options based on active data types
+  const getGroupByOptions = () => {
+    const options: string[] = [];
+    const activeTypes = Object.keys(dataType).filter(key => dataType[key as keyof typeof dataType]);
+    
+    // If no specific type is selected, show all available options
+    if (activeTypes.length === 0 || activeTypes.length > 1) {
+      if (dataType.sites || activeTypes.length === 0) options.push('Site');
+      if (dataType.buildings || activeTypes.length === 0) options.push('Building');
+      if (dataType.buildingParts || activeTypes.length === 0) options.push('Building Part');
+      if (dataType.nhle || activeTypes.length === 0) options.push('NHLE');
+    } else {
+      // Single type selected, show only relevant option
+      if (dataType.sites) options.push('Site');
+      if (dataType.buildings) options.push('Building');
+      if (dataType.buildingParts) options.push('Building Part');
+      if (dataType.nhle) options.push('NHLE');
+    }
+    
+    return options.length > 0 ? options : ['No Grouping Available'];
+  };
+  
+  const groupByOptions = getGroupByOptions();
 
   const icon1 = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
