@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ShapeCollection;
 use App\Http\Resources\ShapeFeatureResource;
 use App\Http\Resources\BuildingCollection;
+use App\Http\Resources\BuildingPartCollection;
 use App\Http\Resources\SiteCollection;
 use App\Models\Attr\Shape;
 use App\Models\Attr\Building;
+use App\Models\Attr\BuildingPart;
 use App\Models\Attr\Site;
 use App\Models\NHLE;
 use App\Models\Attr\SiteAddressReference;
@@ -26,6 +28,12 @@ class DataMapController extends Controller
             ->select('s.ogc_fid')
             ->crossJoin('bld_fts_building as b')
             ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(b.geometry, 27700))")
+            ->union(
+                DB::table('shape as s')
+                    ->select('s.ogc_fid')
+                    ->crossJoin('bld_fts_buildingpart as bp')
+                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(bp.geometry, 27700))")
+            )
             ->union(
                 DB::table('shape as s')
                     ->select('s.ogc_fid')
@@ -50,6 +58,14 @@ class DataMapController extends Controller
                 $query->select(DB::raw(1))
                     ->fromSub($shapeGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.wkb_geometry)');
+            })
+            ->get();
+
+        $buildingParts = BuildingPart::query()
+            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($shapeGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart.geometry, s.wkb_geometry)');
             })
             ->get();
 
@@ -84,6 +100,7 @@ class DataMapController extends Controller
         return Inertia::render('Nhle/Index', [
             'shapes' => new ShapeCollection($shapes),
             'buildings' => new BuildingCollection($buildings),
+            'buildingParts' => new BuildingPartCollection($buildingParts),
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
             'center' => $center,

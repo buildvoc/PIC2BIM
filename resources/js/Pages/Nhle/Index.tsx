@@ -8,7 +8,7 @@ import Map from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
 import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
@@ -23,10 +23,12 @@ import SidePanel from './components/SidePanel';
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { BuildingProperties, BuildingGeoJson } from '@/types/building';
+import type { BuildingPartProperties, BuildingPartGeoJson } from '@/types/buildingpart';
 import type { SiteGeoJson } from '@/types/site';
 import type { PageProps } from '@/types';
 import type { 
     BuildingCentroidState, 
+    BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
     ShapesGeoJson, 
@@ -41,9 +43,10 @@ import { NhleData } from '@/types/nhle';
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, sites, nhle, center } = usePage<{
+  const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
     shapes: {data: ShapesGeoJson};
     buildings: { data: BuildingGeoJson };
+    buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
     nhle: NhleData[];
     center?: { type: 'Point', coordinates: [number, number] };
@@ -60,16 +63,17 @@ export function Index({ auth }: PageProps) {
   });
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
+  const [buildingPartCentroidsData, setBuildingPartCentroidsData] = useState<BuildingPartCentroidState[]>([]);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
-  const [category2, setCategory2] = useState<string>('Usage');
+  const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, sites: false, nhle: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -125,10 +129,10 @@ export function Index({ auth }: PageProps) {
   }, [selectedShapeIds, shapes.data.features]);
 
   const groupByMapping: { [key: string]: string } = {
-    'Material': 'constructionmaterial',
-    'Usage': 'buildinguse',
-    'Connectivity': 'connectivity',
-    'Theme': 'theme',
+    'Site': 'changetype',
+    'Building': 'theme',
+    'Building Part': 'physicallevel',
+    'NHLE': 'grade',
   };
 
   const handleLegendItemClick = useCallback((value: any) => {
@@ -165,6 +169,29 @@ export function Index({ auth }: PageProps) {
       setBuildingCentroidsData(centroids);
     }
   }, [buildings]);
+
+  useEffect(() => {
+    if (buildingParts) {
+      const centroids: BuildingPartCentroidState[] = [];
+      for (const feature of buildingParts.data.features) {
+        if (feature.geometry) {
+          try {
+            const centroid = turf.centroid(feature.geometry as any);
+            const coordinates = centroid.geometry.coordinates as [number, number];
+            
+            centroids.push({
+              id: feature.id as string,
+              coordinates,
+              properties: feature.properties as BuildingPartProperties
+            });
+          } catch (error) {
+            console.error('Error calculating centroid for building part feature:', feature.id, error);
+          }
+        }
+      }
+      setBuildingPartCentroidsData(centroids);
+    }
+  }, [buildingParts]);
 
   useEffect(() => {
     if (sites) {
@@ -269,6 +296,157 @@ export function Index({ auth }: PageProps) {
   const [isValidationSuccessful, setIsValidationSuccessful] = useState(false);
   const [geoJson, setGeoJson] = useState<MGeoJson>();
   const [iconLayerData, setIconLayerData] = useState<LoadedNhleFeatureState[]>([]);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchField, setSearchField] = useState('all');
+  const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
+
+  // Search functionality
+  const searchableFields = {
+    nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
+    building: ['osid', 'uprn', 'postcode', 'description', 'constructionmaterial', 'roofmaterial', 'buildinguse', 'numberoffloors'],
+    buildingpart: ['osid', 'toid', 'description', 'theme', 'oslandcovertiera', 'oslandcovertierb', 'oslandusetiera', 'oslandusetierb', 'associatedstructure'],
+    site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
+  };
+
+  const performSearch = useCallback((query: string, field: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: any[] = [];
+    const searchTerm = query.toLowerCase();
+
+    // Search NHLE data
+    nhleCentroidsData.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.nhle.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.nhle : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'NHLE',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.name || 'Unnamed NHLE'
+          });
+        }
+      }
+    });
+
+    // Search Building data
+    buildingCentroidsData.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.building.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building'
+          });
+        }
+      }
+    });
+
+    // Search BuildingPart data
+    buildingPartCentroidsData.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building Part',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building Part'
+          });
+        }
+      }
+    });
+
+    // Search Site data
+    siteCentroidsData.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.site.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.site : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Site',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Site'
+          });
+        }
+      }
+    });
+
+    setSearchResults(results.slice(0, 50)); // Limit to 50 results
+  }, [nhleCentroidsData, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
+
+  const handleSearchResultClick = useCallback((result: any) => {
+    // Create selected feature object based on result type
+    const selectedFeatureData = {
+      id: result.id,
+      coordinates: result.coordinates,
+      properties: result.data
+    };
+
+    // Set the selected feature to open side panel
+    setSelectedFeature(selectedFeatureData);
+    
+    // Set search marker
+    setSearchMarker({
+      coordinates: result.coordinates,
+      data: result.data,
+      type: result.type
+    });
+
+    // Fly to the selected location
+    setViewState({
+      ...viewState,
+      longitude: result.coordinates[0],
+      latitude: result.coordinates[1],
+      zoom: 18,
+      transitionDuration: 1000,
+      transitionInterpolator: new FlyToInterpolator()
+    });
+    
+    setIsSearchModalOpen(false);
+  }, [viewState]);
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        performSearch(searchQuery, searchField);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, searchField, performSearch]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
   const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
   const { status: validationStatus, result: validationResultFull, limited: validationLimited, validate } = useGeoJsonValidation();
@@ -519,6 +697,29 @@ export function Index({ auth }: PageProps) {
     });
   }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
 
+  const filteredBuildingPartCentroids = useMemo(() => {
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
+    return buildingPartCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [buildingPartCentroidsData, selectedShapeIds, shapes.data.features]);
+
   const filteredNhleCentroids = useMemo(() => {
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
@@ -587,23 +788,24 @@ export function Index({ auth }: PageProps) {
   }, [shapes.data.features, boundarySearch]);
 
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.sites || dataType.nhle;
+    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle;
     if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
     }
     const data = [];
     if (dataType.buildings) data.push(...filteredBuildingCentroids);
+    if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids);
     if (dataType.sites) data.push(...filteredSiteCentroids);
     if (dataType.nhle) data.push(...filteredNhleCentroids);
     return data;
-  }, [filteredBuildingCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
 
   useEffect(() => {
-    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
-      const allData = [...buildingCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
       if (allData.length > 0) {
         try {
           const points = turf.featureCollection(
@@ -633,11 +835,11 @@ export function Index({ auth }: PageProps) {
         }
       }
     }
-  }, [buildingCentroidsData, siteCentroidsData]);
+  }, [buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
 
   useEffect(() => {
     if (isInitialLoad.current) {
-        if (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0) {
+        if (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0) {
             isInitialLoad.current = false;
         }
         return;
@@ -714,7 +916,68 @@ export function Index({ auth }: PageProps) {
       getLineWidth: 1
     }),
 
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
+      id: `buildingpart-layer`,
+      data: filteredBuildingPartCentroids,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => {
+        let baseRadius;
+        if (category1 === 'Size by Area') {
+          const area = d.properties?.area || 0;
+          baseRadius = Math.sqrt(area);
+        } else { // Fixed Size
+          baseRadius = 10;
+        }
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const propertyName = groupByMapping[category2];
+        if (!propertyName || !d.properties) return [255, 165, 0, 200]; // Default orange for building parts
+
+        const propValue = d.properties[propertyName];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
+        const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
+
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+        return [...color, alpha];
+      },
+      getLineColor: d => [0, 0, 0, 255],
+      onHover: info => {
+        getCursor;
+        if (info.object && info.object.properties) {  
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object as BuildingPartCentroidState);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+      },
+    }),
+
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
       data: filteredSiteCentroids,
       pickable: true,
@@ -735,7 +998,7 @@ export function Index({ auth }: PageProps) {
 
         if (selectedLegendItem !== null) {
           const propertyName = groupByMapping[category2];
-          const propValue = d.properties?.[propertyName];
+          const propValue = (d.properties as any)?.[propertyName];
           return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
         }
 
@@ -746,7 +1009,7 @@ export function Index({ auth }: PageProps) {
         if (!propertyName || !d.properties) return [0, 255, 0, 200]; // Default green for sites
 
         const propValue = d.properties[propertyName];
-        const allData = [...filteredBuildingCentroids, ...filteredSiteCentroids];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
         const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
         const color = getColorForValue(propValue, uniqueValues);
 
@@ -770,23 +1033,47 @@ export function Index({ auth }: PageProps) {
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredSiteCentroids],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
       data: filteredNhleCentroids,
       pickable: true,
-      stroked: false,
+      stroked: true,
       filled: true,
       radiusScale: zoomBasedRadius,
       radiusMaxPixels: 15,
       lineWidthMinPixels: 1,
       getPosition: d => d.coordinates,
-      getRadius: 10,
-      getFillColor: [255, 0, 0, 200], // Red for NHLE
+      getRadius: d => {
+        let baseRadius = 10;
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const propertyName = groupByMapping[category2];
+        if (!propertyName || !d.properties) return [255, 0, 0, 200]; // Default red for NHLE
+
+        const propValue = (d.properties as any)[propertyName];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+        const uniqueValues = Array.from(new Set(allData.map(item => (item.properties as any)?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
+
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+        return [...color, alpha];
+      },
+      getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
         getCursor;
         if (info.object && info.object.properties) {  
@@ -801,12 +1088,13 @@ export function Index({ auth }: PageProps) {
         }
       },
       updateTriggers: {
-        getRadius: [zoomBasedRadius],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
+        getRadius: [category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
       data: filteredBuildingCentroids,
       pickable: true,
@@ -827,7 +1115,7 @@ export function Index({ auth }: PageProps) {
 
         if (selectedLegendItem !== null) {
           const propertyName = groupByMapping[category2];
-          const propValue = d.properties?.[propertyName];
+          const propValue = (d.properties as any)?.[propertyName];
           return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
         }
 
@@ -908,6 +1196,61 @@ export function Index({ auth }: PageProps) {
         data: [iconLayerData],
       },
     }),
+
+    // Search pin marker layer
+    searchMarker && new IconLayer({
+      id: 'search-pin-marker-layer',
+      data: [{
+        ...searchMarker,
+        icon: 'pin'
+      }],
+      pickable: true,
+      iconAtlas: 'data:image/svg+xml;base64,' + btoa(`
+        <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 2C15.163 2 8 9.163 8 18c0 13.5 16 26 16 26s16-12.5 16-26c0-8.837-7.163-16-16-16z" fill="#FF0000" stroke="#FFFFFF" stroke-width="2"/>
+          <circle cx="24" cy="18" r="6" fill="#FFFFFF"/>
+        </svg>
+      `),
+      iconMapping: {
+        pin: {
+          x: 0,
+          y: 0,
+          width: 48,
+          height: 48,
+          anchorY: 48,
+          anchorX: 24
+        }
+      },
+      getIcon: d => 'pin',
+      getPosition: d => d.coordinates,
+      getSize: 32,
+      getColor: [255, 0, 0, 255],
+      onHover: info => {
+        if (info.object) {
+          setHoverInfo({
+            x: info.x,
+            y: info.y,
+            layer: info.layer,
+            object: {
+              properties: info.object.data,
+              type: info.object.type
+            }
+          });
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object) {
+          const selectedFeatureData = {
+            id: `search-${Date.now()}`,
+            coordinates: info.object.coordinates,
+            properties: info.object.data
+          };
+          setSelectedFeature(selectedFeatureData);
+        }
+      },
+    }),
   ].filter(Boolean);
 
   return (
@@ -915,9 +1258,25 @@ export function Index({ auth }: PageProps) {
       <Head title="Data Map" />
       <AuthenticatedLayout user={auth.user}>
         <div className="flex flex-col h-[calc(100vh-65px)]">
-        <div className="flex items-center justify-between p-2 pr-4 bg-white border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Data Map</h2>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 pr-4 bg-white border-b border-gray-200 gap-2">
+          <h2 className="text-lg font-semibold text-gray-800 flex-shrink-0">Data Map</h2>
+          
+          {/* Search bar - full width on mobile, constrained on desktop */}
+          <div className="flex items-center gap-2 flex-1 sm:max-w-md sm:mx-4">
+            <div 
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors flex-1 min-w-0"
+              onClick={() => setIsSearchModalOpen(true)}
+            >
+              <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span className="text-gray-500 text-sm truncate hidden sm:inline">Search for addresses or values in the data...</span>
+              <span className="text-gray-500 text-sm truncate sm:hidden">Search...</span>
+            </div>
+          </div>
+          
+          {/* Buttons - stack on mobile, inline on desktop */}
+          <div className="flex gap-2 flex-shrink-0">
             <Button
               variant="contained"
               size="small"
@@ -972,6 +1331,7 @@ export function Index({ auth }: PageProps) {
             category2={category2}
             floorRange={floorRange}
             maxFloors={maxFloors}
+            dataType={dataType}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
             onFloorRangeChange={setFloorRange}
@@ -1014,6 +1374,11 @@ export function Index({ auth }: PageProps) {
                  hoverInfo.object.properties?.buildinguse ||
                  `Building ID: ${hoverInfo.object.id}`)
               }
+              {hoverInfo.layer?.id.startsWith('buildingpart-layer') && 
+                (hoverInfo.object.properties?.description ||
+                 hoverInfo.object.properties?.theme ||
+                 `Building Part ID: ${hoverInfo.object.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('site-layer') && 
                 (hoverInfo.object.properties?.description ||
                  `Site ID: ${hoverInfo.object.id}`)
@@ -1038,12 +1403,15 @@ export function Index({ auth }: PageProps) {
           isOpen={!!selectedFeature || isImportPanelOpen || isFilterPanelOpen}
           onClose={() => {
             setSelectedFeature(null);
+            setSearchMarker(null);
             setIsImportPanelOpen(false);
             setIsFilterPanelOpen(false);
           }}
           title={
             selectedFeature
-              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
+              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 
+                 'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
+                 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -1188,6 +1556,24 @@ export function Index({ auth }: PageProps) {
                   </span>
                 </label>
                 <label 
+                  htmlFor="show-buildingparts"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.buildingParts
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-buildingparts"
+                    checked={dataType.buildingParts}
+                    onChange={() => setDataType(prev => ({ ...prev, buildingParts: !prev.buildingParts }))}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    Building Parts
+                  </span>
+                </label>
+                <label 
                   htmlFor="show-sites"
                   className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
                     dataType.sites
@@ -1279,6 +1665,147 @@ export function Index({ auth }: PageProps) {
           schema={selectedSchema}
         />
         </div>
+
+        {/* Search Modal */}
+        {isSearchModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-4 sm:pt-20 z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsSearchModalOpen(false);
+                setSearchQuery('');
+                setSearchResults([]);
+              }
+            }}
+          >
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] sm:max-h-[70vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <h3 className="text-lg font-semibold text-gray-800">Search</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsSearchModalOpen(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Search Input and Filter */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-gray-600 hidden sm:inline">Search for addresses or values in the data</span>
+                  <span className="text-sm text-gray-600 sm:hidden">Search in data</span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                    />
+                  </div>
+                  <select
+                    value={searchField}
+                    onChange={(e) => setSearchField(e.target.value)}
+                    className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="all">All Fields</option>
+                    <optgroup label="NHLE">
+                      {searchableFields.nhle.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Building">
+                      {searchableFields.building.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Building Part">
+                      {searchableFields.buildingpart.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Site">
+                      {searchableFields.site.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              {/* Search Results */}
+              <div className="flex-1 overflow-y-auto">
+                {searchQuery && searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    No results found for "{searchQuery}"
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="divide-y divide-gray-200">
+                    {searchResults.map((result, index) => (
+                      <div
+                        key={`${result.type}-${result.id}-${index}`}
+                        onClick={() => handleSearchResultClick(result)}
+                        className="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded self-start ${
+                                result.type === 'NHLE' ? 'bg-blue-100 text-blue-800' :
+                                result.type === 'Building' ? 'bg-green-100 text-green-800' :
+                                result.type === 'Building Part' ? 'bg-purple-100 text-purple-800' :
+                                'bg-orange-100 text-orange-800'
+                              }`}>
+                                {result.type}
+                              </span>
+                              <h4 className="font-medium text-gray-900 truncate">{result.displayText}</h4>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {Object.entries(result.data)
+                                .filter(([key, value]) => value && String(value).toLowerCase().includes(searchQuery.toLowerCase()))
+                                .slice(0, 2)
+                                .map(([key, value]) => (
+                                  <div key={key} className="mb-1 truncate">
+                                    <span className="font-medium">{key}:</span> {String(value)}
+                                  </div>
+                                ))
+                              }
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-400 flex-shrink-0 self-start sm:ml-4">
+                            {result.coordinates[1].toFixed(4)}, {result.coordinates[0].toFixed(4)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    Start typing to search through the data...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </AuthenticatedLayout>
     </>
   );
