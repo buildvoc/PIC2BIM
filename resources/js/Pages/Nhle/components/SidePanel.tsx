@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface SidePanelProps {
   isOpen: boolean;
@@ -8,17 +8,45 @@ interface SidePanelProps {
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, title, children }) => {
-  return (
-    <div
-      className={`fixed top-0 left-0 h-full z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      style={{
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Calculate responsive positioning
+  const getResponsiveStyles = () => {
+    if (isMobile) {
+      return {
+        width: '60vw',
+        maxWidth: '80vw',
+        top: 'calc(65px + 130px)',
+        bottom: 0,
+        height: 'calc(100vh - 165px)',
+        border: '1px solid #ccc',
+      };
+    } else {
+      return {
         width: 350,
         maxWidth: '90vw',
-        top: 'auto',
+        top: 'calc(65px + 55px)',
         bottom: 0,
-        maxHeight: 'calc(100vh - 113px)',
+        height: 'calc(100vh - 120px)',
         border: '1px solid #ccc',
-      }}
+      };
+    }
+  };
+
+  return (
+    <div
+      className={`fixed left-0 z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      style={getResponsiveStyles()}
     >
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
