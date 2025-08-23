@@ -6,8 +6,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DeckGL from '@deck.gl/react';
 import Map from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import * as checkGeoJson from '@placemarkio/check-geojson';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
@@ -16,6 +14,7 @@ import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
 import ToggleControl from './components/ToggleControl';
+import MapControls from './components/MapControls';
 import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
 import Legend from '@/Components/DataMap/Legend';
@@ -958,6 +957,7 @@ export function Index({ auth }: PageProps) {
             <Map
               mapStyle={mapStyle}
             />
+
           </DeckGL>
 
           <ToggleControl
@@ -966,7 +966,8 @@ export function Index({ auth }: PageProps) {
             currentMapStyle={mapStyle}
           />
 
-          <FilterPanel
+          <div className="absolute top-2.5 right-2.5 z-10 flex items-start gap-2">
+            <FilterPanel
             category1={category1}
             category2={category2}
             floorRange={floorRange}
@@ -975,6 +976,11 @@ export function Index({ auth }: PageProps) {
             onCategory2Change={setCategory2}
             onFloorRangeChange={setFloorRange}
           />
+            <MapControls 
+              viewState={viewState} 
+              onViewStateChange={(params) => setViewState(params.viewState as MapViewState)}
+            />
+          </div>
 
           <Legend 
             data={allFilteredData}

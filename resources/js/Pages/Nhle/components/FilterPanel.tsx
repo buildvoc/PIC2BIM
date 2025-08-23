@@ -51,7 +51,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   );
 
   return (
-    <div className="absolute top-2.5 right-2.5 z-10 flex flex-col sm:flex-row gap-2 items-center">
+    <div className="flex flex-col sm:flex-row gap-2 items-center">
       <CustomDropdown title="Map View" options={mapByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
       <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
       <MinMaxSliderDropdown 
