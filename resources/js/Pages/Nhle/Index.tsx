@@ -23,10 +23,12 @@ import SidePanel from './components/SidePanel';
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { BuildingProperties, BuildingGeoJson } from '@/types/building';
+import type { BuildingPartProperties, BuildingPartGeoJson } from '@/types/buildingpart';
 import type { SiteGeoJson } from '@/types/site';
 import type { PageProps } from '@/types';
 import type { 
     BuildingCentroidState, 
+    BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
     ShapesGeoJson, 
@@ -41,9 +43,10 @@ import { NhleData } from '@/types/nhle';
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, sites, nhle, center } = usePage<{
+  const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
     shapes: {data: ShapesGeoJson};
     buildings: { data: BuildingGeoJson };
+    buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
     nhle: NhleData[];
     center?: { type: 'Point', coordinates: [number, number] };
@@ -60,16 +63,17 @@ export function Index({ auth }: PageProps) {
   });
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
+  const [buildingPartCentroidsData, setBuildingPartCentroidsData] = useState<BuildingPartCentroidState[]>([]);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Usage');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, sites: false, nhle: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -165,6 +169,29 @@ export function Index({ auth }: PageProps) {
       setBuildingCentroidsData(centroids);
     }
   }, [buildings]);
+
+  useEffect(() => {
+    if (buildingParts) {
+      const centroids: BuildingPartCentroidState[] = [];
+      for (const feature of buildingParts.data.features) {
+        if (feature.geometry) {
+          try {
+            const centroid = turf.centroid(feature.geometry as any);
+            const coordinates = centroid.geometry.coordinates as [number, number];
+            
+            centroids.push({
+              id: feature.id as string,
+              coordinates,
+              properties: feature.properties as BuildingPartProperties
+            });
+          } catch (error) {
+            console.error('Error calculating centroid for building part feature:', feature.id, error);
+          }
+        }
+      }
+      setBuildingPartCentroidsData(centroids);
+    }
+  }, [buildingParts]);
 
   useEffect(() => {
     if (sites) {
@@ -279,6 +306,7 @@ export function Index({ auth }: PageProps) {
   const searchableFields = {
     nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
     building: ['osid', 'uprn', 'postcode', 'description', 'constructionmaterial', 'roofmaterial', 'buildinguse', 'numberoffloors'],
+    buildingpart: ['osid', 'toid', 'description', 'theme', 'oslandcovertiera', 'oslandcovertierb', 'oslandusetiera', 'oslandusetierb', 'associatedstructure'],
     site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
   };
 
@@ -333,6 +361,27 @@ export function Index({ auth }: PageProps) {
       }
     });
 
+    // Search BuildingPart data
+    buildingPartCentroidsData.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building Part',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building Part'
+          });
+        }
+      }
+    });
+
     // Search Site data
     siteCentroidsData.forEach(item => {
       const props = item.properties;
@@ -355,7 +404,7 @@ export function Index({ auth }: PageProps) {
     });
 
     setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [nhleCentroidsData, buildingCentroidsData, siteCentroidsData]);
+  }, [nhleCentroidsData, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
 
   const handleSearchResultClick = useCallback((result: any) => {
     // Create selected feature object based on result type
@@ -648,6 +697,29 @@ export function Index({ auth }: PageProps) {
     });
   }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
 
+  const filteredBuildingPartCentroids = useMemo(() => {
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
+    return buildingPartCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [buildingPartCentroidsData, selectedShapeIds, shapes.data.features]);
+
   const filteredNhleCentroids = useMemo(() => {
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
@@ -716,23 +788,24 @@ export function Index({ auth }: PageProps) {
   }, [shapes.data.features, boundarySearch]);
 
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.sites || dataType.nhle;
+    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle;
     if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
     }
     const data = [];
     if (dataType.buildings) data.push(...filteredBuildingCentroids);
+    if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids);
     if (dataType.sites) data.push(...filteredSiteCentroids);
     if (dataType.nhle) data.push(...filteredNhleCentroids);
     return data;
-  }, [filteredBuildingCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
 
   useEffect(() => {
-    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
-      const allData = [...buildingCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
       if (allData.length > 0) {
         try {
           const points = turf.featureCollection(
@@ -762,11 +835,11 @@ export function Index({ auth }: PageProps) {
         }
       }
     }
-  }, [buildingCentroidsData, siteCentroidsData]);
+  }, [buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
 
   useEffect(() => {
     if (isInitialLoad.current) {
-        if (buildingCentroidsData.length > 0 || siteCentroidsData.length > 0) {
+        if (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0) {
             isInitialLoad.current = false;
         }
         return;
@@ -843,7 +916,68 @@ export function Index({ auth }: PageProps) {
       getLineWidth: 1
     }),
 
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
+      id: `buildingpart-layer`,
+      data: filteredBuildingPartCentroids,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => {
+        let baseRadius;
+        if (category1 === 'Size by Area') {
+          const area = d.properties?.area || 0;
+          baseRadius = Math.sqrt(area);
+        } else { // Fixed Size
+          baseRadius = 10;
+        }
+
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = d.properties?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const propertyName = groupByMapping[category2];
+        if (!propertyName || !d.properties) return [255, 165, 0, 200]; // Default orange for building parts
+
+        const propValue = d.properties[propertyName];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
+        const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+        const color = getColorForValue(propValue, uniqueValues);
+
+        const isSelected = selectedLegendItem === propValue;
+        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+        return [...color, alpha];
+      },
+      getLineColor: d => [0, 0, 0, 255],
+      onHover: info => {
+        getCursor;
+        if (info.object && info.object.properties) {  
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object as BuildingPartCentroidState);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+      },
+    }),
+
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
       data: filteredSiteCentroids,
       pickable: true,
@@ -875,7 +1009,7 @@ export function Index({ auth }: PageProps) {
         if (!propertyName || !d.properties) return [0, 255, 0, 200]; // Default green for sites
 
         const propValue = d.properties[propertyName];
-        const allData = [...filteredBuildingCentroids, ...filteredSiteCentroids];
+        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
         const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
         const color = getColorForValue(propValue, uniqueValues);
 
@@ -899,12 +1033,12 @@ export function Index({ auth }: PageProps) {
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredSiteCentroids],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
       data: filteredNhleCentroids,
       pickable: true,
@@ -935,7 +1069,7 @@ export function Index({ auth }: PageProps) {
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
-    (!(dataType.buildings || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
       data: filteredBuildingCentroids,
       pickable: true,
@@ -1214,6 +1348,11 @@ export function Index({ auth }: PageProps) {
                  hoverInfo.object.properties?.buildinguse ||
                  `Building ID: ${hoverInfo.object.id}`)
               }
+              {hoverInfo.layer?.id.startsWith('buildingpart-layer') && 
+                (hoverInfo.object.properties?.description ||
+                 hoverInfo.object.properties?.theme ||
+                 `Building Part ID: ${hoverInfo.object.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('site-layer') && 
                 (hoverInfo.object.properties?.description ||
                  `Site ID: ${hoverInfo.object.id}`)
@@ -1244,7 +1383,9 @@ export function Index({ auth }: PageProps) {
           }}
           title={
             selectedFeature
-              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
+              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 
+                 'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
+                 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -1386,6 +1527,24 @@ export function Index({ auth }: PageProps) {
                   />
                   <span className="ml-3">
                     Buildings
+                  </span>
+                </label>
+                <label 
+                  htmlFor="show-buildingparts"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.buildingParts
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-buildingparts"
+                    checked={dataType.buildingParts}
+                    onChange={() => setDataType(prev => ({ ...prev, buildingParts: !prev.buildingParts }))}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    Building Parts
                   </span>
                 </label>
                 <label 
@@ -1552,6 +1711,11 @@ export function Index({ auth }: PageProps) {
                         <option key={field} value={field}>{field}</option>
                       ))}
                     </optgroup>
+                    <optgroup label="Building Part">
+                      {searchableFields.buildingpart.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </optgroup>
                     <optgroup label="Site">
                       {searchableFields.site.map(field => (
                         <option key={field} value={field}>{field}</option>
@@ -1581,6 +1745,7 @@ export function Index({ auth }: PageProps) {
                               <span className={`px-2 py-1 text-xs font-medium rounded self-start ${
                                 result.type === 'NHLE' ? 'bg-blue-100 text-blue-800' :
                                 result.type === 'Building' ? 'bg-green-100 text-green-800' :
+                                result.type === 'Building Part' ? 'bg-purple-100 text-purple-800' :
                                 'bg-orange-100 text-orange-800'
                               }`}>
                                 {result.type}

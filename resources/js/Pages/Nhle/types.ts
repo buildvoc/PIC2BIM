@@ -2,6 +2,7 @@ import type { Feature, Geometry, GeoJSON, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { NhleProperties } from '@/types/nhle';
 import type { BuildingProperties } from '@/types/building';
+import type { BuildingPartProperties } from '@/types/buildingpart';
 import type { SiteProperties } from '@/types/site';
 
 export interface NhleFeatureState { 
@@ -14,6 +15,12 @@ export interface BuildingCentroidState {
   id: string;
   coordinates: [number, number];
   properties: BuildingProperties;
+}
+
+export interface BuildingPartCentroidState {
+  id: string;
+  coordinates: [number, number];
+  properties: BuildingPartProperties;
 }
 
 export interface SiteCentroidState {
