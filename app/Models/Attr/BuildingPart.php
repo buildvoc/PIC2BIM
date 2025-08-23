@@ -12,6 +12,9 @@ class BuildingPart extends Model
 
     protected $table = 'bld_fts_buildingpart';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'osid';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $fillable = [
         'osid',
         'toid',

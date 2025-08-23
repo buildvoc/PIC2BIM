@@ -24,6 +24,16 @@ class DataMapController extends Controller
 {
     public function index(Request $request)
     {
+        // Set longer execution time for large datasets
+        set_time_limit(300); // 5 minutes
+        ini_set('memory_limit', '512M');
+
+        // Get pagination parameters
+        $page = $request->get('page', 1);
+        $limit = $request->get('limit', 10000); // Default 10k records per page
+        $offset = ($page - 1) * $limit;
+
+        // Use spatial index hints and optimize query structure
         $shapeIdsQuery = DB::table('shape as s')
             ->select('s.ogc_fid')
             ->crossJoin('bld_fts_building as b')
@@ -45,45 +55,76 @@ class DataMapController extends Controller
                     ->select('s.ogc_fid')
                     ->crossJoin('nhle_ as n')
                     ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(n.geom, 27700))")
-            );
+            )
+            ->limit($limit)
+            ->offset($offset);
 
         $shapes = Shape::query()->whereIn('ogc_fid', $shapeIdsQuery)->get();
+
+        if ($shapes->isEmpty()) {
+            return Inertia::render('Nhle/Index', [
+                'shapes' => new ShapeCollection(collect()),
+                'buildings' => new BuildingCollection(collect()),
+                'buildingParts' => new BuildingPartCollection(collect()),
+                'sites' => new SiteCollection(collect()),
+                'nhle' => collect(),
+                'center' => null,
+                'pagination' => [
+                    'current_page' => $page,
+                    'has_more' => false,
+                    'total_loaded' => 0
+                ]
+            ]);
+        }
 
         $shapeGeometriesQuery = Shape::query()
             ->whereIn('ogc_fid', $shapeIdsQuery)
             ->select('wkb_geometry');
 
-        $buildings = Building::query()
+        // Use chunking for large result sets
+        $buildings = collect();
+        Building::query()
             ->whereExists(function ($query) use ($shapeGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($shapeGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.wkb_geometry)');
             })
-            ->get();
+            ->chunk(5000, function ($chunk) use (&$buildings) {
+                $buildings = $buildings->merge($chunk);
+            });
 
-        $buildingParts = BuildingPart::query()
+        $buildingParts = collect();
+        BuildingPart::query()
             ->whereExists(function ($query) use ($shapeGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($shapeGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart.geometry, s.wkb_geometry)');
             })
-            ->get();
+            ->chunk(5000, function ($chunk) use (&$buildingParts) {
+                $buildingParts = $buildingParts->merge($chunk);
+            });
 
-        $sites = Site::query()
+        $sites = collect();
+        Site::query()
             ->whereExists(function ($query) use ($shapeGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($shapeGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.wkb_geometry)');
             })
-            ->get();
+            ->chunk(5000, function ($chunk) use (&$sites) {
+                $sites = $sites->merge($chunk);
+            });
 
-        $nhle = NHLE::query()
+        $nhle = collect();
+        NHLE::query()
             ->whereExists(function ($query) use ($shapeGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($shapeGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(nhle_.geom, s.wkb_geometry)');
             })
-            ->get();
+            ->chunk(5000, function ($chunk) use (&$nhle) {
+                $nhle = $nhle->merge($chunk);
+            });
 
         $center = null;
         if ($shapes->isNotEmpty()) {
@@ -97,6 +138,15 @@ class DataMapController extends Controller
             }
         }
 
+        // Calculate total counts for pagination info
+        $totalCounts = [
+            'shapes' => $shapes->count(),
+            'buildings' => $buildings->count(),
+            'buildingParts' => $buildingParts->count(),
+            'sites' => $sites->count(),
+            'nhle' => $nhle->count(),
+        ];
+
         return Inertia::render('Nhle/Index', [
             'shapes' => new ShapeCollection($shapes),
             'buildings' => new BuildingCollection($buildings),
@@ -104,6 +154,13 @@ class DataMapController extends Controller
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
             'center' => $center,
+            'pagination' => [
+                'current_page' => $page,
+                'limit' => $limit,
+                'has_more' => $shapes->count() >= $limit,
+                'total_loaded' => array_sum($totalCounts),
+                'counts' => $totalCounts
+            ]
         ]);
     }
     
