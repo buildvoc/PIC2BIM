@@ -1483,7 +1483,16 @@ export function Index({ auth }: PageProps) {
 
         {/* Search Modal */}
         {isSearchModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-4 sm:pt-20 z-50 p-4">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-4 sm:pt-20 z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsSearchModalOpen(false);
+                setSearchQuery('');
+                setSearchResults([]);
+              }
+            }}
+          >
             <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] sm:max-h-[70vh] flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200">

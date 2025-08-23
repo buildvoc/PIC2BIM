@@ -20,6 +20,27 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, title, children 
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Handle click outside to close panel
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen) {
+        const target = event.target as HTMLElement;
+        const panel = document.querySelector('[data-sidepanel="true"]');
+        if (panel && !panel.contains(target)) {
+          onClose();
+        }
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   // Calculate responsive positioning
   const getResponsiveStyles = () => {
     if (isMobile) {
@@ -45,6 +66,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, title, children 
 
   return (
     <div
+      data-sidepanel="true"
       className={`fixed left-0 z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       style={getResponsiveStyles()}
     >
