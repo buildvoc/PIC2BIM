@@ -75,8 +75,10 @@ export function Index({ auth }: PageProps) {
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(() => {
-    const initialShape = mShapes.data.features.find(shape => shape.properties.bua24nm.toLowerCase() === 'farnham');
-    return initialShape ? [initialShape.id as string] : [];
+    const farnhamShape = mShapes.data.features.find(shape => 
+      shape.properties.bua24nm.toLowerCase() === 'farnham'
+    );
+    return farnhamShape ? [farnhamShape.id as string] : [];
   });
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -105,7 +107,7 @@ export function Index({ auth }: PageProps) {
 
   useEffect(() => {
     if (selectedShapeIds.length === 1) {
-      const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);      
+      const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);
       if (selectedShape) {
         try {
           const [minLng, minLat, maxLng, maxLat] = turf.bbox(selectedShape as any);
@@ -1493,7 +1495,7 @@ export function Index({ auth }: PageProps) {
           ) : (
             // Filter Options
             <div className="p-4">
-              <h4 className="font-semibold mb-4 text-gray-800">Built-up Areas</h4>
+              <h4 className="font-semibold mb-4 text-gray-800">Ward Boundary</h4>
               <div className="mb-3">
                 <input
                   type="text"
