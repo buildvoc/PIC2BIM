@@ -7,9 +7,10 @@ declare var route: any; // Assuming 'route' is globally available from Ziggy
 interface ValidationResult {
   feature_index: number;
   properties: Record<string, any>;
-    status: 'ok' | 'warning' | 'duplicate' | 'overlap' | 'exact_match';
+  status: 'ok' | 'warning' | 'duplicate' | 'overlap' | 'exact_match' | 'missing_osid' | 'missing_listentry';
   details: string;
   existing_osid?: string;
+  existing_listentry?: string;
 }
 
 interface ValidationReportModalProps {
@@ -18,7 +19,7 @@ interface ValidationReportModalProps {
   results: ValidationResult[];
   geoJson: any; 
   onImportSuccess: () => void;
-  schema: 'building' | 'site' | '';
+  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | '';
 }
 
 type Order = 'asc' | 'desc';
@@ -68,9 +69,24 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
 
     const srid = geoJson.crs?.properties?.name ? parseInt(geoJson.crs.properties.name.split(':').pop() || '4326', 10) : 4326;
 
-    const importUrl = schema === 'building' 
-      ? route('data_map.import_building') 
-      : route('data_map.import_site');
+    let importUrl;
+    switch (schema) {
+      case 'building':
+        importUrl = route('data_map.import_building');
+        break;
+      case 'site':
+        importUrl = route('data_map.import_site');
+        break;
+      case 'nhle':
+        importUrl = route('data_map.import_nhle');
+        break;
+      case 'buildingpart':
+        importUrl = route('data_map.import_building_part');
+        break;
+      default:
+        alert('Invalid schema selected');
+        return;
+    }
 
     axios.post(importUrl, { features: featuresToProcess, srid })
       .then((response: { data: { message: string } }) => {
@@ -85,10 +101,13 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
   };
 
   const downloadCsv = () => {
-    const headers = '"Status","Feature Index","OSID","Details"';
+        const idHeader = schema === 'nhle' ? 'List Entry' : 'OSID';
+    const headers = `"Status","Feature Index","${idHeader}","Details"`;
     const sorted = sortedResults; // Use already sorted results
-    const csvContent = sorted.map(r =>
-      `"${r.status}","${r.feature_index}","${r.properties.osid || 'N/A'}","${r.details.replace(/"/g, '""')}"`
+    const csvContent = sorted.map(r => {
+      const idValue = schema === 'nhle' ? r.properties.listentry : r.properties.osid;
+      return `"${r.status}","${r.feature_index}","${idValue || 'N/A'}","${r.details.replace(/"/g, '""')}"`;
+    }
     ).join('\n');
 
     const blob = new Blob([headers + '\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -110,8 +129,8 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
       let bValue = b[key];
 
       if (key === 'properties') {
-        aValue = a.properties.osid || '';
-        bValue = b.properties.osid || '';
+        aValue = (schema === 'nhle' ? a.properties.listentry : a.properties.osid) || '';
+        bValue = (schema === 'nhle' ? b.properties.listentry : b.properties.osid) || '';
       }
 
       const valA = aValue ?? '';
@@ -149,7 +168,9 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                   <TableSortLabel active={sortConfig.key === 'feature_index'} direction={sortConfig.direction} onClick={() => handleSortRequest('feature_index')}>Index</TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ width: '20%' }}>
-                  <TableSortLabel active={sortConfig.key === 'properties'} direction={sortConfig.direction} onClick={() => handleSortRequest('properties')}>OSID</TableSortLabel>
+                  <TableSortLabel active={sortConfig.key === 'properties'} direction={sortConfig.direction} onClick={() => handleSortRequest('properties')}>
+                    {schema === 'nhle' ? 'List Entry' : 'OSID'}
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell>Details</TableCell>
                 <TableCell sx={{ width: '15%' }}>Action</TableCell>
@@ -166,7 +187,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                     {result.status === 'warning' && <Chip label="Warning" color="error" size="small" />}
                   </TableCell>
                   <TableCell>{result.feature_index + 1}</TableCell>
-                  <TableCell>{result.properties.osid || 'N/A'}</TableCell>
+                  <TableCell>{(schema === 'nhle' ? result.properties.listentry : result.properties.osid) || 'N/A'}</TableCell>
                   <TableCell>{result.details}</TableCell>
                   <TableCell>
                     {['duplicate', 'overlap', 'exact_match'].includes(result.status) ? (

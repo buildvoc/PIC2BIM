@@ -107,7 +107,7 @@ export function Index({ auth }: PageProps) {
 
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | ''>('');
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | ''>('');
   useEffect(() => {
     if (selectedFeature) {
       setIsImportPanelOpen(false);
@@ -399,9 +399,25 @@ export function Index({ auth }: PageProps) {
             setIsValidationSuccessful(false);
           } else {
             setStatusMessage('Local validation passed. Checking for duplicates on the server...');
-            const validationRoute = selectedSchema === 'building'
-                ? route('data_map.validateBuilding')
-                : route('data_map.validateSite');
+            let validationRoute;
+            switch (selectedSchema) {
+              case 'building':
+                validationRoute = route('data_map.validateBuilding');
+                break;
+              case 'site':
+                validationRoute = route('data_map.validateSite');
+                break;
+              case 'nhle':
+                validationRoute = route('data_map.validateNhle');
+                break;
+              case 'buildingpart':
+                validationRoute = route('data_map.validateBuildingPart');
+                break;
+              default:
+                setStatusMessage('Invalid schema selected');
+                setIsValidationSuccessful(false);
+                return;
+            }
 
             axios.post(validationRoute, { geojson: content })
               .then((response: { data: { results: any[]; }; }) => {
@@ -462,9 +478,24 @@ export function Index({ auth }: PageProps) {
     }
 
     try {
-      const validationRoute = selectedSchema === 'building'
-        ? route('data_map.validateBuilding')
-        : route('data_map.validateSite');
+      let validationRoute;
+      switch (selectedSchema) {
+        case 'building':
+          validationRoute = route('data_map.validateBuilding');
+          break;
+        case 'site':
+          validationRoute = route('data_map.validateSite');
+          break;
+        case 'nhle':
+          validationRoute = route('data_map.validateNhle');
+          break;
+        case 'buildingpart':
+          validationRoute = route('data_map.validateBuildingPart');
+          break;
+        default:
+          alert('Invalid schema selected');
+          return;
+      }
       const response = await axios.post(validationRoute, { geojson: sourceGeoJson });
       setValidationResults(response.data.results);
       setValidationGeoJson(sourceGeoJson); // Set the correct geojson for import
@@ -1468,12 +1499,14 @@ export function Index({ auth }: PageProps) {
                 <select 
                   id="schema-select"
                   value={selectedSchema}
-                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | '')}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | '')}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
                   <option value="building">Building V4</option>
                   <option value="site">Site V2</option>
+                  <option value="nhle">NHLE</option>
+                  <option value="buildingpart">Building Part</option>
                 </select>
               </div>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
