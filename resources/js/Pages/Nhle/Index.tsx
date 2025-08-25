@@ -1554,7 +1554,7 @@ export function Index({ auth }: PageProps) {
           ) : (
             // Filter Options
             <div className="p-4">
-              <h4 className="font-semibold mb-4 text-gray-800">Ward Boundary</h4>
+              <h4 className="font-semibold mb-4 text-gray-800">Built-up Areas</h4>
               <div className="mb-3">
                 <input
                   type="text"
