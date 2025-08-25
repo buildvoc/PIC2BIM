@@ -23,18 +23,23 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     const options: string[] = [];
     const activeTypes = Object.keys(dataType).filter(key => dataType[key as keyof typeof dataType]);
     
-    // If no specific type is selected, show all available options
-    if (activeTypes.length === 0 || activeTypes.length > 1) {
-      if (dataType.sites || activeTypes.length === 0) options.push('Site');
-      if (dataType.buildings || activeTypes.length === 0) options.push('Building');
-      if (dataType.buildingParts || activeTypes.length === 0) options.push('Building Part');
-      if (dataType.nhle || activeTypes.length === 0) options.push('NHLE');
+    // If multiple types are selected, show all available options
+    if (activeTypes.length > 1) {
+      options.push('Usage', 'Connectivity', 'Material', 'Grade');
+    } else if (activeTypes.length === 1) {
+      // Single type selected, show specific options for that type
+      if (dataType.buildings) {
+        options.push('Usage', 'Connectivity', 'Material');
+      } else if (dataType.sites) {
+        options.push('OSLandTiera');
+      } else if (dataType.nhle) {
+        options.push('Grade');
+      } else if (dataType.buildingParts) {
+        options.push('OSLandTiera');
+      }
     } else {
-      // Single type selected, show only relevant option
-      if (dataType.sites) options.push('Site');
-      if (dataType.buildings) options.push('Building');
-      if (dataType.buildingParts) options.push('Building Part');
-      if (dataType.nhle) options.push('NHLE');
+      // No type selected, show all available options
+      options.push('Usage', 'Connectivity', 'Material',  'Grade');
     }
     
     return options.length > 0 ? options : ['No Grouping Available'];

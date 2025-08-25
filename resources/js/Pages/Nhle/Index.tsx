@@ -144,10 +144,12 @@ export function Index({ auth }: PageProps) {
   }, [selectedShapeIds, shapes.data.features]);
 
   const groupByMapping: { [key: string]: string } = {
-    'Site': 'changetype',
-    'Building': 'theme',
-    'Building Part': 'physicallevel',
-    'NHLE': 'grade',
+    'Change Type': 'changetype',
+    'Usage': 'buildingusage',
+    'Connectivity': 'connectivity',
+    'Material': 'constructionmaterial',
+    'OSLandTiera': 'oslandusetiera',
+    'Grade': 'grade',
   };
 
   const handleLegendItemClick = useCallback((value: any) => {
