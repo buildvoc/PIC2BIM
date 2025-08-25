@@ -325,101 +325,6 @@ export function Index({ auth }: PageProps) {
     site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
   };
 
-  const performSearch = useCallback((query: string, field: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const results: any[] = [];
-    const searchTerm = query.toLowerCase();
-
-    // Search NHLE data
-    nhleCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.nhle.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.nhle : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'NHLE',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.name || 'Unnamed NHLE'
-          });
-        }
-      }
-    });
-
-    // Search Building data
-    buildingCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.building.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Building',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Building'
-          });
-        }
-      }
-    });
-
-    // Search BuildingPart data
-    buildingPartCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Building Part',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Building Part'
-          });
-        }
-      }
-    });
-
-    // Search Site data
-    siteCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.site.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.site : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Site',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Site'
-          });
-        }
-      }
-    });
-
-    setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [nhleCentroidsData, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
 
   const handleSearchResultClick = useCallback((result: any) => {
     // Create selected feature object based on result type
@@ -452,16 +357,6 @@ export function Index({ auth }: PageProps) {
     setIsSearchModalOpen(false);
   }, [viewState]);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const timeoutId = setTimeout(() => {
-        performSearch(searchQuery, searchField);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery, searchField, performSearch]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
   const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
   const { status: validationStatus, result: validationResultFull, limited: validationLimited, validate } = useGeoJsonValidation();
@@ -816,6 +711,121 @@ export function Index({ auth }: PageProps) {
     if (dataType.nhle) data.push(...filteredNhleCentroids);
     return data;
   }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
+
+  const performSearch = useCallback((query: string, field: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: any[] = [];
+    const searchTerm = query.toLowerCase();
+
+    // Use filtered data instead of raw data to respect selected shapes
+    const dataToSearch = {
+      nhle: filteredNhleCentroids,
+      building: filteredBuildingCentroids,
+      buildingPart: filteredBuildingPartCentroids,
+      site: filteredSiteCentroids
+    };
+
+    // Search NHLE data (only within selected shapes)
+    dataToSearch.nhle.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.nhle.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.nhle : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'NHLE',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.name || 'Unnamed NHLE'
+          });
+        }
+      }
+    });
+
+    // Search Building data (only within selected shapes)
+    dataToSearch.building.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.building.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building'
+          });
+        }
+      }
+    });
+
+    // Search BuildingPart data (only within selected shapes)
+    dataToSearch.buildingPart.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building Part',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building Part'
+          });
+        }
+      }
+    });
+
+    // Search Site data (only within selected shapes)
+    dataToSearch.site.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.site.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.site : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Site',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Site'
+          });
+        }
+      }
+    });
+
+    setSearchResults(results.slice(0, 50)); // Limit to 50 results
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids]);
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        performSearch(searchQuery, searchField);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, searchField, performSearch]);
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
