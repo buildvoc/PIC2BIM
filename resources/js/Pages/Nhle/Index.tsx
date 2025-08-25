@@ -19,6 +19,7 @@ import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
 import Legend from '@/Components/DataMap/Legend';
 import SidePanel from './components/SidePanel';
+import MinMaxRangeSlider from './components/MinMaxRangeSlider';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -31,7 +32,7 @@ import type {
     BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
-    ShapesGeoJson, 
+    BuiltupAreaGeoJson,
     SelectedShapeData, 
     MGeoJson, 
     FetchedPolygonsData,
@@ -44,7 +45,7 @@ import { NhleData } from '@/types/nhle';
 
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
-    shapes: {data: ShapesGeoJson};
+    shapes: {data: BuiltupAreaGeoJson};
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
@@ -74,7 +75,12 @@ export function Index({ auth }: PageProps) {
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
-  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(() => {
+    const farnhamShape = mShapes.data.features.find(shape => 
+      shape.properties.bua24nm.toLowerCase() === 'farnham'
+    );
+    return farnhamShape ? [farnhamShape.id as string] : [];
+  });
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
 
@@ -82,7 +88,16 @@ export function Index({ auth }: PageProps) {
     if (buildingCentroidsData.length === 0) {
       return 50; // Default max if no data
     }
-    const max = Math.max(...buildingCentroidsData.map(d => d.properties?.numberoffloors || 0));
+    
+    // Debug: Log first building properties to see available fields
+    if (buildingCentroidsData.length > 0) {
+      console.log('Building properties sample:', buildingCentroidsData[0].properties);
+    }
+    
+    const max = Math.max(...buildingCentroidsData.map(d => {
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
+      return floors;
+    }));
     return max > 0 ? max : 50;
   }, [buildingCentroidsData]);
 
@@ -310,101 +325,6 @@ export function Index({ auth }: PageProps) {
     site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
   };
 
-  const performSearch = useCallback((query: string, field: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const results: any[] = [];
-    const searchTerm = query.toLowerCase();
-
-    // Search NHLE data
-    nhleCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.nhle.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.nhle : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'NHLE',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.name || 'Unnamed NHLE'
-          });
-        }
-      }
-    });
-
-    // Search Building data
-    buildingCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.building.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Building',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Building'
-          });
-        }
-      }
-    });
-
-    // Search BuildingPart data
-    buildingPartCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Building Part',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Building Part'
-          });
-        }
-      }
-    });
-
-    // Search Site data
-    siteCentroidsData.forEach(item => {
-      const props = item.properties;
-      if (field === 'all' || searchableFields.site.includes(field)) {
-        const fieldsToSearch = field === 'all' ? searchableFields.site : [field];
-        const matches = fieldsToSearch.some(f => {
-          const value = props[f as keyof typeof props];
-          return value && String(value).toLowerCase().includes(searchTerm);
-        });
-        if (matches) {
-          results.push({
-            type: 'Site',
-            id: item.id,
-            coordinates: item.coordinates,
-            data: props,
-            displayText: props.description || props.osid || 'Unnamed Site'
-          });
-        }
-      }
-    });
-
-    setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [nhleCentroidsData, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
 
   const handleSearchResultClick = useCallback((result: any) => {
     // Create selected feature object based on result type
@@ -437,16 +357,6 @@ export function Index({ auth }: PageProps) {
     setIsSearchModalOpen(false);
   }, [viewState]);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const timeoutId = setTimeout(() => {
-        performSearch(searchQuery, searchField);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery, searchField, performSearch]);
   const [fetchedPolygons, setFetchedPolygons] = useState<FetchedPolygonsData | null>(null);
   const [polygonCentroids, setPolygonCentroids] = useState<{coordinates: [number, number], properties: any}[]>([]);
   const { status: validationStatus, result: validationResultFull, limited: validationLimited, validate } = useGeoJsonValidation();
@@ -692,7 +602,8 @@ export function Index({ auth }: PageProps) {
         }
       }
 
-      const floors = d.properties?.numberoffloors || 0;
+      // Check multiple possible property names for floors
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
   }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
@@ -770,7 +681,8 @@ export function Index({ auth }: PageProps) {
         }
       }
 
-      const floors = d.properties?.numberoffloors || 0;
+      // Check multiple possible property names for floors
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
   }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
@@ -783,7 +695,7 @@ export function Index({ auth }: PageProps) {
   const filteredShapes = useMemo(() => {
     if (!boundarySearch) return shapes.data.features;
     return shapes.data.features.filter(shape => 
-      shape.properties.wd24nm.toLowerCase().includes(boundarySearch.toLowerCase())
+      shape.properties.bua24nm.toLowerCase().includes(boundarySearch.toLowerCase())
     );
   }, [shapes.data.features, boundarySearch]);
 
@@ -799,6 +711,121 @@ export function Index({ auth }: PageProps) {
     if (dataType.nhle) data.push(...filteredNhleCentroids);
     return data;
   }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
+
+  const performSearch = useCallback((query: string, field: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: any[] = [];
+    const searchTerm = query.toLowerCase();
+
+    // Use filtered data instead of raw data to respect selected shapes
+    const dataToSearch = {
+      nhle: filteredNhleCentroids,
+      building: filteredBuildingCentroids,
+      buildingPart: filteredBuildingPartCentroids,
+      site: filteredSiteCentroids
+    };
+
+    // Search NHLE data (only within selected shapes)
+    dataToSearch.nhle.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.nhle.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.nhle : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'NHLE',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.name || 'Unnamed NHLE'
+          });
+        }
+      }
+    });
+
+    // Search Building data (only within selected shapes)
+    dataToSearch.building.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.building.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building'
+          });
+        }
+      }
+    });
+
+    // Search BuildingPart data (only within selected shapes)
+    dataToSearch.buildingPart.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.buildingpart.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.buildingpart : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Building Part',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Building Part'
+          });
+        }
+      }
+    });
+
+    // Search Site data (only within selected shapes)
+    dataToSearch.site.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.site.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.site : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'Site',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.description || props.osid || 'Unnamed Site'
+          });
+        }
+      }
+    });
+
+    setSearchResults(results.slice(0, 50)); // Limit to 50 results
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids]);
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        performSearch(searchQuery, searchField);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, searchField, performSearch]);
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
@@ -845,37 +872,14 @@ export function Index({ auth }: PageProps) {
         return;
     }
 
-    const dataToBound = allFilteredData;
+    // Add a small delay to ensure filtering is complete
+    const timeoutId = setTimeout(() => {
+        const dataToBound = allFilteredData;
 
-    if (dataToBound.length > 0) {
-        try {
-            const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
-            const bbox = turf.bbox(points);
-            const [minLng, minLat, maxLng, maxLat] = bbox;
-
-            const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
-            const { longitude, latitude, zoom } = viewport.fitBounds(
-                [[minLng, minLat], [maxLng, maxLat]],
-                { padding: 100 }
-            );
-
-            setViewState(prev => ({
-                ...prev,
-                longitude,
-                latitude,
-                zoom,
-                transitionDuration: 800,
-                transitionInterpolator: new FlyToInterpolator(),
-            }));
-        } catch (error) {
-            console.error("Error adjusting zoom to filtered data:", error);
-        }
-    } else if (selectedShapeIds.length > 0) {
-        const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-        if (selectedPolygons.length > 0) {
+        if (dataToBound.length > 0) {
             try {
-                const featureCollection = turf.featureCollection(selectedPolygons as any[]);
-                const bbox = turf.bbox(featureCollection);
+                const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
+                const bbox = turf.bbox(points);
                 const [minLng, minLat, maxLng, maxLat] = bbox;
 
                 const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
@@ -893,11 +897,39 @@ export function Index({ auth }: PageProps) {
                     transitionInterpolator: new FlyToInterpolator(),
                 }));
             } catch (error) {
-                console.error("Error adjusting zoom to selected wards:", error);
+                console.error("Error adjusting zoom to filtered data:", error);
+            }
+        } else if (selectedShapeIds.length > 0) {
+            const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+            if (selectedPolygons.length > 0) {
+                try {
+                    const featureCollection = turf.featureCollection(selectedPolygons as any[]);
+                    const bbox = turf.bbox(featureCollection);
+                    const [minLng, minLat, maxLng, maxLat] = bbox;
+
+                    const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+                    const { longitude, latitude, zoom } = viewport.fitBounds(
+                        [[minLng, minLat], [maxLng, maxLat]],
+                        { padding: 100 }
+                    );
+
+                    setViewState(prev => ({
+                        ...prev,
+                        longitude,
+                        latitude,
+                        zoom,
+                        transitionDuration: 800,
+                        transitionInterpolator: new FlyToInterpolator(),
+                    }));
+                } catch (error) {
+                    console.error("Error adjusting zoom to selected wards:", error);
+                }
             }
         }
-    }
-}, [allFilteredData, selectedShapeIds, shapes.data.features]);
+    }, 100); // Small delay to ensure state updates are complete
+
+    return () => clearTimeout(timeoutId);
+}, [allFilteredData, selectedShapeIds, shapes.data.features, floorRange, dataType]);
 
 
   const zoomBasedRadius = useMemo(() => {
@@ -905,16 +937,16 @@ export function Index({ auth }: PageProps) {
   }, [viewState.zoom]);
 
   const layers = [
-    new GeoJsonLayer<ShapeProperties>({
-      id: 'shapes-layer',
-      data: shapes.data,
-      pickable: true,
-      stroked: true,
-      filled: false,
-      lineWidthMinPixels: 1,
-      getLineColor: [100, 100, 100, 100],
-      getLineWidth: 1
-    }),
+    // new GeoJsonLayer<ShapeProperties>({
+    //   id: 'shapes-layer',
+    //   data: shapes.data,
+    //   pickable: true,
+    //   stroked: true,
+    //   filled: false,
+    //   lineWidthMinPixels: 1,
+    //   getLineColor: [100, 100, 100, 100],
+    //   getLineWidth: 1
+    // }),
 
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
@@ -1329,12 +1361,9 @@ export function Index({ auth }: PageProps) {
             <FilterPanel
             category1={category1}
             category2={category2}
-            floorRange={floorRange}
-            maxFloors={maxFloors}
             dataType={dataType}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
-            onFloorRangeChange={setFloorRange}
           />
             <MapControls 
               viewState={viewState} 
@@ -1525,7 +1554,7 @@ export function Index({ auth }: PageProps) {
                       className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
                     />
                     <span className="ml-3">
-                      {shape.properties.wd24nm}
+                      {shape.properties.bua24nm}
                     </span>
                   </label>
                 ))}
@@ -1650,6 +1679,17 @@ export function Index({ auth }: PageProps) {
                       </div>
                     </div>
                   )}
+                  
+                  <h4 className="font-semibold mb-4 mt-4 text-gray-800">Floor Range Filter</h4>
+                  <div className="mb-4 px-2">
+                    <MinMaxRangeSlider
+                      min={0}
+                      max={maxFloors}
+                      minVal={floorRange.min}
+                      maxVal={floorRange.max}
+                      onChange={setFloorRange}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
