@@ -26,6 +26,7 @@ class SiteFeatureResource extends JsonResource
                 'toid' => $this->toid,
                 'uprn' => $this->matcheduprn,
                 'changetype' => $this->changetype ?? null,
+                'oslandusetiera' => $this->oslandusetiera ?? null,
                 'description' => $this->description ?? null,
                 'buildinguse' => $this->oslandusetiera ?? null,
                 'theme' => $this->theme ?? null,

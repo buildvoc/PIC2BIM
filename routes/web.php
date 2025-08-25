@@ -98,9 +98,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/data_map', [DataMapController::class, 'index'])->name('data_map.index');
         Route::get('/nhle2', [DataMapController::class, 'index2'])->name('data_map.index2');
         Route::post('/data_map_validate_building', [DataMapController::class, 'validateBuilding'])->name('data_map.validateBuilding');
+        Route::post('/data_map_validate_nhle', [DataMapController::class, 'validateNhle'])->name('data_map.validateNhle');
+        Route::post('/data_map_validate_building_part', [DataMapController::class, 'validateBuildingPart'])->name('data_map.validateBuildingPart');
         Route::post('/data_map_validate_site', [DataMapController::class, 'validateSite'])->name('data_map.validateSite');
         Route::post('/data_map_import_building', [DataMapController::class, 'importBuilding'])->name('data_map.import_building');
         Route::post('/data_map_import_site', [DataMapController::class, 'importSite'])->name('data_map.import_site');
+        Route::post('/data_map_import_nhle', [DataMapController::class, 'importNhle'])->name('data_map.import_nhle');
+        Route::post('/data_map_import_building_part', [DataMapController::class, 'importBuildingPart'])->name('data_map.import_building_part');
     });
     
     

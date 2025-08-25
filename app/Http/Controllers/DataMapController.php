@@ -15,9 +15,10 @@ use App\Models\Attr\SiteAddressReference;
 use App\Models\Attr\BuildingAddress;
 use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingSiteLink;
-use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+use Carbon\Carbon;
 
 class DataMapController extends Controller
 {
@@ -173,6 +174,16 @@ class DataMapController extends Controller
         return $this->performValidation(Site::class, $request->input('geojson'));
     }
 
+    public function validateNhle(Request $request)
+    {
+        return $this->performValidation(NHLE::class, $request->input('geojson'));
+    }
+
+    public function validateBuildingPart(Request $request)
+    {
+        return $this->performValidation(BuildingPart::class, $request->input('geojson'));
+    }
+
     private function performValidation($modelClass, $geojson)
     {
         $results = [];
@@ -187,6 +198,8 @@ class DataMapController extends Controller
             }
 
             $osid = $feature['properties']['osid'] ?? null;
+            $gid = $feature['properties']['gid'] ?? null;
+            $toid = $feature['properties']['toid'] ?? $feature['properties']['TOID'] ?? null;
             $geometry = json_encode($feature['geometry']);
             $srid = $geojson['crs']['properties']['name'] ?? 'EPSG:4326';
             $sridNumber = (int) filter_var($srid, FILTER_SANITIZE_NUMBER_INT);
@@ -202,49 +215,84 @@ class DataMapController extends Controller
             // --- Validation Checks ---
 
             // 1. OSID Check
-            if (!$osid) {
+            if (!$osid && $modelClass == Building::class ) {
                 $featureData['status'] = 'missing_osid';
-                $featureData['details'] = 'Missing OSID. Import will be skipped.';
+                $featureData['details'] = 'Missing OSID or List Entry. Import will be skipped.';
+                $results[] = $featureData;
+                continue;
+            } else if (!$gid && $modelClass == NHLE::class) {
+                $featureData['status'] = 'missing_gid';
+                $featureData['details'] = 'Missing List Entry. Import will be skipped.';
+                $results[] = $featureData;
+                continue;
+            } else if (!$toid && $modelClass == BuildingPart::class) {
+                $featureData['status'] = 'missing_toid';
+                $featureData['details'] = 'Missing TOID. Import will be skipped.';
                 $results[] = $featureData;
                 continue;
             }
 
-            $existingItemByOsid = $modelClass::where('osid', $osid)->first();
-            if ($existingItemByOsid) {
-                $featureData['status'] = 'duplicate';
-                $featureData['details'] = "Duplicate OSID: Matches existing item with OSID '{$osid}'.";
-                $featureData['existing_osid'] = $existingItemByOsid->osid;
+            if($modelClass == NHLE::class){
+                $existingItemBygid = $modelClass::where('gid', $gid)->first();
+                if ($existingItemBygid) {
+                    $featureData['status'] = 'duplicate';
+                    $featureData['details'] = "Duplicate List Entry: Matches existing item with List Entry '{$gid}'.";
+                    $featureData['existing_gid'] = $existingItemBygid->gid;
+                    $results[] = $featureData;
+                    continue;
+                }
+            }else if ($modelClass == BuildingPart::class){
+                $existingItemBygid = $modelClass::where('toid', $toid)->first();
+                if ($existingItemBygid) {
+                    $featureData['status'] = 'duplicate';
+                    $featureData['details'] = "Duplicate TOID: Matches existing item with TOID '{$toid}'.";
+                    $featureData['existing_toid'] = $existingItemBygid->toid;
+                    $results[] = $featureData;
+                    continue;
+                }
+            } else {
+                $existingItemByOsid = $modelClass::where('osid', $osid)->first();
+                if ($existingItemByOsid) {
+                    $featureData['status'] = 'duplicate';
+                    $featureData['details'] = "Duplicate OSID: Matches existing item with OSID '{$osid}'.";
+                    $featureData['existing_osid'] = $existingItemByOsid->osid;
                 $results[] = $featureData;
                 continue;
+                }
             }
+
 
             // 2. Exact Geometry Check
-            $geomSql = "ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), ?), 27700)";
-            $exactMatch = $modelClass::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
-            if ($exactMatch) {
-                $featureData['status'] = 'exact_match';
-                $featureData['details'] = "Exact Geometry: Matches existing item (OSID: {$exactMatch->osid}).";
-                $results[] = $featureData;
-                continue;
+            if($modelClass != NHLE::class || $modelClass != BuildingPart::class){
+                $geomSql = "ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), ?), 27700)";
+                $exactMatch = $modelClass::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
+                if ($exactMatch) {
+                    $featureData['status'] = 'exact_match';
+                    $featureData['details'] = "Exact Geometry: Matches existing item (OSID: {$exactMatch->osid}).";
+                    $results[] = $featureData;
+                    continue;
+                }
             }
 
             // 3. Spatial Overlap Check with Tolerance
-            $overlapTolerance = 0.1; // meters squared
-            $overlappingItem = $modelClass::select('osid')
-                ->selectRaw("ST_Area(ST_Intersection(geometry, {$geomSql})) as overlap_area", [$geometry, $sridNumber])
-                ->whereRaw("ST_Intersects(geometry, {$geomSql})", [$geometry, $sridNumber])
-                ->orderBy('overlap_area', 'desc')
-                ->first();
+            if($modelClass != NHLE::class || $modelClass != BuildingPart::class){
+                $overlapTolerance = 0.1; // meters squared
+                $overlappingItem = $modelClass::select('osid')
+                    ->selectRaw("ST_Area(ST_Intersection(geometry, {$geomSql})) as overlap_area", [$geometry, $sridNumber])
+                    ->whereRaw("ST_Intersects(geometry, {$geomSql})", [$geometry, $sridNumber])
+                    ->orderBy('overlap_area', 'desc')
+                    ->first();
 
-            if ($overlappingItem && $overlappingItem->overlap_area > $overlapTolerance) {
-                $featureData['status'] = 'overlap';
-                $featureData['details'] = sprintf(
-                    "Spatial Overlap: Overlaps with OSID %s by %.2f m².",
-                    $overlappingItem->osid,
-                    $overlappingItem->overlap_area
-                );
-                $results[] = $featureData;
-                continue;
+                if ($overlappingItem && $overlappingItem->overlap_area > $overlapTolerance) {
+                    $featureData['status'] = 'overlap';
+                    $featureData['details'] = sprintf(
+                        "Spatial Overlap: Overlaps with OSID %s by %.2f m².",
+                        $overlappingItem->osid,
+                        $overlappingItem->overlap_area
+                    );
+                    $results[] = $featureData;
+                    continue;
+                }
             }
 
             $results[] = $featureData;
@@ -263,10 +311,20 @@ class DataMapController extends Controller
         return $this->performImport(Site::class, $request);
     }
 
+    public function importNhle(Request $request)
+    {
+        return $this->performImport(NHLE::class, $request);
+    }
+
+    public function importBuildingPart(Request $request)
+    {
+        return $this->performImport(BuildingPart::class, $request);
+    }
+
     private function performImport($modelClass, Request $request)
     {
         $features = $request->input('features');
-        $sridNumber = $request->input('srid', 4326);
+        $sridNumber = $request->input('srid', 4326) ?? 4326;
 
         if (!$features || !is_array($features)) {
             return response()->json(['error' => 'Invalid feature data provided.'], 400);
@@ -287,8 +345,15 @@ class DataMapController extends Controller
 
                 if ($action === 'import' || $action === 'update') {
                     $osid = $data['properties']['osid'] ?? null;
-                    if (!$osid) continue; // Cannot import/update without an OSID
-
+                    $gid = $data['properties']['gid'] ?? null;
+                    $toid = $data['properties']['TOID'] ?? null;
+                    if (!$osid && $modelClass != NHLE::class && $modelClass != BuildingPart::class) {
+                        continue;  
+                    } else if (!$gid && $modelClass == NHLE::class) {
+                        continue;
+                    } else if (!$toid && $modelClass == BuildingPart::class){
+                        continue;
+                    }
                     $isUpdate = ($action === 'update');
 
                     $model = new $modelClass;
@@ -313,7 +378,11 @@ class DataMapController extends Controller
                         $attributes['geometry'] = DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($data['geometry']) . "'), {$sridNumber}), 27700)");
                     }
 
-                    $instance = $modelClass::updateOrCreate(['osid' => $osid], $attributes);
+                    if($modelClass == NHLE::class){
+                        $instance = $modelClass::updateOrCreate(['gid' => $gid], $attributes);
+                    }else{
+                        $instance = $modelClass::updateOrCreate(['osid' => $osid], $attributes);
+                    }
 
                     if ($modelClass === Site::class && isset($data['properties']['sitetoaddressreference']) && is_array($data['properties']['sitetoaddressreference'])) {
                         // Delete existing references to handle updates cleanly
@@ -365,6 +434,61 @@ class DataMapController extends Controller
                                 ]);
                             }
                         }
+                    } 
+                    
+                    if ($modelClass === NHLE::class) {
+                        $properties = $data['properties'];
+                        $geometry = $data['geometry'];
+                        $coordinates = $geometry['coordinates'];
+
+                        $longitude = null;
+                        $latitude = null;
+
+                        if ($geometry['type'] === 'Point' && count($coordinates) >= 2) {
+                            $longitude = $coordinates[0];
+                            $latitude = $coordinates[1];
+                        } elseif (($geometry['type'] === 'MultiPoint' || $geometry['type'] === 'Polygon') && !empty($coordinates)) {
+                            // For MultiPoint or Polygon, calculate the centroid
+                            $points = $geometry['type'] === 'MultiPoint' ? $coordinates : ($coordinates[0] ?? []);
+                            if (!empty($points)) {
+                                $numPoints = count($points);
+                                $sumX = 0;
+                                $sumY = 0;
+                                foreach ($points as $point) {
+                                    if (is_array($point) && count($point) >= 2) {
+                                        $sumX += $point[0];
+                                        $sumY += $point[1];
+                                    }
+                                }
+                                if ($numPoints > 0) {
+                                    $longitude = $sumX / $numPoints;
+                                    $latitude = $sumY / $numPoints;
+                                }
+                            }
+                        }
+
+                        $nhle = NHLE::updateOrCreate([
+                            'gid' => $properties['gid']
+                        ], [
+                            'objectid' => $properties['objectid'] ?? null,
+                            'name' => $properties['name'] ?? null,
+                            'grade' => $properties['grade'] ?? null,
+                            'listdate' => isset($properties['listdate']) ? Carbon::parse($properties['listdate'])->toDateString() : null,
+                            'amenddate' => isset($properties['amenddate']) ? Carbon::parse($properties['amenddate'])->toDateString() : null,
+                            'capturesca' => $properties['capturescale'] ?? null,
+                            'hyperlink' => $properties['hyperlink'] ?? null,
+                            'ngr' => $properties['ngr'] ?? null,
+                            'easting' => $properties['easting'] ?? null,
+                            'northing' => $properties['northing'] ?? null,
+                            'longitude' => $longitude,
+                            'latitude' => $latitude,
+                        ]);
+                        if (isset($geometry) && !empty($geometry['coordinates'])) {
+                            $geomJson = json_encode($geometry);
+                            DB::table('nhle_')
+                                ->where('gid', $nhle->gid)
+                                ->update(['geom' => DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('$geomJson'), 4326), 27700)")]);
+                        }
                     }
 
                     if ($isUpdate) {
@@ -380,8 +504,7 @@ class DataMapController extends Controller
             return response()->json(['error' => 'An error occurred during import: ' . $e->getMessage()], 500);
         }
 
-        $modelName = class_basename($modelClass);
-        return response()->json(['message' => "Import successful. {$importedCount} new {$modelName}s imported, {$updatedCount} {$modelName}s updated."]);
+        return response()->json(['message' => "Import successful. {$importedCount} new NHLEs imported, {$updatedCount} NHLEs updated."]);
     }
 
     private function runValidation($geojson)

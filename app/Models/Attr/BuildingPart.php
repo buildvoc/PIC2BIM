@@ -14,6 +14,8 @@ class BuildingPart extends Model
     protected $connection = 'pgsql';
     protected $primaryKey = 'osid';
     public $incrementing = false;
+    public $timestamps = false;
+
     protected $keyType = 'string';
     protected $fillable = [
         'osid',
