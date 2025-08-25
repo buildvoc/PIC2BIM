@@ -31,7 +31,7 @@ import type {
     BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
-    ShapesGeoJson, 
+    BuiltupAreaGeoJson,
     SelectedShapeData, 
     MGeoJson, 
     FetchedPolygonsData,
@@ -44,7 +44,7 @@ import { NhleData } from '@/types/nhle';
 
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
-    shapes: {data: ShapesGeoJson};
+    shapes: {data: BuiltupAreaGeoJson};
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
@@ -74,7 +74,10 @@ export function Index({ auth }: PageProps) {
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
-  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(() => {
+    const initialShape = mShapes.data.features.find(shape => shape.properties.bua24nm.toLowerCase() === 'farnham');
+    return initialShape ? [initialShape.id as string] : [];
+  });
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
 
@@ -102,7 +105,7 @@ export function Index({ auth }: PageProps) {
 
   useEffect(() => {
     if (selectedShapeIds.length === 1) {
-      const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);
+      const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);      
       if (selectedShape) {
         try {
           const [minLng, minLat, maxLng, maxLat] = turf.bbox(selectedShape as any);
@@ -783,7 +786,7 @@ export function Index({ auth }: PageProps) {
   const filteredShapes = useMemo(() => {
     if (!boundarySearch) return shapes.data.features;
     return shapes.data.features.filter(shape => 
-      shape.properties.wd24nm.toLowerCase().includes(boundarySearch.toLowerCase())
+      shape.properties.bua24nm.toLowerCase().includes(boundarySearch.toLowerCase())
     );
   }, [shapes.data.features, boundarySearch]);
 
@@ -905,16 +908,16 @@ export function Index({ auth }: PageProps) {
   }, [viewState.zoom]);
 
   const layers = [
-    new GeoJsonLayer<ShapeProperties>({
-      id: 'shapes-layer',
-      data: shapes.data,
-      pickable: true,
-      stroked: true,
-      filled: false,
-      lineWidthMinPixels: 1,
-      getLineColor: [100, 100, 100, 100],
-      getLineWidth: 1
-    }),
+    // new GeoJsonLayer<ShapeProperties>({
+    //   id: 'shapes-layer',
+    //   data: shapes.data,
+    //   pickable: true,
+    //   stroked: true,
+    //   filled: false,
+    //   lineWidthMinPixels: 1,
+    //   getLineColor: [100, 100, 100, 100],
+    //   getLineWidth: 1
+    // }),
 
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
@@ -1490,7 +1493,7 @@ export function Index({ auth }: PageProps) {
           ) : (
             // Filter Options
             <div className="p-4">
-              <h4 className="font-semibold mb-4 text-gray-800">Ward Boundary</h4>
+              <h4 className="font-semibold mb-4 text-gray-800">Built-up Areas</h4>
               <div className="mb-3">
                 <input
                   type="text"
@@ -1525,7 +1528,7 @@ export function Index({ auth }: PageProps) {
                       className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
                     />
                     <span className="ml-3">
-                      {shape.properties.wd24nm}
+                      {shape.properties.bua24nm}
                     </span>
                   </label>
                 ))}

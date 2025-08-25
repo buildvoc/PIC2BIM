@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ShapeCollection;
-use App\Http\Resources\ShapeFeatureResource;
+use App\Http\Resources\BuiltupAreaCollection;
 use App\Http\Resources\BuildingCollection;
 use App\Http\Resources\BuildingPartCollection;
 use App\Http\Resources\SiteCollection;
-use App\Models\Attr\Shape;
+use App\Models\BuiltupArea;
 use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPart;
 use App\Models\Attr\Site;
@@ -34,36 +33,36 @@ class DataMapController extends Controller
         $offset = ($page - 1) * $limit;
 
         // Use spatial index hints and optimize query structure
-        $shapeIdsQuery = DB::table('shape as s')
-            ->select('s.ogc_fid')
+        $BuiltupIdsQuery = DB::table('ons_bua as s')
+            ->select('s.fid')
             ->crossJoin('bld_fts_building as b')
-            ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(b.geometry, 27700))")
+            ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(b.geometry, 27700))")
             ->union(
-                DB::table('shape as s')
-                    ->select('s.ogc_fid')
+                DB::table('ons_bua as s')
+                    ->select('s.fid')
                     ->crossJoin('bld_fts_buildingpart as bp')
-                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(bp.geometry, 27700))")
+                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(bp.geometry, 27700))")
             )
             ->union(
-                DB::table('shape as s')
-                    ->select('s.ogc_fid')
+                DB::table('ons_bua as s')
+                    ->select('s.fid')
                     ->crossJoin('lus_fts_site as l')
-                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(l.geometry, 27700))")
+                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(l.geometry, 27700))")
             )
             ->union(
-                DB::table('shape as s')
-                    ->select('s.ogc_fid')
+                DB::table('ons_bua as s')
+                    ->select('s.fid')
                     ->crossJoin('nhle_ as n')
-                    ->whereRaw("ST_INTERSECTS(s.wkb_geometry, ST_Transform(n.geom, 27700))")
+                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(n.geom, 27700))")
             )
             ->limit($limit)
             ->offset($offset);
 
-        $shapes = Shape::query()->whereIn('ogc_fid', $shapeIdsQuery)->get();
+        $BuiltupAreas = BuiltupArea::query()->whereIn('fid', $BuiltupIdsQuery)->get();
 
-        if ($shapes->isEmpty()) {
+        if ($BuiltupAreas->isEmpty()) {
             return Inertia::render('Nhle/Index', [
-                'shapes' => new ShapeCollection(collect()),
+                'shapes' => new BuiltupAreaCollection(collect()),
                 'buildings' => new BuildingCollection(collect()),
                 'buildingParts' => new BuildingPartCollection(collect()),
                 'sites' => new SiteCollection(collect()),
@@ -77,17 +76,17 @@ class DataMapController extends Controller
             ]);
         }
 
-        $shapeGeometriesQuery = Shape::query()
-            ->whereIn('ogc_fid', $shapeIdsQuery)
-            ->select('wkb_geometry');
+        $builtupAreaGeometriesQuery = BuiltupArea::query()
+            ->whereIn('fid', $BuiltupIdsQuery)
+            ->select('geometry');
 
         // Use chunking for large result sets
         $buildings = collect();
         Building::query()
-            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
-                    ->fromSub($shapeGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.wkb_geometry)');
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
             })
             ->chunk(5000, function ($chunk) use (&$buildings) {
                 $buildings = $buildings->merge($chunk);
@@ -95,10 +94,10 @@ class DataMapController extends Controller
 
         $buildingParts = collect();
         BuildingPart::query()
-            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
-                    ->fromSub($shapeGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart.geometry, s.wkb_geometry)');
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart.geometry, s.geometry)');
             })
             ->chunk(5000, function ($chunk) use (&$buildingParts) {
                 $buildingParts = $buildingParts->merge($chunk);
@@ -106,10 +105,10 @@ class DataMapController extends Controller
 
         $sites = collect();
         Site::query()
-            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
-                    ->fromSub($shapeGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.wkb_geometry)');
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
             })
             ->chunk(5000, function ($chunk) use (&$sites) {
                 $sites = $sites->merge($chunk);
@@ -117,20 +116,20 @@ class DataMapController extends Controller
 
         $nhle = collect();
         NHLE::query()
-            ->whereExists(function ($query) use ($shapeGeometriesQuery) {
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
-                    ->fromSub($shapeGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.wkb_geometry)');
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
             })
             ->chunk(5000, function ($chunk) use (&$nhle) {
                 $nhle = $nhle->merge($chunk);
             });
 
         $center = null;
-        if ($shapes->isNotEmpty()) {
-            $centerData = DB::table('shape')
-                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(wkb_geometry)), 4326)) as center'))
-                ->whereIn('ogc_fid', $shapes->pluck('ogc_fid'))
+        if ($BuiltupAreas->isNotEmpty()) {
+            $centerData = DB::table('ons_bua')
+                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
+                ->whereIn('fid', $BuiltupAreas->pluck('fid'))
                 ->first();
 
             if ($centerData && $centerData->center) {
@@ -140,7 +139,7 @@ class DataMapController extends Controller
 
         // Calculate total counts for pagination info
         $totalCounts = [
-            'shapes' => $shapes->count(),
+            'shapes' => $BuiltupAreas->count(),
             'buildings' => $buildings->count(),
             'buildingParts' => $buildingParts->count(),
             'sites' => $sites->count(),
@@ -148,7 +147,7 @@ class DataMapController extends Controller
         ];
 
         return Inertia::render('Nhle/Index', [
-            'shapes' => new ShapeCollection($shapes),
+            'shapes' => new BuiltupAreaCollection($BuiltupAreas),
             'buildings' => new BuildingCollection($buildings),
             'buildingParts' => new BuildingPartCollection($buildingParts),
             'sites' => new SiteCollection($sites),
@@ -157,7 +156,7 @@ class DataMapController extends Controller
             'pagination' => [
                 'current_page' => $page,
                 'limit' => $limit,
-                'has_more' => $shapes->count() >= $limit,
+                'has_more' => $BuiltupAreas->count() >= $limit,
                 'total_loaded' => array_sum($totalCounts),
                 'counts' => $totalCounts
             ]
