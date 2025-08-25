@@ -1,27 +1,20 @@
 import React from 'react';
 import CustomDropdown from './CustomDropdown';
-import MinMaxSliderDropdown from './MinMaxSliderDropdown';
 
 interface FilterPanelProps {
   category1: string;
   category2: string;
-  floorRange: { min: number; max: number };
-  maxFloors: number;
   dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean };
   onCategory1Change: (val: string) => void;
   onCategory2Change: (val: string) => void;
-  onFloorRangeChange: (values: { min: number; max: number }) => void;
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({ 
     category1, 
     category2, 
-    floorRange,
-    maxFloors,
     dataType,
     onCategory1Change, 
-    onCategory2Change, 
-    onFloorRangeChange 
+    onCategory2Change
 }) => {
   const mapByOptions = ['Fixed Size', 'Size by Area'];
   
@@ -79,14 +72,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     <div className="flex flex-col sm:flex-row gap-2 items-center">
       <CustomDropdown title="Map View" options={mapByOptions} value={category1} onChange={onCategory1Change} icon={icon1} />
       <CustomDropdown title="Group by" options={groupByOptions} value={category2} onChange={onCategory2Change} icon={icon2} />
-      <MinMaxSliderDropdown 
-        title="Floor Range"
-        icon={icon3}
-        min={0}
-        max={maxFloors}
-        values={floorRange}
-        onChange={onFloorRangeChange}
-      />
     </div>
   );
 };

@@ -19,6 +19,7 @@ import FilterPanel from './components/FilterPanel';
 import { getColorForValue } from '@/utils/colors';
 import Legend from '@/Components/DataMap/Legend';
 import SidePanel from './components/SidePanel';
+import MinMaxRangeSlider from './components/MinMaxRangeSlider';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -87,7 +88,16 @@ export function Index({ auth }: PageProps) {
     if (buildingCentroidsData.length === 0) {
       return 50; // Default max if no data
     }
-    const max = Math.max(...buildingCentroidsData.map(d => d.properties?.numberoffloors || 0));
+    
+    // Debug: Log first building properties to see available fields
+    if (buildingCentroidsData.length > 0) {
+      console.log('Building properties sample:', buildingCentroidsData[0].properties);
+    }
+    
+    const max = Math.max(...buildingCentroidsData.map(d => {
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
+      return floors;
+    }));
     return max > 0 ? max : 50;
   }, [buildingCentroidsData]);
 
@@ -697,7 +707,8 @@ export function Index({ auth }: PageProps) {
         }
       }
 
-      const floors = d.properties?.numberoffloors || 0;
+      // Check multiple possible property names for floors
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
   }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
@@ -775,7 +786,8 @@ export function Index({ auth }: PageProps) {
         }
       }
 
-      const floors = d.properties?.numberoffloors || 0;
+      // Check multiple possible property names for floors
+      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
   }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
@@ -850,37 +862,14 @@ export function Index({ auth }: PageProps) {
         return;
     }
 
-    const dataToBound = allFilteredData;
+    // Add a small delay to ensure filtering is complete
+    const timeoutId = setTimeout(() => {
+        const dataToBound = allFilteredData;
 
-    if (dataToBound.length > 0) {
-        try {
-            const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
-            const bbox = turf.bbox(points);
-            const [minLng, minLat, maxLng, maxLat] = bbox;
-
-            const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
-            const { longitude, latitude, zoom } = viewport.fitBounds(
-                [[minLng, minLat], [maxLng, maxLat]],
-                { padding: 100 }
-            );
-
-            setViewState(prev => ({
-                ...prev,
-                longitude,
-                latitude,
-                zoom,
-                transitionDuration: 800,
-                transitionInterpolator: new FlyToInterpolator(),
-            }));
-        } catch (error) {
-            console.error("Error adjusting zoom to filtered data:", error);
-        }
-    } else if (selectedShapeIds.length > 0) {
-        const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-        if (selectedPolygons.length > 0) {
+        if (dataToBound.length > 0) {
             try {
-                const featureCollection = turf.featureCollection(selectedPolygons as any[]);
-                const bbox = turf.bbox(featureCollection);
+                const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
+                const bbox = turf.bbox(points);
                 const [minLng, minLat, maxLng, maxLat] = bbox;
 
                 const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
@@ -898,11 +887,39 @@ export function Index({ auth }: PageProps) {
                     transitionInterpolator: new FlyToInterpolator(),
                 }));
             } catch (error) {
-                console.error("Error adjusting zoom to selected wards:", error);
+                console.error("Error adjusting zoom to filtered data:", error);
+            }
+        } else if (selectedShapeIds.length > 0) {
+            const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+            if (selectedPolygons.length > 0) {
+                try {
+                    const featureCollection = turf.featureCollection(selectedPolygons as any[]);
+                    const bbox = turf.bbox(featureCollection);
+                    const [minLng, minLat, maxLng, maxLat] = bbox;
+
+                    const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+                    const { longitude, latitude, zoom } = viewport.fitBounds(
+                        [[minLng, minLat], [maxLng, maxLat]],
+                        { padding: 100 }
+                    );
+
+                    setViewState(prev => ({
+                        ...prev,
+                        longitude,
+                        latitude,
+                        zoom,
+                        transitionDuration: 800,
+                        transitionInterpolator: new FlyToInterpolator(),
+                    }));
+                } catch (error) {
+                    console.error("Error adjusting zoom to selected wards:", error);
+                }
             }
         }
-    }
-}, [allFilteredData, selectedShapeIds, shapes.data.features]);
+    }, 100); // Small delay to ensure state updates are complete
+
+    return () => clearTimeout(timeoutId);
+}, [allFilteredData, selectedShapeIds, shapes.data.features, floorRange, dataType]);
 
 
   const zoomBasedRadius = useMemo(() => {
@@ -1334,12 +1351,9 @@ export function Index({ auth }: PageProps) {
             <FilterPanel
             category1={category1}
             category2={category2}
-            floorRange={floorRange}
-            maxFloors={maxFloors}
             dataType={dataType}
             onCategory1Change={setCategory1}
             onCategory2Change={setCategory2}
-            onFloorRangeChange={setFloorRange}
           />
             <MapControls 
               viewState={viewState} 
@@ -1655,6 +1669,17 @@ export function Index({ auth }: PageProps) {
                       </div>
                     </div>
                   )}
+                  
+                  <h4 className="font-semibold mb-4 mt-4 text-gray-800">Floor Range Filter</h4>
+                  <div className="mb-4 px-2">
+                    <MinMaxRangeSlider
+                      min={0}
+                      max={maxFloors}
+                      minVal={floorRange.min}
+                      maxVal={floorRange.max}
+                      onChange={setFloorRange}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
