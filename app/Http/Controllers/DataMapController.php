@@ -9,6 +9,8 @@ use App\Http\Resources\SiteCollection;
 use App\Models\BuiltupArea;
 use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPart;
+use App\Models\Attr\BuildingPartV2;
+use App\Models\Attr\BuildingPartSiteRefV2;
 use App\Models\Attr\Site;
 use App\Models\NHLE;
 use App\Models\Attr\SiteAddressReference;
@@ -199,7 +201,6 @@ class DataMapController extends Controller
 
             $osid = $feature['properties']['osid'] ?? null;
             $gid = $feature['properties']['gid'] ?? null;
-            $toid = $feature['properties']['toid'] ?? $feature['properties']['TOID'] ?? null;
             $geometry = json_encode($feature['geometry']);
             $srid = $geojson['crs']['properties']['name'] ?? 'EPSG:4326';
             $sridNumber = (int) filter_var($srid, FILTER_SANITIZE_NUMBER_INT);
@@ -215,7 +216,7 @@ class DataMapController extends Controller
             // --- Validation Checks ---
 
             // 1. OSID Check
-            if (!$osid && $modelClass == Building::class ) {
+            if (!$osid && $modelClass != NHLE::class ) {
                 $featureData['status'] = 'missing_osid';
                 $featureData['details'] = 'Missing OSID or List Entry. Import will be skipped.';
                 $results[] = $featureData;
@@ -223,11 +224,6 @@ class DataMapController extends Controller
             } else if (!$gid && $modelClass == NHLE::class) {
                 $featureData['status'] = 'missing_gid';
                 $featureData['details'] = 'Missing List Entry. Import will be skipped.';
-                $results[] = $featureData;
-                continue;
-            } else if (!$toid && $modelClass == BuildingPart::class) {
-                $featureData['status'] = 'missing_toid';
-                $featureData['details'] = 'Missing TOID. Import will be skipped.';
                 $results[] = $featureData;
                 continue;
             }
@@ -242,11 +238,11 @@ class DataMapController extends Controller
                     continue;
                 }
             }else if ($modelClass == BuildingPart::class){
-                $existingItemBygid = $modelClass::where('toid', $toid)->first();
+                $existingItemBygid = $modelClass::where('osid', $osid)->first();
                 if ($existingItemBygid) {
                     $featureData['status'] = 'duplicate';
-                    $featureData['details'] = "Duplicate TOID: Matches existing item with TOID '{$toid}'.";
-                    $featureData['existing_toid'] = $existingItemBygid->toid;
+                    $featureData['details'] = "Duplicate OSID: Matches existing item with OSID '{$osid}'.";
+                    $featureData['existing_osid'] = $existingItemBygid->osid;
                     $results[] = $featureData;
                     continue;
                 }
@@ -263,7 +259,7 @@ class DataMapController extends Controller
 
 
             // 2. Exact Geometry Check
-            if($modelClass != NHLE::class || $modelClass != BuildingPart::class){
+            if($modelClass != NHLE::class){
                 $geomSql = "ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), ?), 27700)";
                 $exactMatch = $modelClass::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
                 if ($exactMatch) {
@@ -275,7 +271,7 @@ class DataMapController extends Controller
             }
 
             // 3. Spatial Overlap Check with Tolerance
-            if($modelClass != NHLE::class || $modelClass != BuildingPart::class){
+            if($modelClass != NHLE::class){
                 $overlapTolerance = 0.1; // meters squared
                 $overlappingItem = $modelClass::select('osid')
                     ->selectRaw("ST_Area(ST_Intersection(geometry, {$geomSql})) as overlap_area", [$geometry, $sridNumber])
@@ -318,7 +314,7 @@ class DataMapController extends Controller
 
     public function importBuildingPart(Request $request)
     {
-        return $this->performImport(BuildingPart::class, $request);
+        return $this->performImport(BuildingPartV2::class, $request);
     }
 
     private function performImport($modelClass, Request $request)
@@ -346,12 +342,9 @@ class DataMapController extends Controller
                 if ($action === 'import' || $action === 'update') {
                     $osid = $data['properties']['osid'] ?? null;
                     $gid = $data['properties']['gid'] ?? null;
-                    $toid = $data['properties']['TOID'] ?? null;
-                    if (!$osid && $modelClass != NHLE::class && $modelClass != BuildingPart::class) {
+                    if (!$osid && $modelClass != NHLE::class) {
                         continue;  
                     } else if (!$gid && $modelClass == NHLE::class) {
-                        continue;
-                    } else if (!$toid && $modelClass == BuildingPart::class){
                         continue;
                     }
                     $isUpdate = ($action === 'update');
@@ -367,11 +360,38 @@ class DataMapController extends Controller
 
                         $value = $data['properties'][$field] ?? null;
 
-                        if ($field === 'oslandusetierb' && is_array($value)) {
+                        if (is_null($value)) {
+                            $nonNullableFields = [
+                                'versiondate', 'changetype', 'geometry_area_m2', 'geometry_updatedate',
+                                'geometry_capturemethod', 'theme', 'description', 'description_updatedate',
+                                'description_capturemethod', 'oslandcovertiera', 'oslandcovertierb',
+                                'oslandcover_updatedate', 'oslandcover_capturemethod', 'oslandusetiera',
+                                'oslanduse_updatedate', 'oslanduse_capturemethod', 'isobscured',
+                                'physicallevel', 'capturespecification', 'containingsitecount', 'lowertierlocalauthority_count'
+                            ];
+
+                            if (in_array($field, $nonNullableFields)) {
+                                if (str_contains($field, 'date')) {
+                                    $value = '1970-01-01';
+                                } elseif (in_array($field, ['geometry_area_m2', 'containingsitecount'])) {
+                                    $value = 0;
+                                } elseif ($field === 'isobscured') {
+                                    $value = false;
+                                } elseif ($field === 'lowertierlocalauthority_count') {
+                                    $value = 0;
+                                } else {
+                                    $value = '';
+                                }
+                            }
+                        }
+
+                        $array_fields = ['oslandusetierb', 'oslandcovertierb', 'largestsite_landusetierb', 'smallestsite_landusetierb'];
+                        if (in_array($field, $array_fields) && is_array($value)) {
                             $attributes[$field] = json_encode($value);
                         } else {
                             $attributes[$field] = $value;
                         }
+
                     }
 
                     if (isset($data['geometry'])) {
@@ -435,7 +455,22 @@ class DataMapController extends Controller
                             }
                         }
                     } 
-                    
+                    if ($modelClass === BuildingPartV2::class) {
+                        if (isset($data['properties']['sitereference']) && is_array($data['properties']['sitereference'])) {
+                            BuildingPartSiteRefV2::where('buildingpartid', $instance->osid)->delete();
+                            foreach ($data['properties']['sitereference'] as $ref) {
+                                if (empty($ref['buildingpartid'])) {
+                                    continue;
+                                }
+                                BuildingPartSiteRefV2::create([
+                                    'siteid' => $ref['siteid'],
+                                    'buildingpartid' => $ref['buildingpartid'],
+                                    'buildingpartversiondate' => $ref['buildingpartversiondate'],
+                                ]);
+                            }
+                        }
+                    } 
+
                     if ($modelClass === NHLE::class) {
                         $properties = $data['properties'];
                         $geometry = $data['geometry'];

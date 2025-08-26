@@ -1506,7 +1506,7 @@ export function Index({ auth }: PageProps) {
                   <option value="building">Building V4</option>
                   <option value="site">Site V2</option>
                   <option value="nhle">NHLE</option>
-                  <option value="buildingpart">Building Part</option>
+                  <option value="buildingpart">Building Part V2</option>
                 </select>
               </div>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
