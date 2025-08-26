@@ -237,7 +237,7 @@ class DataMapController extends Controller
                     $results[] = $featureData;
                     continue;
                 }
-            }else if ($modelClass == BuildingPart::class){
+            }else if ($modelClass == BuildingPartV2::class){
                 $existingItemBygid = $modelClass::where('osid', $osid)->first();
                 if ($existingItemBygid) {
                     $featureData['status'] = 'duplicate';
