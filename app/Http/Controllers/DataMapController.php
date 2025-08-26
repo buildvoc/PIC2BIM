@@ -183,7 +183,7 @@ class DataMapController extends Controller
 
     public function validateBuildingPart(Request $request)
     {
-        return $this->performValidation(BuildingPart::class, $request->input('geojson'));
+        return $this->performValidation(BuildingPartV2::class, $request->input('geojson'));
     }
 
     private function performValidation($modelClass, $geojson)
