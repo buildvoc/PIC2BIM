@@ -20,29 +20,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   
   // Dynamic grouping options based on active data types
   const getGroupByOptions = () => {
-    const options: string[] = [];
-    const activeTypes = Object.keys(dataType).filter(key => dataType[key as keyof typeof dataType]);
-    
-    // If multiple types are selected, show all available options
-    if (activeTypes.length > 1) {
-      options.push('Usage', 'Connectivity', 'Material', 'Grade');
-    } else if (activeTypes.length === 1) {
-      // Single type selected, show specific options for that type
-      if (dataType.buildings) {
-        options.push('Usage', 'Connectivity', 'Material');
-      } else if (dataType.sites) {
-        options.push('OSLandTiera');
-      } else if (dataType.nhle) {
-        options.push('Grade');
-      } else if (dataType.buildingParts) {
-        options.push('OSLandTiera');
-      }
-    } else {
-      // No type selected, show all available options
-      options.push('Usage', 'Connectivity', 'Material',  'Grade');
+    const optionsMap = {
+      buildings: ['Usage', 'Connectivity', 'Material'],
+      sites: ['OSLandTiera'],
+      nhle: ['Grade'],
+      buildingParts: ['OSLandTiera'],
+    };
+
+    const activeTypes = Object.keys(dataType).filter(
+      (key) => dataType[key as keyof typeof dataType]
+    ) as (keyof typeof optionsMap)[];
+
+    if (activeTypes.length === 0) {
+      // If no type is selected, show all possible options
+      const allOptions = Object.values(optionsMap).flat();
+      return ['None', ...Array.from(new Set(allOptions))];
     }
-    
-    return options.length > 0 ? options : ['No Grouping Available'];
+
+    const combinedOptions = activeTypes.reduce((acc, type) => {
+      return acc.concat(optionsMap[type] || []);
+    }, [] as string[]);
+
+    const uniqueOptions = Array.from(new Set(combinedOptions));
+
+    return ['None', ...uniqueOptions];
   };
   
   const groupByOptions = getGroupByOptions();
