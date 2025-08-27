@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\BuiltupAreaCollection;
 use App\Http\Resources\BuildingCollection;
 use App\Http\Resources\BuildingPartCollection;
+use App\Http\Resources\BuildingPartCollectionV2;
 use App\Http\Resources\SiteCollection;
 use App\Models\BuiltupArea;
 use App\Models\Attr\Building;
@@ -43,7 +44,7 @@ class DataMapController extends Controller
             ->union(
                 DB::table('ons_bua as s')
                     ->select('s.fid')
-                    ->crossJoin('bld_fts_buildingpart as bp')
+                    ->crossJoin('bld_fts_buildingpart_v2 as bp')
                     ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(bp.geometry, 27700))")
             )
             ->union(
@@ -96,11 +97,11 @@ class DataMapController extends Controller
             });
 
         $buildingParts = collect();
-        BuildingPart::query()
+        BuildingPartV2::query()
             ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart.geometry, s.geometry)');
+                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
             })
             ->chunk(5000, function ($chunk) use (&$buildingParts) {
                 $buildingParts = $buildingParts->merge($chunk);
@@ -152,7 +153,7 @@ class DataMapController extends Controller
         return Inertia::render('Nhle/Index', [
             'shapes' => new BuiltupAreaCollection($BuiltupAreas),
             'buildings' => new BuildingCollection($buildings),
-            'buildingParts' => new BuildingPartCollection($buildingParts),
+            'buildingParts' => new BuildingPartCollectionV2($buildingParts),
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
             'center' => $center,

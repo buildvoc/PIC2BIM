@@ -53,6 +53,7 @@ export function Index({ auth }: PageProps) {
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
+  console.log(buildingParts);
   
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
