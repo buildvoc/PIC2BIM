@@ -53,7 +53,6 @@ export function Index({ auth }: PageProps) {
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
-  console.log(buildingParts);
   
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
@@ -1681,7 +1680,7 @@ export function Index({ auth }: PageProps) {
                     </span>
                   </label>
                   
-                  {dataType.nhle && availableGrades.length > 0 && (
+                  {/* {dataType.nhle && availableGrades.length > 0 && (
                     <div className="ml-8 mt-2 space-y-2">
                       <h5 className="text-sm font-medium text-gray-700">Filter by Grade:</h5>
                       <div className="space-y-1">
@@ -1714,7 +1713,7 @@ export function Index({ auth }: PageProps) {
                         ))}
                       </div>
                     </div>
-                  )}
+                  )} */}
                   
                   <h4 className="font-semibold mb-4 mt-4 text-gray-800">Floor Range Filter</h4>
                   <div className="mb-4 px-2">
