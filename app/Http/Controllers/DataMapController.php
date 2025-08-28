@@ -39,26 +39,32 @@ class DataMapController extends Controller
         // Use spatial index hints and optimize query structure
         $BuiltupIdsQuery = DB::table('ons_bua as s')
             ->select('s.fid')
-            ->crossJoin('bld_fts_building as b')
-            ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(b.geometry, 27700))")
-            ->union(
-                DB::table('ons_bua as s')
-                    ->select('s.fid')
-                    ->crossJoin('bld_fts_buildingpart_v2 as bp')
-                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(bp.geometry, 27700))")
-            )
-            ->union(
-                DB::table('ons_bua as s')
-                    ->select('s.fid')
-                    ->crossJoin('lus_fts_site as l')
-                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(l.geometry, 27700))")
-            )
-            ->union(
-                DB::table('ons_bua as s')
-                    ->select('s.fid')
-                    ->crossJoin('nhle_ as n')
-                    ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(n.geom, 27700))")
-            )
+            ->where(function($query) {
+                $query->whereExists(function($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('bld_fts_building as b')
+                        ->whereRaw("s.geometry && ST_Transform(b.geometry, 27700)") // Bounding box check first
+                        ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(b.geometry, 27700))");
+                })
+                ->orWhereExists(function($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('bld_fts_buildingpart_v2 as bp')
+                        ->whereRaw("s.geometry && ST_Transform(bp.geometry, 27700)")
+                        ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(bp.geometry, 27700))");
+                })
+                ->orWhereExists(function($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('lus_fts_site as l')
+                        ->whereRaw("s.geometry && ST_Transform(l.geometry, 27700)")
+                        ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(l.geometry, 27700))");
+                })
+                ->orWhereExists(function($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('nhle_ as n')
+                        ->whereRaw("s.geometry && ST_Transform(n.geom, 27700)")
+                        ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(n.geom, 27700))");
+                });
+            })
             ->limit($limit)
             ->offset($offset);
 
