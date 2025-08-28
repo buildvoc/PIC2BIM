@@ -17,7 +17,7 @@ class BuildingPartFeatureResourceV2 extends JsonResource
     public function toArray(Request $request): array
     {
         $geoJson = DB::selectOne("SELECT ST_AsGeoJSON(ST_Transform(geometry, 4326)) as geojson FROM bld_fts_buildingpart_v2 WHERE osid = ?", [$this->osid]);
-        
+
         return [
             'type' => 'Feature',
             'id' => $this->osid,
@@ -39,7 +39,10 @@ class BuildingPartFeatureResourceV2 extends JsonResource
                 'associatedstructure' => $this->associatedstructure ?? null,
                 'isobscured' => $this->isobscured ?? null,
                 'physicallevel' => $this->physicallevel ?? null,
-                'area' => $this->geometry_area_m2 ?? null
+                'area' => $this->geometry_area_m2 ?? null,
+                'sites' => $this->buildingPartSiteRefs->map(function ($siteRef) {
+                    return ['site_id' => $siteRef->siteid];
+                }),
             ],
             'geometry' => $geoJson ? json_decode($geoJson->geojson) : null
         ];

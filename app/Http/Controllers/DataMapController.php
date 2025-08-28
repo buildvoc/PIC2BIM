@@ -92,6 +92,7 @@ class DataMapController extends Controller
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
             })
+            ->with('sites')
             ->chunk(5000, function ($chunk) use (&$buildings) {
                 $buildings = $buildings->merge($chunk);
             });
@@ -102,7 +103,7 @@ class DataMapController extends Controller
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-            })
+            })->with('buildingPartSiteRefs')
             ->chunk(5000, function ($chunk) use (&$buildingParts) {
                 $buildingParts = $buildingParts->merge($chunk);
             });
@@ -114,6 +115,8 @@ class DataMapController extends Controller
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
             })
+            ->with('buildings')
+            ->with('buildingPartSiteRefs')
             ->chunk(5000, function ($chunk) use (&$sites) {
                 $sites = $sites->merge($chunk);
             });

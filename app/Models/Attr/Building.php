@@ -115,4 +115,9 @@ class Building extends Model
     {
         return $this->hasMany(BuildingPartLink::class, 'buildingid', 'osid');
     }
+
+    public function sites()
+    {
+        return $this->belongsToMany(Site::class, 'bld_fts_building_bldtostecrossref', 'buildingid', 'siteid');
+    }
 }
