@@ -792,7 +792,16 @@ export function Index({ auth }: PageProps) {
           const value = props[f as keyof typeof props];
           return value && String(value).toLowerCase().includes(searchTerm);
         });
-        if (matches) {
+
+        // Search in nested sites array
+        const sitesMatch = props?.sites?.some((site: any) => 
+          site.site_id && String(site.site_id).toLowerCase().includes(searchTerm)
+        );
+        const matchedUprn = props?.uprn && Array.isArray(props.uprn) ? props.uprn.find((uprn: any) => 
+          uprn?.uprn && String(uprn.uprn).toLowerCase().includes(searchTerm)
+        ) : null;
+        
+        if (matches || sitesMatch || matchedUprn) {
           results.push({
             type: 'Building',
             id: item.id,
@@ -813,7 +822,12 @@ export function Index({ auth }: PageProps) {
           const value = props[f as keyof typeof props];
           return value && String(value).toLowerCase().includes(searchTerm);
         });
-        if (matches) {
+        // Search in nested sites array
+        const sitesMatch = props?.sites?.some((site: any) => 
+            site.site_id && String(site.site_id).toLowerCase().includes(searchTerm)
+          );
+        
+        if (matches || sitesMatch) {
           results.push({
             type: 'Building Part',
             id: item.id,
@@ -834,7 +848,16 @@ export function Index({ auth }: PageProps) {
           const value = props[f as keyof typeof props];
           return value && String(value).toLowerCase().includes(searchTerm);
         });
-        if (matches) {
+
+        const buildingMatch = props?.buildings?.some((building: any) => 
+            building.osid && String(building.osid).toLowerCase().includes(searchTerm)
+          );
+
+        const buildingPartMatch = props?.buildingparts?.some((buildingPart: any) => 
+            buildingPart.osid && String(buildingPart.osid).toLowerCase().includes(searchTerm)
+          );
+
+        if (matches || buildingMatch || buildingPartMatch) {
           results.push({
             type: 'Site',
             id: item.id,
@@ -1500,7 +1523,7 @@ export function Index({ auth }: PageProps) {
                   id="schema-select"
                   value={selectedSchema}
                   onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | '')}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
                   <option value="building">Building V4</option>
@@ -1854,15 +1877,34 @@ export function Index({ auth }: PageProps) {
                               <h4 className="font-medium text-gray-900 truncate">{result.displayText}</h4>
                             </div>
                             <div className="text-sm text-gray-600">
-                              {Object.entries(result.data)
-                                .filter(([key, value]) => value && String(value).toLowerCase().includes(searchQuery.toLowerCase()))
-                                .slice(0, 2)
-                                .map(([key, value]) => (
-                                  <div key={key} className="mb-1 truncate">
-                                    <span className="font-medium">{key}:</span> {String(value)}
-                                  </div>
-                                ))
-                              }
+                              {(() => {
+                                // Check if this is a sites match for BuildingPart
+                                if ((result.type === 'Building Part' || result.type === 'Building') && (result.data.sites || result.data.uprn)){
+                                  const matchedSite = result.data.sites.find((site: any) => 
+                                    site.site_id && String(site.site_id).toLowerCase().includes(searchQuery.toLowerCase())
+                                  );
+                                  const matchedUprn = result.data.uprn && Array.isArray(result.data.uprn) ? result.data.uprn.find((uprn: any) => 
+                                    uprn?.uprn && String(uprn.uprn).toLowerCase().includes(searchQuery.toLowerCase())
+                                  ) : null;
+                                  if (matchedSite || matchedUprn) {
+                                    return (
+                                      <div className="mb-1 truncate">
+                                        <span className="font-medium">Matched {matchedSite ? 'Site' : 'UPRN'}:</span> {matchedSite?.site_id || matchedUprn?.uprn}
+                                      </div>
+                                    );
+                                  }
+                                }
+                                
+                                // Default behavior for regular field matches
+                                return Object.entries(result.data)
+                                  .filter(([key, value]) => value && String(value).toLowerCase().includes(searchQuery.toLowerCase()))
+                                  .slice(0, 2)
+                                  .map(([key, value]) => (
+                                    <div key={key} className="mb-1 truncate">
+                                      <span className="font-medium">{key}:</span> {String(value)}
+                                    </div>
+                                  ));
+                              })()}
                             </div>
                           </div>
                           <div className="text-xs text-gray-400 flex-shrink-0 self-start sm:ml-4">

@@ -87,4 +87,14 @@ class Site extends Model
         'addresscount_commercial' => 'integer',
         'addresscount_other' => 'integer',
     ];
+
+    public function buildings()
+    {
+        return $this->belongsToMany(Building::class, 'bld_fts_building_bldtostecrossref', 'siteid', 'buildingid');
+    }
+
+    public function buildingPartSiteRefs()
+    {
+        return $this->belongsToMany(BuildingPartV2::class, 'bld_fts_buildingpart_siteref_v2', 'siteid', 'buildingpartid');
+    }
 }

@@ -23,7 +23,9 @@ class BuildingFeatureResource extends JsonResource
             'id' => $this->osid,
             'properties' => [
                 'osid' => $this->osid,
-                'uprn' => $this->buildingAddresses->first()->uprn ?? null,
+                'uprn' => $this->buildingAddresses->map(function ($address) {
+                    return ['uprn' => $address->uprn];
+                }),
                 'postcode' => $this->postcode ?? null,
                 'description' => $this->description ?? null,
                 'constructionmaterial' => $this->constructionmaterial ?? null,
@@ -32,7 +34,10 @@ class BuildingFeatureResource extends JsonResource
                 'numberoffloors' => $this->numberoffloors ?? null,
                 'connectivity' => $this->connectivity ?? null,
                 'theme' => $this->theme ?? null,
-                'area' => $this->geometry_area_m2 ?? null
+                'area' => $this->geometry_area_m2 ?? null,
+                'sites' => $this->sites->map(function ($site) {
+                    return ['site_id' => $site->osid];
+                }),
             ],
             'geometry' => $geoJson ? json_decode($geoJson->geojson) : null
         ];

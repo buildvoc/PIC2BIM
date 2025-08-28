@@ -18,6 +18,7 @@ export interface BuildingPartProperties {
     isobscured?: boolean;
     physicallevel?: string;
     area?: number;
+    sites?: { site_id: string }[];
 }
 
 export interface BuildingPartFeature extends GeoJSON.Feature<GeoJSON.MultiPolygon | GeoJSON.Polygon, BuildingPartProperties> {

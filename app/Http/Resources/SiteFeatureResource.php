@@ -30,7 +30,13 @@ class SiteFeatureResource extends JsonResource
                 'description' => $this->description ?? null,
                 'buildinguse' => $this->oslandusetiera ?? null,
                 'theme' => $this->theme ?? null,
-                'area' => $this->geometry_area_m2 ?? null
+                'area' => $this->geometry_area_m2 ?? null,
+                'buildings' => $this->buildings->map(function ($building) {
+                    return ['osid' => $building->osid];
+                }),
+                'buildingparts' => $this->buildingPartSiteRefs->map(function ($buildingPart) {
+                    return ['osid' => $buildingPart->osid];
+                }),
             ],
             'geometry' => $geoJson ? json_decode($geoJson->geojson) : null
         ];

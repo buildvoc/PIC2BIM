@@ -8,6 +8,8 @@ export interface SiteProperties {
     buildinguse?: string;
     theme?: string;
     area?: number;
+    building?: string[];
+    buildingpart?: string[];
 }
 
 export interface SiteFeature extends GeoJSON.Feature<GeoJSON.MultiPolygon | GeoJSON.Polygon, SiteProperties> {
