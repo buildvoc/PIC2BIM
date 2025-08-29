@@ -1,7 +1,7 @@
 import type { Feature, Geometry, GeoJSON, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
 import type { NhleProperties } from '@/types/nhle';
-import type { BuildingProperties } from '@/types/building';
+import type { BuildingProperties } from '@/types/buildingv4';
 import type { BuildingPartProperties } from '@/types/buildingpart';
 import type { SiteProperties } from '@/types/site';
 import { BuiltupAreaProperties } from '@/types/builtup-area';

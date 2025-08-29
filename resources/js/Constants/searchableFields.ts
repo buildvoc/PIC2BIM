@@ -1,0 +1,48 @@
+export const searchableFields = {
+  nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
+  building: [
+    'osid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
+    'geometry_area_m2', 'geometry_updatedate', 'theme', 'description', 'description_updatedate',
+    'physicalstate', 'physicalstate_updatedate', 'buildingpartcount', 'isinsite', 'primarysiteid',
+    'containingsitecount', 'mainbuildingid', 'mainbuildingid_ismainbuilding', 'mainbuildingid_updatedate',
+    'buildinguse', 'buildinguse_oslandusetiera', 'buildinguse_addresscount_total', 'buildinguse_addresscount_residential',
+    'buildinguse_addresscount_commercial', 'buildinguse_addresscount_other', 'buildinguse_updatedate',
+    'connectivity', 'connectivity_count', 'connectivity_updatedate', 'constructionmaterial',
+    'constructionmaterial_evidencedate', 'constructionmaterial_updatedate', 'constructionmaterial_source',
+    'constructionmaterial_capturemethod', 'constructionmaterial_thirdpartyprovenance', 'buildingage_period',
+    'buildingage_year', 'buildingage_evidencedate', 'buildingage_updatedate', 'buildingage_source',
+    'buildingage_capturemethod', 'buildingage_thirdpartyprovenance', 'basementpresence', 'basementpresence_selfcontained',
+    'basementpresence_evidencedate', 'basementpresence_updatedate', 'basementpresence_source',
+    'basementpresence_capturemethod', 'basementpresence_thirdpartyprovenance', 'numberoffloors',
+    'numberoffloors_evidencedate', 'numberoffloors_updatedate', 'numberoffloors_source', 'numberoffloors_capturemethod',
+    'height_absolutemin_m', 'height_absoluteroofbase_m', 'height_absolutemax_m', 'height_relativeroofbase_m',
+    'height_relativemax_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
+    'roofmaterial_primarymaterial', 'roofmaterial_solarpanelpresence', 'roofmaterial_greenroofpresence',
+    'roofmaterial_confidenceindicator', 'roofmaterial_evidencedate', 'roofmaterial_updatedate', 'roofmaterial_capturemethod',
+    'roofshapeaspect_shape', 'roofshapeaspect_areapitched_m2', 'roofshapeaspect_areaflat_m2',
+    'roofshapeaspect_areafacingnorth_m2', 'roofshapeaspect_areafacingnortheast_m2', 'roofshapeaspect_areafacingeast_m2',
+    'roofshapeaspect_areafacingsoutheast_m2', 'roofshapeaspect_areafacingsouth_m2', 'roofshapeaspect_areafacingsouthwest_m2',
+    'roofshapeaspect_areafacingwest_m2', 'roofshapeaspect_areafacingnorthwest_m2', 'roofshapeaspect_areaindeterminable_m2',
+    'roofshapeaspect_areatotal_m2', 'roofshapeaspect_confidenceindicator', 'roofshapeaspect_evidencedate',
+    'roofshapeaspect_updatedate', 'roofshapeaspect_capturemethod', 'uprn', 'postcode', 'sites', 'area', 'roofmaterial'
+  ],
+  buildingpart: [
+    'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'firstdigitalcapturedate',
+    'changetype', 'geometry_area_m2', 'geometry_evidencedate', 'geometry_updatedate', 'geometry_capturemethod',
+    'theme', 'description', 'description_evidencedate', 'description_updatedate', 'description_capturemethod',
+    'oslandcovertiera', 'oslandcovertierb', 'oslandcover_evidencedate', 'oslandcover_updatedate', 'oslandcover_capturemethod',
+    'oslandusetiera', 'oslandusetierb', 'oslanduse_evidencedate', 'oslanduse_updatedate', 'oslanduse_capturemethod',
+    'height_absoluteroofbase_m', 'height_relativeroofbase_m', 'height_absolutemax_m', 'height_relativemax_m',
+    'height_absolutemin_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
+    'associatedstructure', 'isobscured', 'physicallevel', 'capturespecification', 'containingsitecount',
+    'smallestsite_siteid', 'smallestsite_landusetiera', 'smallestsite_landusetierb', 'largestsite_landusetiera',
+    'largestsite_landusetierb', 'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription',
+    'address_classificationcode', 'address_primarydescription', 'address_secondarydescription',
+    'lowertierlocalauthority_gsscode', 'lowertierlocalauthority_count', 'status', 'status_updatedate',
+    'sites', 'area', 'absoluteheightroofbase', 'relativeheightroofbase', 'absoluteheightmaximum',
+    'relativeheightmaximum', 'absoluteheightminimum', 'heightconfidencelevel'
+  ],
+  site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
+};
+
+export type SearchableFieldsType = typeof searchableFields;
