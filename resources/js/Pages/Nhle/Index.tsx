@@ -347,7 +347,7 @@ export function Index({ auth }: PageProps) {
       'roofshapeaspect_areafacingsoutheast_m2', 'roofshapeaspect_areafacingsouth_m2', 'roofshapeaspect_areafacingsouthwest_m2',
       'roofshapeaspect_areafacingwest_m2', 'roofshapeaspect_areafacingnorthwest_m2', 'roofshapeaspect_areaindeterminable_m2',
       'roofshapeaspect_areatotal_m2', 'roofshapeaspect_confidenceindicator', 'roofshapeaspect_evidencedate',
-      'roofshapeaspect_updatedate', 'roofshapeaspect_capturemethod', 'uprn', 'postcode', 'sites', 'area', 'roofmaterial'
+      'roofshapeaspect_updatedate', 'roofshapeaspect_capturemethod', 'uprn', 'sites', 'area', 'roofmaterial'
     ],
     buildingpart: [
       'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'firstdigitalcapturedate',
