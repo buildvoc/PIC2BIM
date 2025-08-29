@@ -21,18 +21,13 @@ use App\Models\Attr\BuildingSiteLink;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
-use GuzzleHttp\Promise;
-use React\Socket\Server;
-use Spatie\Fork\Fork;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
 class DataMapController extends Controller
 {
-    public function index(Request $request)
+    public function index2(Request $request)
     {
         // Set longer execution time for large datasets
         set_time_limit(300); // 5 minutes
@@ -91,7 +86,7 @@ class DataMapController extends Controller
             ->whereIn('fid', $BuiltupIdsQuery)
             ->select('geometry');
 
-        // Use chunking for large result sets
+        // Optimized sequential processing with better chunking
         $buildings = collect();
         Building::query()
             ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
@@ -100,7 +95,7 @@ class DataMapController extends Controller
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
             })
             ->with('sites')
-            ->chunk(5000, function ($chunk) use (&$buildings) {
+            ->chunk(2000, function ($chunk) use (&$buildings) {
                 $buildings = $buildings->merge($chunk);
             });
 
@@ -110,8 +105,9 @@ class DataMapController extends Controller
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-            })->with('buildingPartSiteRefs')
-            ->chunk(5000, function ($chunk) use (&$buildingParts) {
+            })
+            ->with('buildingPartSiteRefs')
+            ->chunk(2000, function ($chunk) use (&$buildingParts) {
                 $buildingParts = $buildingParts->merge($chunk);
             });
 
@@ -122,9 +118,8 @@ class DataMapController extends Controller
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
             })
-            ->with('buildings')
-            ->with('buildingPartSiteRefs')
-            ->chunk(5000, function ($chunk) use (&$sites) {
+            ->with('buildings', 'buildingPartSiteRefs')
+            ->chunk(2000, function ($chunk) use (&$sites) {
                 $sites = $sites->merge($chunk);
             });
 
@@ -135,7 +130,7 @@ class DataMapController extends Controller
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
             })
-            ->chunk(5000, function ($chunk) use (&$nhle) {
+            ->chunk(2000, function ($chunk) use (&$nhle) {
                 $nhle = $nhle->merge($chunk);
             });
 
@@ -177,7 +172,7 @@ class DataMapController extends Controller
         ]);
     }
 
-    public function index2(Request $request)
+    public function index(Request $request)
     {
         // Set longer execution time for large datasets
         set_time_limit(300); // 5 minutes
@@ -250,85 +245,65 @@ class DataMapController extends Controller
             ->whereIn('fid', $BuiltupIdsQuery)
             ->select('geometry');
 
-        // Parallel processing using Fork for concurrent data collection
-        [$buildings, $buildingParts, $sites, $nhle] = Fork::new()
-            ->run(
-                // Buildings collection
-                function () use ($builtupAreaGeometriesQuery) {
-                    $buildings = collect();
-                    Building::query()
-                        ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                            $query->select(DB::raw(1))
-                                ->fromSub($builtupAreaGeometriesQuery, 's')
-                                ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
-                        })
-                        ->with('sites')
-                        ->chunk(2000, function ($chunk) use (&$buildings) {
-                            $buildings = $buildings->merge($chunk);
-                        });
-                    return $buildings;
-                },
-                // Building parts collection
-                function () use ($builtupAreaGeometriesQuery) {
-                    $buildingParts = collect();
-                    BuildingPartV2::query()
-                        ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                            $query->select(DB::raw(1))
-                                ->fromSub($builtupAreaGeometriesQuery, 's')
-                                ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-                        })
-                        ->with('buildingPartSiteRefs')
-                        ->chunk(2000, function ($chunk) use (&$buildingParts) {
-                            $buildingParts = $buildingParts->merge($chunk);
-                        });
-                    return $buildingParts;
-                },
-                // Sites collection
-                function () use ($builtupAreaGeometriesQuery) {
-                    $sites = collect();
-                    Site::query()
-                        ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                            $query->select(DB::raw(1))
-                                ->fromSub($builtupAreaGeometriesQuery, 's')
-                                ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
-                        })
-                        ->with('buildings', 'buildingPartSiteRefs')
-                        ->chunk(2000, function ($chunk) use (&$sites) {
-                            $sites = $sites->merge($chunk);
-                        });
-                    return $sites;
-                },
-                // NHLE collection
-                function () use ($builtupAreaGeometriesQuery) {
-                    $nhle = collect();
-                    NHLE::query()
-                        ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                            $query->select(DB::raw(1))
-                                ->fromSub($builtupAreaGeometriesQuery, 's')
-                                ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
-                        })
-                        ->chunk(2000, function ($chunk) use (&$nhle) {
-                            $nhle = $nhle->merge($chunk);
-                        });
-                    return $nhle;
-                }
-            );
+        // Optimized sequential processing with better chunking
+        $buildings = collect();
+        Building::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
+            })
+            ->with('sites')
+            ->chunk(2000, function ($chunk) use (&$buildings) {
+                $buildings = $buildings->merge($chunk);
+            });
 
-        // Calculate center with caching
-        $centerCacheKey = "center_" . md5(serialize($BuiltupAreas->pluck('fid')->toArray()));
-        $center = Cache::remember($centerCacheKey, 7200, function () use ($BuiltupAreas) {
-            if ($BuiltupAreas->isNotEmpty()) {
-                $centerData = DB::table('ons_bua')
-                    ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
-                    ->whereIn('fid', $BuiltupAreas->pluck('fid'))
-                    ->first();
+        $buildingParts = collect();
+        BuildingPartV2::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
+            })
+            ->with('buildingPartSiteRefs')
+            ->chunk(2000, function ($chunk) use (&$buildingParts) {
+                $buildingParts = $buildingParts->merge($chunk);
+            });
 
-                if ($centerData && $centerData->center) {
-                    return json_decode($centerData->center);
-                }
+        $sites = collect();
+        Site::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
+            })
+            ->with('buildings', 'buildingPartSiteRefs')
+            ->chunk(2000, function ($chunk) use (&$sites) {
+                $sites = $sites->merge($chunk);
+            });
+
+        $nhle = collect();
+        NHLE::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
+            })
+            ->chunk(2000, function ($chunk) use (&$nhle) {
+                $nhle = $nhle->merge($chunk);
+            });
+
+        $center = null;
+        if ($BuiltupAreas->isNotEmpty()) {
+            $centerData = DB::table('ons_bua')
+                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
+                ->whereIn('fid', $BuiltupAreas->pluck('fid'))
+                ->first();
+
+            if ($centerData && $centerData->center) {
+                $center = json_decode($centerData->center);
             }
-            return null;
-        });
+        }
 
         // Calculate total counts for pagination info
         $totalCounts = [
@@ -357,9 +332,6 @@ class DataMapController extends Controller
 
         // Cache the result
         Cache::put($cacheKey, $result, $cacheTTL);
-
-        // Store in Redis for faster subsequent access
-        Redis::setex("fast_cache_{$cacheKey}", 1800, serialize($result)); // 30 minutes
 
         return Inertia::render('Nhle/Index', $result);
     }
