@@ -23,8 +23,8 @@ import MinMaxRangeSlider from './components/MinMaxRangeSlider';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
-import type { BuildingProperties, BuildingGeoJson } from '@/types/building';
-import type { BuildingPartProperties, BuildingPartGeoJson } from '@/types/buildingpart';
+import type { BuildingProperties as BuildingPropertiesV4, BuildingGeoJson } from '@/types/buildingv4';
+import type { BuildingPartProperties, BuildingPartGeoJson } from '@/types/buildingpartv2';
 import type { SiteGeoJson } from '@/types/site';
 import type { PageProps } from '@/types';
 import type { 
@@ -176,7 +176,7 @@ export function Index({ auth }: PageProps) {
             centroids.push({
               id: feature.id as string,
               coordinates,
-              properties: feature.properties as BuildingProperties
+              properties: feature.properties as BuildingPropertiesV4
             });
           } catch (error) {
             console.error('Error calculating centroid for feature:', feature.id, error);
@@ -317,13 +317,54 @@ export function Index({ auth }: PageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchField, setSearchField] = useState('all');
+  const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
   // Search functionality
   const searchableFields = {
     nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
-    building: ['osid', 'uprn', 'postcode', 'description', 'constructionmaterial', 'roofmaterial', 'buildinguse', 'numberoffloors'],
-    buildingpart: ['osid', 'toid', 'description', 'theme', 'oslandcovertiera', 'oslandcovertierb', 'oslandusetiera', 'oslandusetierb', 'associatedstructure'],
+    building: [
+      'osid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
+      'geometry_area_m2', 'geometry_updatedate', 'theme', 'description', 'description_updatedate',
+      'physicalstate', 'physicalstate_updatedate', 'buildingpartcount', 'isinsite', 'primarysiteid',
+      'containingsitecount', 'mainbuildingid', 'mainbuildingid_ismainbuilding', 'mainbuildingid_updatedate',
+      'buildinguse', 'buildinguse_oslandusetiera', 'buildinguse_addresscount_total', 'buildinguse_addresscount_residential',
+      'buildinguse_addresscount_commercial', 'buildinguse_addresscount_other', 'buildinguse_updatedate',
+      'connectivity', 'connectivity_count', 'connectivity_updatedate', 'constructionmaterial',
+      'constructionmaterial_evidencedate', 'constructionmaterial_updatedate', 'constructionmaterial_source',
+      'constructionmaterial_capturemethod', 'constructionmaterial_thirdpartyprovenance', 'buildingage_period',
+      'buildingage_year', 'buildingage_evidencedate', 'buildingage_updatedate', 'buildingage_source',
+      'buildingage_capturemethod', 'buildingage_thirdpartyprovenance', 'basementpresence', 'basementpresence_selfcontained',
+      'basementpresence_evidencedate', 'basementpresence_updatedate', 'basementpresence_source',
+      'basementpresence_capturemethod', 'basementpresence_thirdpartyprovenance', 'numberoffloors',
+      'numberoffloors_evidencedate', 'numberoffloors_updatedate', 'numberoffloors_source', 'numberoffloors_capturemethod',
+      'height_absolutemin_m', 'height_absoluteroofbase_m', 'height_absolutemax_m', 'height_relativeroofbase_m',
+      'height_relativemax_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
+      'roofmaterial_primarymaterial', 'roofmaterial_solarpanelpresence', 'roofmaterial_greenroofpresence',
+      'roofmaterial_confidenceindicator', 'roofmaterial_evidencedate', 'roofmaterial_updatedate', 'roofmaterial_capturemethod',
+      'roofshapeaspect_shape', 'roofshapeaspect_areapitched_m2', 'roofshapeaspect_areaflat_m2',
+      'roofshapeaspect_areafacingnorth_m2', 'roofshapeaspect_areafacingnortheast_m2', 'roofshapeaspect_areafacingeast_m2',
+      'roofshapeaspect_areafacingsoutheast_m2', 'roofshapeaspect_areafacingsouth_m2', 'roofshapeaspect_areafacingsouthwest_m2',
+      'roofshapeaspect_areafacingwest_m2', 'roofshapeaspect_areafacingnorthwest_m2', 'roofshapeaspect_areaindeterminable_m2',
+      'roofshapeaspect_areatotal_m2', 'roofshapeaspect_confidenceindicator', 'roofshapeaspect_evidencedate',
+      'roofshapeaspect_updatedate', 'roofshapeaspect_capturemethod', 'uprn', 'postcode', 'sites', 'area', 'roofmaterial'
+    ],
+    buildingpart: [
+      'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'firstdigitalcapturedate',
+      'changetype', 'geometry_area_m2', 'geometry_evidencedate', 'geometry_updatedate', 'geometry_capturemethod',
+      'theme', 'description', 'description_evidencedate', 'description_updatedate', 'description_capturemethod',
+      'oslandcovertiera', 'oslandcovertierb', 'oslandcover_evidencedate', 'oslandcover_updatedate', 'oslandcover_capturemethod',
+      'oslandusetiera', 'oslandusetierb', 'oslanduse_evidencedate', 'oslanduse_updatedate', 'oslanduse_capturemethod',
+      'height_absoluteroofbase_m', 'height_relativeroofbase_m', 'height_absolutemax_m', 'height_relativemax_m',
+      'height_absolutemin_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
+      'associatedstructure', 'isobscured', 'physicallevel', 'capturespecification', 'containingsitecount',
+      'smallestsite_siteid', 'smallestsite_landusetiera', 'smallestsite_landusetierb', 'largestsite_landusetiera',
+      'largestsite_landusetierb', 'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription',
+      'address_classificationcode', 'address_primarydescription', 'address_secondarydescription',
+      'lowertierlocalauthority_gsscode', 'lowertierlocalauthority_count', 'status', 'status_updatedate',
+      'sites', 'area', 'absoluteheightroofbase', 'relativeheightroofbase', 'absoluteheightmaximum',
+      'relativeheightmaximum', 'absoluteheightminimum', 'heightconfidencelevel'
+    ],
     site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
   };
 
@@ -786,6 +827,7 @@ export function Index({ auth }: PageProps) {
     // Search Building data (only within selected shapes)
     dataToSearch.building.forEach(item => {
       const props = item.properties;
+      console.log(props);
       if (field === 'all' || searchableFields.building.includes(field)) {
         const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
         const matches = fieldsToSearch.some(f => {
@@ -1819,33 +1861,44 @@ export function Index({ auth }: PageProps) {
                       autoFocus
                     />
                   </div>
-                  <select
-                    value={searchField}
-                    onChange={(e) => setSearchField(e.target.value)}
-                    className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">All Fields</option>
-                    <optgroup label="NHLE">
-                      {searchableFields.nhle.map(field => (
-                        <option key={field} value={field}>{field}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Building">
-                      {searchableFields.building.map(field => (
-                        <option key={field} value={field}>{field}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Building Part">
-                      {searchableFields.buildingpart.map(field => (
-                        <option key={field} value={field}>{field}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Site">
-                      {searchableFields.site.map(field => (
-                        <option key={field} value={field}>{field}</option>
-                      ))}
-                    </optgroup>
-                  </select>
+                  {searchDataType === 'all' ? (
+                    <select
+                      value={searchDataType}
+                      onChange={(e) => {
+                        setSearchDataType(e.target.value);
+                        setSearchField('all');
+                      }}
+                      className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="all">Select Data Type</option>
+                      <option value="nhle">NHLE</option>
+                      <option value="building">Building</option>
+                      <option value="buildingpart">Building Part</option>
+                      <option value="site">Site</option>
+                    </select>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSearchDataType('all');
+                          setSearchField('all');
+                        }}
+                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300"
+                      >
+                        ← Back
+                      </button>
+                      <select
+                        value={searchField}
+                        onChange={(e) => setSearchField(e.target.value)}
+                        className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="all">All {searchDataType.charAt(0).toUpperCase() + searchDataType.slice(1)} Fields</option>
+                        {searchableFields[searchDataType as keyof typeof searchableFields]?.map(field => (
+                          <option key={field} value={field}>{field}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 

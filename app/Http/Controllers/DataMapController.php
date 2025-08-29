@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\BuiltupAreaCollection;
 use App\Http\Resources\BuildingCollection;
+use App\Http\Resources\BuildingCollectionV4;
 use App\Http\Resources\BuildingPartCollection;
 use App\Http\Resources\BuildingPartCollectionV2;
 use App\Http\Resources\SiteCollection;
@@ -224,7 +225,7 @@ class DataMapController extends Controller
         if ($BuiltupAreas->isEmpty()) {
             $emptyResult = [
                 'shapes' => new BuiltupAreaCollection(collect()),
-                'buildings' => new BuildingCollection(collect()),
+                'buildings' => new BuildingCollectionV4(collect()),
                 'buildingParts' => new BuildingPartCollection(collect()),
                 'sites' => new SiteCollection(collect()),
                 'nhle' => collect(),
@@ -316,7 +317,7 @@ class DataMapController extends Controller
 
         $result = [
             'shapes' => new BuiltupAreaCollection($BuiltupAreas),
-            'buildings' => new BuildingCollection($buildings),
+            'buildings' => new BuildingCollectionV4($buildings),
             'buildingParts' => new BuildingPartCollectionV2($buildingParts),
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
