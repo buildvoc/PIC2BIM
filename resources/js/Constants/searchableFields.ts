@@ -42,7 +42,19 @@ export const searchableFields = {
     'sites', 'area', 'absoluteheightroofbase', 'relativeheightroofbase', 'absoluteheightmaximum',
     'relativeheightmaximum', 'absoluteheightminimum', 'heightconfidencelevel'
   ],
-  site: ['osid', 'toid', 'uprn', 'changetype', 'description', 'buildinguse', 'theme', 'area']
+  site: [
+    'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
+    'geometry_area_m2', 'geometry_evidencedate', 'geometry_updatedate', 'geometry_capturemethod',
+    'theme', 'description', 'description_evidencedate', 'description_updatedate', 'description_capturemethod',
+    'oslandusetiera', 'oslandusetierb', 'oslanduse_evidencedate', 'oslanduse_updatedate', 'oslanduse_capturemethod',
+    'stakeholder', 'name1_text', 'name1_language', 'name1_evidencedate', 'name1_updatedate',
+    'name2_text', 'name2_language', 'name2_evidencedate', 'name2_updatedate', 'extentdefinition',
+    'matcheduprn', 'matcheduprn_method', 'address_classificationcode', 'address_primarydescription',
+    'address_secondarydescription', 'address_classificationcorrelation', 'address_classificationsource',
+    'addresscount_total', 'addresscount_residential', 'addresscount_commercial', 'addresscount_other',
+    'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription', 'mainbuildingid', 'status', 'status_updatedate',
+    'buildings', 'buildingparts', 'uprn', 'buildinguse', 'area'
+  ]
 };
 
 export type SearchableFieldsType = typeof searchableFields;
