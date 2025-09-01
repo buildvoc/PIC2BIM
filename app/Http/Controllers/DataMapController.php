@@ -710,7 +710,22 @@ class DataMapController extends Controller
             return response()->json(['error' => 'An error occurred during import: ' . $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => "Import successful. {$importedCount} new NHLEs imported, {$updatedCount} NHLEs updated."]);
+        // Clear all caches after successful import
+        try {
+            \Artisan::call('optimize:clear');
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:clear');
+            \Artisan::call('route:clear');
+            \Artisan::call('view:clear');
+            
+            if (config('cache.default') === 'redis') {
+                \Cache::flush();
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to clear cache after import: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => "Import successful. {$importedCount} new NHLEs imported, {$updatedCount} NHLEs updated. Cache cleared."]);
     }
 
     private function runValidation($geojson)

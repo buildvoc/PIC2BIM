@@ -1532,12 +1532,51 @@ export function Index({ auth }: PageProps) {
             <div>
               {selectedFeature.properties && Object.entries(selectedFeature.properties)
                 .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
-                .map(([key, value]) => (
-                <div key={key} className="mb-2">
-                  <strong className="uppercase">{key.replace(/_/g, ' ')}:</strong>
-                  <div className='text-gray-700'>{String(value)}</div>
-                </div>
-              ))}
+                .map(([key, value]) => {
+                  const renderValue = (val: any): React.ReactNode => {
+                    if (val === null || val === undefined) {
+                      return <span className="text-gray-400 italic">null</span>;
+                    }
+                    
+                    if (Array.isArray(val)) {
+                      if (val.length === 0) {
+                        return <span className="text-gray-400 italic">empty array</span>;
+                      }
+                      return (
+                        <div className="space-y-1">
+                          {val.map((item, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <span className="text-xs text-gray-500 mt-0.5">#{index + 1}:</span>
+                              <div className="flex-1">{renderValue(item)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    
+                    if (typeof val === 'object') {
+                      return (
+                        <div className="space-y-1">
+                          {Object.entries(val).map(([objKey, objValue]) => (
+                            <div key={objKey} className="flex items-start gap-2">
+                              <span className="text-sm font-medium text-gray-600 min-w-0">{objKey}:</span>
+                              <div className="flex-1">{renderValue(objValue)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    
+                    return <span>{String(val)}</span>;
+                  };
+
+                  return (
+                    <div key={key} className="mb-3">
+                      <strong className="uppercase text-gray-800">{key.replace(/_/g, ' ')}:</strong>
+                      <div className='text-gray-700 mt-1'>{renderValue(value)}</div>
+                    </div>
+                  );
+                })}
             </div>
           ) : isImportPanelOpen ? (
             // Import GeoJSON View
