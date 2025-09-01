@@ -65,6 +65,11 @@ class NHLE extends Model
             'ngr',
             'latitude',
             'longitude',
+            'easting',
+            'northing',
+            'listdate',
+            'amenddate',
+            'capturesca',
             DB::raw('public.ST_AsGeoJSON(st_transform(geom, 4326)) as geom')
         );
     }
