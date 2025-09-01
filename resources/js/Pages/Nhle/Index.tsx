@@ -54,7 +54,7 @@ export function Index({ auth }: PageProps) {
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
-
+console.log(nhle);
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: center ? center.coordinates[0] : (0.1),
@@ -145,8 +145,9 @@ export function Index({ auth }: PageProps) {
   }, [selectedShapeIds, shapes.data.features]);
 
   const groupByMapping: { [key: string]: string } = {
+    'None': 'dataType', // Special case for grouping by data type
     'Change Type': 'changetype',
-    'Usage': 'buildinguse',
+    'Usage': 'buildingusage',
     'Connectivity': 'connectivity',
     'Material': 'constructionmaterial',
     'OSLandTiera': 'oslandusetiera',
@@ -166,22 +167,23 @@ export function Index({ auth }: PageProps) {
       (key) => dataType[key as keyof typeof dataType]
     ) as (keyof typeof optionsMap)[];
 
+    let availableOptions: string[];
+
     if (activeTypes.length > 0) {
       const combinedOptions = activeTypes.reduce((acc, type) => {
         return acc.concat(optionsMap[type] || []);
       }, [] as string[]);
-
-      const uniqueOptions = Array.from(new Set(combinedOptions));
-      
-      // If current category2 is not in available options, switch to first available option
-      if (!uniqueOptions.includes(category2) && uniqueOptions.length > 0) {
-        setCategory2(uniqueOptions[0]);
-        setSelectedLegendItem(null); // Reset legend selection when group-by changes
-      }
+      availableOptions = ['None', ...Array.from(new Set(combinedOptions))];
     } else {
-      // If no data types are selected, reset to default
-      setCategory2('None');
-      setSelectedLegendItem(null);
+      // If no data types are selected, show all possible options
+      const allOptions = Object.values(optionsMap).flat();
+      availableOptions = ['None', ...Array.from(new Set(allOptions))];
+    }
+    
+    // If current category2 is not in available options, switch to first available option
+    if (!availableOptions.includes(category2) && availableOptions.length > 0) {
+      setCategory2(availableOptions[0]);
+      setSelectedLegendItem(null); // Reset legend selection when group-by changes
     }
   }, [dataType, category2]);
 
@@ -757,6 +759,30 @@ export function Index({ auth }: PageProps) {
     );
   }, [shapes.data.features, boundarySearch]);
 
+  // Helper function to get fill color based on category2
+  const getFillColorForData = useCallback((d: any, defaultColor: number[], dataTypeColor: number[]): [number, number, number, number] => {
+    const propertyName = groupByMapping[category2];
+    
+    if (category2 === 'None') {
+      // Group by data type - use the provided data type color
+      const isSelected = selectedLegendItem === d.dataType;
+      const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+      return [dataTypeColor[0], dataTypeColor[1], dataTypeColor[2], alpha];
+    }
+    
+    if (!propertyName || !d.properties) return defaultColor as [number, number, number, number];
+
+    const propValue = d.properties[propertyName];
+    const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+    const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+    const color = getColorForValue(propValue, uniqueValues);
+
+    const isSelected = selectedLegendItem === propValue;
+    const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
+
+    return [color[0], color[1], color[2], alpha];
+  }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, groupByMapping]);
+
   const allFilteredData = useMemo(() => {
     const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle;
     if (!isAnyTypeSelected) {
@@ -1057,18 +1083,9 @@ export function Index({ auth }: PageProps) {
         return baseRadius;
       },
       getFillColor: (d: any) => {
-        const propertyName = groupByMapping[category2];
-        if (!propertyName || !d.properties) return [255, 165, 0, 200]; // Default orange for building parts
-
-        const propValue = d.properties[propertyName];
-        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
-        const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
-        const color = getColorForValue(propValue, uniqueValues);
-
-        const isSelected = selectedLegendItem === propValue;
-        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
-
-        return [...color, alpha];
+        // Add dataType property for grouping by data type
+        const dataWithType = { ...d, dataType: 'buildingParts' };
+        return getFillColorForData(dataWithType, [255, 165, 0, 200], [255, 165, 0]);
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -1118,18 +1135,8 @@ export function Index({ auth }: PageProps) {
         return baseRadius;
       },
       getFillColor: (d: any) => {
-        const propertyName = groupByMapping[category2];
-        if (!propertyName || !d.properties) return [0, 255, 0, 200]; // Default green for sites
-
-        const propValue = d.properties[propertyName];
-        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids];
-        const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
-        const color = getColorForValue(propValue, uniqueValues);
-
-        const isSelected = selectedLegendItem === propValue;
-        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
-
-        return [...color, alpha];
+        const dataWithType = { ...d, dataType: 'sites' };
+        return getFillColorForData(dataWithType, [0, 255, 0, 200], [0, 255, 0]);
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -1173,18 +1180,8 @@ export function Index({ auth }: PageProps) {
         return baseRadius;
       },
       getFillColor: (d: any) => {
-        const propertyName = groupByMapping[category2];
-        if (!propertyName || !d.properties) return [255, 0, 0, 200]; // Default red for NHLE
-
-        const propValue = (d.properties as any)[propertyName];
-        const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
-        const uniqueValues = Array.from(new Set(allData.map(item => (item.properties as any)?.[propertyName]).filter(Boolean)));
-        const color = getColorForValue(propValue, uniqueValues);
-
-        const isSelected = selectedLegendItem === propValue;
-        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
-
-        return [...color, alpha];
+        const dataWithType = { ...d, dataType: 'nhle' };
+        return getFillColorForData(dataWithType, [255, 0, 0, 200], [255, 0, 0]);
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -1235,17 +1232,8 @@ export function Index({ auth }: PageProps) {
         return baseRadius;
       },
       getFillColor: (d: any) => {
-        const propertyName = groupByMapping[category2];
-        if (!propertyName || !d.properties) return [0, 0, 255, 200];
-
-        const propValue = d.properties[propertyName];
-        const uniqueValues = Array.from(new Set(filteredBuildingCentroids.map(item => item.properties?.[propertyName]).filter(Boolean)));
-        const color = getColorForValue(propValue, uniqueValues);
-
-        const isSelected = selectedLegendItem === propValue;
-        const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
-
-        return [...color, alpha];
+        const dataWithType = { ...d, dataType: 'buildings' };
+        return getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]);
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
