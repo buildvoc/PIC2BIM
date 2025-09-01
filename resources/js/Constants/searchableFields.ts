@@ -1,5 +1,8 @@
 export const searchableFields = {
-  nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
+  nhle: [
+    'gid', 'objectid', 'listentry', 'name', 'grade', 'listdate', 'amenddate', 'capturesca',
+    'hyperlink', 'ngr', 'easting', 'northing', 'longitude', 'latitude', 'nhle_id', 'list_entry'
+  ],
   building: [
     'osid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
     'geometry_area_m2', 'geometry_updatedate', 'theme', 'description', 'description_updatedate',

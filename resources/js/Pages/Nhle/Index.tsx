@@ -20,6 +20,7 @@ import { getColorForValue } from '@/utils/colors';
 import Legend from '@/Components/DataMap/Legend';
 import SidePanel from './components/SidePanel';
 import MinMaxRangeSlider from './components/MinMaxRangeSlider';
+import { searchableFields } from '@/Constants/searchableFields';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -39,7 +40,7 @@ import type {
     LoadedNhleFeatureState,
     ValidationError
 } from './types';
-import { NhleData } from '@/types/nhle';
+import { NhleProperties } from '@/types/nhle';
 
 
 
@@ -49,11 +50,11 @@ export function Index({ auth }: PageProps) {
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
-    nhle: NhleData[];
+    nhle: NhleProperties[];
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
-  
+
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: center ? center.coordinates[0] : (0.1),
@@ -145,12 +146,44 @@ export function Index({ auth }: PageProps) {
 
   const groupByMapping: { [key: string]: string } = {
     'Change Type': 'changetype',
-    'Usage': 'buildingusage',
+    'Usage': 'buildinguse',
     'Connectivity': 'connectivity',
     'Material': 'constructionmaterial',
     'OSLandTiera': 'oslandusetiera',
     'Grade': 'grade',
   };
+
+  // Auto-update group-by when data types change
+  useEffect(() => {
+    const optionsMap = {
+      buildings: ['Usage', 'Connectivity', 'Material'],
+      sites: ['OSLandTiera'],
+      nhle: ['Grade'],
+      buildingParts: ['OSLandTiera'],
+    };
+
+    const activeTypes = Object.keys(dataType).filter(
+      (key) => dataType[key as keyof typeof dataType]
+    ) as (keyof typeof optionsMap)[];
+
+    if (activeTypes.length > 0) {
+      const combinedOptions = activeTypes.reduce((acc, type) => {
+        return acc.concat(optionsMap[type] || []);
+      }, [] as string[]);
+
+      const uniqueOptions = Array.from(new Set(combinedOptions));
+      
+      // If current category2 is not in available options, switch to first available option
+      if (!uniqueOptions.includes(category2) && uniqueOptions.length > 0) {
+        setCategory2(uniqueOptions[0]);
+        setSelectedLegendItem(null); // Reset legend selection when group-by changes
+      }
+    } else {
+      // If no data types are selected, reset to default
+      setCategory2('None');
+      setSelectedLegendItem(null);
+    }
+  }, [dataType, category2]);
 
   const handleLegendItemClick = useCallback((value: any) => {
     setSelectedLegendItem((prev: any) => (prev === value ? null : value));
@@ -320,65 +353,6 @@ export function Index({ auth }: PageProps) {
   const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
-  // Search functionality
-  const searchableFields = {
-    nhle: ['name', 'grade', 'hyperlink', 'ngr', 'list_entry'],
-    building: [
-      'osid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
-      'geometry_area_m2', 'geometry_updatedate', 'theme', 'description', 'description_updatedate',
-      'physicalstate', 'physicalstate_updatedate', 'buildingpartcount', 'isinsite', 'primarysiteid',
-      'containingsitecount', 'mainbuildingid', 'mainbuildingid_ismainbuilding', 'mainbuildingid_updatedate',
-      'buildinguse', 'buildinguse_oslandusetiera', 'buildinguse_addresscount_total', 'buildinguse_addresscount_residential',
-      'buildinguse_addresscount_commercial', 'buildinguse_addresscount_other', 'buildinguse_updatedate',
-      'connectivity', 'connectivity_count', 'connectivity_updatedate', 'constructionmaterial',
-      'constructionmaterial_evidencedate', 'constructionmaterial_updatedate', 'constructionmaterial_source',
-      'constructionmaterial_capturemethod', 'constructionmaterial_thirdpartyprovenance', 'buildingage_period',
-      'buildingage_year', 'buildingage_evidencedate', 'buildingage_updatedate', 'buildingage_source',
-      'buildingage_capturemethod', 'buildingage_thirdpartyprovenance', 'basementpresence', 'basementpresence_selfcontained',
-      'basementpresence_evidencedate', 'basementpresence_updatedate', 'basementpresence_source',
-      'basementpresence_capturemethod', 'basementpresence_thirdpartyprovenance', 'numberoffloors',
-      'numberoffloors_evidencedate', 'numberoffloors_updatedate', 'numberoffloors_source', 'numberoffloors_capturemethod',
-      'height_absolutemin_m', 'height_absoluteroofbase_m', 'height_absolutemax_m', 'height_relativeroofbase_m',
-      'height_relativemax_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
-      'roofmaterial_primarymaterial', 'roofmaterial_solarpanelpresence', 'roofmaterial_greenroofpresence',
-      'roofmaterial_confidenceindicator', 'roofmaterial_evidencedate', 'roofmaterial_updatedate', 'roofmaterial_capturemethod',
-      'roofshapeaspect_shape', 'roofshapeaspect_areapitched_m2', 'roofshapeaspect_areaflat_m2',
-      'roofshapeaspect_areafacingnorth_m2', 'roofshapeaspect_areafacingnortheast_m2', 'roofshapeaspect_areafacingeast_m2',
-      'roofshapeaspect_areafacingsoutheast_m2', 'roofshapeaspect_areafacingsouth_m2', 'roofshapeaspect_areafacingsouthwest_m2',
-      'roofshapeaspect_areafacingwest_m2', 'roofshapeaspect_areafacingnorthwest_m2', 'roofshapeaspect_areaindeterminable_m2',
-      'roofshapeaspect_areatotal_m2', 'roofshapeaspect_confidenceindicator', 'roofshapeaspect_evidencedate',
-      'roofshapeaspect_updatedate', 'roofshapeaspect_capturemethod', 'uprn', 'sites', 'area', 'roofmaterial'
-    ],
-    buildingpart: [
-      'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'firstdigitalcapturedate',
-      'changetype', 'geometry_area_m2', 'geometry_evidencedate', 'geometry_updatedate', 'geometry_capturemethod',
-      'theme', 'description', 'description_evidencedate', 'description_updatedate', 'description_capturemethod',
-      'oslandcovertiera', 'oslandcovertierb', 'oslandcover_evidencedate', 'oslandcover_updatedate', 'oslandcover_capturemethod',
-      'oslandusetiera', 'oslandusetierb', 'oslanduse_evidencedate', 'oslanduse_updatedate', 'oslanduse_capturemethod',
-      'height_absoluteroofbase_m', 'height_relativeroofbase_m', 'height_absolutemax_m', 'height_relativemax_m',
-      'height_absolutemin_m', 'height_confidencelevel', 'height_evidencedate', 'height_updatedate',
-      'associatedstructure', 'isobscured', 'physicallevel', 'capturespecification', 'containingsitecount',
-      'smallestsite_siteid', 'smallestsite_landusetiera', 'smallestsite_landusetierb', 'largestsite_landusetiera',
-      'largestsite_landusetierb', 'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription',
-      'address_classificationcode', 'address_primarydescription', 'address_secondarydescription',
-      'lowertierlocalauthority_gsscode', 'lowertierlocalauthority_count', 'status', 'status_updatedate',
-      'sites', 'area', 'absoluteheightroofbase', 'relativeheightroofbase', 'absoluteheightmaximum',
-      'relativeheightmaximum', 'absoluteheightminimum', 'heightconfidencelevel'
-    ],
-    site: [
-      'osid', 'toid', 'versiondate', 'versionavailablefromdate', 'versionavailabletodate', 'changetype',
-      'geometry_area_m2', 'geometry_evidencedate', 'geometry_updatedate', 'geometry_capturemethod',
-      'theme', 'description', 'description_evidencedate', 'description_updatedate', 'description_capturemethod',
-      'oslandusetiera', 'oslandusetierb', 'oslanduse_evidencedate', 'oslanduse_updatedate', 'oslanduse_capturemethod',
-      'stakeholder', 'name1_text', 'name1_language', 'name1_evidencedate', 'name1_updatedate',
-      'name2_text', 'name2_language', 'name2_evidencedate', 'name2_updatedate', 'extentdefinition',
-      'matcheduprn', 'matcheduprn_method', 'address_classificationcode', 'address_primarydescription',
-      'address_secondarydescription', 'address_classificationcorrelation', 'address_classificationsource',
-      'addresscount_total', 'addresscount_residential', 'addresscount_commercial', 'addresscount_other',
-      'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription', 'mainbuildingid', 'status', 'status_updatedate',
-      'buildings', 'buildingparts', 'uprn', 'buildinguse', 'area'
-    ]
-  };
 
 
   const handleSearchResultClick = useCallback((result: any) => {
@@ -600,8 +574,6 @@ export function Index({ auth }: PageProps) {
 
   useEffect(() => {
     if (geoJson && geoJson.features) {
-      console.log("geoJson", geoJson);
-
       // Extract centroids from polygon features for ScatterplotLayer visualization
       const centroidData = geoJson.features
         .filter(feature => feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon')
@@ -839,7 +811,6 @@ export function Index({ auth }: PageProps) {
     // Search Building data (only within selected shapes)
     dataToSearch.building.forEach(item => {
       const props = item.properties;
-      console.log(props);
       if (field === 'all' || searchableFields.building.includes(field)) {
         const fieldsToSearch = field === 'all' ? searchableFields.building : [field];
         const matches = fieldsToSearch.some(f => {
@@ -1231,7 +1202,7 @@ export function Index({ auth }: PageProps) {
       },
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
-        getRadius: [category2, selectedLegendItem, zoomBasedRadius],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
 
