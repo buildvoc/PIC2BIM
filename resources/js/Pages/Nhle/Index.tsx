@@ -1660,9 +1660,8 @@ export function Index({ auth }: PageProps) {
                  `Building ID: ${hoverInfo.object.id}`)
               }
               {hoverInfo.layer?.id.startsWith('buildingpart-layer') && 
-                (hoverInfo.object.properties?.description ||
-                 hoverInfo.object.properties?.theme ||
-                 `Building Part ID: ${hoverInfo.object.id}`)
+                (hoverInfo.object.properties?.oslandusetiera ||
+                 `Building Part: ${hoverInfo.object.id}`)
               }
               {hoverInfo.layer?.id.startsWith('site-layer') && 
                 (hoverInfo.object.properties?.description ||
@@ -1671,6 +1670,10 @@ export function Index({ auth }: PageProps) {
               {hoverInfo.layer?.id.startsWith('nhle-layer') && 
                 (hoverInfo.object.properties?.name || 
                  `NHLE ID: ${hoverInfo.object.id}`)
+              }
+              {hoverInfo.layer?.id.startsWith('building-layer') && 
+                (hoverInfo.object.properties?.buildinguse || 
+                 `Building ID: ${hoverInfo.object.properties?.osid}`)
               }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
