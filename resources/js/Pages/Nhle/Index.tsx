@@ -54,7 +54,7 @@ export function Index({ auth }: PageProps) {
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   const [shapes] = useRemember(mShapes, `shapes`);
-console.log(nhle);
+  
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: center ? center.coordinates[0] : (0.1),
@@ -84,6 +84,8 @@ console.log(nhle);
   });
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
+  const [areaDataCache, setAreaDataCache] = useState<{[key: string]: any}>({});
+  const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -115,6 +117,7 @@ console.log(nhle);
       setIsFilterPanelOpen(false);
     }
   }, [selectedFeature]);
+
 
   useEffect(() => {
     if (selectedShapeIds.length === 1) {
@@ -354,6 +357,190 @@ console.log(nhle);
   const [searchField, setSearchField] = useState('all');
   const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
+
+  // Function to fetch area data from API
+  const fetchAreaData = useCallback(async (areaIds: string[]) => {
+    if (areaIds.length === 0) return;
+
+    // Check if we already have data for these areas
+    const cacheKey = areaIds.sort().join(',');
+    if (areaDataCache[cacheKey]) {
+      return areaDataCache[cacheKey];
+    }
+
+    setIsLoadingAreaData(true);
+    try {
+      const response = await axios.post('/get-area', {
+        area_ids: areaIds
+      });
+
+      const newData = response.data;
+      
+      // Cache the fetched data
+      setAreaDataCache(prev => ({
+        ...prev,
+        [cacheKey]: newData
+      }));
+
+      return newData;
+    } catch (error) {
+      console.error('Error fetching area data:', error);
+      return null;
+    } finally {
+      setIsLoadingAreaData(false);
+    }
+  }, [areaDataCache]);
+
+  // Function to merge area data with existing data
+  const mergeAreaData = useCallback((newData: any) => {
+    if (!newData) return;
+    
+    // Merge buildings
+    if (newData.buildings?.features) {
+      setBuildingCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newBuildings = newData.buildings.features
+          .filter((feature: any) => !existingIds.has(feature.id))
+          .map((feature: any) => {
+            if (feature.geometry) {
+              try {
+                const centroid = turf.centroid(feature.geometry as any);
+                const coordinates = centroid.geometry.coordinates as [number, number];
+                
+                return {
+                  id: feature.id as string,
+                  coordinates,
+                  properties: feature.properties
+                };
+              } catch (error) {
+                console.error('Error calculating centroid for building feature:', feature.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newBuildings.length} new buildings to existing ${prev.length} buildings`);
+        return [...prev, ...newBuildings];
+      });
+    }
+
+    // Merge building parts
+    if (newData.buildingParts?.features) {
+      setBuildingPartCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newBuildingParts = newData.buildingParts.features
+          .filter((feature: any) => !existingIds.has(feature.id))
+          .map((feature: any) => {
+            if (feature.geometry) {
+              try {
+                const centroid = turf.centroid(feature.geometry as any);
+                const coordinates = centroid.geometry.coordinates as [number, number];
+                
+                return {
+                  id: feature.id as string,
+                  coordinates,
+                  properties: feature.properties
+                };
+              } catch (error) {
+                console.error('Error calculating centroid for building part feature:', feature.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newBuildingParts.length} new building parts to existing ${prev.length} building parts`);
+        return [...prev, ...newBuildingParts];
+      });
+    }
+
+    // Merge sites
+    if (newData.sites?.features) {
+      setSiteCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newSites = newData.sites.features
+          .filter((feature: any) => !existingIds.has(feature.id))
+          .map((feature: any) => {
+            if (feature.geometry) {
+              try {
+                let geometry = feature.geometry;
+                if (geometry.type === 'MultiPolygon' && geometry.coordinates.length === 1) {
+                  geometry = { type: 'Polygon', coordinates: geometry.coordinates[0] };
+                }
+
+                const centroid = turf.centroid(geometry as any);
+                const coordinates = centroid.geometry.coordinates as [number, number];
+
+                return {
+                  id: feature.id as string,
+                  coordinates,
+                  properties: feature.properties
+                };
+              } catch (error) {
+                console.error('Error calculating centroid for site feature:', feature.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newSites.length} new sites to existing ${prev.length} sites`);
+        return [...prev, ...newSites];
+      });
+    }
+
+    // Merge NHLE data
+    if (newData.nhle && Array.isArray(newData.nhle)) {
+      setNhleCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newNhle = newData.nhle
+          .filter((item: any) => !existingIds.has(item.gid?.toString() || ''))
+          .map((item: any) => {
+            if (item.geom && item.geom.type === 'MultiPoint' && item.geom.coordinates.length > 0) {
+              try {
+                const coordinates = item.geom.coordinates[0] as [number, number];
+                
+                return {
+                  id: item.gid?.toString() || '',
+                  coordinates,
+                  properties: {
+                    nhle_id: item.objectid,
+                    list_entry: item.listentry,
+                    name: item.name,
+                    grade: item.grade,
+                    hyperlink: item.hyperlink,
+                    ngr: item.ngr,
+                  }
+                };
+              } catch (error) {
+                console.error('Error processing NHLE feature:', item.gid, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
+        return [...prev, ...newNhle];
+      });
+    }
+  }, []);
+
+  // Auto-fetch area data when selectedShapeIds changes
+  useEffect(() => {
+    if (selectedShapeIds.length > 0) {
+      fetchAreaData(selectedShapeIds).then(newData => {
+        if (newData) {
+          mergeAreaData(newData);
+        }
+      });
+    }
+  }, [selectedShapeIds, fetchAreaData, mergeAreaData]);
 
 
 
@@ -1629,7 +1816,18 @@ console.log(nhle);
           ) : (
             // Filter Options
             <div className="p-4">
-              <h4 className="font-semibold mb-4 text-gray-800">Built-up Areas</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-gray-800">Built-up Areas</h4>
+                {isLoadingAreaData && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading data...
+                  </div>
+                )}
+              </div>
               <div className="mb-3">
                 <input
                   type="text"
