@@ -86,6 +86,7 @@ export function Index({ auth }: PageProps) {
   const [boundarySearch, setBoundarySearch] = useState<string>('');
   const [areaDataCache, setAreaDataCache] = useState<{[key: string]: any}>({});
   const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
+  const [skipInitialFetch, setSkipInitialFetch] = useState<boolean>(true);
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -533,6 +534,11 @@ export function Index({ auth }: PageProps) {
 
   // Auto-fetch area data when selectedShapeIds changes
   useEffect(() => {
+    if (skipInitialFetch) {
+      setSkipInitialFetch(false);
+      return;
+    }
+    
     if (selectedShapeIds.length > 0) {
       fetchAreaData(selectedShapeIds).then(newData => {
         if (newData) {
@@ -540,7 +546,7 @@ export function Index({ auth }: PageProps) {
         }
       });
     }
-  }, [selectedShapeIds, fetchAreaData, mergeAreaData]);
+  }, [selectedShapeIds, fetchAreaData, mergeAreaData, skipInitialFetch]);
 
 
 

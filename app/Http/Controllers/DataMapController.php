@@ -32,61 +32,13 @@ class DataMapController extends Controller
     {
         $BuiltupAreas = BuiltupArea::select(['bua24nm', 'fid'])->get();
 
-        $farnhamQuery = BuiltupArea::where('bua24nm', 'ilike', 'Farnham')->select('geometry');
-        
-        $buildings = collect();
-        Building::query()
-            ->whereExists(function ($query) use ($farnhamQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($farnhamQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
-            })
-            ->with('sites')
-            ->chunk(2000, function ($chunk) use (&$buildings) {
-                $buildings = $buildings->merge($chunk);
-            });
-
-        $buildingParts = collect();
-        BuildingPartV2::query()
-            ->whereExists(function ($query) use ($farnhamQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($farnhamQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-            })
-            ->with('buildingPartSiteRefs')
-            ->chunk(2000, function ($chunk) use (&$buildingParts) {
-                $buildingParts = $buildingParts->merge($chunk);
-            });
-
-        $sites = collect();
-        Site::query()
-            ->whereExists(function ($query) use ($farnhamQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($farnhamQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
-            })
-            ->with('buildings', 'buildingPartSiteRefs')
-            ->chunk(2000, function ($chunk) use (&$sites) {
-                $sites = $sites->merge($chunk);
-            });
-
-        $nhle = collect();
-        NHLE::query()
-            ->whereExists(function ($query) use ($farnhamQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($farnhamQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
-            })
-            ->chunk(2000, function ($chunk) use (&$nhle) {
-                $nhle = $nhle->merge($chunk);
-            });
-
         return Inertia::render('Nhle/Index', [
             'shapes' => new BuiltupAreaCollection($BuiltupAreas),
-            'buildings' => new BuildingCollectionV4($buildings),
-            'buildingParts' => new BuildingPartCollectionV2($buildingParts),
-            'sites' => new SiteCollection($sites),
-            'nhle' => $nhle,
+            'buildings' => null,
+            'buildingParts' => null,
+            'sites' => null,
+            'nhle' => null,
+            'center' => null
         ]);
     }
 
