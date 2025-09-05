@@ -8,6 +8,7 @@ use App\Http\Resources\BuildingCollectionV4;
 use App\Http\Resources\BuildingPartCollection;
 use App\Http\Resources\BuildingPartCollectionV2;
 use App\Http\Resources\SiteCollection;
+use App\Http\Resources\DataMapPhotoCollection;
 use App\Models\BuiltupArea;
 use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPart;
@@ -15,6 +16,8 @@ use App\Models\Attr\BuildingPartV2;
 use App\Models\Attr\BuildingPartSiteRefV2;
 use App\Models\Attr\Site;
 use App\Models\NHLE;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Attr\SiteAddressReference;
 use App\Models\Attr\BuildingAddress;
 use App\Models\Attr\BuildingPartLink;
@@ -134,6 +137,39 @@ class DataMapController extends Controller
             });
 
         // Calculate center point of selected areas
+
+        $users = collect();
+        User::query()
+            ->join('user_role as ur', 'user.id', '=', 'ur.user_id')
+            ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
+            ->where('ur.role_id', '=', User::FARMER_ROLE)
+            ->where('user.active', '=', 1)
+            ->where('user.pa_id', '=', Auth::user()->pa_id)
+            ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select('lat', 'lng', 'path', 'file_name', 'user_id', 'id', 'photo_heading')
+                    ->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->fromSub($builtupAreaGeometriesQuery, 's')
+                            ->whereRaw('ST_INTERSECTS(ST_Transform(ST_SetSRID(ST_MakePoint(photo.lng, photo.lat), 4326), 27700), s.geometry)');
+                    });
+            }])
+            ->chunk(2000, function ($chunk) use (&$users) {
+                $users = $users->merge($chunk);
+            });
+
+            $users = $users->filter(function ($user) {
+                return $user->photos->isNotEmpty();
+            });
+    
+            // Extract all photos from filtered users for easier access
+            $photos = collect();
+            foreach ($users as $user) {
+                foreach ($user->photos as $photo) {
+                    $photo->user_name = $user->name;
+                    $photos->push($photo);
+                }
+            }
+
         $center = null;
         if (!empty($areaIds)) {
             $centerData = DB::table('ons_bua')
@@ -151,7 +187,8 @@ class DataMapController extends Controller
             'buildingParts' => new BuildingPartCollectionV2($buildingParts),
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
-            'center' => $center
+            'center' => $center,
+            'photos' => new DataMapPhotoCollection($photos)
         ];
 
         // Cache the result for 30 minutes
@@ -160,168 +197,6 @@ class DataMapController extends Controller
         return response()->json($responseData);
     }
 
-    // public function index2(Request $request)
-    // {
-    //     set_time_limit(300); // 5 minutes
-    //     ini_set('memory_limit', '1024M'); // Increase memory limit
-
-    //     $page = $request->get('page', 1);
-    //     $limit = $request->get('limit', 10000);
-    //     $offset = ($page - 1) * $limit;
-
-    //     // Create cache key based on request parameters
-    //     $cacheKey = "datamap_index2_page_{$page}_limit_{$limit}";
-    //     $cacheTTL = 3600; // 1 hour cache
-
-    //     // Try to get cached result first
-    //     $cachedResult = Cache::get($cacheKey);
-    //     if ($cachedResult) {
-    //         return Inertia::render('Nhle/Index', $cachedResult);
-    //     }
-
-    //     // Optimized spatial query with better indexing hints
-    //     $BuiltupIdsQuery = DB::table('ons_bua as s')
-    //         ->select('s.fid')
-    //         ->crossJoin('bld_fts_building as b')
-    //         ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(b.geometry, 27700))")
-    //         ->union(
-    //             DB::table('ons_bua as s')
-    //                 ->select('s.fid')
-    //                 ->crossJoin('bld_fts_buildingpart_v2 as bp')
-    //                 ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(bp.geometry, 27700))")
-    //         )
-    //         ->union(
-    //             DB::table('ons_bua as s')
-    //                 ->select('s.fid')
-    //                 ->crossJoin('lus_fts_site as l')
-    //                 ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(l.geometry, 27700))")
-    //         )
-    //         ->union(
-    //             DB::table('ons_bua as s')
-    //                 ->select('s.fid')
-    //                 ->crossJoin('nhle_ as n')
-    //                 ->whereRaw("ST_INTERSECTS(s.geometry, ST_Transform(n.geom, 27700))")
-    //         )
-    //         ->limit($limit)
-    //         ->offset($offset);
-
-    //     $BuiltupAreas = BuiltupArea::query()->whereIn('fid', $BuiltupIdsQuery)->get();
-
-    //     if ($BuiltupAreas->isEmpty()) {
-    //         $emptyResult = [
-    //             'shapes' => new BuiltupAreaCollection(collect()),
-    //             'buildings' => new BuildingCollectionV4(collect()),
-    //             'buildingParts' => new BuildingPartCollection(collect()),
-    //             'sites' => new SiteCollection(collect()),
-    //             'nhle' => collect(),
-    //             'center' => null,
-    //             'pagination' => [
-    //                 'current_page' => $page,
-    //                 'has_more' => false,
-    //                 'total_loaded' => 0
-    //             ]
-    //         ];
-            
-    //         // Cache empty result for shorter time
-    //         Cache::put($cacheKey, $emptyResult, 300); // 5 minutes
-    //         return Inertia::render('Nhle/Index', $emptyResult);
-    //     }
-
-    //     $builtupAreaGeometriesQuery = BuiltupArea::query()
-    //         ->whereIn('fid', $BuiltupIdsQuery)
-    //         ->select('geometry');
-
-    //     // Optimized sequential processing with better chunking
-    //     $buildings = collect();
-    //     Building::query()
-    //         ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-    //             $query->select(DB::raw(1))
-    //                 ->fromSub($builtupAreaGeometriesQuery, 's')
-    //                 ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
-    //         })
-    //         ->with('sites')
-    //         ->chunk(2000, function ($chunk) use (&$buildings) {
-    //             $buildings = $buildings->merge($chunk);
-    //         });
-
-    //     $buildingParts = collect();
-    //     BuildingPartV2::query()
-    //         ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-    //             $query->select(DB::raw(1))
-    //                 ->fromSub($builtupAreaGeometriesQuery, 's')
-    //                 ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-    //         })
-    //         ->with('buildingPartSiteRefs')
-    //         ->chunk(2000, function ($chunk) use (&$buildingParts) {
-    //             $buildingParts = $buildingParts->merge($chunk);
-    //         });
-
-    //     $sites = collect();
-    //     Site::query()
-    //         ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-    //             $query->select(DB::raw(1))
-    //                 ->fromSub($builtupAreaGeometriesQuery, 's')
-    //                 ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
-    //         })
-    //         ->with('buildings', 'buildingPartSiteRefs')
-    //         ->chunk(2000, function ($chunk) use (&$sites) {
-    //             $sites = $sites->merge($chunk);
-    //         });
-
-    //     $nhle = collect();
-    //     NHLE::query()
-    //         ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-    //             $query->select(DB::raw(1))
-    //                 ->fromSub($builtupAreaGeometriesQuery, 's')
-    //                 ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
-    //         })
-    //         ->chunk(2000, function ($chunk) use (&$nhle) {
-    //             $nhle = $nhle->merge($chunk);
-    //         });
-
-    //     $center = null;
-    //     if ($BuiltupAreas->isNotEmpty()) {
-    //         $centerData = DB::table('ons_bua')
-    //             ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
-    //             ->whereIn('fid', $BuiltupAreas->pluck('fid'))
-    //             ->first();
-
-    //         if ($centerData && $centerData->center) {
-    //             $center = json_decode($centerData->center);
-    //         }
-    //     }
-
-    //     // Calculate total counts for pagination info
-    //     $totalCounts = [
-    //         'shapes' => $BuiltupAreas->count(),
-    //         'buildings' => $buildings->count(),
-    //         'buildingParts' => $buildingParts->count(),
-    //         'sites' => $sites->count(),
-    //         'nhle' => $nhle->count(),
-    //     ];
-
-    //     $result = [
-    //         'shapes' => new BuiltupAreaCollection($BuiltupAreas),
-    //         'buildings' => new BuildingCollectionV4($buildings),
-    //         'buildingParts' => new BuildingPartCollectionV2($buildingParts),
-    //         'sites' => new SiteCollection($sites),
-    //         'nhle' => $nhle,
-    //         'center' => $center,
-    //         'pagination' => [
-    //             'current_page' => $page,
-    //             'limit' => $limit,
-    //             'has_more' => $BuiltupAreas->count() >= $limit,
-    //             'total_loaded' => array_sum($totalCounts),
-    //             'counts' => $totalCounts
-    //         ]
-    //     ];
-
-    //     // Cache the result
-    //     Cache::put($cacheKey, $result, $cacheTTL);
-
-    //     return Inertia::render('Nhle/Index', $result);
-    // }
-    
     public function validateBuilding(Request $request)
     {
         return $this->performValidation(Building::class, $request->input('geojson'));
