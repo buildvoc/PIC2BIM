@@ -46,14 +46,17 @@ import { NhleProperties } from '@/types/nhle';
 
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
-    shapes: {data: BuiltupAreaGeoJson};
+    shapes: {data: BuiltupAreaGeoJson} | null;
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
     nhle: NhleProperties[];
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
-  const [shapes] = useRemember(mShapes, `shapes`);
+  
+  // State for shapes data that will be loaded asynchronously
+  const [shapes, setShapes] = useState<{data: BuiltupAreaGeoJson} | null>(null);
+  const [isLoadingShapes, setIsLoadingShapes] = useState<boolean>(true);
   
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
@@ -76,17 +79,39 @@ export function Index({ auth }: PageProps) {
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
-  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(() => {
-    const farnhamShape = mShapes.data.features.find(shape => 
-      shape.properties.bua24nm.toLowerCase() === 'farnham'
-    );
-    return farnhamShape ? [farnhamShape.id as string] : [];
-  });
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
   const [areaDataCache, setAreaDataCache] = useState<{[key: string]: any}>({});
   const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
   const [skipInitialFetch, setSkipInitialFetch] = useState<boolean>(true);
+
+  // Fetch built-up areas on component mount
+  useEffect(() => {
+    const fetchBuiltupAreas = async () => {
+      try {
+        setIsLoadingShapes(true);
+        const response = await axios.post('/builtup-area');
+        mergeAreaData(response.data);
+
+        const shapesData = response.data.shapes;
+        if (shapesData?.features) {
+          const farnhamShape = shapesData.features.find((shape: any) => 
+            shape.properties.bua24nm.toLowerCase() === 'farnham'
+          );
+          if (farnhamShape) {
+            setSelectedShapeIds([farnhamShape.id as string]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching built-up areas:', error);
+      } finally {
+        setIsLoadingShapes(false);
+      }
+    };
+
+    fetchBuiltupAreas();
+  }, []);
 
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
@@ -121,7 +146,7 @@ export function Index({ auth }: PageProps) {
 
 
   useEffect(() => {
-    if (selectedShapeIds.length === 1) {
+    if (selectedShapeIds.length === 1 && shapes?.data?.features) {
       const selectedShape = shapes.data.features.find(shape => shape.id === selectedShapeIds[0]);
       if (selectedShape) {
         try {
@@ -146,7 +171,7 @@ export function Index({ auth }: PageProps) {
         }
       }
     }
-  }, [selectedShapeIds, shapes.data.features]);
+  }, [selectedShapeIds, shapes?.data?.features]);
 
   const groupByMapping: { [key: string]: string } = {
     'None': 'dataType', // Special case for grouping by data type
@@ -530,6 +555,31 @@ export function Index({ auth }: PageProps) {
         return [...prev, ...newNhle];
       });
     }
+
+    // Merge shapes data
+    if (newData.shapes?.features) {
+      setShapes(prev => {
+        if (!prev?.data?.features) {
+          // If no existing shapes, set the new data directly
+          console.log(`Setting ${newData.shapes.features.length} shapes features`);
+          return { data: newData.shapes };
+        }
+        
+        // Merge with existing shapes data
+        const existingIds = new Set(prev.data.features.map((feature: any) => feature.id));
+        const newShapes = newData.shapes.features.filter((feature: any) => !existingIds.has(feature.id));
+        
+        const mergedFeatures = [...prev.data.features, ...newShapes];
+        console.log(`Adding ${newShapes.length} new shapes to existing ${prev.data.features.length} shapes`);
+        
+        return {
+          data: {
+            ...prev.data,
+            features: mergedFeatures
+          }
+        };
+      });
+    }
   }, []);
 
   // Auto-fetch area data when selectedShapeIds changes
@@ -812,7 +862,13 @@ export function Index({ auth }: PageProps) {
           );
 
           const bboxPolygon = turf.bboxPolygon(boundingBox); 
-          const featureCollection = turf.featureCollection(shapes.data.features);
+          const featureCollection = turf.featureCollection(shapes?.data?.features || []);
+          
+          if (!shapes?.data?.features) {
+            setIconLayerData([]);
+            setPolygonCentroids([]);
+            return;
+          }
 
           const filteredFeatures = [];
 
@@ -837,6 +893,7 @@ export function Index({ auth }: PageProps) {
   }, [geoJson]);
 
   const filteredBuildingCentroids = useMemo(() => {
+    if (!shapes?.data?.features) return [];
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
 
@@ -859,9 +916,10 @@ export function Index({ auth }: PageProps) {
       const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
-  }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
+  }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes?.data?.features]);
 
   const filteredBuildingPartCentroids = useMemo(() => {
+    if (!shapes?.data?.features) return [];
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
 
@@ -882,9 +940,10 @@ export function Index({ auth }: PageProps) {
 
       return true;
     });
-  }, [buildingPartCentroidsData, selectedShapeIds, shapes.data.features]);
+  }, [buildingPartCentroidsData, selectedShapeIds, shapes?.data?.features]);
 
   const filteredNhleCentroids = useMemo(() => {
+    if (!shapes?.data?.features) return [];
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
 
@@ -913,9 +972,10 @@ export function Index({ auth }: PageProps) {
 
       return true;
     });
-  }, [nhleCentroidsData, selectedShapeIds, shapes.data.features, selectedGrades]);
+  }, [nhleCentroidsData, selectedShapeIds, shapes?.data?.features, selectedGrades]);
 
   const filteredSiteCentroids = useMemo(() => {
+    if (!shapes?.data?.features) return [];
     const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
     const hasSelectedShapes = selectedPolygons.length > 0;
 
@@ -938,7 +998,7 @@ export function Index({ auth }: PageProps) {
       const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
       return floors >= floorRange.min && floors <= floorRange.max;
     });
-  }, [siteCentroidsData, floorRange, selectedShapeIds, shapes.data.features]);
+  }, [siteCentroidsData, floorRange, selectedShapeIds, shapes?.data?.features]);
 
   const availableGrades = useMemo(() => {
     const grades = nhleCentroidsData.map(d => d.properties?.grade).filter(Boolean);
@@ -946,11 +1006,12 @@ export function Index({ auth }: PageProps) {
   }, [nhleCentroidsData]);
 
   const filteredShapes = useMemo(() => {
+    if (!shapes?.data?.features) return [];
     if (!boundarySearch) return shapes.data.features;
     return shapes.data.features.filter(shape => 
       shape.properties.bua24nm.toLowerCase().includes(boundarySearch.toLowerCase())
     );
-  }, [shapes.data.features, boundarySearch]);
+  }, [shapes?.data?.features, boundarySearch]);
 
   // Helper function to get fill color based on category2
   const getFillColorForData = useCallback((d: any, defaultColor: number[], dataTypeColor: number[]): [number, number, number, number] => {
@@ -1199,7 +1260,7 @@ export function Index({ auth }: PageProps) {
             } catch (error) {
                 console.error("Error adjusting zoom to filtered data:", error);
             }
-        } else if (selectedShapeIds.length > 0) {
+        } else if (selectedShapeIds.length > 0 && shapes?.data?.features) {
             const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
             if (selectedPolygons.length > 0) {
                 try {
@@ -1229,7 +1290,7 @@ export function Index({ auth }: PageProps) {
     }, 100); // Small delay to ensure state updates are complete
 
     return () => clearTimeout(timeoutId);
-}, [allFilteredData, selectedShapeIds, shapes.data.features, floorRange, dataType]);
+}, [allFilteredData, selectedShapeIds, shapes?.data?.features, floorRange, dataType]);
 
 
   const zoomBasedRadius = useMemo(() => {
@@ -1237,17 +1298,6 @@ export function Index({ auth }: PageProps) {
   }, [viewState.zoom]);
 
   const layers = [
-    // new GeoJsonLayer<ShapeProperties>({
-    //   id: 'shapes-layer',
-    //   data: shapes.data,
-    //   pickable: true,
-    //   stroked: true,
-    //   filled: false,
-    //   lineWidthMinPixels: 1,
-    //   getLineColor: [100, 100, 100, 100],
-    //   getLineWidth: 1
-    // }),
-
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
       data: filteredBuildingPartCentroids,
@@ -1847,38 +1897,49 @@ export function Index({ auth }: PageProps) {
                 />
               </div>
               <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
-                {filteredShapes.map(shape => (
-                  <label 
-                    key={shape.id}
-                    htmlFor={`shape-${shape.id}`}
-                    className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
-                      selectedShapeIds.includes(shape.id as string)
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
-                    }`}>
-                    <input
-                      type="checkbox"
-                      id={`shape-${shape.id}`}
-                      checked={selectedShapeIds.includes(shape.id as string)}
-                      onChange={() => {
-                        const shapeId = shape.id as string;
-                        setSelectedShapeIds(prev => 
-                          prev.includes(shapeId) 
-                            ? prev.filter(id => id !== shapeId) 
-                            : [...prev, shapeId]
-                        );
-                      }}
-                      className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="ml-3">
-                      {shape.properties.bua24nm}
-                    </span>
-                  </label>
-                ))}
-                {filteredShapes.length === 0 && (
+                {isLoadingShapes ? (
                   <div className="text-gray-500 text-sm text-center py-4">
-                    No boundaries found matching "{boundarySearch}"
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                      Loading boundaries...
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {filteredShapes.map(shape => (
+                      <label 
+                        key={shape.id}
+                        htmlFor={`shape-${shape.id}`}
+                        className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                          selectedShapeIds.includes(shape.id as string)
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          id={`shape-${shape.id}`}
+                          checked={selectedShapeIds.includes(shape.id as string)}
+                          onChange={() => {
+                            const shapeId = shape.id as string;
+                            setSelectedShapeIds(prev => 
+                              prev.includes(shapeId) 
+                                ? prev.filter(id => id !== shapeId) 
+                                : [...prev, shapeId]
+                            );
+                          }}
+                          className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="ml-3">
+                          {shape.properties.bua24nm}
+                        </span>
+                      </label>
+                    ))}
+                    {!isLoadingShapes && filteredShapes.length === 0 && (
+                      <div className="text-gray-500 text-sm text-center py-4">
+                        {boundarySearch ? `No boundaries found matching "${boundarySearch}"` : 'No boundaries available'}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <h4 className="font-semibold mb-4 text-gray-800">Data Types</h4>
