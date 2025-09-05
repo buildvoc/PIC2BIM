@@ -63,6 +63,10 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->userRoles()->pluck('role')->toArray();
     }
 
+    public function photos(){
+        return $this->hasMany(Photo::class, 'user_id', 'id');
+    }
+    
     public static function getFarmerCounts(int $farmers_id = 0, string $count_type)
     {
         $count_sql = null;
