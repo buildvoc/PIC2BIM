@@ -15,11 +15,9 @@ class BuiltupAreaFeatureResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $geoJson = DB::selectOne("SELECT ST_AsGeoJSON(ST_Transform(geometry, 4326)) as geojson FROM ons_bua WHERE fid = ?", [$this->fid]);
-
         return [
             'type' => 'Feature',
-            'geometry' => $geoJson ? json_decode($geoJson->geojson) : null,
+            'geometry' => $this->geometry,
             'id' => $this->fid,
             'properties' => [
                 'fid' => $this->fid,

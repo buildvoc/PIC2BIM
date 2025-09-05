@@ -30,7 +30,7 @@ class DataMapController extends Controller
 {
     public function index(Request $request)
     {
-        $BuiltupAreas = BuiltupArea::select(['bua24nm', 'fid'])->get();
+        $BuiltupAreas = BuiltupArea::query()->get();
 
         return Inertia::render('Nhle/Index', [
             'shapes' => new BuiltupAreaCollection($BuiltupAreas),
