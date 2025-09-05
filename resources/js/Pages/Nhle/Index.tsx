@@ -60,9 +60,9 @@ export function Index({ auth }: PageProps) {
   
   const [mapStyle, setMapStyle] = useState("https://tiles.openfreemap.org/styles/liberty");
   const [viewState, setViewState] = useState<MapViewState>({
-    longitude: center ? center.coordinates[0] : (0.1),
-    latitude: center ? center.coordinates[1] : (52.5),
-    zoom: center ? 15 : (6),
+    longitude: 0.1,
+    latitude: 52.5,
+    zoom: 6,
     pitch: 0,
     bearing: 0,
   });
@@ -101,6 +101,33 @@ export function Index({ auth }: PageProps) {
           );
           if (farnhamShape) {
             setSelectedShapeIds([farnhamShape.id as string]);
+            
+            // Set initial view to Farnham area with smooth transition
+            try {
+              const [minLng, minLat, maxLng, maxLat] = turf.bbox(farnhamShape as any);
+              const { longitude, latitude, zoom } = new WebMercatorViewport({
+                width: window.innerWidth,
+                height: window.innerHeight,
+                longitude: 0.1,
+                latitude: 52.5,
+                zoom: 6
+              }).fitBounds(
+                [[minLng, minLat], [maxLng, maxLat]],
+                { padding: 40 }
+              );
+
+              setViewState({
+                longitude,
+                latitude,
+                zoom,
+                pitch: 0,
+                bearing: 0,
+                transitionDuration: 2000,
+                transitionInterpolator: new FlyToInterpolator(),
+              });
+            } catch (e) {
+              console.error("Error calculating bounding box for Farnham:", e);
+            }
           }
         }
       } catch (error) {
