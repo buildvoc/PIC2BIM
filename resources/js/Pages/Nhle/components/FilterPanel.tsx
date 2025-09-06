@@ -25,6 +25,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       sites: ['OSLandTiera'],
       nhle: ['Grade'],
       buildingParts: ['OSLandTiera'],
+      photos: ['User'],
     };
 
     const activeTypes = Object.keys(dataType).filter(
