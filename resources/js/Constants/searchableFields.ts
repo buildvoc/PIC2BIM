@@ -57,6 +57,9 @@ export const searchableFields = {
     'addresscount_total', 'addresscount_residential', 'addresscount_commercial', 'addresscount_other',
     'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription', 'mainbuildingid', 'status', 'status_updatedate',
     'buildings', 'buildingparts', 'uprn', 'buildinguse', 'area'
+  ],
+  photo: [
+    'id', 'path', 'file_name', 'user_name', 'user_id', 'photo_heading'
   ]
 };
 

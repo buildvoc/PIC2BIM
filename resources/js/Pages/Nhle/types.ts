@@ -30,6 +30,21 @@ export interface SiteCentroidState {
   properties: SiteProperties;
 }
 
+export interface PhotoProperties {
+  id: number;
+  path: string;
+  file_name: string;
+  user_name: string;
+  user_id: number;
+  photo_heading: string;
+}
+
+export interface PhotoCentroidState {
+  id: string;
+  coordinates: [number, number];
+  properties: PhotoProperties;
+}
+
 export interface ShapeFeature extends GeoJSON.Feature {
   id: string|number;
   properties: ShapeProperties;

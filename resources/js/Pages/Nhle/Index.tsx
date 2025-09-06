@@ -33,8 +33,8 @@ import type {
     BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
+    PhotoCentroidState,
     BuiltupAreaGeoJson,
-    SelectedShapeData, 
     MGeoJson, 
     FetchedPolygonsData,
     LoadedNhleFeatureState,
@@ -45,12 +45,13 @@ import { NhleProperties } from '@/types/nhle';
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, buildingParts, sites, nhle, center } = usePage<{
+  const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center } = usePage<{
     shapes: {data: BuiltupAreaGeoJson} | null;
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
     sites: { data: SiteGeoJson };
     nhle: NhleProperties[];
+    photos: { type: 'FeatureCollection', features: any[] };
     center?: { type: 'Point', coordinates: [number, number] };
   }>().props;
   
@@ -71,14 +72,15 @@ export function Index({ auth }: PageProps) {
   const [buildingPartCentroidsData, setBuildingPartCentroidsData] = useState<BuildingPartCentroidState[]>([]);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
+  const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null>(null);
   const [selectedLegendItem, setSelectedLegendItem] = useState<any | null>(null);
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -208,6 +210,7 @@ export function Index({ auth }: PageProps) {
     'Material': 'constructionmaterial',
     'OSLandTiera': 'oslandusetiera',
     'Grade': 'grade',
+    'User': 'user_name',
   };
 
   // Auto-update group-by when data types change
@@ -217,6 +220,7 @@ export function Index({ auth }: PageProps) {
       sites: ['OSLandTiera'],
       nhle: ['Grade'],
       buildingParts: ['OSLandTiera'],
+      photos: ['User'],
     };
 
     const activeTypes = Object.keys(dataType).filter(
@@ -361,6 +365,35 @@ export function Index({ auth }: PageProps) {
       setNhleCentroidsData(centroids);
     }
   }, [nhle]);
+
+  useEffect(() => {
+    if (photos && photos.features) {
+      const centroids: PhotoCentroidState[] = [];
+      for (const feature of photos.features) {
+        if (feature.geometry && feature.geometry.type === 'Point') {
+          try {
+            const coordinates = feature.geometry.coordinates as [number, number];
+            
+            centroids.push({
+              id: feature.id?.toString() || '',
+              coordinates,
+              properties: {
+                id: feature.properties.id,
+                path: feature.properties.path,
+                file_name: feature.properties.file_name,
+                user_name: feature.properties.user_name,
+                user_id: feature.properties.user_id,
+                photo_heading: feature.properties.photo_heading,
+              }
+            });
+          } catch (error) {
+            console.error('Error processing photo feature:', feature.id, error);
+          }
+        }
+      }
+      setPhotoCentroidsData(centroids);
+    }
+  }, [photos]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -580,6 +613,43 @@ export function Index({ auth }: PageProps) {
         
         console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
         return [...prev, ...newNhle];
+      });
+    }
+
+    // Merge photos data
+    if (newData.photos?.features) {
+      setPhotoCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newPhotos = newData.photos.features
+          .filter((feature: any) => !existingIds.has(feature.id))
+          .map((feature: any) => {
+            if (feature.geometry && feature.geometry.type === 'Point') {
+              try {
+                const coordinates = feature.geometry.coordinates as [number, number];
+                
+                return {
+                  id: feature.id?.toString() || '',
+                  coordinates,
+                  properties: {
+                    id: feature.properties.id,
+                    path: feature.properties.path,
+                    file_name: feature.properties.file_name,
+                    user_name: feature.properties.user_name,
+                    user_id: feature.properties.user_id,
+                    photo_heading: feature.properties.photo_heading,
+                  }
+                };
+              } catch (error) {
+                console.error('Error processing photo feature:', feature.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
+        return [...prev, ...newPhotos];
       });
     }
 
@@ -989,17 +1059,38 @@ export function Index({ auth }: PageProps) {
         }
       }
 
-      // Filter by grade if grades are selected
+      // Filter by selected grades
       if (selectedGrades.length > 0) {
-        const grade = d.properties?.grade;
-        if (!grade || !selectedGrades.includes(grade)) {
+        return selectedGrades.includes(d.properties?.grade || '');
+      }
+
+      return true;
+    });
+  }, [nhleCentroidsData, selectedGrades, selectedShapeIds, shapes?.data?.features]);
+
+  const filteredPhotoCentroids = useMemo(() => {
+    if (!shapes?.data?.features) return [];
+    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+    const hasSelectedShapes = selectedPolygons.length > 0;
+
+    return photoCentroidsData.filter(d => {
+      if (hasSelectedShapes) {
+        const point = turf.point(d.coordinates);
+        const isInSelectedShape = selectedPolygons.some(polygon => {
+          try {
+            return booleanPointInPolygon(point, polygon as any);
+          } catch (e) {
+            return false;
+          }
+        });
+        if (!isInSelectedShape) {
           return false;
         }
       }
 
       return true;
     });
-  }, [nhleCentroidsData, selectedShapeIds, shapes?.data?.features, selectedGrades]);
+  }, [photoCentroidsData, selectedShapeIds, shapes?.data?.features]);
 
   const filteredSiteCentroids = useMemo(() => {
     if (!shapes?.data?.features) return [];
@@ -1054,28 +1145,29 @@ export function Index({ auth }: PageProps) {
     if (!propertyName || !d.properties) return defaultColor as [number, number, number, number];
 
     const propValue = d.properties[propertyName];
-    const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
-    const uniqueValues = Array.from(new Set(allData.map(item => item.properties?.[propertyName]).filter(Boolean)));
+    const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids];
+    const uniqueValues = Array.from(new Set(allData.map(item => (item.properties as any)?.[propertyName]).filter(Boolean)));
     const color = getColorForValue(propValue, uniqueValues);
 
     const isSelected = selectedLegendItem === propValue;
     const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
 
     return [color[0], color[1], color[2], alpha];
-  }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, groupByMapping]);
+  }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, groupByMapping]);
 
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle;
+    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
     if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids];
+      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids];
     }
     const data = [];
     if (dataType.buildings) data.push(...filteredBuildingCentroids);
     if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids);
     if (dataType.sites) data.push(...filteredSiteCentroids);
     if (dataType.nhle) data.push(...filteredNhleCentroids);
+    if (dataType.photos) data.push(...filteredPhotoCentroids);
     return data;
-  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, dataType]);
 
   const performSearch = useCallback((query: string, field: string) => {
     if (!query.trim()) {
@@ -1091,7 +1183,8 @@ export function Index({ auth }: PageProps) {
       nhle: filteredNhleCentroids,
       building: filteredBuildingCentroids,
       buildingPart: filteredBuildingPartCentroids,
-      site: filteredSiteCentroids
+      site: filteredSiteCentroids,
+      photo: filteredPhotoCentroids
     };
 
     // Search NHLE data (only within selected shapes)
@@ -1201,8 +1294,30 @@ export function Index({ auth }: PageProps) {
       }
     });
 
+    // Search Photo data (only within selected shapes)
+    dataToSearch.photo.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || ['file_name', 'user_name', 'id'].includes(field)) {
+        const fieldsToSearch = field === 'all' ? ['file_name', 'user_name', 'id'] : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+
+        if (matches) {
+          results.push({
+            type: 'Photo',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.file_name || `Photo ${props.id}` || 'Unnamed Photo'
+          });
+        }
+      }
+    });
+
     setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids]);
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredPhotoCentroids]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -1219,8 +1334,8 @@ export function Index({ auth }: PageProps) {
   const initialZoomApplied = useRef(false);
 
   useEffect(() => {
-    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0)) {
-      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData];
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0 || photoCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData, ...photoCentroidsData];
       if (allData.length > 0) {
         try {
           const points = turf.featureCollection(
@@ -1325,7 +1440,7 @@ export function Index({ auth }: PageProps) {
   }, [viewState.zoom]);
 
   const layers = [
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
       data: filteredBuildingPartCentroids,
       pickable: true,
@@ -1377,7 +1492,7 @@ export function Index({ auth }: PageProps) {
       },
     }),
 
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
       data: filteredSiteCentroids,
       pickable: true,
@@ -1428,7 +1543,7 @@ export function Index({ auth }: PageProps) {
       },
     }),
 
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
       data: filteredNhleCentroids,
       pickable: true,
@@ -1474,7 +1589,7 @@ export function Index({ auth }: PageProps) {
     }),
 
     // Layer for Building centroids (using ScatterplotLayer)
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
       data: filteredBuildingCentroids,
       pickable: true,
@@ -1521,6 +1636,52 @@ export function Index({ auth }: PageProps) {
       },
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+      },
+    }),
+
+    // Layer for Photo centroids (using ScatterplotLayer)
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.photos) && filteredPhotoCentroids.length > 0 && new ScatterplotLayer<PhotoCentroidState>({
+      id: `photo-layer`,
+      data: filteredPhotoCentroids,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 1,
+      getPosition: d => d.coordinates,
+      getRadius: d => {
+        let baseRadius = 10; // Fixed size for photos
+        
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const dataWithType = { ...d, dataType: 'photos' };
+        return getFillColorForData(dataWithType, [255, 0, 255, 200], [255, 0, 255]);
+      },
+      getLineColor: d => [0, 0, 0, 255],
+      onHover: info => {
+        getCursor;
+        if (info.object && info.object.properties) {  
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object as PhotoCentroidState);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
       },
     }),
@@ -2025,66 +2186,51 @@ export function Index({ auth }: PageProps) {
                     Sites
                   </span>
                 </label>
+                <label 
+                  htmlFor="show-nhle"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.nhle
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-nhle"
+                    checked={dataType.nhle}
+                    onChange={() => {
+                      setDataType(prev => ({ ...prev, nhle: !prev.nhle }));
+                      if (!dataType.nhle) {
+                        setSelectedGrades([]);
+                      }
+                    }}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    NHLE
+                  </span>
+                </label>
+                <label 
+                  htmlFor="show-photos"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.photos
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-photos"
+                    checked={dataType.photos}
+                    onChange={() => {
+                      setDataType(prev => ({ ...prev, photos: !prev.photos }));
+                    }}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    Photos
+                  </span>
+                </label>
+
                 <div>
-                  <label 
-                    htmlFor="show-nhle"
-                    className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
-                      dataType.nhle
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
-                    }`}>
-                    <input
-                      type="checkbox"
-                      id="show-nhle"
-                      checked={dataType.nhle}
-                      onChange={() => {
-                        setDataType(prev => ({ ...prev, nhle: !prev.nhle }));
-                        if (!dataType.nhle) {
-                          setSelectedGrades([]);
-                        }
-                      }}
-                      className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="ml-3">
-                      NHLE
-                    </span>
-                  </label>
-                  
-                  {/* {dataType.nhle && availableGrades.length > 0 && (
-                    <div className="ml-8 mt-2 space-y-2">
-                      <h5 className="text-sm font-medium text-gray-700">Filter by Grade:</h5>
-                      <div className="space-y-1">
-                        {availableGrades.map(grade => (
-                          <label 
-                            key={grade}
-                            htmlFor={`grade-${grade}`}
-                            className={`flex items-center w-full text-left px-3 py-2 rounded text-sm transition-all duration-200 ease-in-out cursor-pointer ${
-                              selectedGrades.includes(grade)
-                                ? 'bg-blue-50 text-blue-700 border-blue-200 border'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-transparent'
-                            }`}>
-                            <input
-                              type="checkbox"
-                              id={`grade-${grade}`}
-                              checked={selectedGrades.includes(grade)}
-                              onChange={() => {
-                                setSelectedGrades(prev => 
-                                  prev.includes(grade) 
-                                    ? prev.filter(g => g !== grade) 
-                                    : [...prev, grade]
-                                );
-                              }}
-                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2">
-                              Grade {grade}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )} */}
-                  
                   <h4 className="font-semibold mb-4 mt-4 text-gray-800">Floor Range Filter</h4>
                   <div className="mb-4 px-2">
                     <MinMaxRangeSlider
