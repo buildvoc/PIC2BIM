@@ -99,6 +99,7 @@ export function Index({ auth }: PageProps) {
   const [landData, setLandData] = useState<any>(null);
   const [shapeData, setShapeData] = useState<any>(null);
   const [buildingApiData, setBuildingApiData] = useState<any>(null);
+  const [nhleData, setNhleData] = useState<any>(null);
   const [isLoadingAdditionalData, setIsLoadingAdditionalData] = useState<boolean>(false);
 
   // Fetch built-up areas on component mount
@@ -191,6 +192,7 @@ export function Index({ auth }: PageProps) {
       setLandData(cachedData.land?.properties || null);
       setShapeData(cachedData.shape?.properties || null);
       setBuildingApiData(cachedData.building || null);
+      setNhleData(cachedData.nhle || null);
       return;
     }
     
@@ -220,13 +222,17 @@ export function Index({ auth }: PageProps) {
       const shapeFeatures = data?.shape?.data?.features || [];
       const nearestShape = findNearestFeature(shapeFeatures, lat, lng);
       
+      const nhleFeatures = data?.nhle?.data?.features || [];
+      const nearestNhle = findNearestFeature(nhleFeatures, lat, lng);
+      
       const fetchedData = {
         codepoint: nearestCodepoint,
         uprn: nearestUprn,
         inspire: nearestInspire,
         land: nearestLand,
         shape: nearestShape,
-        building: data?.building // Store the building data from API
+        building: data?.building, // Store the building data from API
+        nhle: nearestNhle // Store the nhle data from API
       };
       
       // Cache the data
@@ -242,6 +248,7 @@ export function Index({ auth }: PageProps) {
       setLandData(nearestLand?.properties || null);
       setShapeData(nearestShape?.properties || null);
       setBuildingApiData(data?.building || null);
+      setNhleData(nearestNhle?.properties || null);
       
     } catch (error) {
       console.error('Error fetching additional data:', error);
@@ -2129,6 +2136,7 @@ export function Index({ auth }: PageProps) {
                 landRegistryInspireData={landRegistryInspireData}
                 landData={landData}
                 shapeData={shapeData}
+                nhleData={nhleData}
                 isLoadingAdditionalData={isLoadingAdditionalData}
               />
             ) : (

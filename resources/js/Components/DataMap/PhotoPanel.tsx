@@ -9,6 +9,7 @@ interface PhotoPanelProps {
   landRegistryInspireData: any;
   landData: any;
   shapeData: any;
+  nhleData: any;
   isLoadingAdditionalData: boolean;
 }
 
@@ -20,6 +21,7 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
   landRegistryInspireData,
   landData,
   shapeData,
+  nhleData,
   isLoadingAdditionalData
 }) => {
   return (
@@ -31,7 +33,7 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
           uprnData,
           landRegistryInspireData,
           landData,
-          nhleData: null, // Photos don't have NHLE data
+          nhleData,
           shapeData,
           photoData: selectedFeature.properties
         }}
