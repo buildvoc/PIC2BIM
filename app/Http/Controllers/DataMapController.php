@@ -146,7 +146,7 @@ class DataMapController extends Controller
             ->where('user.active', '=', 1)
             ->where('user.pa_id', '=', Auth::user()->pa_id)
             ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->where('flg_deleted', 0)
+                $query->where('flg_deleted', 1)
                     ->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
                         $subQuery->select(DB::raw(1))
                             ->fromSub($builtupAreaGeometriesQuery, 's')
