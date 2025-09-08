@@ -26,6 +26,7 @@ const MetadataGrid: React.FC<MetadataGridProps> = ({ data, isLoading = false }) 
     photoData
   } = data;
 
+  console.log(data);
   if (isLoading) {
     return (
       <div className="px-6 py-4 text-sm bg-gray-50 dark:bg-gray-900">
@@ -80,25 +81,25 @@ const MetadataGrid: React.FC<MetadataGridProps> = ({ data, isLoading = false }) 
         {/* NHLE Name */}
         <div className="text-gray-500 dark:text-gray-400">Name</div>
         <div className="text-right font-medium text-gray-700 dark:text-gray-200">
-          {nhleData?.name 
-            ? (nhleData.name.length > 30 
-                ? nhleData.name.substring(0, 27) + '...'   
-                : nhleData.name) 
+          {nhleData?.properties?.name 
+            ? (nhleData.properties.name.length > 30 
+                ? nhleData.properties.name.substring(0, 27) + '...'   
+                : nhleData.properties.name) 
             : ''}
         </div>
         
         {/* NHLE Grade */}
         <div className="text-gray-500 dark:text-gray-400">Grade</div>
         <div className="text-right font-medium text-gray-700 dark:text-gray-200">
-          {nhleData?.grade || ''}
+          {nhleData?.properties?.grade || ''}
         </div>
         
         {/* NHLE Hyperlink */}
         <div className="text-gray-500 dark:text-gray-400">Hyperlink</div>
         <div className="text-right font-medium text-gray-700 dark:text-gray-200">
-          {nhleData?.hyperlink ? (
+          {nhleData?.properties?.hyperlink ? (
             <a 
-              href={nhleData.hyperlink} 
+              href={nhleData.properties.hyperlink} 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
@@ -111,7 +112,7 @@ const MetadataGrid: React.FC<MetadataGridProps> = ({ data, isLoading = false }) 
         {/* NGR */}
         <div className="text-gray-500 dark:text-gray-400">NGR</div>
         <div className="text-right font-medium text-gray-700 dark:text-gray-200">
-          {nhleData?.ngr || ''}
+          {nhleData?.properties?.ngr || ''}
         </div>
 
         {/* Coordinates - only show if photoData is available */}
