@@ -21,6 +21,9 @@ import Legend from '@/Components/DataMap/Legend';
 import SidePanel from './components/SidePanel';
 import MinMaxRangeSlider from './components/MinMaxRangeSlider';
 import { searchableFields } from '@/Constants/searchableFields';
+import MetadataGrid from '@/Components/DataMap/MetadataGrid';
+import PhotoPanel from '@/Components/DataMap/PhotoPanel';
+import { fetchAllBuildingData, findNearestFeature } from '@/Pages/BuildingHeight/api/fetch-building';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -87,6 +90,16 @@ export function Index({ auth }: PageProps) {
   const [areaDataCache, setAreaDataCache] = useState<{[key: string]: any}>({});
   const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
   const [skipInitialFetch, setSkipInitialFetch] = useState<boolean>(true);
+
+  // Additional metadata states for sidepanel
+  const [additionalDataCache, setAdditionalDataCache] = useState<{[key: string]: any}>({});
+  const [codepointData, setCodepointData] = useState<any>(null);
+  const [uprnData, setUprnData] = useState<any>(null);
+  const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
+  const [landData, setLandData] = useState<any>(null);
+  const [shapeData, setShapeData] = useState<any>(null);
+  const [buildingApiData, setBuildingApiData] = useState<any>(null);
+  const [isLoadingAdditionalData, setIsLoadingAdditionalData] = useState<boolean>(false);
 
   // Fetch built-up areas on component mount
   useEffect(() => {
@@ -166,12 +179,112 @@ export function Index({ auth }: PageProps) {
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | ''>('');
+  // Fetch additional metadata when a feature is selected
+  const fetchAdditionalData = useCallback(async (lat: number, lng: number, photoHeading?: number, altitude?: number) => {
+    const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}_${photoHeading || 0}`;
+    
+    if (additionalDataCache[cacheKey]) {
+      const cachedData = additionalDataCache[cacheKey];
+      setCodepointData(cachedData.codepoint?.properties || null);
+      setUprnData(cachedData.uprn?.properties || null);
+      setLandRegistryInspireData(cachedData.inspire?.properties || null);
+      setLandData(cachedData.land?.properties || null);
+      setShapeData(cachedData.shape?.properties || null);
+      setBuildingApiData(cachedData.building || null);
+      return;
+    }
+    
+    try {
+      setIsLoadingAdditionalData(true);
+      const data = await fetchAllBuildingData(
+        lat.toString(),
+        lng.toString(),
+        altitude?.toString() || "0",
+        photoHeading?.toString() || "0",
+        "",
+        false
+      );
+      
+      const codepointFeatures = data?.codepoint?.data?.features || [];
+      const nearestCodepoint = findNearestFeature(codepointFeatures, lat, lng);
+      
+      const uprnFeatures = data?.uprn?.data?.features || [];
+      const nearestUprn = findNearestFeature(uprnFeatures, lat, lng);
+      
+      const inspireFeatures = data?.inspire?.data?.features || [];
+      const nearestInspire = findNearestFeature(inspireFeatures, lat, lng);
+      
+      const landFeatures = data?.land?.features || [];
+      const nearestLand = findNearestFeature(landFeatures, lat, lng);
+      
+      const shapeFeatures = data?.shape?.data?.features || [];
+      const nearestShape = findNearestFeature(shapeFeatures, lat, lng);
+      
+      const fetchedData = {
+        codepoint: nearestCodepoint,
+        uprn: nearestUprn,
+        inspire: nearestInspire,
+        land: nearestLand,
+        shape: nearestShape,
+        building: data?.building // Store the building data from API
+      };
+      
+      // Cache the data
+      setAdditionalDataCache(prev => ({
+        ...prev,
+        [cacheKey]: fetchedData
+      }));
+      
+      // Set the state
+      setCodepointData(nearestCodepoint?.properties || null);
+      setUprnData(nearestUprn?.properties || null);
+      setLandRegistryInspireData(nearestInspire?.properties || null);
+      setLandData(nearestLand?.properties || null);
+      setShapeData(nearestShape?.properties || null);
+      setBuildingApiData(data?.building || null);
+      
+    } catch (error) {
+      console.error('Error fetching additional data:', error);
+    } finally {
+      setIsLoadingAdditionalData(false);
+    }
+  }, [additionalDataCache]);
+
   useEffect(() => {
     if (selectedFeature) {
       setIsImportPanelOpen(false);
       setIsFilterPanelOpen(false);
+      
+      const isPhotoFeature = 'file_name' in selectedFeature.properties;
+      
+      if (isPhotoFeature && selectedFeature.coordinates && selectedFeature.coordinates.length >= 2) {
+        const [lng, lat] = selectedFeature.coordinates;
+        
+        const photoHeading = (selectedFeature.properties as any)?.photo_heading;
+        const altitude = (selectedFeature.properties as any)?.altitude;
+        
+        fetchAdditionalData(lat, lng, photoHeading, altitude);
+      } else {
+        // For non-photo features, reset additional data immediately
+        setCodepointData(null);
+        setUprnData(null);
+        setLandRegistryInspireData(null);
+        setLandData(null);
+        setShapeData(null);
+        setBuildingApiData(null);
+        setIsLoadingAdditionalData(false);
+      }
+    } else {
+      // Reset additional data when no feature is selected
+      setCodepointData(null);
+      setUprnData(null);
+      setLandRegistryInspireData(null);
+      setLandData(null);
+      setShapeData(null);
+      setBuildingApiData(null);
+      setIsLoadingAdditionalData(false);
     }
-  }, [selectedFeature]);
+  }, [selectedFeature, fetchAdditionalData]);
 
 
   useEffect(() => {
@@ -384,6 +497,14 @@ export function Index({ auth }: PageProps) {
                 user_name: feature.properties.user_name,
                 user_id: feature.properties.user_id,
                 photo_heading: feature.properties.photo_heading,
+                accuracy: feature.properties.accuracy,
+                created: feature.properties.created,
+                altitude: feature.properties.altitude,
+                note: feature.properties.note,
+                network_info: feature.properties.network_info,
+                lat: feature.properties.lat,
+                lng: feature.properties.lng,
+                link: feature.properties.link
               }
             });
           } catch (error) {
@@ -637,6 +758,14 @@ export function Index({ auth }: PageProps) {
                     user_name: feature.properties.user_name,
                     user_id: feature.properties.user_id,
                     photo_heading: feature.properties.photo_heading,
+                    accuracy: feature.properties.accuracy,
+                    created: feature.properties.created,
+                    altitude: feature.properties.altitude,
+                    note: feature.properties.note,
+                    network_info: feature.properties.network_info,
+                    lat: feature.properties.lat,
+                    lng: feature.properties.lng,
+                    link: feature.properties.link
                   }
                 };
               } catch (error) {
@@ -1980,7 +2109,8 @@ export function Index({ auth }: PageProps) {
           }}
           title={
             selectedFeature
-              ? ('roofmaterial' in selectedFeature.properties ? 'Building Details' : 
+              ? ('file_name' in selectedFeature.properties ? 'Photo Details' :
+                 'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
                  'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
                  'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
               : isImportPanelOpen
@@ -1989,56 +2119,70 @@ export function Index({ auth }: PageProps) {
           }
         >
           {selectedFeature ? (
-            // Building Details View
-            <div>
-              {selectedFeature.properties && Object.entries(selectedFeature.properties)
-                .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
-                .map(([key, value]) => {
-                  const renderValue = (val: any): React.ReactNode => {
-                    if (val === null || val === undefined) {
-                      return <span className="text-gray-400 italic">null</span>;
-                    }
-                    
-                    if (Array.isArray(val)) {
-                      if (val.length === 0) {
-                        return <span className="text-gray-400 italic">empty array</span>;
+            'file_name' in selectedFeature.properties ? (
+              // Photo Panel with Enhanced Metadata
+              <PhotoPanel 
+                selectedFeature={selectedFeature}
+                buildingApiData={buildingApiData}
+                codepointData={codepointData}
+                uprnData={uprnData}
+                landRegistryInspireData={landRegistryInspireData}
+                landData={landData}
+                shapeData={shapeData}
+                isLoadingAdditionalData={isLoadingAdditionalData}
+              />
+            ) : (
+              // Default Panel for Building/NHLE/Site Details
+              <div>
+                {selectedFeature.properties && Object.entries(selectedFeature.properties)
+                  .filter(([key]) => !['uprn', 'postcode'].includes(key.toLowerCase()))
+                  .map(([key, value]) => {
+                    const renderValue = (val: any): React.ReactNode => {
+                      if (val === null || val === undefined) {
+                        return <span className="text-gray-400 italic">null</span>;
                       }
-                      return (
-                        <div className="space-y-1">
-                          {val.map((item, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 mt-0.5">#{index + 1}:</span>
-                              <div className="flex-1">{renderValue(item)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }
-                    
-                    if (typeof val === 'object') {
-                      return (
-                        <div className="space-y-1">
-                          {Object.entries(val).map(([objKey, objValue]) => (
-                            <div key={objKey} className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-600 min-w-0">{objKey}:</span>
-                              <div className="flex-1">{renderValue(objValue)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }
-                    
-                    return <span>{String(val)}</span>;
-                  };
+                      
+                      if (Array.isArray(val)) {
+                        if (val.length === 0) {
+                          return <span className="text-gray-400 italic">empty array</span>;
+                        }
+                        return (
+                          <div className="space-y-1">
+                            {val.map((item, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 mt-0.5">#{index + 1}:</span>
+                                <div className="flex-1">{renderValue(item)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      
+                      if (typeof val === 'object') {
+                        return (
+                          <div className="space-y-1">
+                            {Object.entries(val).map(([objKey, objValue]) => (
+                              <div key={objKey} className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-600 min-w-0">{objKey}:</span>
+                                <div className="flex-1">{renderValue(objValue)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      
+                      return <span>{String(val)}</span>;
+                    };
 
-                  return (
-                    <div key={key} className="mb-3">
-                      <strong className="uppercase text-gray-800">{key.replace(/_/g, ' ')}:</strong>
-                      <div className='text-gray-700 mt-1'>{renderValue(value)}</div>
-                    </div>
-                  );
-                })}
-            </div>
+                    return (
+                      <div key={key} className="mb-3">
+                        <strong className="uppercase text-gray-800">{key.replace(/_/g, ' ')}:</strong>
+                        <div className='text-gray-700 mt-1'>{renderValue(value)}</div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )
           ) : isImportPanelOpen ? (
             // Import GeoJSON View
             <div className='flex flex-col gap-4'>
