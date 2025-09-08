@@ -1333,11 +1333,27 @@ export function Index({ auth }: PageProps) {
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
   const userInteractedWithMap = useRef(false);
+  const lastSelectedShapeIds = useRef<string[]>([]);
+  const lastDataType = useRef(dataType);
 
+  // Track user interaction with map (excluding UI interactions)
   const handleViewStateChange = useCallback((params: any) => {
-    userInteractedWithMap.current = true;
+    // Only mark as user interaction if it's not a programmatic change
+    if (!params.viewState.transitionDuration) {
+      userInteractedWithMap.current = true;
+    }
     setViewState(params.viewState as MapViewState);
   }, []);
+
+  // Reset user interaction flag when filters change (side panel interactions)
+  useEffect(() => {
+    const shapeIdsChanged = JSON.stringify(selectedShapeIds) !== JSON.stringify(lastSelectedShapeIds.current);
+    const dataTypeChanged = JSON.stringify(dataType) !== JSON.stringify(lastDataType.current);
+    
+    if (shapeIdsChanged || dataTypeChanged) {
+      userInteractedWithMap.current = false; // Reset to allow auto-zoom
+    }
+  }, [selectedShapeIds, dataType]);
 
   useEffect(() => {
     if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0 || photoCentroidsData.length > 0)) {
@@ -1381,67 +1397,75 @@ export function Index({ auth }: PageProps) {
         return;
     }
 
-    if (userInteractedWithMap.current) {
+    const shapeIdsChanged = JSON.stringify(selectedShapeIds) !== JSON.stringify(lastSelectedShapeIds.current);
+    const dataTypeChanged = JSON.stringify(dataType) !== JSON.stringify(lastDataType.current);
+    
+    const shouldAutoZoom = !userInteractedWithMap.current || shapeIdsChanged || dataTypeChanged;
+    
+    if (!shouldAutoZoom) {
         return;
     }
 
+    lastSelectedShapeIds.current = [...selectedShapeIds];
+    lastDataType.current = { ...dataType };
+
     const timeoutId = setTimeout(() => {
-        const dataToBound = allFilteredData;
+      const dataToBound = allFilteredData;
 
-        if (dataToBound.length > 0) {
-            try {
-                const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
-                const bbox = turf.bbox(points);
-                const [minLng, minLat, maxLng, maxLat] = bbox;
+      if (dataToBound.length > 0) {
+        try {
+          const points = turf.featureCollection(dataToBound.map(c => turf.point(c.coordinates)));
+          const bbox = turf.bbox(points);
+          const [minLng, minLat, maxLng, maxLat] = bbox;
 
-                const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
-                const { longitude, latitude, zoom } = viewport.fitBounds(
-                    [[minLng, minLat], [maxLng, maxLat]],
-                    { padding: 100 }
-                );
+          const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+          const { longitude, latitude, zoom } = viewport.fitBounds(
+            [[minLng, minLat], [maxLng, maxLat]],
+            { padding: 100 }
+          );
 
-                setViewState(prev => ({
-                    ...prev,
-                    longitude,
-                    latitude,
-                    zoom,
-                    transitionDuration: 800,
-                    transitionInterpolator: new FlyToInterpolator(),
-                }));
-            } catch (error) {
-                console.error("Error adjusting zoom to filtered data:", error);
-            }
-        } else if (selectedShapeIds.length > 0 && shapes?.data?.features) {
-            const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-            if (selectedPolygons.length > 0) {
-                try {
-                    const featureCollection = turf.featureCollection(selectedPolygons as any[]);
-                    const bbox = turf.bbox(featureCollection);
-                    const [minLng, minLat, maxLng, maxLat] = bbox;
-
-                    const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
-                    const { longitude, latitude, zoom } = viewport.fitBounds(
-                        [[minLng, minLat], [maxLng, maxLat]],
-                        { padding: 100 }
-                    );
-
-                    setViewState(prev => ({
-                        ...prev,
-                        longitude,
-                        latitude,
-                        zoom,
-                        transitionDuration: 800,
-                        transitionInterpolator: new FlyToInterpolator(),
-                    }));
-                } catch (error) {
-                    console.error("Error adjusting zoom to selected wards:", error);
-                }
-            }
+          setViewState(prev => ({
+            ...prev,
+            longitude,
+            latitude,
+            zoom,
+            transitionDuration: 800,
+            transitionInterpolator: new FlyToInterpolator(),
+          }));
+        } catch (error) {
+          console.error("Error adjusting zoom to filtered data:", error);
         }
+      } else if (selectedShapeIds.length > 0 && shapes?.data?.features) {
+        const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
+        if (selectedPolygons.length > 0) {
+          try {
+            const featureCollection = turf.featureCollection(selectedPolygons as any[]);
+            const bbox = turf.bbox(featureCollection);
+            const [minLng, minLat, maxLng, maxLat] = bbox;
+
+            const viewport = new WebMercatorViewport({ ...viewState, width: window.innerWidth, height: window.innerHeight });
+            const { longitude, latitude, zoom } = viewport.fitBounds(
+              [[minLng, minLat], [maxLng, maxLat]],
+              { padding: 100 }
+            );
+
+            setViewState(prev => ({
+              ...prev,
+              longitude,
+              latitude,
+              zoom,
+              transitionDuration: 800,
+              transitionInterpolator: new FlyToInterpolator(),
+            }));
+          } catch (error) {
+            console.error("Error adjusting zoom to selected wards:", error);
+          }
+        }
+      }
     }, 100); // Small delay to ensure state updates are complete
 
     return () => clearTimeout(timeoutId);
-}, [allFilteredData, selectedShapeIds, shapes?.data?.features, floorRange, dataType]);
+  }, [allFilteredData, selectedShapeIds, shapes?.data?.features, floorRange, dataType]);
 
   const zoomBasedRadius = useMemo(() => {
     return Math.max(1, Math.pow(2, 14 - viewState.zoom));
