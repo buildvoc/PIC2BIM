@@ -37,6 +37,14 @@ export interface PhotoProperties {
   user_name: string;
   user_id: number;
   photo_heading: string;
+  accuracy: string;
+  created: string;
+  altitude: string;
+  note: string;
+  network_info: string;
+  lat: string;
+  lng: string;
+  link: string;
 }
 
 export interface PhotoCentroidState {

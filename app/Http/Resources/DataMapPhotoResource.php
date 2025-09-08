@@ -28,6 +28,14 @@ class DataMapPhotoResource extends JsonResource
                 'user_name' => $this->user_name,
                 'user_id' => $this->user_id,
                 'photo_heading' => $this->photo_heading,
+                'accuracy' => $this->accuracy,
+                'created' => $this->created,
+                'altitude' => $this->altitude,
+                'note' => $this->note,
+                'network_info' => $this->network_info,
+                'lat' => $this->lat,
+                'lng' => $this->lng,
+                'link' => $this->link
             ],
         ];
     }
