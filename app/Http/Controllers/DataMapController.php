@@ -146,7 +146,8 @@ class DataMapController extends Controller
             ->where('user.active', '=', 1)
             ->where('user.pa_id', '=', Auth::user()->pa_id)
             ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
+                $query->where('flg_deleted', 0)
+                    ->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
                         $subQuery->select(DB::raw(1))
                             ->fromSub($builtupAreaGeometriesQuery, 's')
                             ->whereRaw('ST_INTERSECTS(ST_Transform(ST_SetSRID(ST_MakePoint(photo.lng, photo.lat), 4326), 27700), s.geometry)');
