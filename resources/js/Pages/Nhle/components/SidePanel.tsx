@@ -20,13 +20,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, title, children 
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Handle click outside to close panel
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen) {
         const target = event.target as HTMLElement;
         const panel = document.querySelector('[data-sidepanel="true"]');
-        if (panel && !panel.contains(target)) {
+        
+        const isUIButton = target.closest('button') && !target.closest('[data-sidepanel="true"]');
+        const isUIPanel = target.closest('[class*="panel"]') && !target.closest('[data-sidepanel="true"]');
+        const isUIControl = target.closest('[class*="control"]') && !target.closest('[data-sidepanel="true"]');
+        
+        if (panel && !panel.contains(target) && (isUIButton || isUIPanel || isUIControl)) {
           onClose();
         }
       }
