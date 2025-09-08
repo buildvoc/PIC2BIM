@@ -1332,6 +1332,12 @@ export function Index({ auth }: PageProps) {
 
   const isInitialLoad = useRef(true);
   const initialZoomApplied = useRef(false);
+  const userInteractedWithMap = useRef(false);
+
+  const handleViewStateChange = useCallback((params: any) => {
+    userInteractedWithMap.current = true;
+    setViewState(params.viewState as MapViewState);
+  }, []);
 
   useEffect(() => {
     if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0 || photoCentroidsData.length > 0)) {
@@ -1375,7 +1381,10 @@ export function Index({ auth }: PageProps) {
         return;
     }
 
-    // Add a small delay to ensure filtering is complete
+    if (userInteractedWithMap.current) {
+        return;
+    }
+
     const timeoutId = setTimeout(() => {
         const dataToBound = allFilteredData;
 
@@ -1433,7 +1442,6 @@ export function Index({ auth }: PageProps) {
 
     return () => clearTimeout(timeoutId);
 }, [allFilteredData, selectedShapeIds, shapes?.data?.features, floorRange, dataType]);
-
 
   const zoomBasedRadius = useMemo(() => {
     return Math.max(1, Math.pow(2, 14 - viewState.zoom));
@@ -1729,13 +1737,20 @@ export function Index({ auth }: PageProps) {
       },
     }),
 
-    // Search pin marker layer
-    searchMarker && new IconLayer({
+    // Search pin marker layer - also used for selected features
+    (searchMarker || selectedFeature) && new IconLayer({
       id: 'search-pin-marker-layer',
-      data: [{
-        ...searchMarker,
-        icon: 'pin'
-      }],
+      data: [
+        ...(searchMarker ? [{
+          ...searchMarker,
+          icon: 'pin'
+        }] : []),
+        ...(selectedFeature ? [{
+          coordinates: selectedFeature.coordinates,
+          data: selectedFeature.properties,
+          icon: 'pin'
+        }] : [])
+      ],
       pickable: true,
       iconAtlas: 'data:image/svg+xml;base64,' + btoa(`
         <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -1842,7 +1857,7 @@ export function Index({ auth }: PageProps) {
             viewState={viewState}
             controller={true}
             layers={layers}
-            onViewStateChange={(params) => setViewState(params.viewState as MapViewState)}
+            onViewStateChange={handleViewStateChange}
             getCursor={getCursor}
           >
             <Map
@@ -1867,7 +1882,7 @@ export function Index({ auth }: PageProps) {
           />
             <MapControls 
               viewState={viewState} 
-              onViewStateChange={(params) => setViewState(params.viewState as MapViewState)}
+              onViewStateChange={handleViewStateChange}
             />
           </div>
 
@@ -1967,7 +1982,7 @@ export function Index({ auth }: PageProps) {
                       return (
                         <div className="space-y-1">
                           {val.map((item, index) => (
-                            <div key={index} className="flex items-start gap-2">
+                            <div key={index} className="flex items-center gap-2">
                               <span className="text-xs text-gray-500 mt-0.5">#{index + 1}:</span>
                               <div className="flex-1">{renderValue(item)}</div>
                             </div>
@@ -1980,7 +1995,7 @@ export function Index({ auth }: PageProps) {
                       return (
                         <div className="space-y-1">
                           {Object.entries(val).map(([objKey, objValue]) => (
-                            <div key={objKey} className="flex items-start gap-2">
+                            <div key={objKey} className="flex items-center gap-2">
                               <span className="text-sm font-medium text-gray-600 min-w-0">{objKey}:</span>
                               <div className="flex-1">{renderValue(objValue)}</div>
                             </div>
