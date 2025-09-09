@@ -69,17 +69,6 @@ class DataMapController extends Controller
             ]);
         }
 
-        // Create cache key based on area IDs
-        $sortedAreaIds = $areaIds;
-        sort($sortedAreaIds);
-        $cacheKey = 'area_data_' . md5(implode(',', $sortedAreaIds));
-        
-        // Try to get from cache first (30 minutes TTL)
-        $cachedData = Cache::get($cacheKey);
-        if ($cachedData) {
-            return response()->json($cachedData);
-        }
-
         // Get the geometries of selected built-up areas
         $builtupAreaGeometriesQuery = BuiltupArea::query()
             ->whereIn('fid', $areaIds)
@@ -191,9 +180,6 @@ class DataMapController extends Controller
             'center' => $center,
             'photos' => new DataMapPhotoCollection($photos)
         ];
-
-        // Cache the result for 30 minutes
-        Cache::put($cacheKey, $responseData, 1800);
 
         return response()->json($responseData);
     }
