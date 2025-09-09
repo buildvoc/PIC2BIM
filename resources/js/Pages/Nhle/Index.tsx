@@ -2094,6 +2094,10 @@ export function Index({ auth }: PageProps) {
                 (hoverInfo.object.properties?.buildinguse || 
                  `Building ID: ${hoverInfo.object.properties?.osid}`)
               }
+              {hoverInfo.layer?.id.startsWith('photo-layer') && 
+                (hoverInfo.object.properties?.buildinguse || 
+                 `Photo ID: ${hoverInfo.object.properties?.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
                   <div><strong>Polygon Feature</strong></div>
