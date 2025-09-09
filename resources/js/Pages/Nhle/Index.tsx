@@ -2094,6 +2094,10 @@ export function Index({ auth }: PageProps) {
                 (hoverInfo.object.properties?.buildinguse || 
                  `Building ID: ${hoverInfo.object.properties?.osid}`)
               }
+              {hoverInfo.layer?.id.startsWith('photo-layer') && 
+                (hoverInfo.object.properties?.buildinguse || 
+                 `Photo ID: ${hoverInfo.object.properties?.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
                   <div><strong>Polygon Feature</strong></div>
@@ -2321,7 +2325,19 @@ export function Index({ auth }: PageProps) {
                   </>
                 )}
               </div>
-              <h4 className="font-semibold mb-4 text-gray-800">Data Types</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-gray-800">Data Types</h4>
+                <button
+                  onClick={() => {
+                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false });
+                    setSelectedGrades([]);
+                    setFloorRange({ min: 0, max: maxFloors });
+                  }}
+                  className="px-3 py-1 text-sm bg-red-100 text-red-700 hover:bg-red-200 rounded-md transition-colors duration-200 font-medium"
+                >
+                  Clear Filter
+                </button>
+              </div>
               <div className="space-y-3">
                 <label 
                   htmlFor="show-buildings"
