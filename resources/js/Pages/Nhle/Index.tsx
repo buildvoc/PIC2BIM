@@ -2151,7 +2151,7 @@ export function Index({ auth }: PageProps) {
               ? ('file_name' in selectedFeature.properties ? 'Photo Details' :
                  'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
                  'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
-                 'listentry' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
+                 'grade' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -2211,9 +2211,28 @@ export function Index({ auth }: PageProps) {
                         );
                       }
                       
-                      return <span>{String(val)}</span>;
+                      // Check if the value is a URL/hyperlink
+                      const stringVal = String(val);
+                      const isUrl = /^https?:\/\/.+/i.test(stringVal);
+                      
+                      if (isUrl) {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={stringVal}
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              View
+                            </a>
+                          </div>
+                        );
+                      }
+                      
+                      return <span>{stringVal}</span>;
                     };
-
+                  
                     return (
                       <div key={key} className="mb-3">
                         <strong className="uppercase text-gray-800">{key.replace(/_/g, ' ')}:</strong>
