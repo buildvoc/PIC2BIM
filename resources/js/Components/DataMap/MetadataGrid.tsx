@@ -26,7 +26,6 @@ const MetadataGrid: React.FC<MetadataGridProps> = ({ data, isLoading = false }) 
     photoData
   } = data;
 
-  console.log(data);
   if (isLoading) {
     return (
       <div className="px-6 py-4 text-sm bg-gray-50 dark:bg-gray-900">
