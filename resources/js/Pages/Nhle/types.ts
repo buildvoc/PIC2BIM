@@ -45,6 +45,8 @@ export interface PhotoProperties {
   lat: string;
   lng: string;
   link: string;
+  osnma_enabled: boolean;
+  osnma_validated: boolean;
 }
 
 export interface PhotoCentroidState {

@@ -512,7 +512,9 @@ export function Index({ auth }: PageProps) {
                 network_info: feature.properties.network_info,
                 lat: feature.properties.lat,
                 lng: feature.properties.lng,
-                link: feature.properties.link
+                link: feature.properties.link,
+                osnma_enabled: feature.properties.osnma_enabled,
+                osnma_validated: feature.properties.osnma_validated
               }
             });
           } catch (error) {
@@ -773,7 +775,9 @@ export function Index({ auth }: PageProps) {
                     network_info: feature.properties.network_info,
                     lat: feature.properties.lat,
                     lng: feature.properties.lng,
-                    link: feature.properties.link
+                    link: feature.properties.link,
+                    osnma_enabled: feature.properties.osnma_enabled,
+                    osnma_validated: feature.properties.osnma_validated
                   }
                 };
               } catch (error) {

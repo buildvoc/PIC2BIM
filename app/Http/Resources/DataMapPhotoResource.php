@@ -35,7 +35,9 @@ class DataMapPhotoResource extends JsonResource
                 'network_info' => $this->network_info,
                 'lat' => $this->lat,
                 'lng' => $this->lng,
-                'link' => $this->link
+                'link' => $this->link,
+                'osnma_enabled' => $this->osnma_enabled,
+                'osnma_validated' => $this->osnma_validated
             ],
         ];
     }
