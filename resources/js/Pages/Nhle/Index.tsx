@@ -8,8 +8,9 @@ import Map from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { GeoJsonLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, IconLayer, PathLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
+import { PathStyleExtension } from '@deck.gl/extensions';
 import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
@@ -1635,6 +1636,277 @@ export function Index({ auth }: PageProps) {
     return Math.max(1, Math.pow(2, 14 - viewState.zoom));
   }, [viewState.zoom]);
 
+  // Helper function for bearing-only candidate matching
+  const bearingMatch = useCallback((photoLngLat: [number, number], photoHeadingDeg: number, candidateLngLat: [number, number], tolDeg: number = 20): boolean => {
+    const photoPoint = turf.point(photoLngLat);
+    const candidatePoint = turf.point(candidateLngLat);
+    const brg = turf.bearing(photoPoint, candidatePoint);
+    const delta = Math.abs(((brg - photoHeadingDeg + 540) % 360) - 180);
+    return delta <= tolDeg;
+  }, []);
+
+  // Helper function for creating Bézier paths in pixel space
+  const bezierPath = useCallback((sourceLngLat: [number, number], targetLngLat: [number, number], viewport: WebMercatorViewport) => {
+    const sPx = viewport.project(sourceLngLat);
+    const tPx = viewport.project(targetLngLat);
+    const mid = [(sPx[0] + tPx[0]) / 2, (sPx[1] + tPx[1]) / 2];
+    const dx = tPx[0] - sPx[0], dy = tPx[1] - sPx[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len; // perpendicular
+    const cPx = [mid[0] + nx * 24, mid[1] + ny * 24];
+
+    const ptsPx = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      const x = (1 - t) * (1 - t) * sPx[0] + 2 * (1 - t) * t * cPx[0] + t * t * tPx[0];
+      const y = (1 - t) * (1 - t) * sPx[1] + 2 * (1 - t) * t * cPx[1] + t * t * tPx[1];
+      ptsPx.push([x, y]);
+    }
+    return ptsPx.map(p => viewport.unproject(p));
+  }, []);
+
+  // Constants for link rendering
+  const LINK_MIN_ZOOM = 10;
+
+  // Active photo detection - only when a photo is selected
+  const activePhoto = useMemo(() => {
+    if (selectedFeature && 'file_name' in selectedFeature.properties) {
+      return selectedFeature as PhotoCentroidState;
+    }
+    return null;
+  }, [selectedFeature]);
+
+  // Viewport for link calculations
+  const viewportForLinks = useMemo(() => {
+    return new WebMercatorViewport(viewState);
+  }, [viewState]);
+
+  // Bidirectional linking logic (photo ↔ candidates)
+  const bidirectionalLinks = useMemo(() => {
+    if (!selectedFeature || viewState.zoom < LINK_MIN_ZOOM) {
+      return [];
+    }
+
+    const maxDistance = 200; // meters
+    const links: Array<{
+      coordinates: [number, number];
+      type: string;
+      properties: any;
+      id: string;
+      path: any;
+      offset: number;
+      sourceCoords: [number, number];
+      targetCoords: [number, number];
+      linkDirection: 'photo-to-candidate' | 'candidate-to-photo';
+    }> = [];
+
+    // Check if selected feature is a photo
+    const isPhotoSelected = 'file_name' in selectedFeature.properties;
+    
+    if (isPhotoSelected) {
+      // Photo → Candidates (existing logic)
+      const activePhoto = selectedFeature as PhotoCentroidState;
+      const photoCoords: [number, number] = [activePhoto.coordinates[0], activePhoto.coordinates[1]];
+      const photoHeading = typeof activePhoto.properties.photo_heading === 'string' 
+        ? parseFloat(activePhoto.properties.photo_heading) 
+        : (activePhoto.properties.photo_heading || 0);
+      
+      const candidates: Array<{
+        coordinates: [number, number];
+        type: string;
+        properties: any;
+        id: string;
+      }> = [];
+
+    // Filter buildings within radius and bearing match
+    filteredBuildingCentroids.forEach(building => {
+      const candidateCoords: [number, number] = [building.coordinates[0], building.coordinates[1]];
+      const photoPoint = turf.point(photoCoords);
+      const candidatePoint = turf.point(candidateCoords);
+      const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+      
+      if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        candidates.push({
+          coordinates: candidateCoords,
+          type: 'building',
+          properties: building.properties,
+          id: `building-${building.properties.id}`
+        });
+      }
+    });
+
+    // Filter building parts within radius and bearing match
+    filteredBuildingPartCentroids.forEach(part => {
+      const candidateCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
+      const photoPoint = turf.point(photoCoords);
+      const candidatePoint = turf.point(candidateCoords);
+      const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+      
+      if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        candidates.push({
+          coordinates: candidateCoords,
+          type: 'buildingPart',
+          properties: part.properties,
+          id: `part-${part.properties.id}`
+        });
+      }
+    });
+
+    // Filter sites within radius and bearing match
+    filteredSiteCentroids.forEach(site => {
+      const candidateCoords: [number, number] = [site.coordinates[0], site.coordinates[1]];
+      const photoPoint = turf.point(photoCoords);
+      const candidatePoint = turf.point(candidateCoords);
+      const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+      
+      if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        candidates.push({
+          coordinates: candidateCoords,
+          type: 'site',
+          properties: site.properties,
+          id: `site-${site.properties.id}`
+        });
+      }
+    });
+
+    // Filter NHLE within radius and bearing match
+    filteredNhleCentroids.forEach(nhle => {
+      const candidateCoords: [number, number] = [nhle.coordinates[0], nhle.coordinates[1]];
+      const photoPoint = turf.point(photoCoords);
+      const candidatePoint = turf.point(candidateCoords);
+      const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+      
+      if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        candidates.push({
+          coordinates: candidateCoords,
+          type: 'nhle',
+          properties: nhle.properties,
+          id: `nhle-${nhle.properties.id}`
+        });
+      }
+    });
+
+      // Create Bézier paths with offsets for parallel lines (Photo → Candidates)
+      candidates.forEach((candidate, index) => {
+        const path = bezierPath(photoCoords, candidate.coordinates, viewportForLinks);
+        const offset = (index % 5 - 2) * 3; // Offsets: -6, -3, 0, 3, 6 pixels
+        
+        links.push({
+          ...candidate,
+          path,
+          offset,
+          sourceCoords: photoCoords,
+          targetCoords: candidate.coordinates,
+          linkDirection: 'photo-to-candidate'
+        });
+      });
+    } else {
+      // Candidate → Photos (reverse connection)
+      const selectedCoords: [number, number] = [selectedFeature.coordinates[0], selectedFeature.coordinates[1]];
+      const selectedType = 'file_name' in selectedFeature.properties ? 'photo' : 
+                          'area' in selectedFeature.properties ? 'building' :
+                          'smallestsite_siteid' in selectedFeature.properties ? 'buildingPart' :
+                          'matcheduprn' in selectedFeature.properties ? 'site' : 'nhle';
+      
+      const candidatePhotos: Array<{
+        coordinates: [number, number];
+        type: string;
+        properties: any;
+        id: string;
+      }> = [];
+
+      // Find photos that would link to this selected feature
+      filteredPhotoCentroids.forEach(photo => {
+        const photoCoords: [number, number] = [photo.coordinates[0], photo.coordinates[1]];
+        const photoHeading = typeof photo.properties.photo_heading === 'string' 
+          ? parseFloat(photo.properties.photo_heading) 
+          : (photo.properties.photo_heading || 0);
+        
+        const photoPoint = turf.point(photoCoords);
+        const selectedPoint = turf.point(selectedCoords);
+        const distance = turf.distance(photoPoint, selectedPoint, 'kilometers') * 1000;
+        
+        // Check if this photo would link to the selected feature
+        if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, selectedCoords)) {
+          candidatePhotos.push({
+            coordinates: photoCoords,
+            type: 'photo',
+            properties: photo.properties,
+            id: `photo-${photo.properties.id}`
+          });
+        }
+      });
+
+      // Create Bézier paths with offsets for parallel lines (Candidate → Photos)
+      candidatePhotos.forEach((photo, index) => {
+        const path = bezierPath(selectedCoords, photo.coordinates, viewportForLinks);
+        const offset = (index % 5 - 2) * 3; // Offsets: -6, -3, 0, 3, 6 pixels
+        
+        links.push({
+          ...photo,
+          path,
+          offset,
+          sourceCoords: selectedCoords,
+          targetCoords: photo.coordinates,
+          linkDirection: 'candidate-to-photo'
+        });
+      });
+    }
+
+    return links;
+  }, [selectedFeature, viewState.zoom, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, bearingMatch, bezierPath, viewportForLinks]);
+
+  // Connections data for PhotoPanel (only when photo is selected)
+  const photoConnectionsData = useMemo(() => {
+    if (!selectedFeature || !('file_name' in selectedFeature.properties)) {
+      return [];
+    }
+
+    const photoCoords: [number, number] = [selectedFeature.coordinates[0], selectedFeature.coordinates[1]];
+    const photoHeading = typeof selectedFeature.properties.photo_heading === 'string' 
+      ? parseFloat(selectedFeature.properties.photo_heading) 
+      : (selectedFeature.properties.photo_heading || 0);
+    const maxDistance = 200; // meters
+    
+    const connections: Array<{
+      coordinates: [number, number];
+      type: string;
+      properties: any;
+      id: string;
+      distance: number;
+      bearing: number;
+    }> = [];
+
+    // Helper function to add connections
+    const addConnection = (candidate: any, type: string) => {
+      const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+      const photoPoint = turf.point(photoCoords);
+      const candidatePoint = turf.point(candidateCoords);
+      const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+      const bearing = turf.bearing(photoPoint, candidatePoint);
+      
+      if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        connections.push({
+          coordinates: candidateCoords,
+          type,
+          properties: candidate.properties,
+          id: `${type}-${candidate.properties.id}`,
+          distance: Math.round(distance),
+          bearing: Math.round(bearing)
+        });
+      }
+    };
+
+    // Add all candidate types
+    filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
+    filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
+    filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
+    filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+
+    // Sort by distance
+    return connections.sort((a, b) => a.distance - b.distance);
+  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch]);
+
   const layers = [
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
@@ -1986,6 +2258,59 @@ export function Index({ auth }: PageProps) {
         }
       },
     }),
+
+    // PathLayer for bidirectional links (photo ↔ candidates)
+    bidirectionalLinks.length > 0 && new PathLayer({
+      id: 'bidirectional-links',
+      data: bidirectionalLinks,
+      pickable: true,
+      getPath: (d: any) => d.path,
+      getWidth: 2,
+      widthUnits: 'pixels',
+      getColor: (d: any) => {
+        switch (d.type) {
+          case 'building': return [60, 160, 255, 200]; // Building Blue #3C78FF
+          case 'buildingPart': return [255, 182, 72, 200]; // Building Part Orange #FFB648
+          case 'site': return [46, 204, 113, 200]; // Site Green #2ECC71
+          case 'nhle': return [231, 76, 60, 210]; // NHLE Red #E74C3C
+          default: return [60, 160, 255, 200]; // Default blue
+        }
+      },
+      getDashArray: (d: any) => d.type === 'nhle' ? [3, 3] : [1, 0], // NHLE dashed, others solid
+      getOffset: (d: any) => d.offset,
+      parameters: { depthTest: false },
+      extensions: [new PathStyleExtension({ offset: true, dash: true })],
+      autoHighlight: true,
+      onHover: (info: any) => {
+        if (info.object) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: (info: any) => {
+        if (info.object) {
+          // Find the actual candidate feature to select
+          const candidateType = info.object.type;
+          const candidateId = info.object.properties.id;
+          
+          let candidateFeature = null;
+          if (candidateType === 'building') {
+            candidateFeature = filteredBuildingCentroids.find(b => b.properties.id === candidateId);
+          } else if (candidateType === 'buildingPart') {
+            candidateFeature = filteredBuildingPartCentroids.find(p => p.properties.id === candidateId);
+          } else if (candidateType === 'site') {
+            candidateFeature = filteredSiteCentroids.find(s => s.properties.id === candidateId);
+          } else if (candidateType === 'nhle') {
+            candidateFeature = filteredNhleCentroids.find(n => n.properties.id === candidateId);
+          }
+          
+          if (candidateFeature) {
+            setSelectedFeature(candidateFeature);
+          }
+        }
+      },
+    }),
   ].filter(Boolean);
 
   return (
@@ -2170,6 +2495,7 @@ export function Index({ auth }: PageProps) {
                 shapeData={shapeData}
                 nhleData={nhleData}
                 isLoadingAdditionalData={isLoadingAdditionalData}
+                connectionsData={photoConnectionsData}
               />
             ) : (
               // Default Panel for Building/NHLE/Site Details
@@ -2738,7 +3064,5 @@ export function Index({ auth }: PageProps) {
     </>
   );
 }
-
-
 
 export default memo(Index);
