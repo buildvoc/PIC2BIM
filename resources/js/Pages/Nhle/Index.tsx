@@ -47,7 +47,6 @@ import type {
 import { NhleProperties } from '@/types/nhle';
 
 
-
 export function Index({ auth }: PageProps) {
   const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center } = usePage<{
     shapes: {data: BuiltupAreaGeoJson} | null;
@@ -1697,7 +1696,7 @@ export function Index({ auth }: PageProps) {
       offset: number;
       sourceCoords: [number, number];
       targetCoords: [number, number];
-      linkDirection: 'photo-to-candidate' | 'candidate-to-photo';
+      linkDirection: 'photo-to-candidate' | 'candidate-to-photo' | 'building-to-site' | 'buildingpart-to-site';
     }> = [];
 
     // Check if selected feature is a photo
@@ -1800,8 +1799,53 @@ export function Index({ auth }: PageProps) {
           linkDirection: 'photo-to-candidate'
         });
       });
+
+      candidates.filter(c => c.type === 'building').forEach((building, index) => {
+        const primarySiteId = building.properties.primarysiteid;
+        if (primarySiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === primarySiteId);
+          if (relatedSite) {
+            const path = bezierPath(building.coordinates, relatedSite.coordinates, viewportForLinks);
+            const offset = (index % 5 - 2) * 3;
+            
+            links.push({
+              coordinates: relatedSite.coordinates,
+              type: 'site',
+              properties: relatedSite.properties,
+              id: `site-${relatedSite.properties.id}`,
+              path,
+              offset,
+              sourceCoords: building.coordinates,
+              targetCoords: relatedSite.coordinates,
+              linkDirection: 'building-to-site'
+            });
+          }
+        }
+      });
+
+      candidates.filter(c => c.type === 'buildingPart').forEach((buildingPart, index) => {
+        const smallestSiteId = buildingPart.properties.smallestsite_siteid;
+        if (smallestSiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === smallestSiteId);
+          if (relatedSite) {
+            const path = bezierPath(buildingPart.coordinates, relatedSite.coordinates, viewportForLinks);
+            const offset = (index % 5 - 2) * 3;
+            
+            links.push({
+              coordinates: relatedSite.coordinates,
+              type: 'site',
+              properties: relatedSite.properties,
+              id: `site-${relatedSite.properties.id}`,
+              path,
+              offset,
+              sourceCoords: buildingPart.coordinates,
+              targetCoords: relatedSite.coordinates,
+              linkDirection: 'buildingpart-to-site'
+            });
+          }
+        }
+      });
     } else {
-      // Candidate → Photos (reverse connection)
       const selectedCoords: [number, number] = [selectedFeature.coordinates[0], selectedFeature.coordinates[1]];
       const selectedType = 'file_name' in selectedFeature.properties ? 'photo' : 
                           'area' in selectedFeature.properties ? 'building' :
@@ -1902,6 +1946,56 @@ export function Index({ auth }: PageProps) {
     filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
     filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
     filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+
+    // Add Building → Site relationships (using primarysiteid)
+    const buildingCandidates = connections.filter(c => c.type === 'building');
+    buildingCandidates.forEach(building => {
+      const primarySiteId = building.properties.primarysiteid;
+      if (primarySiteId) {
+        const relatedSite = filteredSiteCentroids.find(site => site.properties.id === primarySiteId);
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}`)) {
+          const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
+          const buildingPoint = turf.point([building.coordinates[0], building.coordinates[1]]);
+          const sitePoint = turf.point(siteCoords);
+          const distance = turf.distance(buildingPoint, sitePoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(buildingPoint, sitePoint);
+          
+          connections.push({
+            coordinates: siteCoords,
+            type: 'site',
+            properties: relatedSite.properties,
+            id: `site-${relatedSite.properties.id}`,
+            distance: Math.round(distance),
+            bearing: Math.round(bearing)
+          });
+        }
+      }
+    });
+
+    // Add BuildingPart → Site relationships (using smallest_siteid)
+    const buildingPartCandidates = connections.filter(c => c.type === 'buildingPart');
+    buildingPartCandidates.forEach(buildingPart => {
+      const smallestSiteId = buildingPart.properties.smallest_siteid;
+      if (smallestSiteId) {
+        const relatedSite = filteredSiteCentroids.find(site => site.properties.id === smallestSiteId);
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}`)) {
+          const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
+          const partPoint = turf.point([buildingPart.coordinates[0], buildingPart.coordinates[1]]);
+          const sitePoint = turf.point(siteCoords);
+          const distance = turf.distance(partPoint, sitePoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(partPoint, sitePoint);
+          
+          connections.push({
+            coordinates: siteCoords,
+            type: 'site',
+            properties: relatedSite.properties,
+            id: `site-${relatedSite.properties.id}`,
+            distance: Math.round(distance),
+            bearing: Math.round(bearing)
+          });
+        }
+      }
+    });
 
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
