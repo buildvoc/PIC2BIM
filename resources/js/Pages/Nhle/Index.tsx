@@ -11,6 +11,9 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { GeoJsonLayer, ScatterplotLayer, IconLayer, PathLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
 import { PathStyleExtension } from '@deck.gl/extensions';
+import { createMapLayers } from './layers/MapLayers';
+import { useDataFilters } from './hooks/useDataFilters';
+import ConnectionsModal from '@/Components/DataMap/ConnectionsModal';
 import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
@@ -45,7 +48,6 @@ import type {
     ValidationError
 } from './types';
 import { NhleProperties } from '@/types/nhle';
-
 
 
 export function Index({ auth }: PageProps) {
@@ -573,6 +575,8 @@ export function Index({ auth }: PageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchField, setSearchField] = useState('all');
+  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
+  const [connectionsForModal, setConnectionsForModal] = useState<any[]>([]);
   const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
@@ -1140,161 +1144,30 @@ export function Index({ auth }: PageProps) {
     }
   }, [geoJson]);
 
-  const filteredBuildingCentroids = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-    const hasSelectedShapes = selectedPolygons.length > 0;
-
-    return buildingCentroidsData.filter(d => {
-      if (hasSelectedShapes) {
-        const point = turf.point(d.coordinates);
-        const isInSelectedShape = selectedPolygons.some(polygon => {
-          try {
-            return booleanPointInPolygon(point, polygon as any);
-          } catch (e) {
-            return false;
-          }
-        });
-        if (!isInSelectedShape) {
-          return false;
-        }
-      }
-
-      // Check multiple possible property names for floors
-      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
-      return floors >= floorRange.min && floors <= floorRange.max;
-    });
-  }, [buildingCentroidsData, floorRange, selectedShapeIds, shapes?.data?.features]);
-
-  const filteredBuildingPartCentroids = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-    const hasSelectedShapes = selectedPolygons.length > 0;
-
-    return buildingPartCentroidsData.filter(d => {
-      if (hasSelectedShapes) {
-        const point = turf.point(d.coordinates);
-        const isInSelectedShape = selectedPolygons.some(polygon => {
-          try {
-            return booleanPointInPolygon(point, polygon as any);
-          } catch (e) {
-            return false;
-          }
-        });
-        if (!isInSelectedShape) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [buildingPartCentroidsData, selectedShapeIds, shapes?.data?.features]);
-
-  const filteredNhleCentroids = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-    const hasSelectedShapes = selectedPolygons.length > 0;
-
-    return nhleCentroidsData.filter(d => {
-      if (hasSelectedShapes) {
-        const point = turf.point(d.coordinates);
-        const isInSelectedShape = selectedPolygons.some(polygon => {
-          try {
-            return booleanPointInPolygon(point, polygon as any);
-          } catch (e) {
-            return false;
-          }
-        });
-        if (!isInSelectedShape) {
-          return false;
-        }
-      }
-
-      // Filter by selected grades
-      if (selectedGrades.length > 0) {
-        return selectedGrades.includes(d.properties?.grade || '');
-      }
-
-      return true;
-    });
-  }, [nhleCentroidsData, selectedGrades, selectedShapeIds, shapes?.data?.features]);
-
-  const filteredPhotoCentroids = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-    const hasSelectedShapes = selectedPolygons.length > 0;
-
-    return photoCentroidsData.filter(d => {
-      if (hasSelectedShapes) {
-        const point = turf.point(d.coordinates);
-        const isInSelectedShape = selectedPolygons.some(polygon => {
-          try {
-            return booleanPointInPolygon(point, polygon as any);
-          } catch (e) {
-            return false;
-          }
-        });
-        if (!isInSelectedShape) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [photoCentroidsData, selectedShapeIds, shapes?.data?.features]);
-
-  const filteredSiteCentroids = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    const selectedPolygons = shapes.data.features.filter(shape => selectedShapeIds.includes(shape.id as string));
-    const hasSelectedShapes = selectedPolygons.length > 0;
-
-    return siteCentroidsData.filter(d => {
-      if (hasSelectedShapes) {
-        const point = turf.point(d.coordinates);
-        const isInSelectedShape = selectedPolygons.some(polygon => {
-          try {
-            return booleanPointInPolygon(point, polygon as any);
-          } catch (e) {
-            return false;
-          }
-        });
-        if (!isInSelectedShape) {
-          return false;
-        }
-      }
-
-      // Check multiple possible property names for floors
-      const floors = d.properties?.numberoffloors || d.properties?.floors || d.properties?.numFloors || d.properties?.floor_count || 0;
-      return floors >= floorRange.min && floors <= floorRange.max;
-    });
-  }, [siteCentroidsData, floorRange, selectedShapeIds, shapes?.data?.features]);
-
-  const availableGrades = useMemo(() => {
-    const grades = nhleCentroidsData.map(d => d.properties?.grade).filter(Boolean);
-    return Array.from(new Set(grades)).sort();
-  }, [nhleCentroidsData]);
-
-  const filteredShapes = useMemo(() => {
-    if (!shapes?.data?.features) return [];
-    
-    let filtered = shapes.data.features;
-    
-    // Apply search filter
-    if (boundarySearch) {
-      filtered = filtered.filter(shape => 
-        shape.properties.bua24nm.toLowerCase().includes(boundarySearch.toLowerCase())
-      );
-    }
-    
-    // Apply selected only filter
-    if (showSelectedOnly) {
-      filtered = filtered.filter(shape => 
-        selectedShapeIds.includes(shape.id as string)
-      );
-    }
-    
-    return filtered;
-  }, [shapes?.data?.features, boundarySearch, showSelectedOnly, selectedShapeIds]);
+  // Use custom hook for data filtering
+  const {
+    filteredBuildingCentroids,
+    filteredBuildingPartCentroids,
+    filteredSiteCentroids,
+    filteredNhleCentroids,
+    filteredPhotoCentroids,
+    availableGrades,
+    filteredShapes,
+    allFilteredData
+  } = useDataFilters({
+    buildingCentroidsData,
+    buildingPartCentroidsData,
+    siteCentroidsData,
+    nhleCentroidsData,
+    photoCentroidsData,
+    shapes,
+    selectedShapeIds,
+    floorRange,
+    selectedGrades,
+    dataType,
+    boundarySearch,
+    showSelectedOnly
+  });
 
   // Helper function to get fill color based on category2
   const getFillColorForData = useCallback((d: any, defaultColor: number[], dataTypeColor: number[]): [number, number, number, number] => {
@@ -1320,19 +1193,6 @@ export function Index({ auth }: PageProps) {
     return [color[0], color[1], color[2], alpha];
   }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, groupByMapping]);
 
-  const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
-    if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids];
-    }
-    const data = [];
-    if (dataType.buildings) data.push(...filteredBuildingCentroids);
-    if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids);
-    if (dataType.sites) data.push(...filteredSiteCentroids);
-    if (dataType.nhle) data.push(...filteredNhleCentroids);
-    if (dataType.photos) data.push(...filteredPhotoCentroids);
-    return data;
-  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, dataType]);
 
   const performSearch = useCallback((query: string, field: string) => {
     if (!query.trim()) {
@@ -1697,7 +1557,7 @@ export function Index({ auth }: PageProps) {
       offset: number;
       sourceCoords: [number, number];
       targetCoords: [number, number];
-      linkDirection: 'photo-to-candidate' | 'candidate-to-photo';
+      linkDirection: 'photo-to-candidate' | 'candidate-to-photo' | 'building-to-site' | 'buildingpart-to-site';
     }> = [];
 
     // Check if selected feature is a photo
@@ -1800,8 +1660,53 @@ export function Index({ auth }: PageProps) {
           linkDirection: 'photo-to-candidate'
         });
       });
+
+      candidates.filter(c => c.type === 'building').forEach((building, index) => {
+        const primarySiteId = building.properties.primarysiteid;
+        if (primarySiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === primarySiteId);
+          if (relatedSite) {
+            const path = bezierPath(building.coordinates, relatedSite.coordinates, viewportForLinks);
+            const offset = (index % 5 - 2) * 3;
+            
+            links.push({
+              coordinates: relatedSite.coordinates,
+              type: 'site',
+              properties: relatedSite.properties,
+              id: `site-${relatedSite.properties.id}`,
+              path,
+              offset,
+              sourceCoords: building.coordinates,
+              targetCoords: relatedSite.coordinates,
+              linkDirection: 'building-to-site'
+            });
+          }
+        }
+      });
+
+      candidates.filter(c => c.type === 'buildingPart').forEach((buildingPart, index) => {
+        const smallestSiteId = buildingPart.properties.smallestsite_siteid;
+        if (smallestSiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === smallestSiteId);
+          if (relatedSite) {
+            const path = bezierPath(buildingPart.coordinates, relatedSite.coordinates, viewportForLinks);
+            const offset = (index % 5 - 2) * 3;
+            
+            links.push({
+              coordinates: relatedSite.coordinates,
+              type: 'site',
+              properties: relatedSite.properties,
+              id: `site-${relatedSite.properties.id}`,
+              path,
+              offset,
+              sourceCoords: buildingPart.coordinates,
+              targetCoords: relatedSite.coordinates,
+              linkDirection: 'buildingpart-to-site'
+            });
+          }
+        }
+      });
     } else {
-      // Candidate → Photos (reverse connection)
       const selectedCoords: [number, number] = [selectedFeature.coordinates[0], selectedFeature.coordinates[1]];
       const selectedType = 'file_name' in selectedFeature.properties ? 'photo' : 
                           'area' in selectedFeature.properties ? 'building' :
@@ -1886,11 +1791,13 @@ export function Index({ auth }: PageProps) {
       const bearing = turf.bearing(photoPoint, candidatePoint);
       
       if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        // Create unique ID using coordinates to ensure each connection is unique
+        const uniqueId = `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`;
         connections.push({
           coordinates: candidateCoords,
           type,
           properties: candidate.properties,
-          id: `${type}-${candidate.properties.id}`,
+          id: uniqueId,
           distance: Math.round(distance),
           bearing: Math.round(bearing)
         });
@@ -1903,415 +1810,99 @@ export function Index({ auth }: PageProps) {
     filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
     filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
 
+    // Add Building → Site relationships (using primarysiteid)
+    const buildingCandidates = connections.filter(c => c.type === 'building');
+    buildingCandidates.forEach(building => {
+      const primarySiteId = building.properties.primarysiteid;
+      if (primarySiteId) {
+        const relatedSite = filteredSiteCentroids.find(site => site.properties.id === primarySiteId);
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}-${relatedSite.coordinates[0].toFixed(6)}-${relatedSite.coordinates[1].toFixed(6)}`)) {
+          const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
+          const buildingPoint = turf.point([building.coordinates[0], building.coordinates[1]]);
+          const sitePoint = turf.point(siteCoords);
+          const distance = turf.distance(buildingPoint, sitePoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(buildingPoint, sitePoint);
+          
+          connections.push({
+            coordinates: siteCoords,
+            type: 'site',
+            properties: relatedSite.properties,
+            id: `site-${relatedSite.properties.id}-${siteCoords[0].toFixed(6)}-${siteCoords[1].toFixed(6)}`,
+            distance: Math.round(distance),
+            bearing: Math.round(bearing)
+          });
+        }
+      }
+    });
+
+    // Add BuildingPart → Site relationships (using smallest_siteid)
+    const buildingPartCandidates = connections.filter(c => c.type === 'buildingPart');
+    buildingPartCandidates.forEach(buildingPart => {
+      const smallestSiteId = buildingPart.properties.smallest_siteid;
+      if (smallestSiteId) {
+        const relatedSite = filteredSiteCentroids.find(site => site.properties.id === smallestSiteId);
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}-${relatedSite.coordinates[0].toFixed(6)}-${relatedSite.coordinates[1].toFixed(6)}`)) {
+          const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
+          const partPoint = turf.point([buildingPart.coordinates[0], buildingPart.coordinates[1]]);
+          const sitePoint = turf.point(siteCoords);
+          const distance = turf.distance(partPoint, sitePoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(partPoint, sitePoint);
+          
+          connections.push({
+            coordinates: siteCoords,
+            type: 'site',
+            properties: relatedSite.properties,
+            id: `site-${relatedSite.properties.id}-${siteCoords[0].toFixed(6)}-${siteCoords[1].toFixed(6)}`,
+            distance: Math.round(distance),
+            bearing: Math.round(bearing)
+          });
+        }
+      }
+    });
+
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
   }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch]);
 
-  const layers = [
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildingParts) && filteredBuildingPartCentroids.length > 0 && new ScatterplotLayer<BuildingPartCentroidState>({
-      id: `buildingpart-layer`,
-      data: filteredBuildingPartCentroids,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: zoomBasedRadius,
-      radiusMaxPixels: 20,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        let baseRadius;
-        if (category1 === 'Size by Area') {
-          const area = d.properties?.area || 0;
-          baseRadius = Math.sqrt(area);
-        } else { // Fixed Size
-          baseRadius = 10;
-        }
+  const handleOpenConnectionsModal = useCallback(() => {
+    setConnectionsForModal(photoConnectionsData);
+    setIsConnectionsModalOpen(true);
+  }, [photoConnectionsData]);
 
-        if (selectedLegendItem !== null) {
-          const propertyName = groupByMapping[category2];
-          const propValue = (d.properties as any)?.[propertyName];
-          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
-        }
+  const handleUpdateConnection = useCallback((connectionId: string, status: 'proposed' | 'verified' | 'rejected') => {
+    setConnectionsForModal(prev => 
+      prev.map(conn => 
+        conn.id === connectionId 
+          ? { ...conn, status }
+          : conn
+      )
+    );
+  }, []);
 
-        return baseRadius;
-      },
-      getFillColor: (d: any) => {
-        // Add dataType property for grouping by data type
-        const dataWithType = { ...d, dataType: 'buildingParts' };
-        return getFillColorForData(dataWithType, [255, 165, 0, 200], [255, 165, 0]);
-      },
-      getLineColor: d => [0, 0, 0, 255],
-      onHover: info => {
-        getCursor;
-        if (info.object && info.object.properties) {  
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as BuildingPartCentroidState);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
-        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
-      },
-    }),
-
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.sites) && filteredSiteCentroids.length > 0 && new ScatterplotLayer<SiteCentroidState>({
-      id: `site-layer`,
-      data: filteredSiteCentroids,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: zoomBasedRadius,
-      radiusMaxPixels: 20,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        let baseRadius;
-        if (category1 === 'Size by Area') {
-          const area = d.properties?.area || 0;
-          baseRadius = Math.sqrt(area);
-        } else { // Fixed Size
-          baseRadius = 10;
-        }
-
-        if (selectedLegendItem !== null) {
-          const propertyName = groupByMapping[category2];
-          const propValue = (d.properties as any)?.[propertyName];
-          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
-        }
-
-        return baseRadius;
-      },
-      getFillColor: (d: any) => {
-        const dataWithType = { ...d, dataType: 'sites' };
-        return getFillColorForData(dataWithType, [0, 255, 0, 200], [0, 255, 0]);
-      },
-      getLineColor: d => [0, 0, 0, 255],
-      onHover: info => {
-        getCursor;
-        if (info.object && info.object.properties) {  
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as SiteCentroidState);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
-        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
-      },
-    }),
-
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.nhle) && filteredNhleCentroids.length > 0 && new ScatterplotLayer<NhleFeatureState>({
-      id: `nhle-layer`,
-      data: filteredNhleCentroids,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: zoomBasedRadius,
-      radiusMaxPixels: 15,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        let baseRadius = 10;
-
-        if (selectedLegendItem !== null) {
-          const propertyName = groupByMapping[category2];
-          const propValue = (d.properties as any)?.[propertyName];
-          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
-        }
-
-        return baseRadius;
-      },
-      getFillColor: (d: any) => {
-        const dataWithType = { ...d, dataType: 'nhle' };
-        return getFillColorForData(dataWithType, [255, 0, 0, 200], [255, 0, 0]);
-      },
-      getLineColor: d => [0, 0, 0, 255],
-      onHover: info => {
-        getCursor;
-        if (info.object && info.object.properties) {  
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as NhleFeatureState);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
-        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
-      },
-    }),
-
-    // Layer for Building centroids (using ScatterplotLayer)
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildings) && filteredBuildingCentroids.length > 0 && new ScatterplotLayer<BuildingCentroidState>({
-      id: `building-layer`,
-      data: filteredBuildingCentroids,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: zoomBasedRadius,
-      radiusMaxPixels: 20,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        let baseRadius;
-        if (category1 === 'Size by Area') {
-          const area = d.properties?.area || 0;
-          baseRadius = Math.sqrt(area);
-        } else { // Fixed Size
-          baseRadius = 10;
-        }
-
-        if (selectedLegendItem !== null) {
-          const propertyName = groupByMapping[category2];
-          const propValue = (d.properties as any)?.[propertyName];
-          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
-        }
-
-        return baseRadius;
-      },
-      getFillColor: (d: any) => {
-        const dataWithType = { ...d, dataType: 'buildings' };
-        return getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]);
-      },
-      getLineColor: d => [0, 0, 0, 255],
-      onHover: info => {
-        getCursor;
-        if (info.object && info.object.properties) {  
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          setSelectedFeature(info.object);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [category2, selectedLegendItem],
-        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
-      },
-    }),
-
-    // Layer for Photo centroids (using ScatterplotLayer)
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.photos) && filteredPhotoCentroids.length > 0 && new ScatterplotLayer<PhotoCentroidState>({
-      id: `photo-layer`,
-      data: filteredPhotoCentroids,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: zoomBasedRadius,
-      radiusMaxPixels: 20,
-      lineWidthMinPixels: 1,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        let baseRadius = 10; // Fixed size for photos
-        
-        if (selectedLegendItem !== null) {
-          const propertyName = groupByMapping[category2];
-          const propValue = (d.properties as any)?.[propertyName];
-          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
-        }
-
-        return baseRadius;
-      },
-      getFillColor: (d: any) => {
-        const dataWithType = { ...d, dataType: 'photos' };
-        return getFillColorForData(dataWithType, [255, 0, 255, 200], [255, 0, 255]);
-      },
-      getLineColor: d => [0, 0, 0, 255],
-      onHover: info => {
-        getCursor;
-        if (info.object && info.object.properties) {  
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as PhotoCentroidState);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids],
-        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
-      },
-    }),
-    
-    
-    // ScatterplotLayer for polygon centroids
-    geoJson && polygonCentroids.length > 0 && new ScatterplotLayer({
-      id: `polygon-centroids`,
-      data: polygonCentroids,
-      pickable: true,
-      opacity: 0.4,
-      stroked: true,
-      filled: true,
-      getPosition: d => d.coordinates,
-      getRadius: d => 10,
-      getFillColor: d => [255, 140, 0, 200],
-      getLineColor: d => [255, 140, 0, 255],
-      onHover: info => {
-        if (info.object && info.object.properties) {
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties) {
-          console.log('Clicked polygon centroid:', info.object);
-          setHoverInfo(info as any);
-        }
-      },
-    }),
-    
-    
-    geoJson && fetchedPolygons && new GeoJsonLayer<Feature>({
-      id: 'fetched-polygons-layer',
-      data: fetchedPolygons,
-      pickable: false,
-      stroked: true,
-      filled: true,
-      lineWidthMinPixels: 1,
-      getFillColor: [234, 49, 34, 0],
-      getLineColor: [234, 49, 34, 255],
-      updateTriggers: {
-        data: [iconLayerData],
-      },
-    }),
-
-    // Search pin marker layer - also used for selected features
-    (searchMarker || selectedFeature) && new IconLayer({
-      id: 'search-pin-marker-layer',
-      data: [
-        ...(searchMarker ? [{
-          ...searchMarker,
-          icon: 'pin'
-        }] : []),
-        ...(selectedFeature ? [{
-          coordinates: selectedFeature.coordinates,
-          data: selectedFeature.properties,
-          icon: 'pin'
-        }] : [])
-      ],
-      pickable: true,
-      iconAtlas: 'data:image/svg+xml;base64,' + btoa(`
-        <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-          <path d="M24 2C15.163 2 8 9.163 8 18c0 13.5 16 26 16 26s16-12.5 16-26c0-8.837-7.163-16-16-16z" fill="#FF0000" stroke="#FFFFFF" stroke-width="2"/>
-          <circle cx="24" cy="18" r="6" fill="#FFFFFF"/>
-        </svg>
-      `),
-      iconMapping: {
-        pin: {
-          x: 0,
-          y: 0,
-          width: 48,
-          height: 48,
-          anchorY: 48,
-          anchorX: 24
-        }
-      },
-      getIcon: d => 'pin',
-      getPosition: d => d.coordinates,
-      getSize: 32,
-      getColor: [255, 0, 0, 255],
-      onHover: info => {
-        if (info.object) {
-          setHoverInfo({
-            x: info.x,
-            y: info.y,
-            layer: info.layer,
-            object: {
-              properties: info.object.data,
-              type: info.object.type
-            }
-          });
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object) {
-          const selectedFeatureData = {
-            id: `search-${Date.now()}`,
-            coordinates: info.object.coordinates,
-            properties: info.object.data
-          };
-          setSelectedFeature(selectedFeatureData);
-        }
-      },
-    }),
-
-    // PathLayer for bidirectional links (photo ↔ candidates)
-    bidirectionalLinks.length > 0 && new PathLayer({
-      id: 'bidirectional-links',
-      data: bidirectionalLinks,
-      pickable: true,
-      getPath: (d: any) => d.path,
-      getWidth: 2,
-      widthUnits: 'pixels',
-      getColor: (d: any) => {
-        switch (d.type) {
-          case 'building': return [60, 160, 255, 200]; // Building Blue #3C78FF
-          case 'buildingPart': return [255, 182, 72, 200]; // Building Part Orange #FFB648
-          case 'site': return [46, 204, 113, 200]; // Site Green #2ECC71
-          case 'nhle': return [231, 76, 60, 210]; // NHLE Red #E74C3C
-          default: return [60, 160, 255, 200]; // Default blue
-        }
-      },
-      getDashArray: (d: any) => d.type === 'nhle' ? [3, 3] : [1, 0], // NHLE dashed, others solid
-      getOffset: (d: any) => d.offset,
-      parameters: { depthTest: false },
-      extensions: [new PathStyleExtension({ offset: true, dash: true })],
-      autoHighlight: true,
-      onHover: (info: any) => {
-        if (info.object) {
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: (info: any) => {
-        if (info.object) {
-          // Find the actual candidate feature to select
-          const candidateType = info.object.type;
-          const candidateId = info.object.properties.id;
-          
-          let candidateFeature = null;
-          if (candidateType === 'building') {
-            candidateFeature = filteredBuildingCentroids.find(b => b.properties.id === candidateId);
-          } else if (candidateType === 'buildingPart') {
-            candidateFeature = filteredBuildingPartCentroids.find(p => p.properties.id === candidateId);
-          } else if (candidateType === 'site') {
-            candidateFeature = filteredSiteCentroids.find(s => s.properties.id === candidateId);
-          } else if (candidateType === 'nhle') {
-            candidateFeature = filteredNhleCentroids.find(n => n.properties.id === candidateId);
-          }
-          
-          if (candidateFeature) {
-            setSelectedFeature(candidateFeature);
-          }
-        }
-      },
-    }),
-  ].filter(Boolean);
+  const layers = createMapLayers({
+    filteredBuildingCentroids,
+    filteredBuildingPartCentroids,
+    filteredSiteCentroids,
+    filteredNhleCentroids,
+    filteredPhotoCentroids,
+    polygonCentroids,
+    bidirectionalLinks,
+    dataType,
+    category1,
+    category2,
+    selectedLegendItem,
+    zoomBasedRadius,
+    geoJson,
+    fetchedPolygons,
+    searchMarker,
+    selectedFeature,
+    groupByMapping,
+    getFillColorForData,
+    getCursor,
+    setHoverInfo,
+    setSelectedFeature,
+    iconLayerData
+  });
 
   return (
     <>
@@ -2496,6 +2087,7 @@ export function Index({ auth }: PageProps) {
                 nhleData={nhleData}
                 isLoadingAdditionalData={isLoadingAdditionalData}
                 connectionsData={photoConnectionsData}
+                onOpenConnectionsModal={handleOpenConnectionsModal}
               />
             ) : (
               // Default Panel for Building/NHLE/Site Details
@@ -2889,6 +2481,25 @@ export function Index({ auth }: PageProps) {
           schema={selectedSchema}
         />
         </div>
+
+        {/* Connections Modal */}
+        {isConnectionsModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsConnectionsModalOpen(false);
+              }
+            }}
+          >
+            <ConnectionsModal
+              isOpen={isConnectionsModalOpen}
+              onClose={() => setIsConnectionsModalOpen(false)}
+              connections={connectionsForModal}
+              onUpdateConnection={handleUpdateConnection}
+            />
+          </div>
+        )}
 
         {/* Search Modal */}
         {isSearchModalOpen && (
