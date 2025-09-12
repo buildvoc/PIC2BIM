@@ -13,6 +13,7 @@ import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/c
 import { PathStyleExtension } from '@deck.gl/extensions';
 import { createMapLayers } from './layers/MapLayers';
 import { useDataFilters } from './hooks/useDataFilters';
+import ConnectionsModal from '@/Components/DataMap/ConnectionsModal';
 import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
 import ValidationReportModal from './components/ValidationReportModal';
@@ -574,6 +575,8 @@ export function Index({ auth }: PageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchField, setSearchField] = useState('all');
+  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
+  const [connectionsForModal, setConnectionsForModal] = useState<any[]>([]);
   const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
@@ -1788,11 +1791,13 @@ export function Index({ auth }: PageProps) {
       const bearing = turf.bearing(photoPoint, candidatePoint);
       
       if (distance <= maxDistance && bearingMatch(photoCoords, photoHeading, candidateCoords)) {
+        // Create unique ID using coordinates to ensure each connection is unique
+        const uniqueId = `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`;
         connections.push({
           coordinates: candidateCoords,
           type,
           properties: candidate.properties,
-          id: `${type}-${candidate.properties.id}`,
+          id: uniqueId,
           distance: Math.round(distance),
           bearing: Math.round(bearing)
         });
@@ -1811,7 +1816,7 @@ export function Index({ auth }: PageProps) {
       const primarySiteId = building.properties.primarysiteid;
       if (primarySiteId) {
         const relatedSite = filteredSiteCentroids.find(site => site.properties.id === primarySiteId);
-        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}`)) {
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}-${relatedSite.coordinates[0].toFixed(6)}-${relatedSite.coordinates[1].toFixed(6)}`)) {
           const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
           const buildingPoint = turf.point([building.coordinates[0], building.coordinates[1]]);
           const sitePoint = turf.point(siteCoords);
@@ -1822,7 +1827,7 @@ export function Index({ auth }: PageProps) {
             coordinates: siteCoords,
             type: 'site',
             properties: relatedSite.properties,
-            id: `site-${relatedSite.properties.id}`,
+            id: `site-${relatedSite.properties.id}-${siteCoords[0].toFixed(6)}-${siteCoords[1].toFixed(6)}`,
             distance: Math.round(distance),
             bearing: Math.round(bearing)
           });
@@ -1836,7 +1841,7 @@ export function Index({ auth }: PageProps) {
       const smallestSiteId = buildingPart.properties.smallest_siteid;
       if (smallestSiteId) {
         const relatedSite = filteredSiteCentroids.find(site => site.properties.id === smallestSiteId);
-        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}`)) {
+        if (relatedSite && !connections.some(c => c.id === `site-${relatedSite.properties.id}-${relatedSite.coordinates[0].toFixed(6)}-${relatedSite.coordinates[1].toFixed(6)}`)) {
           const siteCoords: [number, number] = [relatedSite.coordinates[0], relatedSite.coordinates[1]];
           const partPoint = turf.point([buildingPart.coordinates[0], buildingPart.coordinates[1]]);
           const sitePoint = turf.point(siteCoords);
@@ -1847,7 +1852,7 @@ export function Index({ auth }: PageProps) {
             coordinates: siteCoords,
             type: 'site',
             properties: relatedSite.properties,
-            id: `site-${relatedSite.properties.id}`,
+            id: `site-${relatedSite.properties.id}-${siteCoords[0].toFixed(6)}-${siteCoords[1].toFixed(6)}`,
             distance: Math.round(distance),
             bearing: Math.round(bearing)
           });
@@ -1858,6 +1863,21 @@ export function Index({ auth }: PageProps) {
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
   }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch]);
+
+  const handleOpenConnectionsModal = useCallback(() => {
+    setConnectionsForModal(photoConnectionsData);
+    setIsConnectionsModalOpen(true);
+  }, [photoConnectionsData]);
+
+  const handleUpdateConnection = useCallback((connectionId: string, status: 'proposed' | 'verified' | 'rejected') => {
+    setConnectionsForModal(prev => 
+      prev.map(conn => 
+        conn.id === connectionId 
+          ? { ...conn, status }
+          : conn
+      )
+    );
+  }, []);
 
   const layers = createMapLayers({
     filteredBuildingCentroids,
@@ -2067,6 +2087,7 @@ export function Index({ auth }: PageProps) {
                 nhleData={nhleData}
                 isLoadingAdditionalData={isLoadingAdditionalData}
                 connectionsData={photoConnectionsData}
+                onOpenConnectionsModal={handleOpenConnectionsModal}
               />
             ) : (
               // Default Panel for Building/NHLE/Site Details
@@ -2460,6 +2481,25 @@ export function Index({ auth }: PageProps) {
           schema={selectedSchema}
         />
         </div>
+
+        {/* Connections Modal */}
+        {isConnectionsModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsConnectionsModalOpen(false);
+              }
+            }}
+          >
+            <ConnectionsModal
+              isOpen={isConnectionsModalOpen}
+              onClose={() => setIsConnectionsModalOpen(false)}
+              connections={connectionsForModal}
+              onUpdateConnection={handleUpdateConnection}
+            />
+          </div>
+        )}
 
         {/* Search Modal */}
         {isSearchModalOpen && (

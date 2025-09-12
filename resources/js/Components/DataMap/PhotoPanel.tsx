@@ -18,7 +18,9 @@ interface PhotoPanelProps {
     id: string;
     distance?: number;
     bearing?: number;
+    status?: 'proposed' | 'verified' | 'rejected';
   }>;
+  onOpenConnectionsModal?: () => void;
 }
 
 const PhotoPanel: React.FC<PhotoPanelProps> = ({
@@ -31,7 +33,8 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
   shapeData,
   nhleData,
   isLoadingAdditionalData,
-  connectionsData = []
+  connectionsData = [],
+  onOpenConnectionsModal
 }) => {
   const [activeTab, setActiveTab] = useState<'metadata' | 'connections'>('metadata');
 
@@ -100,8 +103,18 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
 
       {activeTab === 'connections' && (
         <div className="space-y-4">
-          <div className="text-sm text-gray-600">
-            Nearby features within photo field of view (±20° bearing, 200m radius)
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Nearby features within photo field of view (±20° bearing, 200m radius)
+            </div>
+            {connectionsData.length > 0 && (
+              <button
+                onClick={onOpenConnectionsModal}
+                className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Manage Connections
+              </button>
+            )}
           </div>
           
           {connectionsData.length === 0 ? (
@@ -131,8 +144,7 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {connectionsData.map((connection, index) => (
-                    // <tr key={`${connection.type}-${connection.id || index}`} className="hover:bg-gray-50">
+                  {connectionsData.map((connection: any, index: number) => (
                     <tr key={`${connection.type}-${index}`} className="hover:bg-gray-50">
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-center">
@@ -170,6 +182,7 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
           )}
         </div>
       )}
+
     </div>
   );
 };
