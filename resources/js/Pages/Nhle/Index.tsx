@@ -1547,7 +1547,7 @@ export function Index({ auth }: PageProps) {
       return [];
     }
 
-    const maxDistance = 200; // meters
+    const maxDistance = 10; // meters
     const links: Array<{
       coordinates: [number, number];
       type: string;
@@ -1771,7 +1771,7 @@ export function Index({ auth }: PageProps) {
     const photoHeading = typeof selectedFeature.properties.photo_heading === 'string' 
       ? parseFloat(selectedFeature.properties.photo_heading) 
       : (selectedFeature.properties.photo_heading || 0);
-    const maxDistance = 200; // meters
+    const maxDistance = 10; // meters
     
     const connections: Array<{
       coordinates: [number, number];

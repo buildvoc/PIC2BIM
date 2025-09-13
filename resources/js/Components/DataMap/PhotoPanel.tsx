@@ -105,7 +105,12 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Nearby features within photo field of view (±20° bearing, 200m radius)
+              Nearby features within photo field of view (±20° bearing, 10m radius)
+              {selectedFeature?.properties?.photo_heading && (
+                <span className="block mt-1">
+                  Photo heading: {Math.round(selectedFeature.properties.photo_heading)}°
+                </span>
+              )}
             </div>
             {connectionsData.length > 0 && (
               <button
