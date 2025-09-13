@@ -82,7 +82,7 @@ class DataMapController extends Controller
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
             })
-            ->with('sites')
+            ->with('sites', 'buildingAddresses')
             ->chunk(2000, function ($chunk) use (&$buildings) {
                 $buildings = $buildings->merge($chunk);
             });
