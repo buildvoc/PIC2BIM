@@ -169,11 +169,9 @@ export function createMapLayers({
     clusteredData = allPoints;
   }
   
-  // Separate clusters from individual points
   const clusters = clusteredData.filter((item): item is ClusterData => 'isCluster' in item);
   const individualPoints = clusteredData.filter((item): item is ClusterPoint => !('isCluster' in item));
   
-  // Group individual points by data type
   const groupedPoints = {
     buildings: individualPoints.filter(p => p.dataType === 'buildings'),
     buildingParts: individualPoints.filter(p => p.dataType === 'buildingParts'),
@@ -183,7 +181,6 @@ export function createMapLayers({
   };
   
   const layers = [
-    // Clusters Layer - Shows clustered points with dynamic sizing
     clusters.length > 0 && new ScatterplotLayer({
       id: 'clusters-layer',
       data: clusters,
@@ -195,11 +192,20 @@ export function createMapLayers({
       lineWidthMinPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
-        // Dynamic radius that scales with zoom and remains visible at all levels
         const count = d.properties.point_count;
+        
+        if (currentZoom > 14) {
+          let baseRadius = 10;
+          
+          if (count >= 1000) return baseRadius + 8;
+          if (count >= 100) return baseRadius + 6;
+          if (count >= 50) return baseRadius + 4;
+          if (count >= 10) return baseRadius + 2;
+          return baseRadius;
+        }
+        
         const zoomFactor = Math.max(0.8, Math.min(3.0, currentZoom / 8));
         
-        // Larger radii that remain visible when zoomed out
         if (count >= 10000) return Math.max(40, Math.min(80, 60 * zoomFactor));
         if (count >= 1000) return Math.max(30, Math.min(60, 45 * zoomFactor));
         if (count >= 100) return Math.max(25, Math.min(50, 35 * zoomFactor));
