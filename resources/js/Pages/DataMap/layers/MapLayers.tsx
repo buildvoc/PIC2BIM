@@ -1,6 +1,8 @@
 import React from 'react';
 import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer } from '@deck.gl/layers';
 import { PathStyleExtension } from '@deck.gl/extensions';
+import { COORDINATE_SYSTEM } from '@deck.gl/core';
+import * as turf from '@turf/turf';
 import type { 
     BuildingCentroidState, 
     BuildingPartCentroidState,
@@ -30,6 +32,12 @@ interface MapLayersProps {
   searchMarker: {coordinates: [number, number], data: any, type: string} | null;
   selectedFeature: BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null;
   
+  // Spidering props
+  selectedPoint: any | null;
+  spideredConnections: any[];
+  spideringRadius: number;
+  onPointClick: (point: any) => void;
+  
   // Functions
   groupByMapping: { [key: string]: string };
   getFillColorForData: (d: any, defaultColor: number[], fallbackColor: number[]) => number[];
@@ -56,6 +64,10 @@ export function createMapLayers({
   fetchedPolygons,
   searchMarker,
   selectedFeature,
+  selectedPoint,
+  spideredConnections,
+  spideringRadius,
+  onPointClick,
   groupByMapping,
   getFillColorForData,
   getCursor,
@@ -70,7 +82,18 @@ export function createMapLayers({
     filteredBuildingPartCentroids.length > 0 && 
     new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
-      data: filteredBuildingPartCentroids,
+      data: filteredBuildingPartCentroids.filter(part => {
+        // Hide only specific building parts that are being spidered or are the selected point
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.osid === part.properties.osid;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'buildingPart' && 
+            conn.properties.osid === part.properties.osid
+          );
+          return !isSelectedPoint && !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
@@ -117,6 +140,7 @@ export function createMapLayers({
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
@@ -125,7 +149,18 @@ export function createMapLayers({
     filteredSiteCentroids.length > 0 && 
     new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
-      data: filteredSiteCentroids,
+      data: filteredSiteCentroids.filter(site => {
+        // Hide only specific sites that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.osid === site.properties.osid;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'site' && 
+            conn.properties.osid === site.properties.osid
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
@@ -165,12 +200,36 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as SiteCentroidState);
+          // Check if this site has potential connections (related buildings/parts)
+          const siteProperties = info.object.properties as any;
+          const siteId = siteProperties.osid || siteProperties.id;
+          const siteMatchedUprn = siteProperties.matcheduprn;
+          
+          const hasRelatedBuildings = filteredBuildingCentroids.some(building => {
+            if (building.properties.primarysiteid === siteId) return true;
+            if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
+              return building.properties.uprn.some((uprnObj: any) => 
+                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+              );
+            }
+            return false;
+          });
+          
+          const hasRelatedParts = filteredBuildingPartCentroids.some(part => 
+            part.properties.smallestsite_siteid === siteId
+          );
+          
+          if (hasRelatedBuildings || hasRelatedParts) {
+            onPointClick(info.object);
+          } else {
+            setSelectedFeature(info.object as SiteCentroidState);
+          }
         }
       },
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
@@ -179,7 +238,18 @@ export function createMapLayers({
     filteredNhleCentroids.length > 0 && 
     new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
-      data: filteredNhleCentroids,
+      data: filteredNhleCentroids.filter(nhle => {
+        // Hide only specific NHLE that are being spidered or are the selected point
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.nhle_id === nhle.properties.nhle_id;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'nhle' && 
+            conn.properties.nhle_id === nhle.properties.nhle_id
+          );
+          return !isSelectedPoint && !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
@@ -219,6 +289,7 @@ export function createMapLayers({
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
@@ -227,7 +298,18 @@ export function createMapLayers({
     filteredBuildingCentroids.length > 0 && 
     new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
-      data: filteredBuildingCentroids,
+      data: filteredBuildingCentroids.filter(building => {
+        // Hide only specific buildings that are being spidered or are the selected point
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.osid === building.properties.osid;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'building' && 
+            conn.properties.osid === building.properties.osid
+          );
+          return !isSelectedPoint && !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
@@ -273,6 +355,7 @@ export function createMapLayers({
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
@@ -281,7 +364,18 @@ export function createMapLayers({
     filteredPhotoCentroids.length > 0 && 
     new ScatterplotLayer<PhotoCentroidState>({
       id: `photo-layer`,
-      data: filteredPhotoCentroids,
+      data: filteredPhotoCentroids.filter(photo => {
+        // Hide only specific photos that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.id === photo.properties.id;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'photo' && 
+            conn.properties.id === photo.properties.id
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
@@ -321,6 +415,7 @@ export function createMapLayers({
       updateTriggers: {
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
     
@@ -428,57 +523,135 @@ export function createMapLayers({
       },
     }),
 
-    // Bidirectional Links Layer
-    bidirectionalLinks.length > 0 && new PathLayer({
-      id: 'bidirectional-links',
-      data: bidirectionalLinks,
+    // Spidered Connections Layer
+    selectedPoint && spideredConnections.length > 0 && new ScatterplotLayer({
+      id: `spidered-connections-${selectedPoint.id}`,
+      data: spideredConnections,
+      coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+      coordinateOrigin: selectedPoint.coordinates,
       pickable: true,
-      getPath: (d: any) => d.path,
-      getWidth: 2,
-      widthUnits: 'pixels',
-      getColor: (d: any) => {
+      stroked: true,
+      filled: true,
+      radiusScale: 1,
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 2,
+      getPosition: (d: any, { index }: { index: number }) => {
+        const angle = (index / spideredConnections.length) * Math.PI * 2;
+        return [
+          spideringRadius * Math.cos(angle),
+          spideringRadius * Math.sin(angle)
+        ];
+      },
+      getRadius: 8,
+      getFillColor: (d: any) => {
+        // Color based on connection type
         switch (d.type) {
-          case 'building': return [60, 160, 255, 200]; // Building Blue #3C78FF
-          case 'buildingPart': return [255, 182, 72, 200]; // Building Part Orange #FFB648
-          case 'site': return [46, 204, 113, 200]; // Site Green #2ECC71
-          case 'nhle': return [231, 76, 60, 210]; // NHLE Red #E74C3C
-          default: return [60, 160, 255, 200]; // Default blue
+          case 'building': return [60, 160, 255, 200]; // Building Blue
+          case 'buildingPart': return [255, 165, 0, 200]; // Building Part Orange
+          case 'site': return [46, 204, 113, 200]; // Site Green
+          case 'nhle': return [231, 76, 60, 200]; // NHLE Red
+          case 'photo': return [255, 0, 255, 200]; // Photo Magenta
+          default: return [128, 128, 128, 200]; // Default Gray
         }
       },
-      getDashArray: (d: any) => d.type === 'nhle' ? [3, 3] : [1, 0], // NHLE dashed, others solid
-      getOffset: (d: any) => d.offset,
-      parameters: { depthTest: false },
-      extensions: [new PathStyleExtension({ offset: true, dash: true })],
-      autoHighlight: true,
-      onHover: (info: any) => {
+      getLineColor: [255, 255, 255, 255], // White border
+      onHover: info => {
         if (info.object) {
-          setHoverInfo(info as any);
+          setHoverInfo({
+            x: info.x,
+            y: info.y,
+            layer: info.layer,
+            object: {
+              properties: info.object.properties,
+              type: info.object.type
+            }
+          });
         } else {
           setHoverInfo(null);
         }
       },
-      onClick: (info: any) => {
+      onClick: info => {
         if (info.object) {
-          // Find the actual candidate feature to select
-          const candidateType = info.object.type;
-          const candidateId = info.object.properties.id;
+          // Find the actual feature to select
+          let actualFeature = null;
+          const connectionType = info.object.type;
+          const connectionId = info.object.properties.id;
           
-          let candidateFeature = null;
-          if (candidateType === 'building') {
-            candidateFeature = filteredBuildingCentroids.find(b => b.properties.id === candidateId);
-          } else if (candidateType === 'buildingPart') {
-            candidateFeature = filteredBuildingPartCentroids.find(p => p.properties.id === candidateId);
-          } else if (candidateType === 'site') {
-            candidateFeature = filteredSiteCentroids.find(s => s.properties.id === candidateId);
-          } else if (candidateType === 'nhle') {
-            candidateFeature = filteredNhleCentroids.find(n => n.properties.id === candidateId);
+          if (connectionType === 'building') {
+            actualFeature = filteredBuildingCentroids.find(b => b.properties.id === connectionId);
+          } else if (connectionType === 'buildingPart') {
+            actualFeature = filteredBuildingPartCentroids.find(p => p.properties.id === connectionId);
+          } else if (connectionType === 'site') {
+            actualFeature = filteredSiteCentroids.find(s => s.properties.id === connectionId);
+          } else if (connectionType === 'nhle') {
+            actualFeature = filteredNhleCentroids.find(n => n.properties.id === connectionId);
+          } else if (connectionType === 'photo') {
+            actualFeature = filteredPhotoCentroids.find(p => p.properties.id === connectionId);
           }
           
-          if (candidateFeature) {
-            setSelectedFeature(candidateFeature);
+          if (actualFeature) {
+            setSelectedFeature(actualFeature);
           }
         }
       },
+      updateTriggers: {
+        getPosition: [spideringRadius, spideredConnections.length],
+        getFillColor: [spideredConnections]
+      },
+      transitions: {
+        getPosition: {
+          duration: 300,
+          easing: (t: number) => t * (2 - t) // easeOutQuad equivalent
+        }
+      }
+    }),
+
+    // Spidered Connection Lines Layer
+    selectedPoint && spideredConnections.length > 0 && new PathLayer({
+      id: `spidered-connection-lines-${selectedPoint.id}`,
+      data: spideredConnections.map((conn, index) => {
+        const angle = (index / spideredConnections.length) * Math.PI * 2;
+        const spideredPosition = [
+          spideringRadius * Math.cos(angle),
+          spideringRadius * Math.sin(angle)
+        ];
+        
+        return {
+          path: [
+            [0, 0], // Center point (selectedPoint coordinates as origin)
+            spideredPosition // Spidered position
+          ],
+          type: conn.type,
+          properties: conn.properties
+        };
+      }),
+      coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+      coordinateOrigin: selectedPoint.coordinates,
+      pickable: false,
+      getPath: (d: any) => d.path,
+      getWidth: 2,
+      widthUnits: 'pixels',
+      getColor: (d: any) => {
+        // Color based on connection type with transparency
+        switch (d.type) {
+          case 'building': return [60, 160, 255, 150]; // Building Blue
+          case 'buildingPart': return [255, 165, 0, 150]; // Building Part Orange
+          case 'site': return [46, 204, 113, 150]; // Site Green
+          case 'nhle': return [231, 76, 60, 150]; // NHLE Red
+          case 'photo': return [255, 0, 255, 150]; // Photo Magenta
+          default: return [128, 128, 128, 150]; // Default Gray
+        }
+      },
+      updateTriggers: {
+        data: [spideringRadius, spideredConnections],
+        getColor: [spideredConnections]
+      },
+      transitions: {
+        getPath: {
+          duration: 300,
+          easing: (t: number) => t * (2 - t) // easeOutQuad equivalent
+        }
+      }
     }),
   ].filter(Boolean);
 

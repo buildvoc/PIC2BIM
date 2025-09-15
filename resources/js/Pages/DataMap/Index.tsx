@@ -48,6 +48,7 @@ import type {
     ValidationError
 } from './types';
 import { NhleProperties } from '@/types/nhle';
+import { connect } from 'node:tls';
 
 
 export function Index({ auth }: PageProps) {
@@ -105,6 +106,11 @@ export function Index({ auth }: PageProps) {
   const [buildingApiData, setBuildingApiData] = useState<any>(null);
   const [nhleData, setNhleData] = useState<any>(null);
   const [isLoadingAdditionalData, setIsLoadingAdditionalData] = useState<boolean>(false);
+
+  // Spidering state
+  const [selectedPoint, setSelectedPoint] = useState<any | null>(null);
+  const [spideredConnections, setSpideredConnections] = useState<any[]>([]);
+  const [spideringRadius] = useState<number>(10); // 10 meters radius
 
   // Fetch built-up areas on component mount
   useEffect(() => {
@@ -1542,6 +1548,25 @@ export function Index({ auth }: PageProps) {
   }, [viewState]);
 
   // Bidirectional linking logic (photo ↔ candidates)
+  // Helper function to get spidered position for a connection
+  const getSpideredPosition = useCallback((connection: any, index: number) => {
+    if (selectedPoint && spideredConnections.length > 0) {
+      const angle = (index / spideredConnections.length) * Math.PI * 2;
+      const offsetX = spideringRadius * Math.cos(angle);
+      const offsetY = spideringRadius * Math.sin(angle);
+      
+      // Convert meter offsets to lng/lat coordinates
+      const metersPerDegreeLat = 111320;
+      const metersPerDegreeLng = 111320 * Math.cos(selectedPoint.coordinates[1] * Math.PI / 180);
+      
+      return [
+        selectedPoint.coordinates[0] + offsetX / metersPerDegreeLng,
+        selectedPoint.coordinates[1] + offsetY / metersPerDegreeLat
+      ];
+    }
+    return connection.coordinates;
+  }, [selectedPoint, spideredConnections, spideringRadius]);
+
   const bidirectionalLinks = useMemo(() => {
     if (!selectedFeature || viewState.zoom < LINK_MIN_ZOOM) {
       return [];
@@ -1642,25 +1667,39 @@ export function Index({ auth }: PageProps) {
           type: 'nhle',
           properties: nhle.properties,
           id: `nhle-${nhle.properties.id}`
-        });
-      }
     });
+  }
+});
 
-      // Create Bézier paths with offsets for parallel lines (Photo → Candidates)
-      candidates.forEach((candidate, index) => {
-        const path = bezierPath(photoCoords, candidate.coordinates, viewportForLinks);
-        const offset = (index % 5 - 2) * 3; // Offsets: -6, -3, 0, 3, 6 pixels
-        
-        links.push({
-          ...candidate,
-          path,
-          offset,
-          sourceCoords: photoCoords,
-          targetCoords: candidate.coordinates,
-          linkDirection: 'photo-to-candidate'
-        });
-      });
+  // Create Bézier paths with offsets for parallel lines (Photo → Candidates)
+  candidates.forEach((candidate, index) => {
+    // Use spidered position if spidering is active for this candidate
+    const targetCoords = selectedPoint && spideredConnections.some(conn => 
+      conn.type === candidate.type && 
+      conn.properties.id === candidate.properties.id &&
+      conn.coordinates[0] === candidate.coordinates[0] &&
+      conn.coordinates[1] === candidate.coordinates[1]
+    ) ? getSpideredPosition(candidate, spideredConnections.findIndex(conn => 
+      conn.type === candidate.type && 
+      conn.properties.id === candidate.properties.id &&
+      conn.coordinates[0] === candidate.coordinates[0] &&
+      conn.coordinates[1] === candidate.coordinates[1]
+    )) : candidate.coordinates;
+    
+    const path = bezierPath(photoCoords, targetCoords, viewportForLinks);
+    const offset = (index % 5 - 2) * 3; // Offsets: -6, -3, 0, 3, 6 pixels
+    
+    links.push({
+      ...candidate,
+      path,
+      offset,
+      sourceCoords: photoCoords,
+      targetCoords,
+      linkDirection: 'photo-to-candidate'
+    });
+  });
 
+      // Add Building → Site relationships (using primarysiteid)
       candidates.filter(c => c.type === 'building').forEach((building, index) => {
         const primarySiteId = building.properties.primarysiteid;
         if (primarySiteId) {
@@ -1684,6 +1723,7 @@ export function Index({ auth }: PageProps) {
         }
       });
 
+      // Add BuildingPart → Site relationships (using smallest_siteid)
       candidates.filter(c => c.type === 'buildingPart').forEach((buildingPart, index) => {
         const smallestSiteId = buildingPart.properties.smallestsite_siteid;
         if (smallestSiteId) {
@@ -2006,6 +2046,113 @@ export function Index({ auth }: PageProps) {
     );
   }, []);
 
+  // Spidering functionality
+  const handlePointClick = useCallback((point: any) => {
+    console.log(point.properties)
+    if (!point || point === selectedPoint) {
+      // Deactivate spidering
+      setSelectedPoint(null);
+      setSpideredConnections([]);
+      
+    } else {
+      // Temporarily select the point to calculate connections
+      const tempSelectedFeature = selectedFeature;
+      setSelectedFeature(point);
+      
+      // Wait for photoConnectionsData to update, then check connections
+      setTimeout(() => {
+        // Get connections for this point by temporarily setting it as selected
+        const isPhotoSelected = 'file_name' in point.properties;
+        const isSiteSelected = 'matcheduprn' in point.properties || 
+                              (!('file_name' in point.properties) && 
+                               !('area' in point.properties) && 
+                               !('smallestsite_siteid' in point.properties));
+
+        let connections: any[] = [];
+        
+        if (isPhotoSelected || isSiteSelected) {
+          // Calculate connections similar to photoConnectionsData logic
+          const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
+          
+          if (isPhotoSelected) {
+            // Photo connections logic
+            const photoHeading = typeof point.properties.photo_heading === 'string' 
+              ? parseFloat(point.properties.photo_heading) 
+              : (point.properties.photo_heading || 0);
+            const maxDistance = 10; // meters
+            const addConnection = (candidate: any, type: string) => {
+              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+              const photoPoint = turf.point(selectedCoords);
+              const candidatePoint = turf.point(candidateCoords);
+              const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+              
+              // Use bearing match logic like bidirectional links
+              if (distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, candidateCoords)) {
+                connections.push({
+                  coordinates: candidateCoords,
+                  type,
+                  properties: candidate.properties,
+                  id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
+                  distance: Math.round(distance)
+                });
+                console.log(connections)
+              }
+            };
+
+            // Add all candidate types for photo
+            filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
+            filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
+            filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
+            filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+          } else if (isSiteSelected) {
+            // Site connections logic
+            const siteProperties = point.properties as any;
+            const siteId = siteProperties.osid || siteProperties.id;
+            const siteMatchedUprn = siteProperties.matcheduprn;
+
+            const addSiteConnection = (candidate: any, type: string) => {
+              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+              connections.push({
+                coordinates: candidateCoords,
+                type,
+                properties: candidate.properties,
+                id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
+                distance: 0 // Site relationships don't use distance
+              });
+            };
+
+            // Find related buildings and building parts
+            const relatedBuildings = filteredBuildingCentroids.filter(building => {
+              if (building.properties.primarysiteid === siteId) return true;
+              if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
+                return building.properties.uprn.some((uprnObj: any) => 
+                  uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+                );
+              }
+              return false;
+            });
+            
+            const relatedBuildingParts = filteredBuildingPartCentroids.filter(part => 
+              part.properties.smallestsite_siteid === siteId
+            );
+
+            relatedBuildings.forEach(building => addSiteConnection(building, 'building'));
+            relatedBuildingParts.forEach(part => addSiteConnection(part, 'buildingPart'));
+          }
+        }
+
+        if (connections.length >= 1) {
+          // Activate spidering
+          setSelectedPoint(point);
+          setSpideredConnections(connections);
+        } else {
+          // No connections, restore previous selection
+          setSelectedFeature(tempSelectedFeature);
+        }
+      }, 50);
+    }
+  }, [selectedPoint, selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids]);
+
   const layers = createMapLayers({
     filteredBuildingCentroids,
     filteredBuildingPartCentroids,
@@ -2023,6 +2170,10 @@ export function Index({ auth }: PageProps) {
     fetchedPolygons,
     searchMarker,
     selectedFeature,
+    selectedPoint,
+    spideredConnections,
+    spideringRadius,
+    onPointClick: handlePointClick,
     groupByMapping,
     getFillColorForData,
     getCursor,
