@@ -94,6 +94,12 @@ export function Index({ auth }: PageProps) {
   const [areaDataCache, setAreaDataCache] = useState<{[key: string]: any}>({});
   const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
   const [skipInitialFetch, setSkipInitialFetch] = useState<boolean>(true);
+  const [clusteringEnabled, setClusteringEnabled] = useState<boolean | 'single'>(true);
+
+  // Auto enable/disable clustering based on zoom level
+  useEffect(() => {
+    setClusteringEnabled(true);
+  }, [viewState.zoom]);
 
   // Additional metadata states for sidepanel
   const [additionalDataCache, setAdditionalDataCache] = useState<{[key: string]: any}>({});
@@ -2006,6 +2012,34 @@ export function Index({ auth }: PageProps) {
     );
   }, []);
 
+  // Handle zoom to cluster callback
+  const handleZoomToCluster = useCallback((bounds: [[number, number], [number, number]], targetZoom: number) => {
+    const [[minLng, minLat], [maxLng, maxLat]] = bounds;
+    
+    // Use WebMercatorViewport to fit bounds
+    const viewport = new WebMercatorViewport({ 
+      ...viewState, 
+      width: window.innerWidth, 
+      height: window.innerHeight 
+    });
+    
+    const { longitude, latitude, zoom } = viewport.fitBounds(
+      [[minLng, minLat], [maxLng, maxLat]],
+      { padding: 100 }
+    );
+    
+    const finalZoom = Math.min(targetZoom, zoom);
+    
+    setViewState({
+      ...viewState,
+      longitude,
+      latitude,
+      zoom: finalZoom,
+      transitionDuration: 1000,
+      transitionInterpolator: new FlyToInterpolator()
+    });
+  }, [viewState]);
+
   const layers = createMapLayers({
     filteredBuildingCentroids,
     filteredBuildingPartCentroids,
@@ -2023,12 +2057,15 @@ export function Index({ auth }: PageProps) {
     fetchedPolygons,
     searchMarker,
     selectedFeature,
+    currentZoom: viewState.zoom,
     groupByMapping,
     getFillColorForData,
     getCursor,
     setHoverInfo,
     setSelectedFeature,
-    iconLayerData
+    onZoomToCluster: handleZoomToCluster,
+    iconLayerData,
+    clusteringEnabled
   });
 
   return (
