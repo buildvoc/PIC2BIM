@@ -33,7 +33,7 @@ class DataMapController extends Controller
 {
     public function index(Request $request)
     {
-        return Inertia::render('Nhle/Index', [
+        return Inertia::render('DataMap/Index', [
             'shapes' => null,
             'buildings' => null,
             'buildingParts' => null,
