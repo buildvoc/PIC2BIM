@@ -7,12 +7,14 @@ import DeckGL from '@deck.gl/react';
 import Map from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as turf from '@turf/turf';
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { GeoJsonLayer, ScatterplotLayer, IconLayer, PathLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
-import { PathStyleExtension } from '@deck.gl/extensions';
 import { createMapLayers } from './layers/MapLayers';
 import { useDataFilters } from './hooks/useDataFilters';
+import {
+  toggleSpiderCluster,
+  closeAllSpiderClusters,
+  type SpiderCluster
+} from './utils/spiderUtils';
 import ConnectionsModal from '@/Components/DataMap/ConnectionsModal';
 import { Button } from '@mui/material';
 import useGeoJsonValidation from '@/hooks/useGeoJsonValidation';
@@ -25,12 +27,10 @@ import Legend from '@/Components/DataMap/Legend';
 import SidePanel from './components/SidePanel';
 import MinMaxRangeSlider from './components/MinMaxRangeSlider';
 import { searchableFields } from '@/Constants/searchableFields';
-import MetadataGrid from '@/Components/DataMap/MetadataGrid';
 import PhotoPanel from '@/Components/DataMap/PhotoPanel';
 import { fetchAllBuildingData, findNearestFeature } from '@/Pages/BuildingHeight/api/fetch-building';
 
 import type { Feature, Geometry, Position } from 'geojson';
-import type { ShapeProperties } from '@/types/shape';
 import type { BuildingProperties as BuildingPropertiesV4, BuildingGeoJson } from '@/types/buildingv4';
 import type { BuildingPartProperties, BuildingPartGeoJson } from '@/types/buildingpartv2';
 import type { SiteGeoJson } from '@/types/site';
@@ -95,6 +95,67 @@ export function Index({ auth }: PageProps) {
   const [isLoadingAreaData, setIsLoadingAreaData] = useState<boolean>(false);
   const [skipInitialFetch, setSkipInitialFetch] = useState<boolean>(true);
   const [clusteringEnabled, setClusteringEnabled] = useState<boolean | 'single'>(true);
+  
+  // Spider clustering state
+  const [spiderClusters, setSpiderClusters] = useState<SpiderCluster[]>([]);
+  
+  // Initialize spider clusters when zoom > 17 - dynamically adjust based on zoom level
+  useEffect(() => {
+    const initializeSpiderClusters = async () => {
+      if (viewState.zoom > 17) {
+        const allPoints = [
+          ...buildingCentroidsData.map(item => ({
+            coordinates: item.coordinates,
+            properties: item.properties,
+            dataType: 'buildings' as any,
+            id: `buildings_${item.properties?.id || Math.random()}`
+          })),
+          ...buildingPartCentroidsData.map(item => ({
+            coordinates: item.coordinates,
+            properties: item.properties,
+            dataType: 'buildingParts' as any,
+            id: `buildingParts_${item.properties?.id || Math.random()}`
+          })),
+          ...siteCentroidsData.map(item => ({
+            coordinates: item.coordinates,
+            properties: item.properties,
+            dataType: 'sites' as any,
+            id: `sites_${item.properties?.id || Math.random()}`
+          })),
+          ...nhleCentroidsData.map(item => ({
+            coordinates: item.coordinates,
+            properties: item.properties,
+            dataType: 'nhle' as any,
+            id: `nhle_${item.properties?.id || Math.random()}`
+          })),
+          ...photoCentroidsData.map(item => ({
+            coordinates: item.coordinates,
+            properties: item.properties,
+            dataType: 'photos' as any,
+            id: `photos_${item.properties?.id || Math.random()}`
+          }))
+        ];
+
+        try {
+          const { groupStackedPoints, createSpiderClusters } = await import('./utils/spiderUtils');
+          // Pass current zoom level for dynamic clustering
+          const stackedGroups = groupStackedPoints(allPoints, viewState.zoom);
+          const { spiderClusters: newSpiderClusters } = createSpiderClusters(stackedGroups, 2);
+          
+          console.log(`Initialized spider clusters at zoom ${viewState.zoom.toFixed(2)}:`, newSpiderClusters.length);
+          console.log('Zoom-based clustering parameters applied');
+          setSpiderClusters(newSpiderClusters);
+        } catch (error) {
+          console.error('Error initializing spider clusters:', error);
+        }
+      } else {
+        // Clear spider clusters when zoom is too low
+        setSpiderClusters([]);
+      }
+    };
+
+    initializeSpiderClusters();
+  }, [viewState.zoom, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData, nhleCentroidsData, photoCentroidsData]);
 
   // Auto enable/disable clustering based on zoom level
   useEffect(() => {
@@ -2040,6 +2101,42 @@ export function Index({ auth }: PageProps) {
     });
   }, [viewState]);
 
+  // Handle spider cluster click
+  const handleSpiderClusterClick = useCallback((clusterId: string) => {
+    console.log('Spider cluster clicked:', clusterId);
+    console.log('Current spider clusters:', spiderClusters);
+    
+    setSpiderClusters(prevClusters => {
+      const viewport = new WebMercatorViewport({ 
+        ...viewState, 
+        width: window.innerWidth, 
+        height: window.innerHeight 
+      });
+      
+      return toggleSpiderCluster(prevClusters, clusterId, viewport);
+    });
+  }, [spiderClusters, viewState]);
+
+  // Handle closing all spider clusters
+  const handleCloseAllSpiderClusters = useCallback(() => {
+    console.log('Closing all spider clusters');
+    setSpiderClusters(prevClusters => {
+      return closeAllSpiderClusters(prevClusters);
+    });
+  }, []);
+
+  // Handle zoom to point (similar to search functionality)
+  const handleZoomToPoint = useCallback((coordinates: [number, number], zoom: number = 20) => {
+    console.log('Zooming to point:', coordinates, 'at zoom level:', zoom);
+    setViewState({
+      ...viewState,
+      longitude: coordinates[0],
+      latitude: coordinates[1],
+      zoom: zoom,
+      transitionDuration: 1000,
+      transitionInterpolator: new FlyToInterpolator()
+    });
+  }, [viewState]);
   const layers = createMapLayers({
     filteredBuildingCentroids,
     filteredBuildingPartCentroids,
@@ -2064,8 +2161,17 @@ export function Index({ auth }: PageProps) {
     setHoverInfo,
     setSelectedFeature,
     onZoomToCluster: handleZoomToCluster,
+    onZoomToPoint: handleZoomToPoint,
     iconLayerData,
-    clusteringEnabled
+    clusteringEnabled,
+    spiderClusters,
+    onSpiderClusterClick: handleSpiderClusterClick,
+    onCloseAllSpiderClusters: handleCloseAllSpiderClusters,
+    viewport: new WebMercatorViewport({ 
+      ...viewState, 
+      width: window.innerWidth, 
+      height: window.innerHeight 
+    })
   });
 
   return (
