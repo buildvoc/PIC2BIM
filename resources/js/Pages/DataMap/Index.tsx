@@ -99,41 +99,49 @@ export function Index({ auth }: PageProps) {
   // Spider clustering state
   const [spiderClusters, setSpiderClusters] = useState<SpiderCluster[]>([]);
   
-  // Initialize spider clusters when zoom > 17 - dynamically adjust based on zoom level
+  // Initialize spider clusters when zoom > 16 - dynamically adjust based on zoom level
   useEffect(() => {
     const initializeSpiderClusters = async () => {
-      if (viewState.zoom > 17) {
+      if (viewState.zoom > 16) {
+        const hasAnyDataTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
+        
+        const shouldIncludeBuildings = !hasAnyDataTypeSelected || dataType.buildings;
+        const shouldIncludeBuildingParts = !hasAnyDataTypeSelected || dataType.buildingParts;
+        const shouldIncludeSites = !hasAnyDataTypeSelected || dataType.sites;
+        const shouldIncludeNhle = !hasAnyDataTypeSelected || dataType.nhle;
+        const shouldIncludePhotos = !hasAnyDataTypeSelected || dataType.photos;
+
         const allPoints = [
-          ...buildingCentroidsData.map(item => ({
+          ...(shouldIncludeBuildings ? buildingCentroidsData.map(item => ({
             coordinates: item.coordinates,
             properties: item.properties,
             dataType: 'buildings' as any,
             id: `buildings_${item.properties?.id || Math.random()}`
-          })),
-          ...buildingPartCentroidsData.map(item => ({
+          })) : []),
+          ...(shouldIncludeBuildingParts ? buildingPartCentroidsData.map(item => ({
             coordinates: item.coordinates,
             properties: item.properties,
             dataType: 'buildingParts' as any,
             id: `buildingParts_${item.properties?.id || Math.random()}`
-          })),
-          ...siteCentroidsData.map(item => ({
+          })) : []),
+          ...(shouldIncludeSites ? siteCentroidsData.map(item => ({
             coordinates: item.coordinates,
             properties: item.properties,
             dataType: 'sites' as any,
             id: `sites_${item.properties?.id || Math.random()}`
-          })),
-          ...nhleCentroidsData.map(item => ({
+          })) : []),
+          ...(shouldIncludeNhle ? nhleCentroidsData.map(item => ({
             coordinates: item.coordinates,
             properties: item.properties,
             dataType: 'nhle' as any,
             id: `nhle_${item.properties?.id || Math.random()}`
-          })),
-          ...photoCentroidsData.map(item => ({
+          })) : []),
+          ...(shouldIncludePhotos ? photoCentroidsData.map(item => ({
             coordinates: item.coordinates,
             properties: item.properties,
             dataType: 'photos' as any,
             id: `photos_${item.properties?.id || Math.random()}`
-          }))
+          })) : [])
         ];
 
         try {
@@ -142,8 +150,6 @@ export function Index({ auth }: PageProps) {
           const stackedGroups = groupStackedPoints(allPoints, viewState.zoom);
           const { spiderClusters: newSpiderClusters } = createSpiderClusters(stackedGroups, 2);
           
-          console.log(`Initialized spider clusters at zoom ${viewState.zoom.toFixed(2)}:`, newSpiderClusters.length);
-          console.log('Zoom-based clustering parameters applied');
           setSpiderClusters(newSpiderClusters);
         } catch (error) {
           console.error('Error initializing spider clusters:', error);
@@ -155,7 +161,7 @@ export function Index({ auth }: PageProps) {
     };
 
     initializeSpiderClusters();
-  }, [viewState.zoom, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData, nhleCentroidsData, photoCentroidsData]);
+  }, [viewState.zoom, buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData, nhleCentroidsData, photoCentroidsData, dataType]);
 
   // Auto enable/disable clustering based on zoom level
   useEffect(() => {
@@ -230,11 +236,6 @@ export function Index({ auth }: PageProps) {
   const maxFloors = useMemo(() => {
     if (buildingCentroidsData.length === 0) {
       return 50; // Default max if no data
-    }
-    
-    // Debug: Log first building properties to see available fields
-    if (buildingCentroidsData.length > 0) {
-      console.log('Building properties sample:', buildingCentroidsData[0].properties);
     }
     
     const max = Math.max(...buildingCentroidsData.map(d => {
@@ -709,8 +710,6 @@ export function Index({ auth }: PageProps) {
             return null;
           })
           .filter(Boolean);
-        console.log(newBuildings);
-        console.log(`Adding ${newBuildings.length} new buildings to existing ${prev.length} buildings`);
         return [...prev, ...newBuildings];
       });
     }
@@ -741,7 +740,7 @@ export function Index({ auth }: PageProps) {
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newBuildingParts.length} new building parts to existing ${prev.length} building parts`);
+        // console.log(`Adding ${newBuildingParts.length} new building parts to existing ${prev.length} building parts`);
         return [...prev, ...newBuildingParts];
       });
     }
@@ -777,7 +776,7 @@ export function Index({ auth }: PageProps) {
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newSites.length} new sites to existing ${prev.length} sites`);
+        // console.log(`Adding ${newSites.length} new sites to existing ${prev.length} sites`);
         return [...prev, ...newSites];
       });
     }
@@ -814,7 +813,7 @@ export function Index({ auth }: PageProps) {
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
+        // console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
         return [...prev, ...newNhle];
       });
     }
@@ -861,7 +860,7 @@ export function Index({ auth }: PageProps) {
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
+        // console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
         return [...prev, ...newPhotos];
       });
     }
@@ -871,7 +870,7 @@ export function Index({ auth }: PageProps) {
       setShapes(prev => {
         if (!prev?.data?.features) {
           // If no existing shapes, set the new data directly
-          console.log(`Setting ${newData.shapes.features.length} shapes features`);
+          // console.log(`Setting ${newData.shapes.features.length} shapes features`);
           return { data: newData.shapes };
         }
         
@@ -880,7 +879,7 @@ export function Index({ auth }: PageProps) {
         const newShapes = newData.shapes.features.filter((feature: any) => !existingIds.has(feature.id));
         
         const mergedFeatures = [...prev.data.features, ...newShapes];
-        console.log(`Adding ${newShapes.length} new shapes to existing ${prev.data.features.length} shapes`);
+        // console.log(`Adding ${newShapes.length} new shapes to existing ${prev.data.features.length} shapes`);
         
         return {
           data: {
@@ -2103,8 +2102,6 @@ export function Index({ auth }: PageProps) {
 
   // Handle spider cluster click
   const handleSpiderClusterClick = useCallback((clusterId: string) => {
-    console.log('Spider cluster clicked:', clusterId);
-    console.log('Current spider clusters:', spiderClusters);
     
     setSpiderClusters(prevClusters => {
       const viewport = new WebMercatorViewport({ 
@@ -2119,7 +2116,6 @@ export function Index({ auth }: PageProps) {
 
   // Handle closing all spider clusters
   const handleCloseAllSpiderClusters = useCallback(() => {
-    console.log('Closing all spider clusters');
     setSpiderClusters(prevClusters => {
       return closeAllSpiderClusters(prevClusters);
     });
@@ -2127,7 +2123,6 @@ export function Index({ auth }: PageProps) {
 
   // Handle zoom to point (similar to search functionality)
   const handleZoomToPoint = useCallback((coordinates: [number, number], zoom: number = 20) => {
-    console.log('Zooming to point:', coordinates, 'at zoom level:', zoom);
     setViewState({
       ...viewState,
       longitude: coordinates[0],
@@ -2266,6 +2261,7 @@ export function Index({ auth }: PageProps) {
             groupByMapping={groupByMapping}
             onItemClick={handleLegendItemClick}
             selectedItem={selectedLegendItem}
+            dataType={dataType}
           />
 
           {hoverInfo && hoverInfo.object && (

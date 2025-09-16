@@ -148,23 +148,29 @@ export function createMapLayers({
     }));
   };
   
+  const hasAnyDataTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
+  
+  const shouldIncludeBuildings = !hasAnyDataTypeSelected || dataType.buildings;
+  const shouldIncludeBuildingParts = !hasAnyDataTypeSelected || dataType.buildingParts;
+  const shouldIncludeSites = !hasAnyDataTypeSelected || dataType.sites;
+  const shouldIncludeNhle = !hasAnyDataTypeSelected || dataType.nhle;
+  const shouldIncludePhotos = !hasAnyDataTypeSelected || dataType.photos;
+
   const allPoints: ClusterPoint[] = [
-    ...convertToClusterPoints(filteredBuildingCentroids, 'buildings'),
-    ...convertToClusterPoints(filteredBuildingPartCentroids, 'buildingParts'),
-    ...convertToClusterPoints(filteredSiteCentroids, 'sites'),
-    ...convertToClusterPoints(filteredNhleCentroids, 'nhle'),
-    ...convertToClusterPoints(filteredPhotoCentroids, 'photos')
+    ...(shouldIncludeBuildings ? convertToClusterPoints(filteredBuildingCentroids, 'buildings') : []),
+    ...(shouldIncludeBuildingParts ? convertToClusterPoints(filteredBuildingPartCentroids, 'buildingParts') : []),
+    ...(shouldIncludeSites ? convertToClusterPoints(filteredSiteCentroids, 'sites') : []),
+    ...(shouldIncludeNhle ? convertToClusterPoints(filteredNhleCentroids, 'nhle') : []),
+    ...(shouldIncludePhotos ? convertToClusterPoints(filteredPhotoCentroids, 'photos') : [])
   ];
   
   let clusteredData: (ClusterPoint | ClusterData)[];
   let spiderOverlayPoints: any[] = [];
   let expandedSpiderPoints: any[] = [];
   
-  // Check if any spider clusters are active (expanded)
   const hasActiveSpiderClusters = spiderClusters.some(cluster => cluster.isExpanded);
   
-  // Handle spidering for zoom > 17
-  if (currentZoom > 17) {
+  if (currentZoom > 16) {
     const stackedGroups = groupStackedPoints(allPoints, currentZoom);
     const { spiderClusters: autoSpiderClusters, individualPoints } = createSpiderClusters(stackedGroups, 2);
     
@@ -324,7 +330,7 @@ export function createMapLayers({
     }),
 
     // Spider Overlay Layer - Main overlay points for stacked data when zoom > 18
-    currentZoom > 17 && spiderOverlayPoints.length > 0 && new ScatterplotLayer({
+    currentZoom > 16 && spiderOverlayPoints.length > 0 && new ScatterplotLayer({
       id: 'spider-overlay-layer',
       data: spiderOverlayPoints,
       pickable: true,
@@ -376,7 +382,7 @@ export function createMapLayers({
     }),
 
     // Spider Overlay Labels
-    currentZoom > 17 && spiderOverlayPoints.length > 0 && new TextLayer({
+    currentZoom > 16 && spiderOverlayPoints.length > 0 && new TextLayer({
       id: 'spider-overlay-labels',
       data: spiderOverlayPoints,
       pickable: false,
@@ -862,7 +868,7 @@ export function createMapLayers({
     }),
 
     // Spider Connection Lines - Lines connecting overlay to expanded points (TOP LAYER)
-    currentZoom > 17 && expandedSpiderPoints.length > 0 && new PathLayer({
+    currentZoom > 16 && expandedSpiderPoints.length > 0 && new PathLayer({
       id: 'spider-connection-lines',
       data: expandedSpiderPoints.map(point => ({
         path: [point.originalCoordinates, point.coordinates],
@@ -881,7 +887,7 @@ export function createMapLayers({
     }),
 
     // Expanded Spider Points Layer - Fan-out points when spider is expanded (TOP LAYER)
-    currentZoom > 17 && expandedSpiderPoints.length > 0 && new ScatterplotLayer({
+    currentZoom > 16 && expandedSpiderPoints.length > 0 && new ScatterplotLayer({
       id: 'expanded-spider-points-layer',
       data: expandedSpiderPoints,
       pickable: true,
