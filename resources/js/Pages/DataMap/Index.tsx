@@ -2261,6 +2261,7 @@ export function Index({ auth }: PageProps) {
             groupByMapping={groupByMapping}
             onItemClick={handleLegendItemClick}
             selectedItem={selectedLegendItem}
+            dataType={dataType}
           />
 
           {hoverInfo && hoverInfo.object && (

@@ -163,15 +163,21 @@ export function useDataFilters({
     const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
     
     if (!isAnyTypeSelected) {
-      return [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids];
+      return [
+        ...filteredBuildingCentroids.map(item => ({ ...item, dataType: 'buildings' })),
+        ...filteredBuildingPartCentroids.map(item => ({ ...item, dataType: 'buildingParts' })),
+        ...filteredSiteCentroids.map(item => ({ ...item, dataType: 'sites' })),
+        ...filteredNhleCentroids.map(item => ({ ...item, dataType: 'nhle' })),
+        ...filteredPhotoCentroids.map(item => ({ ...item, dataType: 'photos' }))
+      ];
     }
     
     const data = [];
-    if (dataType.buildings) data.push(...filteredBuildingCentroids);
-    if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids);
-    if (dataType.sites) data.push(...filteredSiteCentroids);
-    if (dataType.nhle) data.push(...filteredNhleCentroids);
-    if (dataType.photos) data.push(...filteredPhotoCentroids);
+    if (dataType.buildings) data.push(...filteredBuildingCentroids.map(item => ({ ...item, dataType: 'buildings' })));
+    if (dataType.buildingParts) data.push(...filteredBuildingPartCentroids.map(item => ({ ...item, dataType: 'buildingParts' })));
+    if (dataType.sites) data.push(...filteredSiteCentroids.map(item => ({ ...item, dataType: 'sites' })));
+    if (dataType.nhle) data.push(...filteredNhleCentroids.map(item => ({ ...item, dataType: 'nhle' })));
+    if (dataType.photos) data.push(...filteredPhotoCentroids.map(item => ({ ...item, dataType: 'photos' })));
     
     return data;
   }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, dataType]);
