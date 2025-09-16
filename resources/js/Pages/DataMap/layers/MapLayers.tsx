@@ -1,6 +1,8 @@
 import React from 'react';
-import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer, TextLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer } from '@deck.gl/layers';
 import { PathStyleExtension } from '@deck.gl/extensions';
+import { COORDINATE_SYSTEM } from '@deck.gl/core';
+import * as turf from '@turf/turf';
 import type { 
     BuildingCentroidState, 
     BuildingPartCentroidState,
@@ -8,63 +10,6 @@ import type {
     NhleFeatureState,
     PhotoCentroidState
 } from '../types';
-import { 
-  clusterPoints, 
-  getClusterColor, 
-  expandCluster,
-  getClusterBounds,
-  getClusterExpansionZoom,
-  type ClusterPoint, 
-  type ClusterData 
-} from '../utils/clusteringUtils';
-import {
-  groupStackedPoints,
-  createSpiderClusters,
-  toggleSpiderCluster,
-  getSpiderOverlayPoint,
-  calculateSpiderPositions,
-  closeAllSpiderClusters,
-  type SpiderCluster,
-  type SpiderPoint
-} from '../utils/spiderUtils';
-
-// Import helper functions for single cluster mode
-function calculateCentroid(coordinates: [number, number][]): [number, number] {
-  const sum = coordinates.reduce(
-    (acc, coord) => [acc[0] + coord[0], acc[1] + coord[1]],
-    [0, 0]
-  );
-  return [sum[0] / coordinates.length, sum[1] / coordinates.length];
-}
-
-function countDataTypes(points: ClusterPoint[]): Record<string, number> {
-  return points.reduce((acc, point) => {
-    acc[point.dataType] = (acc[point.dataType] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-}
-
-function getDominantType(typeCount: Record<string, number>): string {
-  return Object.entries(typeCount).reduce((a, b) => 
-    typeCount[a[0]] > typeCount[b[0]] ? a : b
-  )[0];
-}
-
-function abbreviateNumber(num: number): string {
-  if (num >= 1000000) {
-    const millions = num / 1000000;
-    return millions % 1 === 0 ? `${millions}M` : `${millions.toFixed(1)}M`;
-  }
-  if (num >= 10000) {
-    const thousands = num / 1000;
-    return thousands % 1 === 0 ? `${thousands}K` : `${thousands.toFixed(0)}K`;
-  }
-  if (num >= 1000) {
-    const thousands = num / 1000;
-    return `${thousands.toFixed(1)}K`;
-  }
-  return num.toString();
-}
 
 interface MapLayersProps {
   // Data arrays
@@ -86,7 +31,12 @@ interface MapLayersProps {
   fetchedPolygons: any;
   searchMarker: {coordinates: [number, number], data: any, type: string} | null;
   selectedFeature: BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null;
-  currentZoom: number;
+  
+  // Spidering props
+  selectedPoint: any | null;
+  spideredConnections: any[];
+  spideringRadius: number;
+  onPointClick: (point: any) => void;
   
   // Functions
   groupByMapping: { [key: string]: string };
@@ -94,16 +44,7 @@ interface MapLayersProps {
   getCursor: any;
   setHoverInfo: (info: any) => void;
   setSelectedFeature: (feature: any) => void;
-  onZoomToCluster?: (bounds: [[number, number], [number, number]], zoom: number) => void;
-  onZoomToPoint?: (coordinates: [number, number], zoom?: number) => void;
   iconLayerData: any[];
-  clusteringEnabled: boolean | 'single';
-  
-  // Spider functionality
-  spiderClusters?: SpiderCluster[];
-  onSpiderClusterClick?: (clusterId: string) => void;
-  onCloseAllSpiderClusters?: () => void;
-  viewport?: any;
 }
 
 export function createMapLayers({
@@ -123,297 +64,41 @@ export function createMapLayers({
   fetchedPolygons,
   searchMarker,
   selectedFeature,
-  currentZoom,
+  selectedPoint,
+  spideredConnections,
+  spideringRadius,
+  onPointClick,
   groupByMapping,
   getFillColorForData,
   getCursor,
   setHoverInfo,
   setSelectedFeature,
-  onZoomToCluster,
-  onZoomToPoint,
-  iconLayerData,
-  clusteringEnabled,
-  spiderClusters = [],
-  onSpiderClusterClick,
-  onCloseAllSpiderClusters,
-  viewport
+  iconLayerData
 }: MapLayersProps) {
   
-  const convertToClusterPoints = (data: any[], dataType: string): ClusterPoint[] => {
-    return data.map(item => ({
-      coordinates: item.coordinates,
-      properties: item.properties,
-      dataType: dataType as any,
-      id: `${dataType}_${item.properties?.id || Math.random()}`
-    }));
-  };
-  
-  const hasAnyDataTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
-  
-  const shouldIncludeBuildings = !hasAnyDataTypeSelected || dataType.buildings;
-  const shouldIncludeBuildingParts = !hasAnyDataTypeSelected || dataType.buildingParts;
-  const shouldIncludeSites = !hasAnyDataTypeSelected || dataType.sites;
-  const shouldIncludeNhle = !hasAnyDataTypeSelected || dataType.nhle;
-  const shouldIncludePhotos = !hasAnyDataTypeSelected || dataType.photos;
-
-  const allPoints: ClusterPoint[] = [
-    ...(shouldIncludeBuildings ? convertToClusterPoints(filteredBuildingCentroids, 'buildings') : []),
-    ...(shouldIncludeBuildingParts ? convertToClusterPoints(filteredBuildingPartCentroids, 'buildingParts') : []),
-    ...(shouldIncludeSites ? convertToClusterPoints(filteredSiteCentroids, 'sites') : []),
-    ...(shouldIncludeNhle ? convertToClusterPoints(filteredNhleCentroids, 'nhle') : []),
-    ...(shouldIncludePhotos ? convertToClusterPoints(filteredPhotoCentroids, 'photos') : [])
-  ];
-  
-  let clusteredData: (ClusterPoint | ClusterData)[];
-  let spiderOverlayPoints: any[] = [];
-  let expandedSpiderPoints: any[] = [];
-  
-  const hasActiveSpiderClusters = spiderClusters.some(cluster => cluster.isExpanded);
-  
-  if (currentZoom > 16) {
-    const stackedGroups = groupStackedPoints(allPoints, currentZoom);
-    const { spiderClusters: autoSpiderClusters, individualPoints } = createSpiderClusters(stackedGroups, 2);
-    
-    const activeSpiderClusters = spiderClusters.length > 0 ? spiderClusters : autoSpiderClusters;
-    spiderOverlayPoints = activeSpiderClusters
-      .filter(cluster => !cluster.isExpanded)
-      .map(cluster => getSpiderOverlayPoint(cluster));
-    
-    expandedSpiderPoints = activeSpiderClusters
-      .filter(cluster => cluster.isExpanded)
-      .flatMap(cluster => cluster.points);
-    
-    clusteredData = [...individualPoints, ...spiderOverlayPoints];
-  } else if (currentZoom >= 16) {
-    clusteredData = allPoints;
-  } else if (clusteringEnabled === 'single') {
-    if (allPoints.length > 0) {
-      const centroid = calculateCentroid(allPoints.map(p => p.coordinates));
-      const typeCount = countDataTypes(allPoints);
-      const dominantType = getDominantType(typeCount);
-      
-      const singleCluster: ClusterData = {
-        coordinates: centroid,
-        properties: {
-          cluster: true,
-          point_count: allPoints.length,
-          point_count_abbreviated: abbreviateNumber(allPoints.length),
-          cluster_id: `single_${Date.now()}`,
-          clustered_points: allPoints,
-          dominant_type: dominantType,
-          mixed_types: Object.keys(typeCount).length > 1,
-          type_breakdown: typeCount
-        },
-        isCluster: true
-      };
-      
-      clusteredData = [singleCluster];
-    } else {
-      clusteredData = [];
-    }
-  } else if (clusteringEnabled) {
-    clusteredData = clusterPoints(allPoints, currentZoom);
-  } else {
-    clusteredData = allPoints;
-  }
-  
-  const clusters = clusteredData.filter((item): item is ClusterData => 'isCluster' in item);
-  const individualPoints = clusteredData.filter((item): item is ClusterPoint => !('isCluster' in item));
-  
-  const groupedPoints = {
-    buildings: individualPoints.filter(p => p.dataType === 'buildings'),
-    buildingParts: individualPoints.filter(p => p.dataType === 'buildingParts'),
-    sites: individualPoints.filter(p => p.dataType === 'sites'),
-    nhle: individualPoints.filter(p => p.dataType === 'nhle'),
-    photos: individualPoints.filter(p => p.dataType === 'photos')
-  };
-  
   const layers = [
-    clusters.length > 0 && new ScatterplotLayer({
-      id: 'clusters-layer',
-      data: clusters,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
-      lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        const count = d.properties.point_count;
-        
-        if (currentZoom > 14) {
-          let baseRadius = 10;
-          
-          if (count >= 1000) return baseRadius + 8;
-          if (count >= 100) return baseRadius + 6;
-          if (count >= 50) return baseRadius + 4;
-          if (count >= 10) return baseRadius + 2;
-          return baseRadius;
-        }
-        
-        const zoomFactor = Math.max(0.8, Math.min(3.0, currentZoom / 8));
-        
-        if (count >= 10000) return Math.max(40, Math.min(80, 60 * zoomFactor));
-        if (count >= 1000) return Math.max(30, Math.min(60, 45 * zoomFactor));
-        if (count >= 100) return Math.max(25, Math.min(50, 35 * zoomFactor));
-        if (count >= 50) return Math.max(20, Math.min(40, 30 * zoomFactor));
-        if (count >= 10) return Math.max(15, Math.min(35, 25 * zoomFactor));
-        return Math.max(12, Math.min(30, 20 * zoomFactor));
-      },
-      getFillColor: d => getClusterColor(d.properties.dominant_type, d.properties.mixed_types),
-      getLineColor: d => [255, 255, 255, 200],
-      onHover: info => {
-        if (info.object) {
-          const cluster = info.object.properties;
-          let clusterInfo = `${cluster.point_count} items`;
-          
-          clusterInfo = `${cluster.point_count} items (${cluster.dominant_type})`;
-          
-          setHoverInfo({
-            ...info,
-            object: {
-              properties: {
-                ...cluster,
-                cluster_info: clusterInfo
-              }
-            }
-          });
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && onZoomToCluster) {
-          // Calculate cluster bounds and zoom to them
-          const bounds = getClusterBounds(info.object);
-          const targetZoom = getClusterExpansionZoom(info.object, currentZoom);
-          
-          // Trigger zoom to cluster
-          onZoomToCluster(bounds, targetZoom);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [currentZoom],
-        getRadius: [currentZoom, zoomBasedRadius],
-      },
-    }),
-
-    // Cluster Labels Layer
-    clusters.length > 0 && new TextLayer({
-      id: 'cluster-labels',
-      data: clusters,
-      pickable: false,
-      getPosition: d => d.coordinates,
-      getText: d => d.properties.point_count_abbreviated,
-      getSize: d => {
-        // Smaller, more conservative font sizes
-        const baseSize = Math.max(8, Math.min(14, 6 + currentZoom * 0.4));
-        const count = d.properties.point_count;
-        if (count >= 1000) return Math.min(baseSize + 3, 16);
-        if (count >= 100) return Math.min(baseSize + 2, 14);
-        if (count >= 10) return Math.min(baseSize + 1, 12);
-        return baseSize;
-      },
-      getAngle: 0,
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'center',
-      getColor: [255, 255, 255, 255],
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-      fontWeight: 'bold',
-      updateTriggers: {
-        getText: [currentZoom],
-        getSize: [currentZoom],
-      },
-    }),
-
-    // Spider Overlay Layer - Main overlay points for stacked data when zoom > 18
-    currentZoom > 16 && spiderOverlayPoints.length > 0 && new ScatterplotLayer({
-      id: 'spider-overlay-layer',
-      data: spiderOverlayPoints,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
-      lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
-      getPosition: d => d.coordinates,
-      getRadius: d => {
-        const count = d.properties?.point_count || 1;
-        return Math.max(12, Math.min(20, 10 + Math.log10(count) * 2));
-      },
-      getFillColor: d => {
-        if (d.properties?.is_spider_overlay) {
-          // Use original data type colors with reduced opacity when other spiders are active
-          const dominantType = d.properties.dominant_type;
-          const opacity = hasActiveSpiderClusters ? 120 : 200;
-          switch (dominantType) {
-            case 'buildings': return [0, 0, 255, opacity]; // Blue
-            case 'buildingParts': return [255, 165, 0, opacity]; // Orange
-            case 'sites': return [0, 255, 0, opacity]; // Green
-            case 'nhle': return [255, 0, 0, opacity]; // Red
-            case 'photos': return [255, 20, 147, opacity];
-            default: return getClusterColor(d.properties.dominant_type, d.properties.mixed_types);
-          }
-        }
-        return [100, 100, 100, hasActiveSpiderClusters ? 80 : 200];
-      },
-      getLineColor: d => [255, 255, 255, 255],
-      onHover: info => {
-        if (info.object && info.object.properties) {
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: info => {
-        if (info.object && info.object.properties?.spider_cluster_id && onSpiderClusterClick) {
-          onSpiderClusterClick(info.object.properties.spider_cluster_id);
-        }
-      },
-      updateTriggers: {
-        getFillColor: [currentZoom],
-        getRadius: [currentZoom, zoomBasedRadius],
-      },
-    }),
-
-    // Spider Overlay Labels
-    currentZoom > 16 && spiderOverlayPoints.length > 0 && new TextLayer({
-      id: 'spider-overlay-labels',
-      data: spiderOverlayPoints,
-      pickable: false,
-      getPosition: d => d.coordinates,
-      getText: d => d.properties?.point_count_abbreviated || d.properties?.point_count?.toString() || '1',
-      getSize: 12,
-      getAngle: 0,
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'center',
-      getColor: [255, 255, 255, 255],
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-      fontWeight: 'bold',
-      updateTriggers: {
-        getText: [currentZoom],
-      },
-    }),
-
-    // Building Parts Layer - Individual points when clustering disabled
+    // Building Parts Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildingParts) && 
-    groupedPoints.buildingParts.length > 0 && 
-    new ScatterplotLayer({
+    filteredBuildingPartCentroids.length > 0 && 
+    new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
-      data: groupedPoints.buildingParts,
+      data: filteredBuildingPartCentroids.filter(part => {
+        // Hide only specific building parts that are being spidered (but keep selected point visible)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'buildingPart' && 
+            conn.properties.osid === part.properties.osid
+          );
+          return !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
         let baseRadius;
@@ -433,10 +118,9 @@ export function createMapLayers({
         return baseRadius;
       },
       getFillColor: (d: any) => {
+        // Add dataType property for grouping by data type
         const dataWithType = { ...d, dataType: 'buildingParts' };
-        const baseColor = getFillColorForData(dataWithType, [255, 165, 0, 200], [255, 165, 0]) as [number, number, number, number];
-        // Reduce opacity when spider clusters are active
-        return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
+        return getFillColorForData(dataWithType, [255, 165, 0, 200], [255, 165, 0]) as [number, number, number, number];
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -449,36 +133,51 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Close all spider clusters when clicking on regular data points
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
+          const buildingPart = info.object as BuildingPartCentroidState;
+          const smallestSiteId = buildingPart.properties.smallestsite_siteid;
+          
+          // Check if this building part has a related site
+          const hasRelatedSite = smallestSiteId && filteredSiteCentroids.some(site => 
+            site.properties.osid === smallestSiteId
+          );
+          
+          if (hasRelatedSite) {
+            onPointClick(buildingPart);
+          } else {
+            setSelectedFeature(buildingPart);
           }
-          setSelectedFeature({
-            coordinates: info.object.coordinates,
-            properties: info.object.properties
-          });
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, currentZoom],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
-    // Sites Layer - Individual points when clustering disabled
+    // Sites Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.sites) && 
-    groupedPoints.sites.length > 0 && 
-    new ScatterplotLayer({
+    filteredSiteCentroids.length > 0 && 
+    new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
-      data: groupedPoints.sites,
+      data: filteredSiteCentroids.filter(site => {
+        // Hide only specific sites that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.osid === site.properties.osid;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'site' && 
+            conn.properties.osid === site.properties.osid
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
         let baseRadius;
@@ -499,9 +198,7 @@ export function createMapLayers({
       },
       getFillColor: (d: any) => {
         const dataWithType = { ...d, dataType: 'sites' };
-        const baseColor = getFillColorForData(dataWithType, [0, 255, 0, 200], [0, 255, 0]) as [number, number, number, number];
-        // Reduce opacity when spider clusters are active
-        return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
+        return getFillColorForData(dataWithType, [0, 255, 0, 200], [0, 255, 0]) as [number, number, number, number];
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -514,36 +211,62 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Close all spider clusters when clicking on regular data points
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
-          }
-          setSelectedFeature({
-            coordinates: info.object.coordinates,
-            properties: info.object.properties
+          // Check if this site has potential connections (related buildings/parts)
+          const siteProperties = info.object.properties as any;
+          const siteId = siteProperties.osid || siteProperties.id;
+          const siteMatchedUprn = siteProperties.matcheduprn;
+          
+          const hasRelatedBuildings = filteredBuildingCentroids.some(building => {
+            if (building.properties.primarysiteid === siteId) return true;
+            if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
+              return building.properties.uprn.some((uprnObj: any) => 
+                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+              );
+            }
+            return false;
           });
+          
+          const hasRelatedParts = filteredBuildingPartCentroids.some(part => 
+            part.properties.smallestsite_siteid === siteId
+          );
+          
+          if (hasRelatedBuildings || hasRelatedParts) {
+            onPointClick(info.object);
+          } else {
+            setSelectedFeature(info.object as SiteCentroidState);
+          }
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, currentZoom],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
-    // NHLE Layer - Individual points when clustering disabled
+    // NHLE Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.nhle) && 
-    groupedPoints.nhle.length > 0 && 
-    new ScatterplotLayer({
+    filteredNhleCentroids.length > 0 && 
+    new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
-      data: groupedPoints.nhle,
+      data: filteredNhleCentroids.filter(nhle => {
+        // Hide only specific NHLE that are being spidered or are the selected point
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.nhle_id === nhle.properties.nhle_id;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'nhle' && 
+            conn.properties.nhle_id === nhle.properties.nhle_id
+          );
+          return !isSelectedPoint && !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 15,
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
         let baseRadius = 10;
@@ -558,8 +281,7 @@ export function createMapLayers({
       },
       getFillColor: (d: any) => {
         const dataWithType = { ...d, dataType: 'nhle' };
-        const baseColor = getFillColorForData(dataWithType, [255, 0, 0, 200], [255, 0, 0]) as [number, number, number, number];
-        return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
+        return getFillColorForData(dataWithType, [255, 0, 0, 200], [255, 0, 0]) as [number, number, number, number];
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -572,35 +294,38 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
-          }
-          setSelectedFeature({
-            coordinates: info.object.coordinates,
-            properties: info.object.properties
-          });
+          setSelectedFeature(info.object as NhleFeatureState);
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, currentZoom],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
-    // Buildings Layer - Individual points when clustering disabled
+    // Buildings Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildings) && 
-    groupedPoints.buildings.length > 0 && 
-    new ScatterplotLayer({
+    filteredBuildingCentroids.length > 0 && 
+    new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
-      data: groupedPoints.buildings,
+      data: filteredBuildingCentroids.filter(building => {
+        // Hide only specific buildings that are being spidered (but keep selected point visible)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'building' && 
+            conn.properties.osid === building.properties.osid
+          );
+          return !isSpideredConnection;
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
         let baseRadius;
@@ -621,9 +346,7 @@ export function createMapLayers({
       },
       getFillColor: (d: any) => {
         const dataWithType = { ...d, dataType: 'buildings' };
-        const baseColor = getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]) as [number, number, number, number];
-        // Reduce opacity when spider clusters are active
-        return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
+        return getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]) as [number, number, number, number];
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -636,36 +359,61 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Close all spider clusters when clicking on regular data points
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
+          const building = info.object as BuildingCentroidState;
+          const primarySiteId = building.properties.primarysiteid;
+          
+          // Check if this building has a related site
+          const hasRelatedSite = primarySiteId && filteredSiteCentroids.some(site => 
+            site.properties.osid === primarySiteId
+          );
+          
+          // Also check for UPRN-based site relationships
+          const buildingUprns = building.properties.uprn;
+          const hasUprnRelatedSite = buildingUprns && Array.isArray(buildingUprns) && 
+            filteredSiteCentroids.some(site => {
+              const siteMatchedUprn = site.properties.matcheduprn;
+              return siteMatchedUprn && buildingUprns.some((uprnObj: any) => 
+                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+              );
+            });
+          
+          if (hasRelatedSite || hasUprnRelatedSite) {
+            onPointClick(building);
+          } else {
+            setSelectedFeature(building);
           }
-          setSelectedFeature({
-            coordinates: info.object.coordinates,
-            properties: info.object.properties
-          });
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, currentZoom],
+        getFillColor: [category2, selectedLegendItem],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
 
-    // Photos Layer - Individual points when clustering disabled
+    // Photos Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.photos) && 
-    groupedPoints.photos.length > 0 && 
-    new ScatterplotLayer({
+    filteredPhotoCentroids.length > 0 && 
+    new ScatterplotLayer<PhotoCentroidState>({
       id: `photo-layer`,
-      data: groupedPoints.photos,
+      data: filteredPhotoCentroids.filter(photo => {
+        // Hide only specific photos that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.id === photo.properties.id;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'photo' && 
+            conn.properties.id === photo.properties.id
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
       pickable: true,
       stroked: true,
       filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 20,
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
       getPosition: d => d.coordinates,
       getRadius: d => {
         let baseRadius = 10; // Fixed size for photos
@@ -680,8 +428,7 @@ export function createMapLayers({
       },
       getFillColor: (d: any) => {
         const dataWithType = { ...d, dataType: 'photos' };
-        const baseColor = getFillColorForData(dataWithType, [255, 20, 147, 200], [255, 20, 147]) as [number, number, number, number];
-        return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
+        return getFillColorForData(dataWithType, [255, 0, 255, 200], [255, 0, 255]) as [number, number, number, number];
       },
       getLineColor: d => [0, 0, 0, 255],
       onHover: info => {
@@ -694,19 +441,13 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Close all spider clusters when clicking on regular data points
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
-          }
-          setSelectedFeature({
-            coordinates: info.object.coordinates,
-            properties: info.object.properties
-          });
+          setSelectedFeature(info.object as PhotoCentroidState);
         }
       },
       updateTriggers: {
-        getFillColor: [category2, selectedLegendItem, currentZoom],
+        getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [selectedPoint, spideredConnections],
       },
     }),
     
@@ -814,130 +555,135 @@ export function createMapLayers({
       },
     }),
 
-    // Bidirectional Links Layer
-    bidirectionalLinks.length > 0 && new PathLayer({
-      id: 'bidirectional-links',
-      data: bidirectionalLinks,
-      pickable: true,
-      getPath: (d: any) => d.path,
-      getWidth: 2,
-      widthUnits: 'pixels',
-      getColor: (d: any) => {
-        switch (d.type) {
-          case 'building': return [60, 160, 255, 200]; // Building Blue #3C78FF
-          case 'buildingPart': return [255, 182, 72, 200]; // Building Part Orange #FFB648
-          case 'site': return [46, 204, 113, 200]; // Site Green #2ECC71
-          case 'nhle': return [231, 76, 60, 210]; // NHLE Red #E74C3C
-          default: return [60, 160, 255, 200]; // Default blue
-        }
-      },
-      getDashArray: (d: any) => d.type === 'nhle' ? [3, 3] : [1, 0], // NHLE dashed, others solid
-      getOffset: (d: any) => d.offset,
-      parameters: { depthTest: false },
-      extensions: [new PathStyleExtension({ offset: true, dash: true })],
-      autoHighlight: true,
-      onHover: (info: any) => {
-        if (info.object) {
-          setHoverInfo(info as any);
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: (info: any) => {
-        if (info.object) {
-          // Find the actual candidate feature to select
-          const candidateType = info.object.type;
-          const candidateId = info.object.properties.id;
-          
-          let candidateFeature = null;
-          if (candidateType === 'building') {
-            candidateFeature = filteredBuildingCentroids.find(b => b.properties.id === candidateId);
-          } else if (candidateType === 'buildingPart') {
-            candidateFeature = filteredBuildingPartCentroids.find(p => p.properties.id === candidateId);
-          } else if (candidateType === 'site') {
-            candidateFeature = filteredSiteCentroids.find(s => s.properties.id === candidateId);
-          } else if (candidateType === 'nhle') {
-            candidateFeature = filteredNhleCentroids.find(n => n.properties.id === candidateId);
-          }
-          
-          if (candidateFeature) {
-            setSelectedFeature(candidateFeature);
-          }
-        }
-      },
-    }),
-
-    // Spider Connection Lines - Lines connecting overlay to expanded points (TOP LAYER)
-    currentZoom > 16 && expandedSpiderPoints.length > 0 && new PathLayer({
-      id: 'spider-connection-lines',
-      data: expandedSpiderPoints.map(point => ({
-        path: [point.originalCoordinates, point.coordinates],
-        properties: point.properties
-      })),
-      pickable: false,
-      widthScale: 1,
-      widthMinPixels: 1,
-      widthMaxPixels: 2,
-      getPath: d => d.path,
-      getColor: [150, 150, 150, 150],
-      getWidth: 1,
-      updateTriggers: {
-        getPath: [expandedSpiderPoints],
-      },
-    }),
-
-    // Expanded Spider Points Layer - Fan-out points when spider is expanded (TOP LAYER)
-    currentZoom > 16 && expandedSpiderPoints.length > 0 && new ScatterplotLayer({
-      id: 'expanded-spider-points-layer',
-      data: expandedSpiderPoints,
+    // Spidered Connections Layer
+    selectedPoint && spideredConnections.length > 0 && new ScatterplotLayer({
+      id: `spidered-connections-${selectedPoint.id}`,
+      data: spideredConnections,
+      coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+      coordinateOrigin: selectedPoint.coordinates,
       pickable: true,
       stroked: true,
       filled: true,
       radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 25,
-      lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 2,
-      getPosition: d => d.coordinates,
-      getRadius: d => Math.max(12, currentZoom * 0.8),
+      radiusMaxPixels: 20,
+      lineWidthMinPixels: 2,
+      getPosition: (d: any, { index }: { index: number }) => {
+        const angle = (index / spideredConnections.length) * Math.PI * 2;
+        return [
+          spideringRadius * Math.cos(angle),
+          spideringRadius * Math.sin(angle)
+        ];
+      },
+      getRadius: 8,
       getFillColor: (d: any) => {
-        switch (d.dataType) {
-          case 'buildings': return [0, 0, 255, 200];
-          case 'buildingParts': return [255, 165, 0, 200];
-          case 'sites': return [0, 255, 0, 200]; 
-          case 'nhle': return [255, 0, 0, 200]; 
-          case 'photos': return [255, 20, 147, 200];
-          default: 
-            const dataWithType = { ...d, dataType: d.dataType };
-            return getFillColorForData(dataWithType, [100, 100, 100, 200], [100, 100, 100]) as [number, number, number, number];
+        // Color based on connection type
+        switch (d.type) {
+          case 'building': return [60, 160, 255, 200]; // Building Blue
+          case 'buildingPart': return [255, 165, 0, 200]; // Building Part Orange
+          case 'site': return [46, 204, 113, 200]; // Site Green
+          case 'nhle': return [231, 76, 60, 200]; // NHLE Red
+          case 'photo': return [255, 0, 255, 200]; // Photo Magenta
+          default: return [128, 128, 128, 200]; // Default Gray
         }
       },
-      getLineColor: d => [255, 255, 255, 200],
+      getLineColor: [255, 255, 255, 255], // White border
       onHover: info => {
-        if (info.object && info.object.properties) {
-          setHoverInfo(info as any);
+        if (info.object) {
+          setHoverInfo({
+            x: info.x,
+            y: info.y,
+            layer: info.layer,
+            object: {
+              properties: info.object.properties,
+              type: info.object.type
+            }
+          });
         } else {
           setHoverInfo(null);
         }
       },
       onClick: info => {
-        if (info.object && info.object.properties) {
-          if (onZoomToPoint && info.object.originalCoordinates) {
-            onZoomToPoint(info.object.originalCoordinates, 20);
+        if (info.object) {
+          // Find the actual feature to select
+          let actualFeature = null;
+          const connectionType = info.object.type;
+          const connectionId = info.object.properties.id;
+          
+          if (connectionType === 'building') {
+            actualFeature = filteredBuildingCentroids.find(b => b.properties.osid === info.object.properties.osid);
+          } else if (connectionType === 'buildingPart') {
+            actualFeature = filteredBuildingPartCentroids.find(p => p.properties.osid === info.object.properties.osid);
+          } else if (connectionType === 'site') {
+            actualFeature = filteredSiteCentroids.find(s => s.properties.osid === info.object.properties.osid);
+          } else if (connectionType === 'nhle') {
+            actualFeature = filteredNhleCentroids.find(n => n.properties.nhle_id === info.object.properties.nhle_id);
+          } else if (connectionType === 'photo') {
+            actualFeature = filteredPhotoCentroids.find(p => p.properties.id === info.object.properties.id);
           }
-          if (onCloseAllSpiderClusters) {
-            onCloseAllSpiderClusters();
+          
+          if (actualFeature) {
+            setSelectedFeature(actualFeature);
           }
-          setSelectedFeature({
-            coordinates: info.object.originalCoordinates || info.object.coordinates,
-            properties: info.object.properties
-          });
         }
       },
       updateTriggers: {
-        getFillColor: [currentZoom],
-        getRadius: [currentZoom, zoomBasedRadius],
+        getPosition: [spideringRadius, spideredConnections.length],
+        getFillColor: [spideredConnections]
       },
+      transitions: {
+        getPosition: {
+          duration: 300,
+          easing: (t: number) => t * (2 - t) // easeOutQuad equivalent
+        }
+      }
+    }),
+
+    // Spidered Connection Lines Layer
+    selectedPoint && spideredConnections.length > 0 && new PathLayer({
+      id: `spidered-connection-lines-${selectedPoint.id}`,
+      data: spideredConnections.map((conn, index) => {
+        const angle = (index / spideredConnections.length) * Math.PI * 2;
+        const spideredPosition = [
+          spideringRadius * Math.cos(angle),
+          spideringRadius * Math.sin(angle)
+        ];
+        
+        return {
+          path: [
+            [0, 0], // Center point (selectedPoint coordinates as origin)
+            spideredPosition // Spidered position
+          ],
+          type: conn.type,
+          properties: conn.properties
+        };
+      }),
+      coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+      coordinateOrigin: selectedPoint.coordinates,
+      pickable: false,
+      getPath: (d: any) => d.path,
+      getWidth: 2,
+      widthUnits: 'pixels',
+      getColor: (d: any) => {
+        // Color based on connection type with transparency
+        switch (d.type) {
+          case 'building': return [60, 160, 255, 150]; // Building Blue
+          case 'buildingPart': return [255, 165, 0, 150]; // Building Part Orange
+          case 'site': return [46, 204, 113, 150]; // Site Green
+          case 'nhle': return [231, 76, 60, 150]; // NHLE Red
+          case 'photo': return [255, 0, 255, 150]; // Photo Magenta
+          default: return [128, 128, 128, 150]; // Default Gray
+        }
+      },
+      updateTriggers: {
+        data: [spideringRadius, spideredConnections],
+        getColor: [spideredConnections]
+      },
+      transitions: {
+        getPath: {
+          duration: 300,
+          easing: (t: number) => t * (2 - t) // easeOutQuad equivalent
+        }
+      }
     }),
   ].filter(Boolean);
 
