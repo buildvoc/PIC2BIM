@@ -350,7 +350,7 @@ export function createMapLayers({
             case 'buildingParts': return [255, 165, 0, opacity]; // Orange
             case 'sites': return [0, 255, 0, opacity]; // Green
             case 'nhle': return [255, 0, 0, opacity]; // Red
-            case 'photos': return [255, 255, 0, opacity]; // Yellow
+            case 'photos': return [255, 20, 147, opacity];
             default: return getClusterColor(d.properties.dominant_type, d.properties.mixed_types);
           }
         }
@@ -674,8 +674,7 @@ export function createMapLayers({
       },
       getFillColor: (d: any) => {
         const dataWithType = { ...d, dataType: 'photos' };
-        const baseColor = getFillColorForData(dataWithType, [255, 255, 0, 200], [255, 255, 0]) as [number, number, number, number];
-        // Reduce opacity when spider clusters are active
+        const baseColor = getFillColorForData(dataWithType, [255, 20, 147, 200], [255, 20, 147]) as [number, number, number, number];
         return hasActiveSpiderClusters ? [baseColor[0], baseColor[1], baseColor[2], 80] : baseColor;
       },
       getLineColor: d => [0, 0, 0, 255],
@@ -901,7 +900,7 @@ export function createMapLayers({
           case 'buildingParts': return [255, 165, 0, 200];
           case 'sites': return [0, 255, 0, 200]; 
           case 'nhle': return [255, 0, 0, 200]; 
-          case 'photos': return [255, 255, 0, 200];
+          case 'photos': return [255, 20, 147, 200];
           default: 
             const dataWithType = { ...d, dataType: d.dataType };
             return getFillColorForData(dataWithType, [100, 100, 100, 200], [100, 100, 100]) as [number, number, number, number];
