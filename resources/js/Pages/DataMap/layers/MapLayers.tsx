@@ -441,7 +441,9 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          setSelectedFeature(info.object as PhotoCentroidState);
+          // Trigger spidering for photos similar to buildings/sites
+          // Parent handler should compute connections and set selectedPoint/spideredConnections
+          onPointClick(info.object);
         }
       },
       updateTriggers: {
