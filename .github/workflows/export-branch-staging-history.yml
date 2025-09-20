@@ -1,0 +1,79 @@
+name: Export branch history (artifact)
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to export (e.g. staging, main, feature/x)
+        required: true
+        default: staging
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # IMPORTANT: full history (not shallow)
+
+      - name: Determine target branch
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.branch }}" ]; then
+            echo "BRANCH=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+          else
+            # When triggered by push, use the branch that triggered the workflow
+            echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
+          echo "Using branch: ${BRANCH}"
+
+      - name: Switch to target branch
+        run: |
+          git fetch origin "${BRANCH}:${BRANCH}" || true
+          git checkout "${BRANCH}"
+
+      - name: Generate commit logs
+        run: |
+          mkdir -p export
+          # Full, verbose log (author, date, body)
+          git log --pretty=full > export/history_full.txt
+          # Concise graph log
+          git log --oneline --decorate --graph > export/history_oneline.txt
+          # Pipe-delimited (hash|author|email|date|subject) for easy parsing
+          git log --pretty=format:'%H|%an|%ae|%ad|%s' --date=iso > export/history_pipe.txt
+
+      - name: Generate patch series (one .patch per commit vs origin/main)
+        run: |
+          BASE=origin/main
+          mkdir -p export/patches
+          # Ensure base exists locally (repo may not have fetched it yet)
+          git fetch origin main:refs/remotes/origin/main || true
+          if git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+            # Export only commits unique to the target branch vs base
+            git format-patch "$BASE..${BRANCH}" -o export/patches || true
+          else
+            echo "Base $BASE not found; exporting all commits on ${BRANCH}"
+            git format-patch --root "${BRANCH}" -o export/patches || true
+          fi
+          # Bundle patches for a single download
+          tar -czf export/patches.tgz -C export patches || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # Sanitize owner/repo (replace / with -) to avoid invalid artifact names
+          name: ${{ replace(github.repository, '/', '-') }}-${{ env.BRANCH }}-history-${{ github.run_number }}
+          path: |
+            export/history_full.txt
+            export/history_oneline.txt
+            export/history_pipe.txt
+            export/patches.tgz
+          retention-days: 30
+
+    permissions:
+      contents: read
