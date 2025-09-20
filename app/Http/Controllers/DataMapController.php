@@ -22,6 +22,7 @@ use App\Models\Attr\SiteAddressReference;
 use App\Models\Attr\BuildingAddress;
 use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingSiteLink;
+use App\Models\Attr\Uprn;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -333,6 +334,142 @@ class DataMapController extends Controller
     public function importBuildingPart(Request $request)
     {
         return $this->performImport(BuildingPartV2::class, $request);
+    }
+
+    public function validateUprn(Request $request)
+    {
+        $results = [];
+        $geojson = $request->input('geojson');
+
+        if (!$geojson || !isset($geojson['features']) || !is_array($geojson['features'])) {
+            return response()->json(['results' => []]);
+        }
+
+        foreach ($geojson['features'] as $index => $feature) {
+            $properties = $feature['properties'] ?? [];
+            $geometry = $feature['geometry'] ?? null;
+
+            $uprn = $properties['UPRN'] ?? $properties['uprn'] ?? null;
+            $latitude = $properties['LATITUDE'] ?? $properties['latitude'] ?? null;
+            $longitude = $properties['LONGITUDE'] ?? $properties['longitude'] ?? null;
+
+            $featureData = [
+                'feature_index' => $index,
+                'properties' => [
+                    'uprn' => $uprn,
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                ],
+                'status' => 'ok',
+                'details' => 'Ready to import.'
+            ];
+
+            if (!$uprn) {
+                $featureData['status'] = 'warning';
+                $featureData['details'] = 'Missing UPRN. Import will be skipped.';
+                $results[] = $featureData;
+                continue;
+            }
+
+            $existing = Uprn::where('uprn', $uprn)->first();
+            if ($existing) {
+                $featureData['status'] = 'duplicate';
+                $featureData['details'] = "Duplicate UPRN: Matches existing record with UPRN '{$uprn}'.";
+                $results[] = $featureData;
+                continue;
+            }
+
+            $results[] = $featureData;
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function importUprn(Request $request)
+    {
+        $features = $request->input('features');
+        $sridNumber = $request->input('srid', 4326) ?? 4326;
+
+        if (!$features || !is_array($features)) {
+            return response()->json(['error' => 'Invalid feature data provided.'], 400);
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($features as $featureAction) {
+                $action = $featureAction['action'] ?? 'skip';
+                $data = $featureAction['data'] ?? null;
+
+                if (!$data || $action === 'skip') {
+                    continue;
+                }
+
+                $props = $data['properties'] ?? [];
+                $uprnVal = $props['UPRN'] ?? $props['uprn'] ?? null;
+                if (!$uprnVal) {
+                    continue;
+                }
+
+                $attributes = [
+                    'uprn' => (int)$uprnVal,
+                    'x_coordinate' => isset($props['EASTING']) ? (float)$props['EASTING'] : (isset($props['x_coordinate']) ? (float)$props['x_coordinate'] : null),
+                    'y_coordinate' => isset($props['NORTHING']) ? (float)$props['NORTHING'] : (isset($props['y_coordinate']) ? (float)$props['y_coordinate'] : null),
+                    'latitude' => isset($props['LATITUDE']) ? (float)$props['LATITUDE'] : (isset($props['latitude']) ? (float)$props['latitude'] : null),
+                    'longitude' => isset($props['LONGITUDE']) ? (float)$props['LONGITUDE'] : (isset($props['longitude']) ? (float)$props['longitude'] : null),
+                ];
+
+                // Build geometry expression separately to avoid model casts interfering
+                $geomExpr = null;
+                if (isset($data['geometry'])) {
+                    $geomJson = json_encode($data['geometry']);
+                    $geomExpr = DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('" . $geomJson . "'), {$sridNumber}), 27700)");
+                } elseif (!empty($attributes['x_coordinate']) && !empty($attributes['y_coordinate'])) {
+                    $geomExpr = DB::raw("ST_SetSRID(ST_MakePoint({$attributes['x_coordinate']}, {$attributes['y_coordinate']}), 27700)");
+                } elseif (!empty($attributes['longitude']) && !empty($attributes['latitude'])) {
+                    $geomExpr = DB::raw("ST_Transform(ST_SetSRID(ST_MakePoint({$attributes['longitude']}, {$attributes['latitude']}), 4326), 27700)");
+                }
+
+                // Upsert by UPRN without geom first (to avoid casts)
+                $instance = Uprn::updateOrCreate(['uprn' => (int)$uprnVal], $attributes);
+
+                // Then set geom via Query Builder using raw expression
+                if ($geomExpr) {
+                    DB::table('osopenuprn_address')
+                        ->where('uprn', (int)$uprnVal)
+                        ->update(['geom' => $geomExpr]);
+                }
+
+                if ($action === 'update') {
+                    $updatedCount++;
+                } else {
+                    $importedCount++;
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'An error occurred during import: ' . $e->getMessage()], 500);
+        }
+
+        // Clear caches
+        try {
+            \Artisan::call('optimize:clear');
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:clear');
+            \Artisan::call('route:clear');
+            \Artisan::call('view:clear');
+            if (config('cache.default') === 'redis') {
+                \Cache::flush();
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to clear cache after UPRN import: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => "Import successful. {$importedCount} new UPRNs imported, {$updatedCount} UPRNs updated. Cache cleared."]);
     }
 
     private function performImport($modelClass, Request $request)

@@ -20,6 +20,7 @@ use App\Http\Controllers\BuildingHeightController;
 use App\Http\Controllers\LandNameGeneratorController;
 use App\Http\Controllers\BuildingAttributesController;
 use App\Http\Controllers\DataMapController;
+use App\Http\Controllers\EntityLinkController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
@@ -103,10 +104,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/data_map_validate_nhle', [DataMapController::class, 'validateNhle'])->name('data_map.validateNhle');
         Route::post('/data_map_validate_building_part', [DataMapController::class, 'validateBuildingPart'])->name('data_map.validateBuildingPart');
         Route::post('/data_map_validate_site', [DataMapController::class, 'validateSite'])->name('data_map.validateSite');
+        Route::post('/data_map_validate_uprn', [DataMapController::class, 'validateUprn'])->name('data_map.validateUprn');
         Route::post('/data_map_import_building', [DataMapController::class, 'importBuilding'])->name('data_map.import_building');
         Route::post('/data_map_import_site', [DataMapController::class, 'importSite'])->name('data_map.import_site');
         Route::post('/data_map_import_nhle', [DataMapController::class, 'importNhle'])->name('data_map.import_nhle');
         Route::post('/data_map_import_building_part', [DataMapController::class, 'importBuildingPart'])->name('data_map.import_building_part');
+        Route::post('/data_map_import_uprn', [DataMapController::class, 'importUprn'])->name('data_map.import_uprn');
+
+        // Entity links (web endpoints)
+        Route::post('/entity-links', [EntityLinkController::class, 'upsert'])->name('entity_links.upsert');
+        Route::post('/entity-links/bulk', [EntityLinkController::class, 'bulkUpsert'])->name('entity_links.bulk_upsert');
+        Route::post('/entity-links/statuses', [EntityLinkController::class, 'statuses'])->name('entity_links.statuses');
+        Route::delete('/entity-links', [EntityLinkController::class, 'delete'])->name('entity_links.delete');
     });
     
     
