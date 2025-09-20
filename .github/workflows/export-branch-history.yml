@@ -51,23 +51,21 @@ jobs:
         run: |
           BASE=origin/main
           mkdir -p export/patches
-          # Ensure base exists locally (repo may not have fetched it yet)
+          # Ensure base exists locally
           git fetch origin main:refs/remotes/origin/main || true
           if git rev-parse --verify "$BASE" >/dev/null 2>&1; then
-            # Export only commits unique to the target branch vs base
             git format-patch "$BASE..${BRANCH}" -o export/patches || true
           else
             echo "Base $BASE not found; exporting all commits on ${BRANCH}"
             git format-patch --root "${BRANCH}" -o export/patches || true
           fi
-          # Bundle patches for a single download
           tar -czf export/patches.tgz -C export patches || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          # Sanitize owner/repo (replace / with -) to avoid invalid artifact names
-          name: ${{ replace(github.repository, '/', '-') }}-${{ env.BRANCH }}-history-${{ github.run_number }}
+          # Artifact name uses safe repo identifiers (no slash)
+          name: ${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ env.BRANCH }}-history-${{ github.run_number }}
           path: |
             export/history_full.txt
             export/history_oneline.txt
