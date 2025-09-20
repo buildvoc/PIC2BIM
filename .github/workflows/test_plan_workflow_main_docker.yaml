@@ -1,0 +1,142 @@
+name: Test Plan & History — main (docker)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to commit the test plan back to the repo
+
+jobs:
+  generate-and-archive:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+
+    steps:
+      - name: Install git in container
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates
+          git --version
+
+      - name: Checkout repo (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set branch name (main)
+        run: echo "BRANCH=main" >> $GITHUB_ENV
+
+      - name: Generate Markdown test plan for main
+        run: |
+          mkdir -p test-plans
+          cat > test-plans/test_plan_main.md << 'EOF'
+          # Test Plan — main
+
+          This plan merges **CRUD (Create/Read/Update/Delete)** checks with **Critical Path & Edge Case** flows, and assigns each test to **Frontend (FE)**, **Backend (BE)**, or **Both**.
+
+          ---
+
+          ## Quick Legend
+          - **Role**: FE = Frontend, BE = Backend, Both = joint validation
+          - **Priority**: P0 = release blocker, P1 = high, P2 = normal
+          - **Type**: CP = Critical Path (happy path), EC = Edge Case
+
+          ---
+
+          ## 1) Matrix — Flows × CRUD × Role
+
+          ### 1.x <Flow Name>
+          | Check | CRUD | Type | Role | Priority | Acceptance Notes |
+          |---|---|---|---|---|---|
+          | Example check 1 | Create | CP | Both | P0 | Description of expected behavior |
+          | Example check 2 | Read | EC | FE | P1 | Edge condition handling |
+          | ... | ... | ... | ... | ... | ... |
+
+          #### Checklist (Happy Path)
+          - [ ] Step 1 → expected outcome
+          - [ ] Step 2 → expected outcome
+
+          #### Edge Cases
+          - [ ] Case 1 → expected handling
+          - [ ] Case 2 → expected handling
+
+          ---
+
+          ## 2) Role-Specific Checklists
+
+          ### 2.1 Frontend (FE)
+          - [ ] UI renders with no console errors
+          - [ ] Interactions (click, hover, keyboard) behave correctly
+          - [ ] Responsive design works (desktop/mobile)
+
+          ### 2.2 Backend (BE)
+          - [ ] API endpoints return expected JSON & status codes
+          - [ ] Filters, soft-deletes, auth checks enforced
+          - [ ] Queries performant (no N+1, indexes used)
+
+          ### 2.3 Both (Integration)
+          - [ ] Frontend expectations match backend payloads
+          - [ ] State changes propagate end-to-end
+          - [ ] No regressions after deletes/updates
+
+          ---
+
+          ## 3) Minimal Test Scripts (copy-paste)
+
+          ### Flow A (Both)
+          1. Step 1 → expect result
+          2. Step 2 → expect result
+
+          ### Flow B (FE/BE)
+          1. Step 1 → expect result
+          2. Step 2 → expect result
+
+          ---
+
+          ## 4) Ownership & Hand-offs
+
+          | Area | Primary | Review | Notes |
+          |---|---|---|---|
+          | Flow A | FE | BE | FE drives UX, BE validates persistence |
+          | Flow B | BE | FE | BE owns calc, FE confirms visuals |
+
+          ---
+
+          ## 5) Exit Criteria
+          - All **P0** checks pass
+          - No untriaged console errors or 5xx responses
+          - CRUD spot-checks validated
+          - Edge cases covered for impacted areas
+          EOF
+
+      - name: Commit test plan if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(test-plan): add/update test_plan_main.md"
+          file_pattern: test-plans/test_plan_main.md
+
+      - name: Generate commit history & patches for main
+        run: |
+          mkdir -p export
+          git log --pretty=full > export/history_full.txt
+          git log --oneline --decorate --graph > export/history_oneline.txt
+          git log --pretty=format:'%H|%an|%ae|%ad|%s' --date=iso > export/history_pipe.txt
+          # Export patches from root to main
+          mkdir -p export/patches
+          git format-patch --root main -o export/patches || true
+          tar -czf export/patches.tgz -C export patches || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.repository_owner }}-${{ github.event.repository.name }}-main-history-${{ github.run_number }}
+          path: |
+            export/history_full.txt
+            export/history_oneline.txt
+            export/history_pipe.txt
+            export/patches.tgz
+          retention-days: 30
