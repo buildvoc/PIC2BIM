@@ -10,7 +10,7 @@ Ensure you have the following installed before proceeding:
 - Composer
 - Node.js & npm
 - PostgreSQL database
-- Laravel 11
+- Laravel 12
 - Git
 
 ## Database Import
