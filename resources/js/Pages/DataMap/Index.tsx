@@ -2068,186 +2068,171 @@ export function Index({ auth }: PageProps) {
       setSpideredConnections([]);
       
     } else {
-      // Temporarily select the point to calculate connections
-      const tempSelectedFeature = selectedFeature;
-      setSelectedFeature(point);
-      
-      // Wait for photoConnectionsData to update, then check connections
-      setTimeout(() => {
-        // Get connections for this point by temporarily setting it as selected
-        const isPhotoSelected = 'file_name' in point.properties;
-        const isBuildingSelected = 'area' in point.properties && 
-                                  !('smallestsite_siteid' in point.properties) && 
-                                  !('matcheduprn' in point.properties) && 
-                                  ('primarysiteid' in point.properties || 'uprn' in point.properties);
-        const isBuildingPartSelected = 'smallestsite_siteid' in point.properties;
-        const isSiteSelected = ('matcheduprn' in point.properties || 
-                              ('osid' in point.properties && 
-                               !('file_name' in point.properties) && 
-                               !('smallestsite_siteid' in point.properties) && 
-                               !('nhle_id' in point.properties) && 
-                               !('primarysiteid' in point.properties) && 
-                               !('uprn' in point.properties))) && 
-                              !('file_name' in point.properties) && 
-                              !('smallestsite_siteid' in point.properties);
+      // Compute connections first; only spider if there are any
+      const isPhotoSelected = 'file_name' in point.properties;
+      const isBuildingSelected = 'area' in point.properties &&
+                                !('smallestsite_siteid' in point.properties) &&
+                                !('matcheduprn' in point.properties) &&
+                                ('primarysiteid' in point.properties || 'uprn' in point.properties);
+      const isBuildingPartSelected = 'smallestsite_siteid' in point.properties;
+      const isSiteSelected = ('matcheduprn' in point.properties ||
+                            ('osid' in point.properties &&
+                             !('file_name' in point.properties) &&
+                             !('smallestsite_siteid' in point.properties) &&
+                             !('nhle_id' in point.properties) &&
+                             !('primarysiteid' in point.properties) &&
+                             !('uprn' in point.properties))) &&
+                            !('file_name' in point.properties) &&
+                            !('smallestsite_siteid' in point.properties);
 
-        let connections: any[] = [];
-        
-        
-        if (isPhotoSelected || isSiteSelected || isBuildingSelected || isBuildingPartSelected) {
-          // Calculate connections similar to photoConnectionsData logic
-          const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
-          
-          if (isPhotoSelected) {
-            // Photo connections logic
-            const photoHeading = typeof point.properties.photo_heading === 'string' 
-              ? parseFloat(point.properties.photo_heading) 
-              : (point.properties.photo_heading || 0);
-            const maxDistance = 10; // meters
-            const addConnection = (candidate: any, type: string) => {
-              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-              const photoPoint = turf.point(selectedCoords);
-              const candidatePoint = turf.point(candidateCoords);
-              const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
-              
-              // Use bearing match logic like bidirectional links
-              if (distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, candidateCoords)) {
-                connections.push({
-                  coordinates: candidateCoords,
-                  type,
-                  properties: candidate.properties,
-                  id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-                  distance: Math.round(distance)
-                });
-                console.log(connections)
-              }
-            };
+      let connections: any[] = [];
 
-            // Add all candidate types for photo
-            filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
-            filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
-            filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
-            filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
-          } else if (isBuildingSelected) {
-            // Building connections logic - find related sites
-            const buildingProperties = point.properties as any;
-            const primarySiteId = buildingProperties.primarysiteid;
-            const buildingUprns = buildingProperties.uprn;
+      if (isPhotoSelected || isSiteSelected || isBuildingSelected || isBuildingPartSelected) {
+        const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
 
-            const addBuildingConnection = (candidate: any, type: string) => {
-              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+        if (isPhotoSelected) {
+          // Photo connections logic
+          const photoHeading = typeof point.properties.photo_heading === 'string'
+            ? parseFloat(point.properties.photo_heading)
+            : (point.properties.photo_heading || 0);
+          const maxDistance = 10; // meters
+          const addConnection = (candidate: any, type: string) => {
+            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+            const photoPoint = turf.point(selectedCoords);
+            const candidatePoint = turf.point(candidateCoords);
+            const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+
+            // Use bearing match logic like bidirectional links
+            if (distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, candidateCoords)) {
               connections.push({
                 coordinates: candidateCoords,
                 type,
                 properties: candidate.properties,
                 id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-                distance: 0
-              });
-            };
-
-            // Find related sites by primarysiteid
-            if (primarySiteId) {
-              const relatedSite = filteredSiteCentroids.find(site => 
-                site.properties.osid === primarySiteId
-              );
-              if (relatedSite) {
-                addBuildingConnection(relatedSite, 'site');
-              }
-            }
-
-            // Find related sites by UPRN matching
-            if (buildingUprns && Array.isArray(buildingUprns)) {
-              filteredSiteCentroids.forEach(site => {
-                const siteMatchedUprn = site.properties.matcheduprn;
-                if (siteMatchedUprn && buildingUprns.some((uprnObj: any) => 
-                  uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-                )) {
-                  // Avoid duplicate connections
-                  if (!connections.some(conn => conn.properties.osid === site.properties.osid)) {
-                    addBuildingConnection(site, 'site');
-                  }
-                }
+                distance: Math.round(distance)
               });
             }
-          } else if (isBuildingPartSelected) {
-            // Building part connections logic - find related sites
-            const buildingPartProperties = point.properties as any;
-            const smallestSiteId = buildingPartProperties.smallestsite_siteid;
+          };
 
-            const addBuildingPartConnection = (candidate: any, type: string) => {
-              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-              connections.push({
-                coordinates: candidateCoords,
-                type,
-                properties: candidate.properties,
-                id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-                distance: 0
-              });
-            };
+          filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
+          filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
+          filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
+          filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+        } else if (isBuildingSelected) {
+          // Building connections logic - find related sites
+          const buildingProperties = point.properties as any;
+          const primarySiteId = buildingProperties.primarysiteid;
+          const buildingUprns = buildingProperties.uprn;
 
-            // Find related site by smallestsite_siteid
-            if (smallestSiteId) {
-              const relatedSite = filteredSiteCentroids.find(site => 
-                site.properties.osid === smallestSiteId
-              );
-              if (relatedSite) {
-                addBuildingPartConnection(relatedSite, 'site');
-              }
-            }
-          } else if (isSiteSelected) {
-            // Site connections logic
-            const siteProperties = point.properties as any;
-            const siteId = siteProperties.osid || siteProperties.id;
-            const siteMatchedUprn = siteProperties.matcheduprn;
-
-            const addSiteConnection = (candidate: any, type: string) => {
-              const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-              connections.push({
-                coordinates: candidateCoords,
-                type,
-                properties: candidate.properties,
-                id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-                distance: 0 // Site relationships don't use distance
-              });
-            };
-
-            // Find related buildings and building parts
-            
-            const relatedBuildings = filteredBuildingCentroids.filter(building => {
-              if (building.properties.primarysiteid === siteId) {
-                return true;
-              }
-              if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
-                const uprnMatch = building.properties.uprn.some((uprnObj: any) => 
-                  uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-                );
-                return uprnMatch;
-              }
-              return false;
+          const addBuildingConnection = (candidate: any, type: string) => {
+            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+            connections.push({
+              coordinates: candidateCoords,
+              type,
+              properties: candidate.properties,
+              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
+              distance: 0
             });
-            
-            const relatedBuildingParts = filteredBuildingPartCentroids.filter(part => {
-              if (part.properties.smallestsite_siteid === siteId) {
-                return true;
-              }
-              return false;
-            });
+          };
 
-
-            relatedBuildings.forEach(building => addSiteConnection(building, 'building'));
-            relatedBuildingParts.forEach(part => addSiteConnection(part, 'buildingPart'));
+          if (primarySiteId) {
+            const relatedSite = filteredSiteCentroids.find(site =>
+              site.properties.osid === primarySiteId
+            );
+            if (relatedSite) {
+              addBuildingConnection(relatedSite, 'site');
+            }
           }
-        }
 
-        if (connections.length >= 1) {
-          // Activate spidering
-          setSelectedPoint(point);
-          setSpideredConnections(connections);
-        } else {
-          // No connections, restore previous selection
-          setSelectedFeature(tempSelectedFeature);
+          if (buildingUprns && Array.isArray(buildingUprns)) {
+            filteredSiteCentroids.forEach(site => {
+              const siteMatchedUprn = site.properties.matcheduprn;
+              if (siteMatchedUprn && buildingUprns.some((uprnObj: any) =>
+                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+              )) {
+                if (!connections.some(conn => conn.properties.osid === site.properties.osid)) {
+                  addBuildingConnection(site, 'site');
+                }
+              }
+            });
+          }
+        } else if (isBuildingPartSelected) {
+          // Building part connections logic - find related sites
+          const buildingPartProperties = point.properties as any;
+          const smallestSiteId = buildingPartProperties.smallestsite_siteid;
+
+          const addBuildingPartConnection = (candidate: any, type: string) => {
+            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+            connections.push({
+              coordinates: candidateCoords,
+              type,
+              properties: candidate.properties,
+              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
+              distance: 0
+            });
+          };
+
+          if (smallestSiteId) {
+            const relatedSite = filteredSiteCentroids.find(site =>
+              site.properties.osid === smallestSiteId
+            );
+            if (relatedSite) {
+              addBuildingPartConnection(relatedSite, 'site');
+            }
+          }
+        } else if (isSiteSelected) {
+          // Site connections logic
+          const siteProperties = point.properties as any;
+          const siteId = siteProperties.osid || siteProperties.id;
+          const siteMatchedUprn = siteProperties.matcheduprn;
+
+          const addSiteConnection = (candidate: any, type: string) => {
+            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
+            connections.push({
+              coordinates: candidateCoords,
+              type,
+              properties: candidate.properties,
+              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
+              distance: 0 // Site relationships don't use distance
+            });
+          };
+
+          const relatedBuildings = filteredBuildingCentroids.filter(building => {
+            if (building.properties.primarysiteid === siteId) {
+              return true;
+            }
+            if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
+              const uprnMatch = building.properties.uprn.some((uprnObj: any) =>
+                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
+              );
+              return uprnMatch;
+            }
+            return false;
+          });
+
+          const relatedBuildingParts = filteredBuildingPartCentroids.filter(part => {
+            if (part.properties.smallestsite_siteid === siteId) {
+              return true;
+            }
+            return false;
+          });
+
+          relatedBuildings.forEach(building => addSiteConnection(building, 'building'));
+          relatedBuildingParts.forEach(part => addSiteConnection(part, 'buildingPart'));
         }
-      }, 50);
+      }
+
+      if (connections.length >= 1) {
+        // Activate spidering and keep the clicked point selected
+        setSelectedPoint(point);
+        setSpideredConnections(connections);
+        setSelectedFeature(point);
+      } else {
+        // No connections: do not spider; show the clicked point details instead
+        setSelectedPoint(null);
+        setSpideredConnections([]);
+        setSelectedFeature(point);
+      }
     }
   }, [selectedPoint, selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids]);
 
