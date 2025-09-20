@@ -9,16 +9,19 @@ on:
       branch:
         description: Branch to export (e.g. staging, main, feature/x)
         required: true
-        default: main
+        default: staging   # align default with your push trigger
+
 jobs:
   export:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # IMPORTANT: full history (not shallow)
+          fetch-depth: 0
 
       - name: Determine target branch
         id: target
@@ -26,44 +29,63 @@ jobs:
           if [ -n "${{ github.event.inputs.branch }}" ]; then
             echo "BRANCH=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
           else
-            # When triggered by push, use the branch that triggered the workflow
             echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           fi
           echo "Using branch: ${BRANCH}"
 
       - name: Switch to target branch
         run: |
-          git fetch origin "${BRANCH}:${BRANCH}" || true
+          git fetch --all --prune
           git checkout "${BRANCH}"
 
       - name: Generate commit logs
         run: |
           mkdir -p export
-          # Full, verbose log (author, date, body)
           git log --pretty=full > export/history_full.txt
-          # Concise graph log
           git log --oneline --decorate --graph > export/history_oneline.txt
-          # Pipe-delimited (hash|author|email|date|subject) for easy parsing
           git log --pretty=format:'%H|%an|%ae|%ad|%s' --date=iso > export/history_pipe.txt
 
-      - name: Generate patch series (one .patch per commit vs origin/main)
+      - name: Generate patch series (robust)
         run: |
-          BASE=origin/main
+          set -e
           mkdir -p export/patches
-          # Ensure base exists locally
+
+          BASE=origin/main
+          # ensure BASE exists locally
           git fetch origin main:refs/remotes/origin/main || true
-          if git rev-parse --verify "$BASE" >/dev/null 2>&1; then
-            git format-patch "$BASE..${BRANCH}" -o export/patches || true
-          else
-            echo "Base $BASE not found; exporting all commits on ${BRANCH}"
-            git format-patch --root "${BRANCH}" -o export/patches || true
+
+          echo "Attempt 1: patches unique to ${BRANCH} vs ${BASE}"
+          git format-patch "${BASE}..${BRANCH}" -o export/patches || true
+
+          PATCH_COUNT=$(find export/patches -type f -name '*.patch' | wc -l | tr -d ' ')
+          if [ "$PATCH_COUNT" -eq 0 ]; then
+            if [ "${BRANCH}" != "main" ]; then
+              echo "No unique commits vs ${BASE}. Attempt 2: full history of ${BRANCH} (--root)"
+              git format-patch --root "${BRANCH}" -o export/patches || true
+            else
+              echo "No unique commits (main vs origin/main). Attempt 2: last 200 commits on main."
+              # Export last N commits on main into patches
+              LASTN=$(git rev-list --max-count=200 main | tail -n1)
+              if [ -n "$LASTN" ]; then
+                git format-patch "${LASTN}^..main" -o export/patches || true
+              fi
+            fi
           fi
-          tar -czf export/patches.tgz -C export patches || true
+
+          PATCH_COUNT=$(find export/patches -type f -name '*.patch' | wc -l | tr -d ' ')
+          if [ "$PATCH_COUNT" -eq 0 ]; then
+            echo "::error::No patches produced for branch ${BRANCH}. Verify history and BASE."
+            exit 1
+          fi
+
+          echo "Produced $PATCH_COUNT patch(es):"
+          ls -la export/patches | sed 's/^/  /'
+
+          tar -czf export/patches.tgz -C export patches
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          # Artifact name uses safe repo identifiers (no slash)
           name: ${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ env.BRANCH }}-history-${{ github.run_number }}
           path: |
             export/history_full.txt
@@ -71,6 +93,3 @@ jobs:
             export/history_pipe.txt
             export/patches.tgz
           retention-days: 30
-
-    permissions:
-      contents: read
