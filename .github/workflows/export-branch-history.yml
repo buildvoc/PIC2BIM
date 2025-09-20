@@ -1,0 +1,63 @@
+name: Export branch history (artifact)
+
+on:
+  # Runs automatically whenever staging receives a push
+  push:
+    branches:
+      - staging
+  # Also allows manual runs from the Actions tab with a branch input
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to export (e.g. main, develop, feature/x)
+        required: true
+        default: BRANCH_NAME
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # IMPORTANT: get complete history, not a shallow clone
+
+      - name: Determine target branch
+        run: |
+          if [ -n "${{ github.event.inputs.branch }}" ]; then
+            echo "BRANCH=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+          else
+            echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
+
+      - name: Switch to target branch
+        run: git checkout "$BRANCH"
+
+      - name: Generate commit logs
+        run: |
+          mkdir -p export
+          # Full, verbose log
+          git log --pretty=full > export/history_full.txt
+          # Concise, visual log
+          git log --oneline --decorate --graph > export/history_oneline.txt
+
+      - name: Generate patch series (one .patch per commit)
+        run: |
+          # Set your base branch here (adjust if your default isn't 'main')
+          BASE=origin/main
+          mkdir -p export/patches
+          if git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+            # Export only commits unique to the target branch vs base
+            git format-patch "$BASE..$BRANCH" -o export/patches || true
+          fi
+          tar -czf export/patches.tgz -C export patches
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.repository }}-${{ env.BRANCH }}-history-${{ github.run_number }}
+          path: |
+            export/history_full.txt
+            export/history_oneline.txt
+            export/patches.tgz
+          retention-days: 30
