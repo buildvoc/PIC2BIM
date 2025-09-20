@@ -9,8 +9,7 @@ on:
       branch:
         description: Branch to export (e.g. staging, main, feature/x)
         required: true
-        default: staging
-
+        default: main
 jobs:
   export:
     runs-on: ubuntu-latest
