@@ -12,6 +12,10 @@ class Uprn extends Model
 
     protected $table = 'osopenuprn_address';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'fid';
+    public $incrementing = true;
+    protected $keyType = 'int';
+    public $timestamps = false;
     protected $fillable = [
         'fid',
         'uprn',

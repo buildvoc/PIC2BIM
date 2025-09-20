@@ -189,7 +189,7 @@ export function Index({ auth }: PageProps) {
 
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | ''>('');
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | ''>('');
   // Fetch additional metadata when a feature is selected
   const fetchAdditionalData = useCallback(async (lat: number, lng: number, photoHeading?: number, altitude?: number) => {
     const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}_${photoHeading || 0}`;
@@ -583,6 +583,7 @@ export function Index({ auth }: PageProps) {
   const [searchField, setSearchField] = useState('all');
   const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
   const [connectionsForModal, setConnectionsForModal] = useState<any[]>([]);
+  const [modalSourcePhotoId, setModalSourcePhotoId] = useState<string | undefined>(undefined);
   const [searchDataType, setSearchDataType] = useState('all');
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
@@ -943,6 +944,9 @@ export function Index({ auth }: PageProps) {
               case 'buildingpart':
                 validationRoute = route('data_map.validateBuildingPart');
                 break;
+              case 'uprn':
+                validationRoute = route('data_map.validateUprn');
+                break;
               default:
                 setStatusMessage('Invalid schema selected');
                 setIsValidationSuccessful(false);
@@ -1021,6 +1025,9 @@ export function Index({ auth }: PageProps) {
           break;
         case 'buildingpart':
           validationRoute = route('data_map.validateBuildingPart');
+          break;
+        case 'uprn':
+          validationRoute = route('data_map.validateUprn');
           break;
         default:
           alert('Invalid schema selected');
@@ -2033,8 +2040,15 @@ export function Index({ auth }: PageProps) {
 
   const handleOpenConnectionsModal = useCallback(() => {
     setConnectionsForModal(photoConnectionsData);
+    // Capture source photo id at the time the modal opens to avoid later changes to selectedFeature
+    if (selectedFeature && 'file_name' in (selectedFeature as any).properties) {
+      const pid = (selectedFeature as any).properties.id?.toString?.() || undefined;
+      setModalSourcePhotoId(pid);
+    } else {
+      setModalSourcePhotoId(undefined);
+    }
     setIsConnectionsModalOpen(true);
-  }, [photoConnectionsData]);
+  }, [photoConnectionsData, selectedFeature]);
 
   const handleUpdateConnection = useCallback((connectionId: string, status: 'proposed' | 'verified' | 'rejected') => {
     setConnectionsForModal(prev => 
@@ -2531,7 +2545,7 @@ export function Index({ auth }: PageProps) {
                 <select 
                   id="schema-select"
                   value={selectedSchema}
-                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | '')}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | '')}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
@@ -2539,6 +2553,7 @@ export function Index({ auth }: PageProps) {
                   <option value="site">Site V2</option>
                   <option value="nhle">NHLE</option>
                   <option value="buildingpart">Building Part V2</option>
+                  <option value="uprn">UPRN</option>
                 </select>
               </div>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
@@ -2860,6 +2875,7 @@ export function Index({ auth }: PageProps) {
               onClose={() => setIsConnectionsModalOpen(false)}
               connections={connectionsForModal}
               onUpdateConnection={handleUpdateConnection}
+              sourcePhotoId={modalSourcePhotoId}
             />
           </div>
         )}

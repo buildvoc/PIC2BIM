@@ -19,7 +19,7 @@ interface ValidationReportModalProps {
   results: ValidationResult[];
   geoJson: any; 
   onImportSuccess: () => void;
-  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | '';
+  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | '';
 }
 
 type Order = 'asc' | 'desc';
@@ -83,6 +83,9 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
       case 'buildingpart':
         importUrl = route('data_map.import_building_part');
         break;
+      case 'uprn':
+        importUrl = route('data_map.import_uprn');
+        break;
       default:
         alert('Invalid schema selected');
         return;
@@ -101,11 +104,11 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
   };
 
   const downloadCsv = () => {
-        const idHeader = schema === 'nhle' ? 'List Entry' : 'OSID';
+        const idHeader = schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : 'OSID');
     const headers = `"Status","Feature Index","${idHeader}","Details"`;
     const sorted = sortedResults; // Use already sorted results
     const csvContent = sorted.map(r => {
-      const idValue = schema === 'nhle' ? r.properties.listentry : r.properties.osid;
+      const idValue = schema === 'nhle' ? r.properties.listentry : (schema === 'uprn' ? r.properties.uprn : r.properties.osid);
       return `"${r.status}","${r.feature_index}","${idValue || 'N/A'}","${r.details.replace(/"/g, '""')}"`;
     }
     ).join('\n');
@@ -129,8 +132,8 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
       let bValue = b[key];
 
       if (key === 'properties') {
-        aValue = (schema === 'nhle' ? a.properties.listentry : a.properties.osid) || '';
-        bValue = (schema === 'nhle' ? b.properties.listentry : b.properties.osid) || '';
+        aValue = (schema === 'nhle' ? a.properties.listentry : (schema === 'uprn' ? a.properties.uprn : a.properties.osid)) || '';
+        bValue = (schema === 'nhle' ? b.properties.listentry : (schema === 'uprn' ? b.properties.uprn : b.properties.osid)) || '';
       }
 
       const valA = aValue ?? '';
@@ -169,7 +172,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                 </TableCell>
                 <TableCell sx={{ width: '20%' }}>
                   <TableSortLabel active={sortConfig.key === 'properties'} direction={sortConfig.direction} onClick={() => handleSortRequest('properties')}>
-                    {schema === 'nhle' ? 'List Entry' : 'OSID'}
+                    {schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : 'OSID')}
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Details</TableCell>
@@ -187,7 +190,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                     {result.status === 'warning' && <Chip label="Warning" color="error" size="small" />}
                   </TableCell>
                   <TableCell>{result.feature_index + 1}</TableCell>
-                  <TableCell>{(schema === 'nhle' ? result.properties.listentry : result.properties.osid) || 'N/A'}</TableCell>
+                  <TableCell>{(schema === 'nhle' ? result.properties.listentry : (schema === 'uprn' ? result.properties.uprn : result.properties.osid)) || 'N/A'}</TableCell>
                   <TableCell>{result.details}</TableCell>
                   <TableCell>
                     {['duplicate', 'overlap', 'exact_match'].includes(result.status) ? (
