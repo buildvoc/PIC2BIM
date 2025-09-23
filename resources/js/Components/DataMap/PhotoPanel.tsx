@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import MetadataGrid from './MetadataGrid';
 
 interface PhotoPanelProps {
@@ -37,6 +37,20 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
   onOpenConnectionsModal
 }) => {
   const [activeTab, setActiveTab] = useState<'metadata' | 'connections'>('metadata');
+  const [imgLoading, setImgLoading] = useState<boolean>(true);
+  const [imgError, setImgError] = useState<boolean>(false);
+
+  // Reset image loading state when selected photo changes
+  useEffect(() => {
+    const link = selectedFeature?.properties?.link;
+    if (link) {
+      setImgLoading(true);
+      setImgError(false);
+    } else {
+      setImgLoading(false);
+      setImgError(false);
+    }
+  }, [selectedFeature?.properties?.link]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -86,19 +100,98 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
 
       {/* Tab Content */}
       {activeTab === 'metadata' && (
-        <MetadataGrid 
-          data={{
-            buildingData: buildingApiData?.data?.building_part?.[0]?.geojson?.features?.[0]?.properties || null,
-            codepointData,
-            uprnData,
-            landRegistryInspireData,
-            landData,
-            nhleData,
-            shapeData,
-            photoData: selectedFeature.properties
-          }}
-          isLoading={isLoadingAdditionalData}
-        />
+        <div className="space-y-4">
+          {/* Photo preview */}
+          {(() => {
+            const p = selectedFeature?.properties || {};
+            if (!p.link) return null;
+            return (
+              <div className="w-full flex justify-center">
+                <div className="relative w-full max-w-xl flex items-center justify-center">
+                  {imgLoading && !imgError && (
+                    <div className="h-64 w-full bg-gray-100 animate-pulse rounded flex items-center justify-center text-gray-500">
+                      Loading image...
+                    </div>
+                  )}
+                  {imgError && (
+                    <div className="h-64 w-full bg-gray-100 rounded flex items-center justify-center text-red-500">
+                      Failed to load image
+                    </div>
+                  )}
+                  <img
+                    src={p.link as string}
+                    alt="Photo preview"
+                    className={`max-h-64 w-auto rounded shadow object-contain ${imgLoading || imgError ? 'hidden' : ''}`}
+                    onLoad={() => setImgLoading(false)}
+                    onError={() => { setImgLoading(false); setImgError(true); }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Simplified, ordered photo metadata list */}
+          {(() => {
+            const p = selectedFeature?.properties || {};
+            const fmtNum = (v: any, suffix: string = '') => {
+              const n = typeof v === 'string' ? parseFloat(v) : v;
+              return (typeof n === 'number' && !isNaN(n)) ? `${n}${suffix}` : '-';
+            };
+            const fmtDateLocal = (v: any) => {
+              if (!v) return '-';
+              const d = new Date(v);
+              if (isNaN(d.getTime())) return '-';
+              return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+            };
+            const fmtDateUTC = (v: any) => {
+              if (!v) return '-';
+              const d = new Date(v);
+              if (isNaN(d.getTime())) return '-';
+              return d.toISOString().slice(0, 19).replace('T', ' ');
+            };
+            const deviceLabel = (() => {
+              // Try to derive from network_info if present
+              const info = p?.network_info;
+              if (info && typeof info === 'object') {
+                const model = (info.model || info.deviceModel || info.device || '') as string;
+                const os = (info.os || info.platform || info.androidVersion || '') as string;
+                const parts = [] as string[];
+                if (model) parts.push(model);
+                if (os) parts.push(os);
+                return parts.length ? parts.join(' - ') : '-';
+              }
+              return '-';
+            })();
+
+            const rows: Array<{ label: string; value: React.ReactNode }> = [
+              { label: 'Latitude', value: p.lat ?? '-' },
+              { label: 'Longitude', value: p.lng ?? '-' },
+              { label: 'Altitude', value: fmtNum(p.altitude, ' m') },
+              { label: 'Azimuth', value: fmtNum(p.photo_heading, '°') },
+              { label: 'Vertical angle', value: (p.vertical_angle ?? p.pitch ?? '-') },
+              { label: 'Note', value: p.note || '-' },
+              { label: 'Device', value: deviceLabel },
+              { label: 'Accuracy', value: fmtNum(p.accuracy, ' m') },
+              { label: 'Distance', value: p.distance ? fmtNum(p.distance, ' m') : '-' },
+              { label: 'Distance (GNSS)', value: p.gnss_distance ? fmtNum(p.gnss_distance, ' m') : '-' },
+              { label: 'Timestamp', value: fmtDateLocal(p.created) },
+              { label: 'Created (UTC)', value: fmtDateUTC(p.created) },
+            ];
+
+            return (
+              <div className="grid grid-cols-2 gap-y-2">
+                {rows.map((r, i) => (
+                  <React.Fragment key={i}>
+                    <div className="text-gray-500 dark:text-gray-400">{r.label}</div>
+                    <div className="text-right font-medium text-blue-600 dark:text-blue-400 break-words">
+                      {r.value}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       {activeTab === 'connections' && (
