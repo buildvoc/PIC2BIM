@@ -340,11 +340,15 @@ class DataMapController extends Controller
     {
         $results = [];
         $geojson = $request->input('geojson');
+        $maxJoinRadiusMeters = (int)($request->input('join_radius_m', 30));
+        if ($maxJoinRadiusMeters < 10) { $maxJoinRadiusMeters = 10; }
+        if ($maxJoinRadiusMeters > 30) { $maxJoinRadiusMeters = 30; }
 
         if (!$geojson || !isset($geojson['features']) || !is_array($geojson['features'])) {
             return response()->json(['results' => []]);
         }
 
+        $seenUprns = [];
         foreach ($geojson['features'] as $index => $feature) {
             $properties = $feature['properties'] ?? [];
             $geometry = $feature['geometry'] ?? null;
@@ -361,22 +365,135 @@ class DataMapController extends Controller
                     'longitude' => $longitude,
                 ],
                 'status' => 'ok',
-                'details' => 'Ready to import.'
+                'details' => 'Ready to import.',
+                'audit' => [
+                    'link_method' => null,
+                    'confidence' => null,
+                    'nearest_site' => null,
+                    'nearest_building' => null,
+                ],
             ];
 
-            if (!$uprn) {
+            // Rule 1: Schema - UPRN numeric & non-null
+            if (is_null($uprn) || !is_numeric($uprn)) {
                 $featureData['status'] = 'warning';
-                $featureData['details'] = 'Missing UPRN. Import will be skipped.';
+                $featureData['details'] = 'Invalid UPRN: must be numeric and non-null.';
                 $results[] = $featureData;
                 continue;
             }
 
-            $existing = Uprn::where('uprn', $uprn)->first();
-            if ($existing) {
-                $featureData['status'] = 'duplicate';
-                $featureData['details'] = "Duplicate UPRN: Matches existing record with UPRN '{$uprn}'.";
+            // Rule 3: Duplicates - within batch
+            if (isset($seenUprns[$uprn])) {
+                $featureData['status'] = 'duplicate_in_batch';
+                $featureData['details'] = 'Duplicate UPRN within this upload batch; only one row per UPRN is allowed.';
                 $results[] = $featureData;
                 continue;
+            }
+            $seenUprns[$uprn] = true;
+
+            // Existing duplicate in DB
+            $existing = Uprn::where('uprn', (int)$uprn)->first();
+            if ($existing) {
+                $featureData['status'] = 'duplicate_existing';
+                $featureData['details'] = "Duplicate UPRN: record already exists (UPRN '{$uprn}'). Re-ingest will only fill missing metadata.";
+            }
+
+            // Rule 2: CRS/Geometry - Must be point in EPSG:4326 (accept lat/lon or GeoJSON Point)
+            $hasLatLng = (!is_null($latitude) && !is_null($longitude));
+            $isPointGeom = (is_array($geometry) && strtoupper((string)($geometry['type'] ?? '')) === 'POINT');
+            if (!$hasLatLng && !$isPointGeom) {
+                $featureData['status'] = 'warning';
+                $featureData['details'] = 'Missing valid point location: supply LATITUDE/LONGITUDE or GeoJSON Point geometry (EPSG:4326).';
+                $results[] = $featureData;
+                continue;
+            }
+            if ($hasLatLng) {
+                // Basic 4326 bounds check
+                if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+                    $featureData['status'] = 'warning';
+                    $featureData['details'] = 'Invalid lat/lon range for EPSG:4326.';
+                    $results[] = $featureData;
+                    continue;
+                }
+            }
+
+            // Build a 27700 point for spatial validation and joins
+            $point27700 = null;
+            try {
+                if ($hasLatLng) {
+                    $pt = DB::selectOne(
+                        "SELECT ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), 27700) AS g",
+                        [(float)$longitude, (float)$latitude]
+                    );
+                    $point27700 = $pt ? $pt->g : null;
+                } elseif ($isPointGeom) {
+                    $geomJson = json_encode($geometry);
+                    $pt = DB::selectOne(
+                        "SELECT ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700) AS g",
+                        [$geomJson]
+                    );
+                    $point27700 = $pt ? $pt->g : null;
+                }
+            } catch (\Exception $e) {
+                $point27700 = null;
+            }
+
+            if (!$point27700) {
+                $featureData['status'] = 'warning';
+                $featureData['details'] = 'Failed to construct spatial point for validation.';
+                $results[] = $featureData;
+                continue;
+            }
+
+            // Rules 4,5,6,7: Nearest-neighbour join to sites/buildings within capped radius; audit method & confidence; index-friendly queries
+            try {
+                // Nearest Site
+                $nearestSite = DB::selectOne(
+                    "SELECT osid, ST_Distance(s.geometry, g.geom) AS dist
+                     FROM lus_fts_site s
+                     JOIN (SELECT ?::geometry AS geom) AS g ON TRUE
+                     WHERE ST_DWithin(s.geometry, g.geom, ?) 
+                     ORDER BY s.geometry <-> g.geom
+                     LIMIT 1",
+                    [$point27700, $maxJoinRadiusMeters]
+                );
+
+                // Nearest Building
+                $nearestBld = DB::selectOne(
+                    "SELECT osid, ST_Distance(b.geometry, g.geom) AS dist
+                     FROM bld_fts_building b
+                     JOIN (SELECT ?::geometry AS geom) AS g ON TRUE
+                     WHERE ST_DWithin(b.geometry, g.geom, ?) 
+                     ORDER BY b.geometry <-> g.geom
+                     LIMIT 1",
+                    [$point27700, $maxJoinRadiusMeters]
+                );
+
+                $featureData['audit']['nearest_site'] = $nearestSite ? ['osid' => $nearestSite->osid, 'distance_m' => (float)$nearestSite->dist] : null;
+                $featureData['audit']['nearest_building'] = $nearestBld ? ['osid' => $nearestBld->osid, 'distance_m' => (float)$nearestBld->dist] : null;
+
+                $featureData['audit']['link_method'] = 'nearest_neighbour_within_radius';
+                $minDist = null;
+                if ($nearestSite) { $minDist = is_null($minDist) ? (float)$nearestSite->dist : min($minDist, (float)$nearestSite->dist); }
+                if ($nearestBld) { $minDist = is_null($minDist) ? (float)$nearestBld->dist : min($minDist, (float)$nearestBld->dist); }
+                if (!is_null($minDist)) {
+                    if ($minDist <= 10) $featureData['audit']['confidence'] = 'high';
+                    elseif ($minDist <= 20) $featureData['audit']['confidence'] = 'medium';
+                    else $featureData['audit']['confidence'] = 'low';
+                } else {
+                    $featureData['audit']['confidence'] = 'none';
+                }
+            } catch (\Exception $e) {
+                // If spatial join fails, keep validation status but note no link
+                $featureData['audit']['link_method'] = 'nearest_neighbour_within_radius';
+                $featureData['audit']['confidence'] = 'none';
+            }
+
+            // Rule 8: Re-ingest safety hint
+            if ($existing) {
+                $featureData['reingest_policy'] = 'fill_missing_only';
+            } else {
+                $featureData['reingest_policy'] = 'insert_new_requires_xy_present';
             }
 
             $results[] = $featureData;
@@ -389,6 +506,9 @@ class DataMapController extends Controller
     {
         $features = $request->input('features');
         $sridNumber = $request->input('srid', 4326) ?? 4326;
+        $maxJoinRadiusMeters = (int)($request->input('join_radius_m', 30));
+        if ($maxJoinRadiusMeters < 1) { $maxJoinRadiusMeters = 10; }
+        if ($maxJoinRadiusMeters > 30) { $maxJoinRadiusMeters = 30; }
 
         if (!$features || !is_array($features)) {
             return response()->json(['error' => 'Invalid feature data provided.'], 400);
@@ -396,6 +516,7 @@ class DataMapController extends Controller
 
         $importedCount = 0;
         $updatedCount = 0;
+        $skippedCount = 0;
 
         DB::beginTransaction();
         try {
@@ -409,7 +530,9 @@ class DataMapController extends Controller
 
                 $props = $data['properties'] ?? [];
                 $uprnVal = $props['UPRN'] ?? $props['uprn'] ?? null;
-                if (!$uprnVal) {
+                // Validation Rule 1: Schema -> uprn numeric, unique, non-null
+                if (is_null($uprnVal) || !is_numeric($uprnVal)) {
+                    $skippedCount++;
                     continue;
                 }
 
@@ -420,6 +543,21 @@ class DataMapController extends Controller
                     'latitude' => isset($props['LATITUDE']) ? (float)$props['LATITUDE'] : (isset($props['latitude']) ? (float)$props['latitude'] : null),
                     'longitude' => isset($props['LONGITUDE']) ? (float)$props['LONGITUDE'] : (isset($props['longitude']) ? (float)$props['longitude'] : null),
                 ];
+
+                // Validation Rule 2: CRS/Geometry -> Must be valid POINT in EPSG:4326 (accept lat/lng or GeoJSON Point)
+                $hasLatLng = (!is_null($attributes['latitude']) && !is_null($attributes['longitude']));
+                $hasGeometryPoint = false;
+                if (isset($data['geometry']) && is_array($data['geometry'])) {
+                    $geomType = $data['geometry']['type'] ?? null;
+                    if (strtoupper((string)$geomType) === 'POINT') {
+                        $hasGeometryPoint = true;
+                    }
+                }
+                if (!$hasLatLng && !$hasGeometryPoint && is_null($attributes['x_coordinate']) && is_null($attributes['y_coordinate'])) {
+                    // No way to locate the UPRN spatially -> skip
+                    $skippedCount++;
+                    continue;
+                }
 
                 // Build geometry expression separately to avoid model casts interfering
                 $geomExpr = null;
@@ -432,8 +570,63 @@ class DataMapController extends Controller
                     $geomExpr = DB::raw("ST_Transform(ST_SetSRID(ST_MakePoint({$attributes['longitude']}, {$attributes['latitude']}), 4326), 27700)");
                 }
 
-                // Upsert by UPRN without geom first (to avoid casts)
-                $instance = Uprn::updateOrCreate(['uprn' => (int)$uprnVal], $attributes);
+                // Ensure x_coordinate and y_coordinate are populated to satisfy NOT NULL constraints
+                if ((is_null($attributes['x_coordinate']) || is_null($attributes['y_coordinate']))) {
+                    try {
+                        if (!empty($attributes['longitude']) && !empty($attributes['latitude'])) {
+                            $point = DB::selectOne(
+                                "SELECT ST_X(ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), 27700)) AS x, ST_Y(ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), 27700)) AS y",
+                                [
+                                    (float)$attributes['longitude'], (float)$attributes['latitude'],
+                                    (float)$attributes['longitude'], (float)$attributes['latitude']
+                                ]
+                            );
+                            if ($point) {
+                                $attributes['x_coordinate'] = (float)$point->x;
+                                $attributes['y_coordinate'] = (float)$point->y;
+                            }
+                        } elseif (isset($data['geometry'])) {
+                            $geomJson = json_encode($data['geometry']);
+                            $point = DB::selectOne(
+                                "SELECT ST_X(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), {$sridNumber}), 27700)) AS x, ST_Y(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), {$sridNumber}), 27700)) AS y",
+                                [$geomJson, $geomJson]
+                            );
+                            if ($point) {
+                                $attributes['x_coordinate'] = (float)$point->x;
+                                $attributes['y_coordinate'] = (float)$point->y;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // If computation fails, continue; DB constraint may still fail and be caught by outer try/catch
+                    }
+                }
+
+                // Validation Rule 8: Re-ingest safety -> do not overwrite better metadata
+                // Merge with existing record: only fill missing values, never overwrite non-null with null
+                $existing = Uprn::where('uprn', (int)$uprnVal)->first();
+                if ($existing) {
+                    $update = [];
+                    foreach (['x_coordinate','y_coordinate','latitude','longitude'] as $field) {
+                        if (!is_null($attributes[$field]) && (is_null($existing->{$field}) || $existing->{$field} === 0.0)) {
+                            $update[$field] = $attributes[$field];
+                        }
+                    }
+                    if (!empty($update)) {
+                        Uprn::where('uprn', (int)$uprnVal)->update($update);
+                        $updatedCount++;
+                    } else {
+                        // Nothing to update
+                        $skippedCount++;
+                    }
+                } else {
+                    // Ensure x/y present before insert to satisfy NOT NULL constraints
+                    if (is_null($attributes['x_coordinate']) || is_null($attributes['y_coordinate'])) {
+                        $skippedCount++;
+                        continue;
+                    }
+                    $instance = Uprn::create($attributes);
+                    $importedCount++;
+                }
 
                 // Then set geom via Query Builder using raw expression
                 if ($geomExpr) {
@@ -442,11 +635,7 @@ class DataMapController extends Controller
                         ->update(['geom' => $geomExpr]);
                 }
 
-                if ($action === 'update') {
-                    $updatedCount++;
-                } else {
-                    $importedCount++;
-                }
+                // Note: counts already adjusted above to reflect re-ingest safety
             }
 
             DB::commit();
@@ -469,7 +658,7 @@ class DataMapController extends Controller
             \Log::warning('Failed to clear cache after UPRN import: ' . $e->getMessage());
         }
 
-        return response()->json(['message' => "Import successful. {$importedCount} new UPRNs imported, {$updatedCount} UPRNs updated. Cache cleared."]);
+        return response()->json(['message' => "Import finished. {$importedCount} imported, {$updatedCount} updated, {$skippedCount} skipped. Cache cleared."]);
     }
 
     private function performImport($modelClass, Request $request)

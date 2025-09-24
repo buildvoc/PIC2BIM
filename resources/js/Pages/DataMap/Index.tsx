@@ -518,12 +518,19 @@ export function Index({ auth }: PageProps) {
                 created: feature.properties.created,
                 altitude: feature.properties.altitude,
                 note: feature.properties.note,
+                // device fields from backend resource
+                device_manufacture: feature.properties.device_manufacture,
+                device_model: feature.properties.device_model,
+                device_platform: feature.properties.device_platform,
+                device_version: feature.properties.device_version,
                 network_info: feature.properties.network_info,
+                provider: feature.properties.provider,
                 lat: feature.properties.lat,
                 lng: feature.properties.lng,
                 link: feature.properties.link,
                 osnma_enabled: feature.properties.osnma_enabled,
-                osnma_validated: feature.properties.osnma_validated
+                osnma_validated: feature.properties.osnma_validated,
+                validated_sats: feature.properties.validated_sats,
               }
             });
           } catch (error) {
@@ -784,12 +791,19 @@ export function Index({ auth }: PageProps) {
                     created: feature.properties.created,
                     altitude: feature.properties.altitude,
                     note: feature.properties.note,
+                    // device fields from backend resource
+                    device_manufacture: feature.properties.device_manufacture,
+                    device_model: feature.properties.device_model,
+                    device_platform: feature.properties.device_platform,
+                    device_version: feature.properties.device_version,
                     network_info: feature.properties.network_info,
+                    provider: feature.properties.provider,
                     lat: feature.properties.lat,
                     lng: feature.properties.lng,
                     link: feature.properties.link,
                     osnma_enabled: feature.properties.osnma_enabled,
-                    osnma_validated: feature.properties.osnma_validated
+                    osnma_validated: feature.properties.osnma_validated,
+                    validated_sats: feature.properties.validated_sats,
                   }
                 };
               } catch (error) {
@@ -2710,9 +2724,30 @@ export function Index({ auth }: PageProps) {
                 <h4 className="font-semibold text-gray-800">Data Types</h4>
                 <button
                   onClick={() => {
+                    // Show all data types
                     setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false });
                     setSelectedGrades([]);
+                    setSelectedShapeIds([]);
                     setFloorRange({ min: 0, max: maxFloors });
+
+                    // Ensure data from ALL boundaries is loaded, not just default
+                    try {
+                      const allIds = (shapes?.data?.features || []).map((f: any) => f.id as string);
+                      if (allIds.length > 0) {
+                        const missingAreaIds = allIds.filter(id =>
+                          !Object.keys(areaDataCache).some(key => key.includes(id))
+                        );
+                        if (missingAreaIds.length > 0) {
+                          fetchAreaData(missingAreaIds).then(newData => {
+                            if (newData) {
+                              mergeAreaData(newData);
+                            }
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Error ensuring all boundaries data is loaded on clear:', e);
+                    }
                   }}
                   className="px-3 py-1 text-sm bg-red-100 text-red-700 hover:bg-red-200 rounded-md transition-colors duration-200 font-medium"
                 >
