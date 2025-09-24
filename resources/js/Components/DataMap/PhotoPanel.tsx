@@ -150,17 +150,16 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
               return d.toISOString().slice(0, 19).replace('T', ' ');
             };
             const deviceLabel = (() => {
-              // Try to derive from network_info if present
-              const info = p?.network_info;
-              if (info && typeof info === 'object') {
-                const model = (info.model || info.deviceModel || info.device || '') as string;
-                const os = (info.os || info.platform || info.androidVersion || '') as string;
-                const parts = [] as string[];
-                if (model) parts.push(model);
-                if (os) parts.push(os);
-                return parts.length ? parts.join(' - ') : '-';
-              }
-              return '-';
+              const manufacturer = (p?.device_manufacture || '') as string;
+              const version = (p?.device_version || '') as string;
+              const model = (p?.device_model || '') as string;
+              const os = (p?.device_platform || '') as string;
+              const parts = [] as string[];
+              if (manufacturer) parts.push(manufacturer);
+              if (model) parts.push(model);
+              if (os) parts.push(os);
+              if (version) parts.push(version);
+              return parts.length ? parts.join(' - ') : '-';
             })();
 
             const rows: Array<{ label: string; value: React.ReactNode }> = [
@@ -176,6 +175,18 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
               { label: 'Distance (GNSS)', value: p.gnss_distance ? fmtNum(p.gnss_distance, ' m') : '-' },
               { label: 'Timestamp', value: fmtDateLocal(p.created) },
               { label: 'Created (UTC)', value: fmtDateUTC(p.created) },
+              { label: 'Network status', value: p.network_info ? 'Online' : '-' },
+              { label: 'OSNMA validation', value: p.osnma_enabled == '1' ? (
+                <span className="text-green-700 dark:text-green-200">Enabled</span>
+              ) : (
+                <span className="text-red-700 dark:text-red-200">Photo has not been verified yet</span>
+              ) },
+              { label: 'Validated satellites', value: p.osnma_enabled == '1' ? (p.validated_sats || '-') : '-' },
+              { label: 'Photo location is', value: p.osnma_validated == '1' ? (
+                <span className="text-green-700 dark:text-green-200">OSNMA validated</span>
+              ) : (
+                <span className="text-red-700 dark:text-red-200">not validated</span>
+              ) },
             ];
 
             return (

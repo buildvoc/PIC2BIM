@@ -518,9 +518,9 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-500">
-            {connections.filter(c => (c.status || 'proposed') === 'verified').length} verified, {' '}
-            {connections.filter(c => (c.status || 'proposed') === 'rejected').length} rejected, {' '}
-            {connections.filter(c => (c.status || 'proposed') === 'proposed').length} pending
+            {connections.filter(c => getEffectiveStatus(c) === 'verified').length} verified, {' '}
+            {connections.filter(c => getEffectiveStatus(c) === 'rejected').length} rejected, {' '}
+            {connections.filter(c => getEffectiveStatus(c) === 'proposed').length} pending
           </div>
           <button
             onClick={onClose}

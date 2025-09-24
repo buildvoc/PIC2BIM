@@ -32,12 +32,18 @@ class DataMapPhotoResource extends JsonResource
                 'created' => $this->created,
                 'altitude' => $this->altitude,
                 'note' => $this->note,
+                'device_manufacture' => $this->device_manufacture,
+                'device_model' => $this->device_model,
+                'device_platform' => $this->device_platform,
+                'device_version' => $this->device_version,
                 'network_info' => $this->network_info,
+                'provider' => $this->provider,
                 'lat' => $this->lat,
                 'lng' => $this->lng,
                 'link' => $this->link,
                 'osnma_enabled' => $this->osnma_enabled,
-                'osnma_validated' => $this->osnma_validated
+                'osnma_validated' => $this->osnma_validated,
+                'validated_sats' => $this->validated_sats,
             ],
         ];
     }

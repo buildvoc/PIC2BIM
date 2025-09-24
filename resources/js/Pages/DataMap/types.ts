@@ -41,12 +41,19 @@ export interface PhotoProperties {
   created: string;
   altitude: string;
   note: string;
+  // Device info (from backend DataMapPhotoResource)
+  device_manufacture?: string | null;
+  device_model?: string | null;
+  device_platform?: string | null;
+  device_version?: string | null;
   network_info: string;
+  provider?: string | null;
   lat: string;
   lng: string;
   link: string;
-  osnma_enabled: boolean;
-  osnma_validated: boolean;
+  osnma_enabled: boolean | string;
+  osnma_validated: boolean | string;
+  validated_sats?: string | null;
 }
 
 export interface PhotoCentroidState {

@@ -518,12 +518,19 @@ export function Index({ auth }: PageProps) {
                 created: feature.properties.created,
                 altitude: feature.properties.altitude,
                 note: feature.properties.note,
+                // device fields from backend resource
+                device_manufacture: feature.properties.device_manufacture,
+                device_model: feature.properties.device_model,
+                device_platform: feature.properties.device_platform,
+                device_version: feature.properties.device_version,
                 network_info: feature.properties.network_info,
+                provider: feature.properties.provider,
                 lat: feature.properties.lat,
                 lng: feature.properties.lng,
                 link: feature.properties.link,
                 osnma_enabled: feature.properties.osnma_enabled,
-                osnma_validated: feature.properties.osnma_validated
+                osnma_validated: feature.properties.osnma_validated,
+                validated_sats: feature.properties.validated_sats,
               }
             });
           } catch (error) {
@@ -784,12 +791,19 @@ export function Index({ auth }: PageProps) {
                     created: feature.properties.created,
                     altitude: feature.properties.altitude,
                     note: feature.properties.note,
+                    // device fields from backend resource
+                    device_manufacture: feature.properties.device_manufacture,
+                    device_model: feature.properties.device_model,
+                    device_platform: feature.properties.device_platform,
+                    device_version: feature.properties.device_version,
                     network_info: feature.properties.network_info,
+                    provider: feature.properties.provider,
                     lat: feature.properties.lat,
                     lng: feature.properties.lng,
                     link: feature.properties.link,
                     osnma_enabled: feature.properties.osnma_enabled,
-                    osnma_validated: feature.properties.osnma_validated
+                    osnma_validated: feature.properties.osnma_validated,
+                    validated_sats: feature.properties.validated_sats,
                   }
                 };
               } catch (error) {
