@@ -7,7 +7,8 @@ import type {
     SiteCentroidState,
     NhleFeatureState,
     PhotoCentroidState,
-    BuiltupAreaGeoJson
+    BuiltupAreaGeoJson,
+    UprnCentroidState
 } from '../types';
 
 interface UseDataFiltersProps {
@@ -17,13 +18,14 @@ interface UseDataFiltersProps {
   siteCentroidsData: SiteCentroidState[];
   nhleCentroidsData: NhleFeatureState[];
   photoCentroidsData: PhotoCentroidState[];
+  uprnCentroidsData: UprnCentroidState[];
   
   // Filter parameters
   shapes: {data: BuiltupAreaGeoJson} | null;
   selectedShapeIds: string[];
   floorRange: { min: number; max: number };
   selectedGrades: string[];
-  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean };
+  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
   
   // Shape filtering
   boundarySearch: string;
@@ -36,6 +38,7 @@ export function useDataFilters({
   siteCentroidsData,
   nhleCentroidsData,
   photoCentroidsData,
+  uprnCentroidsData,
   shapes,
   selectedShapeIds,
   floorRange,
@@ -115,6 +118,14 @@ export function useDataFilters({
     });
   }, [photoCentroidsData, filterBySelectedShapes]);
 
+  // Filtered UPRN
+  const filteredUprnCentroids = useMemo(() => {
+    return uprnCentroidsData.filter(d => {
+      // Shape filter
+      return filterBySelectedShapes(d.coordinates);
+    });
+  }, [uprnCentroidsData, filterBySelectedShapes]);
+
   // Filtered Sites
   const filteredSiteCentroids = useMemo(() => {
     return siteCentroidsData.filter(d => {
@@ -160,7 +171,7 @@ export function useDataFilters({
 
   // Combined filtered data based on data type selection
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos;
+    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn;
     
     if (!isAnyTypeSelected) {
       return [
@@ -168,7 +179,8 @@ export function useDataFilters({
         ...filteredBuildingPartCentroids.map(item => ({ ...item, dataType: 'buildingParts' })),
         ...filteredSiteCentroids.map(item => ({ ...item, dataType: 'sites' })),
         ...filteredNhleCentroids.map(item => ({ ...item, dataType: 'nhle' })),
-        ...filteredPhotoCentroids.map(item => ({ ...item, dataType: 'photos' }))
+        ...filteredPhotoCentroids.map(item => ({ ...item, dataType: 'photos' })),
+        ...filteredUprnCentroids.map(item => ({ ...item, dataType: 'uprn' }))
       ];
     }
     
@@ -178,9 +190,10 @@ export function useDataFilters({
     if (dataType.sites) data.push(...filteredSiteCentroids.map(item => ({ ...item, dataType: 'sites' })));
     if (dataType.nhle) data.push(...filteredNhleCentroids.map(item => ({ ...item, dataType: 'nhle' })));
     if (dataType.photos) data.push(...filteredPhotoCentroids.map(item => ({ ...item, dataType: 'photos' })));
+    if (dataType.uprn) data.push(...filteredUprnCentroids.map(item => ({ ...item, dataType: 'uprn' })));
     
     return data;
-  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, filteredUprnCentroids, dataType]);
 
   return {
     filteredBuildingCentroids,
@@ -188,6 +201,7 @@ export function useDataFilters({
     filteredSiteCentroids,
     filteredNhleCentroids,
     filteredPhotoCentroids,
+    filteredUprnCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData

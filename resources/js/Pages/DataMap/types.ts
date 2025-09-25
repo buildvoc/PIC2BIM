@@ -30,6 +30,19 @@ export interface SiteCentroidState {
   properties: SiteProperties;
 }
 
+// UPRN types
+export interface UprnProperties {
+  uprn: string;
+  id?: string | number;
+  [key: string]: any;
+}
+
+export interface UprnCentroidState {
+  id: string;
+  coordinates: [number, number];
+  properties: UprnProperties;
+}
+
 export interface PhotoProperties {
   id: number;
   path: string;

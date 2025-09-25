@@ -126,6 +126,38 @@ class DataMapController extends Controller
                 $nhle = $nhle->merge($chunk);
             });
 
+        // Fetch UPRN points within selected areas
+        $uprnFeatures = collect();
+        Uprn::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(osopenuprn_address.geom, s.geometry)');
+            })
+            ->select([
+                'uprn',
+                DB::raw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geometry')
+            ])
+            ->chunk(5000, function ($chunk) use (&$uprnFeatures) {
+                foreach ($chunk as $row) {
+                    if (!empty($row->geometry)) {
+                        $uprnFeatures->push([
+                            'type' => 'Feature',
+                            'geometry' => json_decode($row->geometry, true),
+                            'properties' => [
+                                'id' => (int)$row->uprn,
+                                'uprn' => (int)$row->uprn,
+                            ]
+                        ]);
+                    }
+                }
+            });
+
+        $uprnGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $uprnFeatures->values()
+        ];
+
         // Calculate center point of selected areas
 
         $users = collect();
@@ -179,7 +211,8 @@ class DataMapController extends Controller
             'sites' => new SiteCollection($sites),
             'nhle' => $nhle,
             'center' => $center,
-            'photos' => new DataMapPhotoCollection($photos)
+            'photos' => new DataMapPhotoCollection($photos),
+            'uprn' => ['data' => $uprnGeoJson]
         ];
 
         return response()->json($responseData);

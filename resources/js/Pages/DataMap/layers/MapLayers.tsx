@@ -8,7 +8,8 @@ import type {
     BuildingPartCentroidState,
     SiteCentroidState,
     NhleFeatureState,
-    PhotoCentroidState
+    PhotoCentroidState,
+    UprnCentroidState
 } from '../types';
 
 interface MapLayersProps {
@@ -18,11 +19,12 @@ interface MapLayersProps {
   filteredSiteCentroids: SiteCentroidState[];
   filteredNhleCentroids: NhleFeatureState[];
   filteredPhotoCentroids: PhotoCentroidState[];
+  filteredUprnCentroids: UprnCentroidState[];
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
   
   // State variables
-  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean };
+  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
   category1: string;
   category2: string;
   selectedLegendItem: any | null;
@@ -53,6 +55,7 @@ export function createMapLayers({
   filteredSiteCentroids,
   filteredNhleCentroids,
   filteredPhotoCentroids,
+  filteredUprnCentroids = [],
   polygonCentroids,
   bidirectionalLinks,
   dataType,
@@ -78,7 +81,7 @@ export function createMapLayers({
   
   const layers = [
     // Building Parts Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildingParts) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildingParts) && 
     filteredBuildingPartCentroids.length > 0 && 
     new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
@@ -156,7 +159,7 @@ export function createMapLayers({
     }),
 
     // Sites Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.sites) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.sites) && 
     filteredSiteCentroids.length > 0 && 
     new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
@@ -245,7 +248,7 @@ export function createMapLayers({
     }),
 
     // NHLE Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.nhle) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.nhle) && 
     filteredNhleCentroids.length > 0 && 
     new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
@@ -305,7 +308,7 @@ export function createMapLayers({
     }),
 
     // Buildings Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.buildings) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildings) && 
     filteredBuildingCentroids.length > 0 && 
     new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
@@ -391,8 +394,55 @@ export function createMapLayers({
       },
     }),
 
+    // UPRN Layer
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.uprn) && 
+    filteredUprnCentroids.length > 0 &&
+    new ScatterplotLayer<UprnCentroidState>({
+      id: `uprn-layer`,
+      data: filteredUprnCentroids,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 16,
+      radiusMinPixels: 2,
+      lineWidthMinPixels: 1,
+      getPosition: (d: any) => d.coordinates,
+      getRadius: (d: any) => {
+        let baseRadius = 8; // fixed size for UPRN
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        // UPRN fill: #00BCD4
+        return [0, 188, 212, 220] as [number, number, number, number];
+      },
+      getLineColor: (d: any) => [51, 51, 51, 255], // stroke: #333
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          setSelectedFeature(info.object);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [filteredUprnCentroids, zoomBasedRadius],
+      },
+    }),
+
     // Photos Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos) || dataType.photos) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.photos) && 
     filteredPhotoCentroids.length > 0 && 
     new ScatterplotLayer<PhotoCentroidState>({
       id: `photo-layer`,
@@ -585,6 +635,7 @@ export function createMapLayers({
           case 'site': return [46, 204, 113, 200]; // Site Green
           case 'nhle': return [231, 76, 60, 200]; // NHLE Red
           case 'photo': return [255, 0, 255, 200]; // Photo Magenta
+          case 'uprn': return [255, 215, 0, 200]; // UPRN Gold
           default: return [128, 128, 128, 200]; // Default Gray
         }
       },
@@ -621,6 +672,13 @@ export function createMapLayers({
             actualFeature = filteredNhleCentroids.find(n => n.properties.nhle_id === info.object.properties.nhle_id);
           } else if (connectionType === 'photo') {
             actualFeature = filteredPhotoCentroids.find(p => p.properties.id === info.object.properties.id);
+          } else if (connectionType === 'uprn') {
+            // Match by UPRN value if present, else by id fallback
+            actualFeature = filteredUprnCentroids.find((u: any) => {
+              const uUprn = u?.properties?.uprn?.toString?.() || u?.properties?.id?.toString?.();
+              const oUprn = info.object?.properties?.uprn?.toString?.() || info.object?.properties?.id?.toString?.();
+              return uUprn && oUprn && uUprn === oUprn;
+            });
           }
           
           if (actualFeature) {
@@ -673,6 +731,7 @@ export function createMapLayers({
           case 'site': return [46, 204, 113, 150]; // Site Green
           case 'nhle': return [231, 76, 60, 150]; // NHLE Red
           case 'photo': return [255, 0, 255, 150]; // Photo Magenta
+          case 'uprn': return [255, 215, 0, 150]; // UPRN Gold
           default: return [128, 128, 128, 150]; // Default Gray
         }
       },
