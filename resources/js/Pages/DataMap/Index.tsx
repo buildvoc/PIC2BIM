@@ -2555,7 +2555,8 @@ export function Index({ auth }: PageProps) {
           }}
           title={
             selectedFeature
-              ? ('file_name' in selectedFeature.properties ? 'Photo Details' :
+              ? ('uprn' in selectedFeature.properties ? 'UPRN Details' :
+                 'file_name' in selectedFeature.properties ? 'Photo Details' :
                  'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
                  'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
                  'grade' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
