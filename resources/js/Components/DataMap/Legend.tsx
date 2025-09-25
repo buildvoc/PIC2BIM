@@ -8,7 +8,7 @@ interface LegendProps {
     groupByMapping: { [key: string]: string };
     onItemClick: (value: any) => void;
     selectedItem: any | null;
-    dataType?: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean };
+    dataType?: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
 }
 
 const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemClick, selectedItem, dataType }) => {
@@ -34,7 +34,8 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
             buildingParts: [255, 165, 0], // Orange
             sites: [0, 255, 0], // Green
             nhle: [255, 0, 0], // Red
-            photos: [255, 20, 147] // Pink
+            photos: [255, 20, 147], // Pink
+            uprn: [0, 188, 212] // UPRN: #00BCD4
         };
 
         const dataTypeLabels = {
@@ -42,14 +43,15 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
             buildingParts: 'Building Parts',
             sites: 'Sites',
             nhle: 'NHLE',
-            photos: 'Photos'
+            photos: 'Photos',
+            uprn: 'UPRN'
         };
 
         // Check if any data types are selected in the filter
-        const hasAnyDataTypeSelected = dataType && (dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos);
+        const hasAnyDataTypeSelected = dataType && (dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn);
         
         // Always show all data types that have data in the current dataset
-        const allPossibleTypes = ['buildings', 'buildingParts', 'sites', 'nhle', 'photos'];
+        const allPossibleTypes = ['buildings', 'buildingParts', 'sites', 'nhle', 'photos', 'uprn'];
         
         // Count data by type to debug what's actually available
         const dataTypeCounts = allPossibleTypes.reduce((counts, type) => {
@@ -94,6 +96,14 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
                             d.properties.type === 'photo' ||
                             d.properties.feature_type === 'photo'
                         );
+                    case 'uprn':
+                        return d.properties && (
+                            d.properties.uprn ||
+                            d.properties.id?.toString().includes('uprn') ||
+                            d.dataType === 'uprn' ||
+                            d.properties.type === 'uprn' ||
+                            d.properties.feature_type === 'uprn'
+                        );
                     default:
                         return false;
                 }
@@ -101,22 +111,26 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
             return counts;
         }, {} as Record<string, number>);
         
-        // Show types that have data, or all types if none detected
-        const typesWithData = allPossibleTypes.filter(type => dataTypeCounts[type] > 0);
-        let availableDataTypes = typesWithData.length > 0 ? typesWithData : allPossibleTypes;
-        
-        // If some data types are selected, only show those that are active
+        // Compute available types
+        // If any data types are explicitly selected, show exactly the active toggles
+        // (this ensures selected types appear even if the current 'data' array happens to be empty for them)
+        let availableDataTypes: string[];
         if (hasAnyDataTypeSelected && dataType) {
-            availableDataTypes = availableDataTypes.filter(type => {
+            availableDataTypes = allPossibleTypes.filter(type => {
                 switch(type) {
                     case 'buildings': return dataType.buildings;
                     case 'buildingParts': return dataType.buildingParts;
                     case 'sites': return dataType.sites;
                     case 'nhle': return dataType.nhle;
                     case 'photos': return dataType.photos;
+                    case 'uprn': return dataType.uprn;
                     default: return false;
                 }
             });
+        } else {
+            // Otherwise, show types that have data; if none detected, show all
+            const typesWithData = allPossibleTypes.filter(type => dataTypeCounts[type] > 0);
+            availableDataTypes = typesWithData.length > 0 ? typesWithData : allPossibleTypes;
         }
 
         return (

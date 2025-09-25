@@ -45,14 +45,15 @@ import type {
     MGeoJson, 
     FetchedPolygonsData,
     LoadedNhleFeatureState,
-    ValidationError
+    ValidationError,
+    UprnCentroidState
 } from './types';
 import { NhleProperties } from '@/types/nhle';
 import { connect } from 'node:tls';
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center } = usePage<{
+  const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center, uprn } = usePage<{
     shapes: {data: BuiltupAreaGeoJson} | null;
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
@@ -60,6 +61,7 @@ export function Index({ auth }: PageProps) {
     nhle: NhleProperties[];
     photos: { type: 'FeatureCollection', features: any[] };
     center?: { type: 'Point', coordinates: [number, number] };
+    uprn?: { data: any };
   }>().props;
 
   // State for shapes data that will be loaded asynchronously
@@ -80,6 +82,7 @@ export function Index({ auth }: PageProps) {
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
+  const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null>(null);
@@ -87,7 +90,7 @@ export function Index({ auth }: PageProps) {
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false });
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -351,6 +354,7 @@ export function Index({ auth }: PageProps) {
       nhle: ['Grade'],
       buildingParts: ['OSLandTiera'],
       photos: ['User'],
+      uprn: [] as string[],
     };
 
     const activeTypes = Object.keys(dataType).filter(
@@ -376,6 +380,53 @@ export function Index({ auth }: PageProps) {
       setSelectedLegendItem(null); // Reset legend selection when group-by changes
     }
   }, [dataType, category2]);
+ 
+  // Auto-zoom to UPRN extent when UPRN filter is enabled
+  useEffect(() => {
+    if (!dataType.uprn) return;
+    if (!filteredUprnCentroids || filteredUprnCentroids.length === 0) return;
+
+    try {
+      const coords = filteredUprnCentroids.map(d => d.coordinates);
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      for (const [lng, lat] of coords) {
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+      }
+
+      if (!isFinite(minLng) || !isFinite(minLat) || !isFinite(maxLng) || !isFinite(maxLat)) return;
+
+      // If there is only a single point, pad the bbox slightly
+      if (minLng === maxLng && minLat === maxLat) {
+        const delta = 0.001; // ~100m padding
+        minLng -= delta; maxLng += delta; minLat -= delta; maxLat += delta;
+      }
+
+      const { longitude, latitude, zoom } = new WebMercatorViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        longitude: 0,
+        latitude: 0,
+        zoom: 4,
+      }).fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 60 }
+      );
+
+      setViewState(prev => ({
+        ...prev,
+        longitude,
+        latitude,
+        zoom,
+        transitionDuration: 1200,
+        transitionInterpolator: new FlyToInterpolator(),
+      }));
+    } catch (e) {
+      console.error('Failed to auto-zoom to UPRN extent:', e);
+    }
+  }, [dataType.uprn, uprnCentroidsData]);
 
   const handleLegendItemClick = useCallback((value: any) => {
     setSelectedLegendItem((prev: any) => (prev === value ? null : value));
@@ -541,6 +592,35 @@ export function Index({ auth }: PageProps) {
       setPhotoCentroidsData(centroids);
     }
   }, [photos]);
+
+  // Map UPRN features from Inertia props to UprnCentroidState
+  useEffect(() => {
+    if (uprn && uprn.data && Array.isArray(uprn.data.features)) {
+      const centroids: UprnCentroidState[] = [];
+      for (const feature of uprn.data.features) {
+        if (feature.geometry && feature.geometry.type === 'Point') {
+          try {
+            const coordinates = feature.geometry.coordinates as [number, number];
+            centroids.push({
+              id: feature.id?.toString() || feature.properties?.id?.toString() || '',
+              coordinates,
+              properties: {
+                uprn: String(feature.properties?.uprn ?? ''),
+                id: feature.properties?.id,
+                ...feature.properties,
+              }
+            });
+          } catch (error) {
+            console.error('Error processing UPRN feature:', feature.id, error);
+          }
+        }
+      }
+      setUprnCentroidsData(centroids);
+    } else {
+      setUprnCentroidsData([]);
+    }
+  }, [uprn]);
+  
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -817,6 +897,38 @@ export function Index({ auth }: PageProps) {
         
         console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
         return [...prev, ...newPhotos];
+      });
+    }
+
+    // Merge UPRN data
+    if (newData.uprn?.data?.features) {
+      setUprnCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newUprns = newData.uprn.data.features
+          .filter((feature: any) => !existingIds.has((feature.id ?? feature.properties?.id ?? feature.properties?.uprn)?.toString()))
+          .map((feature: any, idx: number) => {
+            if (feature.geometry && feature.geometry.type === 'Point') {
+              try {
+                const coordinates = feature.geometry.coordinates as [number, number];
+                return {
+                  id: (feature.id ?? feature.properties?.id ?? feature.properties?.uprn ?? idx).toString(),
+                  coordinates,
+                  properties: {
+                    uprn: String(feature.properties?.uprn ?? feature.properties?.UPRN ?? ''),
+                    id: feature.properties?.id ?? feature.properties?.uprn,
+                    ...feature.properties,
+                  }
+                } as UprnCentroidState;
+              } catch (error) {
+                console.error('Error processing UPRN feature in merge:', feature.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        return [...prev, ...newUprns];
       });
     }
 
@@ -1178,6 +1290,7 @@ export function Index({ auth }: PageProps) {
     filteredSiteCentroids,
     filteredNhleCentroids,
     filteredPhotoCentroids,
+    filteredUprnCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData
@@ -1187,6 +1300,7 @@ export function Index({ auth }: PageProps) {
     siteCentroidsData,
     nhleCentroidsData,
     photoCentroidsData,
+    uprnCentroidsData,
     shapes,
     selectedShapeIds,
     floorRange,
@@ -1408,8 +1522,8 @@ export function Index({ auth }: PageProps) {
   }, [selectedShapeIds, dataType]);
 
   useEffect(() => {
-    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0 || photoCentroidsData.length > 0)) {
-      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData, ...photoCentroidsData];
+    if (!initialZoomApplied.current && (buildingCentroidsData.length > 0 || buildingPartCentroidsData.length > 0 || siteCentroidsData.length > 0 || nhleCentroidsData.length > 0 || photoCentroidsData.length > 0 || uprnCentroidsData.length > 0)) {
+      const allData = [...buildingCentroidsData, ...buildingPartCentroidsData, ...siteCentroidsData, ...nhleCentroidsData, ...photoCentroidsData, ...uprnCentroidsData];
       if (allData.length > 0) {
         try {
           const points = turf.featureCollection(
@@ -1439,7 +1553,7 @@ export function Index({ auth }: PageProps) {
         }
       }
     }
-  }, [buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData]);
+  }, [buildingCentroidsData, buildingPartCentroidsData, siteCentroidsData, nhleCentroidsData, photoCentroidsData, uprnCentroidsData]);
 
   useEffect(() => {
     if (isInitialLoad.current) {
@@ -2256,6 +2370,7 @@ export function Index({ auth }: PageProps) {
     filteredSiteCentroids,
     filteredNhleCentroids,
     filteredPhotoCentroids,
+    filteredUprnCentroids,
     polygonCentroids,
     bidirectionalLinks,
     dataType,
@@ -2725,7 +2840,7 @@ export function Index({ auth }: PageProps) {
                 <button
                   onClick={() => {
                     // Show all data types
-                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false });
+                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false });
                     setSelectedGrades([]);
                     setSelectedShapeIds([]);
                     setFloorRange({ min: 0, max: maxFloors });
@@ -2850,6 +2965,27 @@ export function Index({ auth }: PageProps) {
                   />
                   <span className="ml-3">
                     Photos
+                  </span>
+                </label>
+
+                <label 
+                  htmlFor="show-uprn"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.uprn
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-uprn"
+                    checked={dataType.uprn}
+                    onChange={() => {
+                      setDataType(prev => ({ ...prev, uprn: !prev.uprn }));
+                    }}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    UPRN
                   </span>
                 </label>
 
