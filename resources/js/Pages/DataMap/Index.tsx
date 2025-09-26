@@ -83,6 +83,84 @@ export function Index({ auth }: PageProps) {
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
   const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
+  // Collapsed UPRN groups (30m proximity): show balanced representatives
+  const UPRN_GROUP_RADIUS_M = 30; // meters
+  const MAX_PER_REP = 8; // max members per representative group for balance
+  const uprnCollapsed = useMemo(() => {
+    if (!uprnCentroidsData || uprnCentroidsData.length === 0) return [] as UprnCentroidState[];
+
+    // 1) Build proximity clusters (within 30m)
+    const remaining = [...uprnCentroidsData];
+    const proximityClusters: UprnCentroidState[][] = [];
+    while (remaining.length) {
+      const seed = remaining.pop()!;
+      const seedPt = turf.point(seed.coordinates);
+      const cluster: UprnCentroidState[] = [seed];
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        const cand = remaining[i];
+        const d = turf.distance(seedPt, turf.point(cand.coordinates), 'kilometers') * 1000;
+        if (d <= UPRN_GROUP_RADIUS_M) {
+          cluster.push(cand);
+          remaining.splice(i, 1);
+        }
+      }
+      proximityClusters.push(cluster);
+    }
+
+    // 2) For each cluster, split into balanced subgroups by angle if too large
+    const representatives: any[] = [];
+    for (const cluster of proximityClusters) {
+      if (cluster.length <= MAX_PER_REP) {
+        // Small cluster: single representative closest to centroid
+        const centerLng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
+        const centerLat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
+        let rep: UprnCentroidState = cluster[0];
+        let best = Infinity;
+        for (const p of cluster) {
+          const dd = turf.distance(turf.point([centerLng, centerLat]), turf.point(p.coordinates), 'kilometers');
+          if (dd < best) { best = dd; rep = p; }
+        }
+        representatives.push({
+          ...rep,
+          properties: { ...rep.properties, uprn_group_size: cluster.length },
+          __uprnGroupMembers: cluster
+        });
+        continue;
+      }
+
+      // Large cluster: split by angle around centroid into chunks of MAX_PER_REP
+      const centerLng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
+      const centerLat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
+      const center = [centerLng, centerLat] as [number, number];
+      const withAngle = cluster.map(p => {
+        const dx = p.coordinates[0] - centerLng;
+        const dy = p.coordinates[1] - centerLat;
+        const ang = Math.atan2(dy, dx);
+        return { p, ang };
+      }).sort((a, b) => a.ang - b.ang);
+
+      // chunking
+      for (let i = 0; i < withAngle.length; i += MAX_PER_REP) {
+        const slice = withAngle.slice(i, i + MAX_PER_REP).map(x => x.p);
+        // choose rep closest to slice centroid
+        const sLng = slice.reduce((s, p) => s + p.coordinates[0], 0) / slice.length;
+        const sLat = slice.reduce((s, p) => s + p.coordinates[1], 0) / slice.length;
+        let rep: UprnCentroidState = slice[0];
+        let best = Infinity;
+        for (const p of slice) {
+          const dd = turf.distance(turf.point([sLng, sLat]), turf.point(p.coordinates), 'kilometers');
+          if (dd < best) { best = dd; rep = p; }
+        }
+        representatives.push({
+          ...rep,
+          properties: { ...rep.properties, uprn_group_size: slice.length },
+          __uprnGroupMembers: slice
+        });
+      }
+    }
+
+    return representatives as UprnCentroidState[] as any;
+  }, [uprnCentroidsData]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null>(null);
@@ -2198,6 +2276,7 @@ export function Index({ auth }: PageProps) {
     } else {
       // Compute connections first; only spider if there are any
       const isPhotoSelected = 'file_name' in point.properties;
+      const isUprnSelected = 'uprn' in point.properties;
       const isBuildingSelected = 'area' in point.properties &&
                                 !('smallestsite_siteid' in point.properties) &&
                                 !('matcheduprn' in point.properties) &&
@@ -2213,156 +2292,40 @@ export function Index({ auth }: PageProps) {
                             !('file_name' in point.properties) &&
                             !('smallestsite_siteid' in point.properties);
 
-      let connections: any[] = [];
-
-      if (isPhotoSelected || isSiteSelected || isBuildingSelected || isBuildingPartSelected) {
-        const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
-
-        if (isPhotoSelected) {
-          // Photo connections logic
-          const photoHeading = typeof point.properties.photo_heading === 'string'
-            ? parseFloat(point.properties.photo_heading)
-            : (point.properties.photo_heading || 0);
-          const maxDistance = 10; // meters
-          const addConnection = (candidate: any, type: string) => {
-            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-            const photoPoint = turf.point(selectedCoords);
-            const candidatePoint = turf.point(candidateCoords);
-            const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
-
-            // Use bearing match logic like bidirectional links
-            if (distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, candidateCoords)) {
-              connections.push({
-                coordinates: candidateCoords,
-                type,
-                properties: candidate.properties,
-                id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-                distance: Math.round(distance)
-              });
-            }
-          };
-
-          filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
-          filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
-          filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
-          filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
-        } else if (isBuildingSelected) {
-          // Building connections logic - find related sites
-          const buildingProperties = point.properties as any;
-          const primarySiteId = buildingProperties.primarysiteid;
-          const buildingUprns = buildingProperties.uprn;
-
-          const addBuildingConnection = (candidate: any, type: string) => {
-            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-            connections.push({
-              coordinates: candidateCoords,
-              type,
-              properties: candidate.properties,
-              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-              distance: 0
-            });
-          };
-
-          if (primarySiteId) {
-            const relatedSite = filteredSiteCentroids.find(site =>
-              site.properties.osid === primarySiteId
-            );
-            if (relatedSite) {
-              addBuildingConnection(relatedSite, 'site');
-            }
-          }
-
-          if (buildingUprns && Array.isArray(buildingUprns)) {
-            filteredSiteCentroids.forEach(site => {
-              const siteMatchedUprn = site.properties.matcheduprn;
-              if (siteMatchedUprn && buildingUprns.some((uprnObj: any) =>
-                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-              )) {
-                if (!connections.some(conn => conn.properties.osid === site.properties.osid)) {
-                  addBuildingConnection(site, 'site');
-                }
-              }
-            });
-          }
-        } else if (isBuildingPartSelected) {
-          // Building part connections logic - find related sites
-          const buildingPartProperties = point.properties as any;
-          const smallestSiteId = buildingPartProperties.smallestsite_siteid;
-
-          const addBuildingPartConnection = (candidate: any, type: string) => {
-            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-            connections.push({
-              coordinates: candidateCoords,
-              type,
-              properties: candidate.properties,
-              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-              distance: 0
-            });
-          };
-
-          if (smallestSiteId) {
-            const relatedSite = filteredSiteCentroids.find(site =>
-              site.properties.osid === smallestSiteId
-            );
-            if (relatedSite) {
-              addBuildingPartConnection(relatedSite, 'site');
-            }
-          }
-        } else if (isSiteSelected) {
-          // Site connections logic
-          const siteProperties = point.properties as any;
-          const siteId = siteProperties.osid || siteProperties.id;
-          const siteMatchedUprn = siteProperties.matcheduprn;
-
-          const addSiteConnection = (candidate: any, type: string) => {
-            const candidateCoords: [number, number] = [candidate.coordinates[0], candidate.coordinates[1]];
-            connections.push({
-              coordinates: candidateCoords,
-              type,
-              properties: candidate.properties,
-              id: `${type}-${candidate.properties.id || 'unknown'}-${candidateCoords[0].toFixed(6)}-${candidateCoords[1].toFixed(6)}`,
-              distance: 0 // Site relationships don't use distance
-            });
-          };
-
-          const relatedBuildings = filteredBuildingCentroids.filter(building => {
-            if (building.properties.primarysiteid === siteId) {
-              return true;
-            }
-            if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
-              const uprnMatch = building.properties.uprn.some((uprnObj: any) =>
-                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-              );
-              return uprnMatch;
-            }
-            return false;
-          });
-
-          const relatedBuildingParts = filteredBuildingPartCentroids.filter(part => {
-            if (part.properties.smallestsite_siteid === siteId) {
-              return true;
-            }
-            return false;
-          });
-
-          relatedBuildings.forEach(building => addSiteConnection(building, 'building'));
-          relatedBuildingParts.forEach(part => addSiteConnection(part, 'buildingPart'));
-        }
+      // Enforce UPRN-only spidering behavior
+      if (!isUprnSelected) {
+        setSelectedPoint(null);
+        setSpideredConnections([]);
+        setSelectedFeature(point);
+        return;
       }
 
+      // Build UPRN neighbours (within 30m) and spider them
+      const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
+      const centerPt = turf.point(selectedCoords);
+      let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || uprnCentroidsData.filter(u => {
+        const d = turf.distance(centerPt, turf.point(u.coordinates), 'kilometers') * 1000;
+        return d <= UPRN_GROUP_RADIUS_M;
+      });
+      members = members.filter(m => !(m.coordinates[0] === point.coordinates[0] && m.coordinates[1] === point.coordinates[1]));
+      const connections = members.map(m => ({
+        id: m.id,
+        coordinates: m.coordinates,
+        type: 'uprn',
+        properties: m.properties
+      }));
+
       if (connections.length >= 1) {
-        // Activate spidering and keep the clicked point selected
         setSelectedPoint(point);
         setSpideredConnections(connections);
         setSelectedFeature(point);
       } else {
-        // No connections: do not spider; show the clicked point details instead
         setSelectedPoint(null);
         setSpideredConnections([]);
         setSelectedFeature(point);
       }
     }
-  }, [selectedPoint, selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids]);
+  }, [selectedPoint, selectedFeature, uprnCentroidsData]);
 
   const layers = createMapLayers({
     filteredBuildingCentroids,
@@ -2370,7 +2333,8 @@ export function Index({ auth }: PageProps) {
     filteredSiteCentroids,
     filteredNhleCentroids,
     filteredPhotoCentroids,
-    filteredUprnCentroids,
+    // Use collapsed UPRN representatives so only one point shows per 30m cluster
+    filteredUprnCentroids: uprnCollapsed as any,
     polygonCentroids,
     bidirectionalLinks,
     dataType,
