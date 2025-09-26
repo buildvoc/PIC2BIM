@@ -431,7 +431,8 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          setSelectedFeature(info.object);
+          // For UPRN: trigger spidering to show nearby UPRNs
+          onPointClick(info.object);
         }
       },
       updateTriggers: {
@@ -679,6 +680,27 @@ export function createMapLayers({
               const oUprn = info.object?.properties?.uprn?.toString?.() || info.object?.properties?.id?.toString?.();
               return uUprn && oUprn && uUprn === oUprn;
             });
+
+            // If the clicked UPRN is a collapsed member not present in filteredUprnCentroids,
+            // compute its absolute coordinates from the spidered position and select it directly
+            if (!actualFeature) {
+              const idx = (info as any).index ?? 0;
+              const angle = (idx / spideredConnections.length) * Math.PI * 2;
+              const offX = info.object?.offsetMeters?.[0] ?? spideringRadius * Math.cos(angle);
+              const offY = info.object?.offsetMeters?.[1] ?? spideringRadius * Math.sin(angle);
+
+              const lat = selectedPoint.coordinates[1];
+              const metersPerDegreeLat = 111320;
+              const metersPerDegreeLng = 111320 * Math.cos(lat * Math.PI / 180);
+              const absLng = selectedPoint.coordinates[0] + offX / metersPerDegreeLng;
+              const absLat = selectedPoint.coordinates[1] + offY / metersPerDegreeLat;
+
+              actualFeature = {
+                id: info.object.id || `${Date.now()}`,
+                coordinates: [absLng, absLat],
+                properties: info.object.properties
+              } as any;
+            }
           }
           
           if (actualFeature) {
