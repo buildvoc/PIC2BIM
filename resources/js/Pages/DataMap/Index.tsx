@@ -1425,6 +1425,7 @@ export function Index({ auth }: PageProps) {
       building: filteredBuildingCentroids,
       buildingPart: filteredBuildingPartCentroids,
       site: filteredSiteCentroids,
+      uprn: uprnCentroidsData,
       photo: filteredPhotoCentroids
     };
 
@@ -1535,6 +1536,27 @@ export function Index({ auth }: PageProps) {
       }
     });
 
+    // Search UPRN data (only within selected shapes)
+    dataToSearch.uprn.forEach(item => {
+      const props = item.properties as any;
+      if (field === 'all' || searchableFields.uprn?.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.uprn : [field];
+        const matches = fieldsToSearch.some((f: string) => {
+          const value = props?.[f];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+        if (matches) {
+          results.push({
+            type: 'UPRN',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.uprn || props.id || 'UPRN'
+          });
+        }
+      }
+    });
+
     // Search Photo data (only within selected shapes)
     dataToSearch.photo.forEach(item => {
       const props = item.properties;
@@ -1558,7 +1580,7 @@ export function Index({ auth }: PageProps) {
     });
 
     setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredPhotoCentroids]);
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredUprnCentroids, uprnCentroidsData, filteredPhotoCentroids]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -2271,63 +2293,126 @@ export function Index({ auth }: PageProps) {
       setSpideredConnections([]);
       
     } else {
-      // Compute connections first; only spider if there are any
+      // Compute connections based on point type; spider only if there are any
       const isPhotoSelected = 'file_name' in point.properties;
-      const isUprnSelected = 'uprn' in point.properties;
+      // UPRN centroid has properties.uprn as a scalar (string/number) and lacks other type markers (site/building/part/photo/nhle)
+      const propsAny = point.properties as any;
+      const uprnVal = propsAny?.uprn;
+      const isUprnSelected = (typeof uprnVal === 'string' || typeof uprnVal === 'number') &&
+                              !('osid' in propsAny) &&
+                              !('primarysiteid' in propsAny) &&
+                              !('smallestsite_siteid' in propsAny) &&
+                              !('file_name' in propsAny) &&
+                              !('nhle_id' in propsAny);
       const isBuildingSelected = 'area' in point.properties &&
-                                !('smallestsite_siteid' in point.properties) &&
-                                !('matcheduprn' in point.properties) &&
-                                ('primarysiteid' in point.properties || 'uprn' in point.properties);
+                                 !('smallestsite_siteid' in point.properties) &&
+                                 !('matcheduprn' in point.properties) &&
+                                 ('primarysiteid' in point.properties);
       const isBuildingPartSelected = 'smallestsite_siteid' in point.properties;
       const isSiteSelected = ('matcheduprn' in point.properties ||
-                            ('osid' in point.properties &&
-                             !('file_name' in point.properties) &&
-                             !('smallestsite_siteid' in point.properties) &&
-                             !('nhle_id' in point.properties) &&
-                             !('primarysiteid' in point.properties) &&
-                             !('uprn' in point.properties))) &&
-                            !('file_name' in point.properties) &&
-                            !('smallestsite_siteid' in point.properties);
+                              ('osid' in point.properties &&
+                               !('file_name' in point.properties) &&
+                               !('smallestsite_siteid' in point.properties) &&
+                               !('nhle_id' in point.properties) &&
+                               !('primarysiteid' in point.properties) &&
+                               !('uprn' in point.properties))) &&
+                              !('file_name' in point.properties) &&
+                              !('smallestsite_siteid' in point.properties);
 
-      // Enforce UPRN-only spidering behavior
-      if (!isUprnSelected) {
-        setSelectedPoint(null);
-        setSpideredConnections([]);
-        setSelectedFeature(point);
-        return;
-      }
-
-      // Build UPRN neighbours (within 30m) and spider them
       const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
-      const centerPt = turf.point(selectedCoords);
-      let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || filteredUprnCentroids.filter(u => {
-        const d = turf.distance(centerPt, turf.point(u.coordinates), 'kilometers') * 1000;
-        return d <= UPRN_GROUP_RADIUS_M;
-      });
-      members = members.filter(m => !(m.coordinates[0] === point.coordinates[0] && m.coordinates[1] === point.coordinates[1]));
-      const connections = members.map(m => ({
-        id: m.id,
-        coordinates: m.coordinates,
-        type: 'uprn',
-        properties: m.properties
-      }));
+      const connections: Array<{ id: string; coordinates: [number, number]; type: string; properties: any }>[] = [] as any;
+      let result: Array<{ id: string; coordinates: [number, number]; type: string; properties: any }> = [];
 
-      if (connections.length >= 1) {
-        setSelectedPoint(point);
-        setSpideredConnections(connections);
-        // Update selected feature with accurate, on-click group size (center + members)
-        const updatedSelected = {
-          ...point,
-          properties: {
-            ...point.properties,
-            uprn_group_size: connections.length + 1
+      if (isUprnSelected) {
+        // UPRN neighbours (within 30m)
+        const centerPt = turf.point(selectedCoords);
+        // Prefer precomputed group members on the representative; otherwise, search in RAW uprnCentroidsData
+        let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || uprnCentroidsData.filter((u: UprnCentroidState) => {
+          const d = turf.distance(centerPt, turf.point(u.coordinates), 'kilometers') * 1000;
+          return d <= UPRN_GROUP_RADIUS_M;
+        });
+        members = members.filter(m => !(m.coordinates[0] === point.coordinates[0] && m.coordinates[1] === point.coordinates[1]));
+        result = members.map(m => ({ id: m.id, coordinates: m.coordinates, type: 'uprn', properties: m.properties }));
+      } else if (isPhotoSelected) {
+        // Photo → candidates within 10m and bearing match
+        const maxDistance = 10; // meters
+        const photoHeading = typeof point.properties.photo_heading === 'string'
+          ? parseFloat(point.properties.photo_heading)
+          : (point.properties.photo_heading || 0);
+        const addCandidate = (candidate: any, type: string) => {
+          const photoPoint = turf.point(selectedCoords);
+          const candidatePoint = turf.point(candidate.coordinates);
+          const distance = turf.distance(photoPoint, candidatePoint, 'kilometers') * 1000;
+          if (distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, candidate.coordinates)) {
+            result.push({ id: `${type}-${candidate.properties.id}`,
+                          coordinates: candidate.coordinates,
+                          type,
+                          properties: candidate.properties });
           }
         };
-        setSelectedFeature(updatedSelected as any);
+        filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
+        filteredBuildingPartCentroids.forEach(p => addCandidate(p, 'buildingPart'));
+        filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
+        filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
+      } else if (isSiteSelected) {
+        // Site → related buildings and parts
+        const siteProps = point.properties as any;
+        const siteId = siteProps.osid || siteProps.id;
+        const siteMatchedUprn = siteProps.matcheduprn;
+        const relatedBuildings = filteredBuildingCentroids.filter(building => {
+          if (building.properties.primarysiteid === siteId) return true;
+          if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
+            return building.properties.uprn.some((uprnObj: any) => uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString());
+          }
+          return false;
+        });
+        const relatedParts = filteredBuildingPartCentroids.filter(part => part.properties.smallestsite_siteid === siteId);
+        result = [
+          ...relatedBuildings.map(b => ({ id: `building-${b.properties.id}`, coordinates: b.coordinates, type: 'building', properties: b.properties })),
+          ...relatedParts.map(p => ({ id: `part-${p.properties.id}`, coordinates: p.coordinates, type: 'buildingPart', properties: p.properties })),
+        ];
+      } else if (isBuildingSelected) {
+        // Building → related site via primarysiteid
+        const primarySiteId = point.properties.primarysiteid;
+        if (primarySiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === primarySiteId);
+          if (relatedSite) {
+            result = [{ id: `site-${relatedSite.properties.id}`, coordinates: relatedSite.coordinates, type: 'site', properties: relatedSite.properties }];
+          }
+        }
+      } else if (isBuildingPartSelected) {
+        // BuildingPart → related site via smallestsite_siteid
+        const smallestSiteId = point.properties.smallestsite_siteid;
+        if (smallestSiteId) {
+          const relatedSite = filteredSiteCentroids.find(site => site.properties.osid === smallestSiteId);
+          if (relatedSite) {
+            result = [{ id: `site-${relatedSite.properties.id}`, coordinates: relatedSite.coordinates, type: 'site', properties: relatedSite.properties }];
+          }
+        }
+      } else {
+        // Default: no spidering
+        result = [];
+      }
+
+      if (result.length >= 1) {
+        setSelectedPoint(point);
+        setSpideredConnections(result);
+        // Maintain UPRN group size updates when applicable
+        if (isUprnSelected) {
+          const updatedSelected = {
+            ...point,
+            properties: {
+              ...point.properties,
+              uprn_group_size: result.length + 1
+            }
+          };
+          setSelectedFeature(updatedSelected as any);
+        } else {
+          setSelectedFeature(point);
+        }
       } else {
         setSelectedPoint(null);
         setSpideredConnections([]);
-        // If UPRN selected but no members, normalize group size to 1
         if (isUprnSelected) {
           const updatedSelected = {
             ...point,
@@ -2338,7 +2423,6 @@ export function Index({ auth }: PageProps) {
           };
           setSelectedFeature(updatedSelected as any);
         } else {
-          // For non-UPRN selection or when not spidering, show group size from representative if present
           const normalized = (point as any).__uprnGroupMembers
             ? { ...point, properties: { ...point.properties, uprn_group_size: (point as any).__uprnGroupMembers.length } }
             : point;
@@ -2540,11 +2624,12 @@ export function Index({ auth }: PageProps) {
           }}
           title={
             selectedFeature
-              ? ('uprn' in selectedFeature.properties ? 'UPRN Details' :
-                 'file_name' in selectedFeature.properties ? 'Photo Details' :
-                 'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
-                 'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
-                 'grade' in selectedFeature.properties ? 'NHLE Details' : 'Site Details')
+              ? ('uprn_group_size' in selectedFeature.properties ? 'UPRN Details' :
+                'file_name' in selectedFeature.properties ? 'Photo Details' :
+                'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
+                'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
+                'oslanduse_capturemethod' in selectedFeature.properties ? 'Site Details' :
+                 'grade' in selectedFeature.properties ? 'NHLE Details' : 'UPRN Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -3091,6 +3176,7 @@ export function Index({ auth }: PageProps) {
                       <option value="building">Building</option>
                       <option value="buildingpart">Building Part</option>
                       <option value="site">Site</option>
+                      <option value="uprn">UPRN</option>
                     </select>
                   ) : (
                     <div className="flex gap-2">
@@ -3139,6 +3225,7 @@ export function Index({ auth }: PageProps) {
                                 result.type === 'NHLE' ? 'bg-blue-100 text-blue-800' :
                                 result.type === 'Building' ? 'bg-green-100 text-green-800' :
                                 result.type === 'Building Part' ? 'bg-purple-100 text-purple-800' :
+                                result.type === 'UPRN' ? 'bg-cyan-100 text-cyan-800' :
                                 'bg-orange-100 text-orange-800'
                               }`}>
                                 {result.type}

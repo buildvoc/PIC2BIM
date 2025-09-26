@@ -138,12 +138,12 @@ export function createMapLayers({
         if (info.object && info.object.properties) {
           const buildingPart = info.object as BuildingPartCentroidState;
           const smallestSiteId = buildingPart.properties.smallestsite_siteid;
-          
-          // Check if this building part has a related site
-          const hasRelatedSite = smallestSiteId && filteredSiteCentroids.some(site => 
+
+          // Spider when this building part has a related site via smallestsite_siteid
+          const hasRelatedSite = smallestSiteId && filteredSiteCentroids.some(site =>
             site.properties.osid === smallestSiteId
           );
-          
+
           if (hasRelatedSite) {
             onPointClick(buildingPart);
           } else {
@@ -214,25 +214,13 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Check if this site has potential connections (related buildings/parts)
+          // Spider when this site has related buildings (by primarysiteid) or parts (by smallestsite_siteid)
           const siteProperties = info.object.properties as any;
           const siteId = siteProperties.osid || siteProperties.id;
-          const siteMatchedUprn = siteProperties.matcheduprn;
-          
-          const hasRelatedBuildings = filteredBuildingCentroids.some(building => {
-            if (building.properties.primarysiteid === siteId) return true;
-            if (siteMatchedUprn && building.properties.uprn && Array.isArray(building.properties.uprn)) {
-              return building.properties.uprn.some((uprnObj: any) => 
-                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-              );
-            }
-            return false;
-          });
-          
-          const hasRelatedParts = filteredBuildingPartCentroids.some(part => 
-            part.properties.smallestsite_siteid === siteId
-          );
-          
+
+          const hasRelatedBuildings = filteredBuildingCentroids.some(building => building.properties.primarysiteid === siteId);
+          const hasRelatedParts = filteredBuildingPartCentroids.some(part => part.properties.smallestsite_siteid === siteId);
+
           if (hasRelatedBuildings || hasRelatedParts) {
             onPointClick(info.object);
           } else {
@@ -364,23 +352,13 @@ export function createMapLayers({
         if (info.object && info.object.properties) {
           const building = info.object as BuildingCentroidState;
           const primarySiteId = building.properties.primarysiteid;
-          
-          // Check if this building has a related site
-          const hasRelatedSite = primarySiteId && filteredSiteCentroids.some(site => 
+
+          // Spider when this building has a related site via primarysiteid
+          const hasRelatedSite = primarySiteId && filteredSiteCentroids.some(site =>
             site.properties.osid === primarySiteId
           );
-          
-          // Also check for UPRN-based site relationships
-          const buildingUprns = building.properties.uprn;
-          const hasUprnRelatedSite = buildingUprns && Array.isArray(buildingUprns) && 
-            filteredSiteCentroids.some(site => {
-              const siteMatchedUprn = site.properties.matcheduprn;
-              return siteMatchedUprn && buildingUprns.some((uprnObj: any) => 
-                uprnObj.uprn && uprnObj.uprn.toString() === siteMatchedUprn.toString()
-              );
-            });
-          
-          if (hasRelatedSite || hasUprnRelatedSite) {
+
+          if (hasRelatedSite) {
             onPointClick(building);
           } else {
             setSelectedFeature(building);
@@ -492,8 +470,7 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          // Trigger spidering for photos similar to buildings/sites
-          // Parent handler should compute connections and set selectedPoint/spideredConnections
+          // Restore photo spidering to show candidate connections
           onPointClick(info.object);
         }
       },
@@ -636,7 +613,7 @@ export function createMapLayers({
           case 'site': return [46, 204, 113, 200]; // Site Green
           case 'nhle': return [231, 76, 60, 200]; // NHLE Red
           case 'photo': return [255, 0, 255, 200]; // Photo Magenta
-          case 'uprn': return [255, 215, 0, 200]; // UPRN Gold
+          case 'uprn': return [0, 188, 212, 200]; // UPRN Cyan (match uprn-layer)
           default: return [128, 128, 128, 200]; // Default Gray
         }
       },
@@ -674,33 +651,7 @@ export function createMapLayers({
           } else if (connectionType === 'photo') {
             actualFeature = filteredPhotoCentroids.find(p => p.properties.id === info.object.properties.id);
           } else if (connectionType === 'uprn') {
-            // Match by UPRN value if present, else by id fallback
-            actualFeature = filteredUprnCentroids.find((u: any) => {
-              const uUprn = u?.properties?.uprn?.toString?.() || u?.properties?.id?.toString?.();
-              const oUprn = info.object?.properties?.uprn?.toString?.() || info.object?.properties?.id?.toString?.();
-              return uUprn && oUprn && uUprn === oUprn;
-            });
-
-            // If the clicked UPRN is a collapsed member not present in filteredUprnCentroids,
-            // compute its absolute coordinates from the spidered position and select it directly
-            if (!actualFeature) {
-              const idx = (info as any).index ?? 0;
-              const angle = (idx / spideredConnections.length) * Math.PI * 2;
-              const offX = info.object?.offsetMeters?.[0] ?? spideringRadius * Math.cos(angle);
-              const offY = info.object?.offsetMeters?.[1] ?? spideringRadius * Math.sin(angle);
-
-              const lat = selectedPoint.coordinates[1];
-              const metersPerDegreeLat = 111320;
-              const metersPerDegreeLng = 111320 * Math.cos(lat * Math.PI / 180);
-              const absLng = selectedPoint.coordinates[0] + offX / metersPerDegreeLng;
-              const absLat = selectedPoint.coordinates[1] + offY / metersPerDegreeLat;
-
-              actualFeature = {
-                id: info.object.id || `${Date.now()}`,
-                coordinates: [absLng, absLat],
-                properties: info.object.properties
-              } as any;
-            }
+            actualFeature = info.object;
           }
           
           if (actualFeature) {
@@ -753,7 +704,7 @@ export function createMapLayers({
           case 'site': return [46, 204, 113, 150]; // Site Green
           case 'nhle': return [231, 76, 60, 150]; // NHLE Red
           case 'photo': return [255, 0, 255, 150]; // Photo Magenta
-          case 'uprn': return [255, 215, 0, 150]; // UPRN Gold
+          case 'uprn': return [0, 188, 212, 150]; // UPRN Cyan (match uprn-layer)
           default: return [128, 128, 128, 150]; // Default Gray
         }
       },

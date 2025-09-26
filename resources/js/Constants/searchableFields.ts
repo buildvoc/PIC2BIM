@@ -58,6 +58,9 @@ export const searchableFields = {
     'nlud_code', 'nlud_orderdescription', 'nlud_groupdescription', 'mainbuildingid', 'status', 'status_updatedate',
     'buildings', 'buildingparts', 'uprn', 'buildinguse', 'area'
   ],
+  uprn: [
+    'uprn', 'latitude', 'longitude'
+  ],
   photo: [
     'id', 'path', 'file_name', 'user_name', 'user_id', 'photo_heading'
   ]
