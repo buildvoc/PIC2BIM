@@ -83,84 +83,9 @@ export function Index({ auth }: PageProps) {
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
   const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
-  // Collapsed UPRN groups (30m proximity): show balanced representatives
+  // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
-  const uprnCollapsed = useMemo(() => {
-    if (!uprnCentroidsData || uprnCentroidsData.length === 0) return [] as UprnCentroidState[];
-
-    // 1) Build proximity clusters (within 30m)
-    const remaining = [...uprnCentroidsData];
-    const proximityClusters: UprnCentroidState[][] = [];
-    while (remaining.length) {
-      const seed = remaining.pop()!;
-      const seedPt = turf.point(seed.coordinates);
-      const cluster: UprnCentroidState[] = [seed];
-      for (let i = remaining.length - 1; i >= 0; i--) {
-        const cand = remaining[i];
-        const d = turf.distance(seedPt, turf.point(cand.coordinates), 'kilometers') * 1000;
-        if (d <= UPRN_GROUP_RADIUS_M) {
-          cluster.push(cand);
-          remaining.splice(i, 1);
-        }
-      }
-      proximityClusters.push(cluster);
-    }
-
-    // 2) For each cluster, split into balanced subgroups by angle if too large
-    const representatives: any[] = [];
-    for (const cluster of proximityClusters) {
-      if (cluster.length <= MAX_PER_REP) {
-        // Small cluster: single representative closest to centroid
-        const centerLng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
-        const centerLat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
-        let rep: UprnCentroidState = cluster[0];
-        let best = Infinity;
-        for (const p of cluster) {
-          const dd = turf.distance(turf.point([centerLng, centerLat]), turf.point(p.coordinates), 'kilometers');
-          if (dd < best) { best = dd; rep = p; }
-        }
-        representatives.push({
-          ...rep,
-          properties: { ...rep.properties, uprn_group_size: cluster.length },
-          __uprnGroupMembers: cluster
-        });
-        continue;
-      }
-
-      // Large cluster: split by angle around centroid into chunks of MAX_PER_REP
-      const centerLng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
-      const centerLat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
-      const center = [centerLng, centerLat] as [number, number];
-      const withAngle = cluster.map(p => {
-        const dx = p.coordinates[0] - centerLng;
-        const dy = p.coordinates[1] - centerLat;
-        const ang = Math.atan2(dy, dx);
-        return { p, ang };
-      }).sort((a, b) => a.ang - b.ang);
-
-      // chunking
-      for (let i = 0; i < withAngle.length; i += MAX_PER_REP) {
-        const slice = withAngle.slice(i, i + MAX_PER_REP).map(x => x.p);
-        // choose rep closest to slice centroid
-        const sLng = slice.reduce((s, p) => s + p.coordinates[0], 0) / slice.length;
-        const sLat = slice.reduce((s, p) => s + p.coordinates[1], 0) / slice.length;
-        let rep: UprnCentroidState = slice[0];
-        let best = Infinity;
-        for (const p of slice) {
-          const dd = turf.distance(turf.point([sLng, sLat]), turf.point(p.coordinates), 'kilometers');
-          if (dd < best) { best = dd; rep = p; }
-        }
-        representatives.push({
-          ...rep,
-          properties: { ...rep.properties, uprn_group_size: slice.length },
-          __uprnGroupMembers: slice
-        });
-      }
-    }
-
-    return representatives as UprnCentroidState[] as any;
-  }, [uprnCentroidsData]);
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null>(null);
@@ -1388,6 +1313,78 @@ export function Index({ auth }: PageProps) {
     showSelectedOnly
   });
 
+  // Build collapsed UPRN representatives from FILTERED UPRN set
+  const uprnCollapsed = useMemo(() => {
+    const src = filteredUprnCentroids || [];
+    if (src.length === 0) return [] as UprnCentroidState[];
+
+    // Proximity clusters within UPRN_GROUP_RADIUS_M
+    const remaining = [...src];
+    const clusters: UprnCentroidState[][] = [];
+    while (remaining.length) {
+      const seed = remaining.pop()!;
+      const seedPt = turf.point(seed.coordinates);
+      const c: UprnCentroidState[] = [seed];
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        const cand = remaining[i];
+        const d = turf.distance(seedPt, turf.point(cand.coordinates), 'kilometers') * 1000;
+        if (d <= UPRN_GROUP_RADIUS_M) {
+          c.push(cand);
+          remaining.splice(i, 1);
+        }
+      }
+      clusters.push(c);
+    }
+
+    // Split large clusters evenly by angle, choose representative nearest sub-centroid
+    const reps: any[] = [];
+    for (const cluster of clusters) {
+      if (cluster.length <= MAX_PER_REP) {
+        const clng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
+        const clat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
+        let rep = cluster[0];
+        let best = Infinity;
+        for (const p of cluster) {
+          const dd = turf.distance(turf.point([clng, clat]), turf.point(p.coordinates), 'kilometers');
+          if (dd < best) { best = dd; rep = p; }
+        }
+        reps.push({
+          ...rep,
+          properties: { ...rep.properties, uprn_group_size: cluster.length },
+          __uprnGroupMembers: cluster
+        });
+        continue;
+      }
+
+      const clng = cluster.reduce((s, p) => s + p.coordinates[0], 0) / cluster.length;
+      const clat = cluster.reduce((s, p) => s + p.coordinates[1], 0) / cluster.length;
+      const withAng = cluster.map(p => {
+        const dx = p.coordinates[0] - clng;
+        const dy = p.coordinates[1] - clat;
+        return { p, ang: Math.atan2(dy, dx) };
+      }).sort((a, b) => a.ang - b.ang);
+
+      for (let i = 0; i < withAng.length; i += MAX_PER_REP) {
+        const slice = withAng.slice(i, i + MAX_PER_REP).map(x => x.p);
+        const slng = slice.reduce((s, p) => s + p.coordinates[0], 0) / slice.length;
+        const slat = slice.reduce((s, p) => s + p.coordinates[1], 0) / slice.length;
+        let rep = slice[0];
+        let best = Infinity;
+        for (const p of slice) {
+          const dd = turf.distance(turf.point([slng, slat]), turf.point(p.coordinates), 'kilometers');
+          if (dd < best) { best = dd; rep = p; }
+        }
+        reps.push({
+          ...rep,
+          properties: { ...rep.properties, uprn_group_size: slice.length },
+          __uprnGroupMembers: slice
+        });
+      }
+    }
+
+    return reps as UprnCentroidState[] as any;
+  }, [filteredUprnCentroids]);
+
   // Helper function to get fill color based on category2
   const getFillColorForData = useCallback((d: any, defaultColor: number[], dataTypeColor: number[]): [number, number, number, number] => {
     const propertyName = groupByMapping[category2];
@@ -2303,7 +2300,7 @@ export function Index({ auth }: PageProps) {
       // Build UPRN neighbours (within 30m) and spider them
       const selectedCoords: [number, number] = [point.coordinates[0], point.coordinates[1]];
       const centerPt = turf.point(selectedCoords);
-      let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || uprnCentroidsData.filter(u => {
+      let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || filteredUprnCentroids.filter(u => {
         const d = turf.distance(centerPt, turf.point(u.coordinates), 'kilometers') * 1000;
         return d <= UPRN_GROUP_RADIUS_M;
       });
@@ -2318,11 +2315,35 @@ export function Index({ auth }: PageProps) {
       if (connections.length >= 1) {
         setSelectedPoint(point);
         setSpideredConnections(connections);
-        setSelectedFeature(point);
+        // Update selected feature with accurate, on-click group size (center + members)
+        const updatedSelected = {
+          ...point,
+          properties: {
+            ...point.properties,
+            uprn_group_size: connections.length + 1
+          }
+        };
+        setSelectedFeature(updatedSelected as any);
       } else {
         setSelectedPoint(null);
         setSpideredConnections([]);
-        setSelectedFeature(point);
+        // If UPRN selected but no members, normalize group size to 1
+        if (isUprnSelected) {
+          const updatedSelected = {
+            ...point,
+            properties: {
+              ...point.properties,
+              uprn_group_size: 1
+            }
+          };
+          setSelectedFeature(updatedSelected as any);
+        } else {
+          // For non-UPRN selection or when not spidering, show group size from representative if present
+          const normalized = (point as any).__uprnGroupMembers
+            ? { ...point, properties: { ...point.properties, uprn_group_size: (point as any).__uprnGroupMembers.length } }
+            : point;
+          setSelectedFeature(normalized);
+        }
       }
     }
   }, [selectedPoint, selectedFeature, uprnCentroidsData]);
