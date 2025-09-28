@@ -132,7 +132,8 @@ class DataMapController extends Controller
             ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(osopenuprn_address.geom, s.geometry)');
+                    // ->whereRaw('ST_INTERSECTS(osopenuprn_address.geom, s.geometry)');
+                    ->whereRaw('ST_DWithin(osopenuprn_address.geom, s.geometry, 50)');
             })
             ->select([
                 'uprn',
@@ -157,6 +158,7 @@ class DataMapController extends Controller
             'type' => 'FeatureCollection',
             'features' => $uprnFeatures->values()
         ];
+        // dd($uprnGeoJson);
 
         // Calculate center point of selected areas
 
