@@ -678,11 +678,11 @@ export function Index({ auth }: PageProps) {
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
   // Function to fetch area data from API
-  const fetchAreaData = useCallback(async (areaIds: string[]) => {
+  const fetchAreaData = useCallback(async (areaIds: string[], includeBuaFilter: boolean = true) => {
     if (areaIds.length === 0) return;
 
-    // Check if we already have data for these areas
-    const cacheKey = areaIds.sort().join(',');
+    // Check if we already have data for these areas with the same filter setting
+    const cacheKey = `${areaIds.sort().join(',')}_bua_${includeBuaFilter}`;
     if (areaDataCache[cacheKey]) {
       return areaDataCache[cacheKey];
     }
@@ -690,7 +690,8 @@ export function Index({ auth }: PageProps) {
     setIsLoadingAreaData(true);
     try {
       const response = await axios.post('/get-area', {
-        area_ids: areaIds
+        area_ids: areaIds,
+        include_bua_filter: includeBuaFilter
       });
 
       const newData = response.data;
@@ -977,7 +978,7 @@ export function Index({ auth }: PageProps) {
       });
       
       if (missingAreaIds.length > 0) {
-        fetchAreaData(missingAreaIds).then(newData => {
+        fetchAreaData(missingAreaIds, true).then(newData => {
           if (newData) {
             mergeAreaData(newData);
           }
@@ -2924,7 +2925,7 @@ export function Index({ auth }: PageProps) {
                           !Object.keys(areaDataCache).some(key => key.includes(id))
                         );
                         if (missingAreaIds.length > 0) {
-                          fetchAreaData(missingAreaIds).then(newData => {
+                          fetchAreaData(missingAreaIds, false).then(newData => {
                             if (newData) {
                               mergeAreaData(newData);
                             }
