@@ -8,6 +8,7 @@ import Map from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import booleanIntersects from '@turf/boolean-intersects';
 import { GeoJsonLayer, ScatterplotLayer, IconLayer, PathLayer } from '@deck.gl/layers';
 import { MapViewState, WebMercatorViewport, FlyToInterpolator } from '@deck.gl/core';
 import { PathStyleExtension } from '@deck.gl/extensions';
@@ -64,6 +65,7 @@ export function Index({ auth }: PageProps) {
     uprn?: { data: any };
   }>().props;
 
+
   // State for shapes data that will be loaded asynchronously
   const [shapes, setShapes] = useState<{data: BuiltupAreaGeoJson} | null>(null);
   const [isLoadingShapes, setIsLoadingShapes] = useState<boolean>(true);
@@ -79,6 +81,7 @@ export function Index({ auth }: PageProps) {
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
   const [buildingPartCentroidsData, setBuildingPartCentroidsData] = useState<BuildingPartCentroidState[]>([]);
+  const [buildingPartPolygonsData, setBuildingPartPolygonsData] = useState<any>(null);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
@@ -94,6 +97,7 @@ export function Index({ auth }: PageProps) {
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
   const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false });
+  const [showPhotoBearingPolygon, setShowPhotoBearingPolygon] = useState(false);
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [boundarySearch, setBoundarySearch] = useState<string>('');
@@ -468,6 +472,10 @@ export function Index({ auth }: PageProps) {
 
   useEffect(() => {
     if (buildingParts) {
+      // Store polygon data for GeoJsonLayer
+      setBuildingPartPolygonsData(buildingParts.data);
+      
+      // Calculate centroids for ScatterplotLayer
       const centroids: BuildingPartCentroidState[] = [];
       for (const feature of buildingParts.data.features) {
         if (feature.geometry) {
@@ -678,11 +686,11 @@ export function Index({ auth }: PageProps) {
   const [searchMarker, setSearchMarker] = useState<{coordinates: [number, number], data: any, type: string} | null>(null);
 
   // Function to fetch area data from API
-  const fetchAreaData = useCallback(async (areaIds: string[]) => {
+  const fetchAreaData = useCallback(async (areaIds: string[], includeBuaFilter: boolean = true) => {
     if (areaIds.length === 0) return;
 
-    // Check if we already have data for these areas
-    const cacheKey = areaIds.sort().join(',');
+    // Check if we already have data for these areas with the same filter setting
+    const cacheKey = `${areaIds.sort().join(',')}_bua_${includeBuaFilter}`;
     if (areaDataCache[cacheKey]) {
       return areaDataCache[cacheKey];
     }
@@ -690,7 +698,8 @@ export function Index({ auth }: PageProps) {
     setIsLoadingAreaData(true);
     try {
       const response = await axios.post('/get-area', {
-        area_ids: areaIds
+        area_ids: areaIds,
+        include_bua_filter: includeBuaFilter
       });
 
       const newData = response.data;
@@ -747,6 +756,22 @@ export function Index({ auth }: PageProps) {
 
     // Merge building parts
     if (newData.buildingParts?.features) {
+      // Update polygon data
+      setBuildingPartPolygonsData(prev => {
+        if (!prev) {
+          return newData.buildingParts;
+        }
+        
+        const existingIds = new Set(prev.features.map((f: any) => f.id));
+        const newFeatures = newData.buildingParts.features.filter((feature: any) => !existingIds.has(feature.id));
+        
+        return {
+          type: 'FeatureCollection',
+          features: [...prev.features, ...newFeatures]
+        };
+      });
+      
+      // Update centroid data
       setBuildingPartCentroidsData(prev => {
         const existingIds = new Set(prev.map(item => item.id));
         const newBuildingParts = newData.buildingParts.features
@@ -977,7 +1002,7 @@ export function Index({ auth }: PageProps) {
       });
       
       if (missingAreaIds.length > 0) {
-        fetchAreaData(missingAreaIds).then(newData => {
+        fetchAreaData(missingAreaIds, true).then(newData => {
           if (newData) {
             mergeAreaData(newData);
           }
@@ -2154,9 +2179,98 @@ export function Index({ auth }: PageProps) {
         }
       };
 
+      // Helper function to create bearing sector polygon
+      const createBearingSector = (centerCoords: [number, number], headingDeg: number, radiusKm: number = 0.02, sectorAngleDeg: number = 60): any => {
+        const center = turf.point(centerCoords);
+        const headingRad = (headingDeg * Math.PI) / 180;
+        const sectorAngleRad = (sectorAngleDeg * Math.PI) / 180;
+        const startAngle = headingRad - sectorAngleRad / 2;
+        const endAngle = headingRad + sectorAngleRad / 2;
+        
+        const coordinates = [centerCoords];
+        
+        // Create arc points
+        for (let i = 0; i <= 30; i++) {
+          const angle = startAngle + (endAngle - startAngle) * (i / 30);
+          const point = turf.destination(center, radiusKm, (angle * 180) / Math.PI);
+          coordinates.push(point.geometry.coordinates as [number, number]);
+        }
+        
+        coordinates.push(centerCoords); // Close the polygon
+        
+        return turf.polygon([coordinates]);
+      };
+
+      // Create bearing sector for intersection checks
+      const bearingSector = createBearingSector(selectedCoords, photoHeading);
+
+      // Enhanced addConnection for building parts with polygon intersection
+      const addBuildingPartConnection = (part: any) => {
+        const partCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
+        const photoPoint = turf.point(selectedCoords);
+        const partPoint = turf.point(partCoords);
+        const distance = turf.distance(photoPoint, partPoint, 'kilometers') * 1000;
+        const bearing = turf.bearing(photoPoint, partPoint);
+        
+        let shouldInclude = false;
+        let inclusionReason = '';
+        
+        // Check 1: Traditional bearing match (centroid within bearing)
+        const traditionalMatch = distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, partCoords);
+        if (traditionalMatch) {
+          shouldInclude = true;
+          inclusionReason = 'Traditional bearing match (centroid)';
+        }
+        
+        // Check 2: Photo point inside building part polygon OR polygon intersection with bearing sector
+        if (!shouldInclude && buildingPartPolygonsData?.features) {
+          const partPolygon = buildingPartPolygonsData.features.find((feature: any) => 
+            feature.properties.osid === part.properties.osid
+          );
+          
+          if (partPolygon) {
+            try {
+              // Check 1: Is photo point inside the building part polygon?
+              const photoPoint = turf.point(selectedCoords);
+              const photoInsidePolygon = booleanPointInPolygon(photoPoint, partPolygon);
+              
+              // Check 2: Does bearing sector intersect with building part polygon?
+              const intersects = booleanIntersects(bearingSector, partPolygon);
+              
+              if (photoInsidePolygon) {
+                shouldInclude = true;
+                inclusionReason = `Photo point inside building part polygon - ${Math.round(distance)}m`;
+              } else if (intersects) {
+                shouldInclude = true;
+                inclusionReason = `Bearing sector intersects with polygon - ${Math.round(distance)}m`;
+              }
+            } catch (error) {
+              // Fallback to centroid check
+              const fallbackMatch = bearingMatch(selectedCoords, photoHeading, partCoords);
+              shouldInclude = fallbackMatch;
+              if (fallbackMatch) {
+                inclusionReason = 'Fallback bearing match after intersection error';
+              }
+            }
+          }
+        }
+        
+        if (shouldInclude) {
+          const uniqueId = `buildingPart-${part.properties.osid || 'unknown'}-${partCoords[0].toFixed(6)}-${partCoords[1].toFixed(6)}`;
+          connections.push({
+            coordinates: partCoords,
+            type: 'buildingPart',
+            properties: part.properties,
+            id: uniqueId,
+            distance: Math.round(distance),
+            bearing: Math.round(bearing)
+          });
+        }
+      };
+      
       // Add all candidate types for photo
       filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
-      filteredBuildingPartCentroids.forEach(part => addConnection(part, 'buildingPart'));
+      filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
       filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
       filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
     } else if (isSiteSelected) {
@@ -2261,7 +2375,7 @@ export function Index({ auth }: PageProps) {
 
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
-  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch]);
+  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch, buildingPartPolygonsData]);
 
   const handleOpenConnectionsModal = useCallback(() => {
     setConnectionsForModal(photoConnectionsData);
@@ -2432,6 +2546,7 @@ export function Index({ auth }: PageProps) {
     }
   }, [selectedPoint, selectedFeature, uprnCentroidsData]);
 
+
   const layers = createMapLayers({
     filteredBuildingCentroids,
     filteredBuildingPartCentroids,
@@ -2442,6 +2557,7 @@ export function Index({ auth }: PageProps) {
     filteredUprnCentroids: uprnCollapsed as any,
     polygonCentroids,
     bidirectionalLinks,
+    buildingPartPolygons: buildingPartPolygonsData,
     dataType,
     category1,
     category2,
@@ -2460,7 +2576,8 @@ export function Index({ auth }: PageProps) {
     getCursor,
     setHoverInfo,
     setSelectedFeature,
-    iconLayerData
+    iconLayerData,
+    showPhotoBearingPolygon
   });
 
   return (
@@ -2924,7 +3041,7 @@ export function Index({ auth }: PageProps) {
                           !Object.keys(areaDataCache).some(key => key.includes(id))
                         );
                         if (missingAreaIds.length > 0) {
-                          fetchAreaData(missingAreaIds).then(newData => {
+                          fetchAreaData(missingAreaIds, false).then(newData => {
                             if (newData) {
                               mergeAreaData(newData);
                             }
@@ -3070,6 +3187,24 @@ export function Index({ auth }: PageProps) {
                       maxVal={floorRange.max}
                       onChange={setFloorRange}
                     />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-800">Photo Bearing Polygon</h4>
+                    <button
+                      onClick={() => setShowPhotoBearingPolygon(prev => !prev)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                        showPhotoBearingPolygon ? 'bg-indigo-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showPhotoBearingPolygon ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>

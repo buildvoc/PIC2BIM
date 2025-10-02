@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
 import { PathStyleExtension } from '@deck.gl/extensions';
 import { COORDINATE_SYSTEM } from '@deck.gl/core';
 import * as turf from '@turf/turf';
@@ -22,6 +22,9 @@ interface MapLayersProps {
   filteredUprnCentroids: UprnCentroidState[];
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
+  
+  // Polygon data for 2D display
+  buildingPartPolygons?: any; // GeoJSON data for building part polygons
   
   // State variables
   dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
@@ -47,6 +50,7 @@ interface MapLayersProps {
   setHoverInfo: (info: any) => void;
   setSelectedFeature: (feature: any) => void;
   iconLayerData: any[];
+  showPhotoBearingPolygon: boolean;
 }
 
 export function createMapLayers({
@@ -58,6 +62,7 @@ export function createMapLayers({
   filteredUprnCentroids = [],
   polygonCentroids,
   bidirectionalLinks,
+  buildingPartPolygons,
   dataType,
   category1,
   category2,
@@ -76,10 +81,50 @@ export function createMapLayers({
   getCursor,
   setHoverInfo,
   setSelectedFeature,
-  iconLayerData
+  iconLayerData,
+  showPhotoBearingPolygon
 }: MapLayersProps) {
   
   const layers = [
+    // Building Part Polygons Layer (2D) - Show when data available AND filter enabled AND photo bearing toggle is active
+    buildingPartPolygons && 
+    buildingPartPolygons.features && 
+    buildingPartPolygons.features.length > 0 &&
+    showPhotoBearingPolygon &&
+    new GeoJsonLayer({
+      id: `building-part-polygons-layer`,
+      data: buildingPartPolygons,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      wireframe: false,
+      lineWidthMinPixels: 1,
+      lineWidthMaxPixels: 2,
+      getFillColor: () => [255, 165, 0, 80], // Orange with transparency like building parts
+      getLineColor: () => [255, 165, 0, 200], // Solid orange border
+      getLineWidth: () => 1,
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          const buildingPartCentroid = filteredBuildingPartCentroids.find(
+            part => part.properties.osid === info.object.properties.osid
+          );
+          if (buildingPartCentroid) {
+            setSelectedFeature(buildingPartCentroid);
+          }
+        }
+      },
+      updateTriggers: {
+        data: [buildingPartPolygons],
+      },
+    }),
+
     // Building Parts Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildingParts) && 
     filteredBuildingPartCentroids.length > 0 && 
@@ -478,6 +523,77 @@ export function createMapLayers({
         getFillColor: [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids],
         getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
         data: [selectedPoint, spideredConnections],
+      },
+    }),
+
+    // Photo Bearing Layer - Sector/Arc shape with green transparent fill
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.photos) && 
+    filteredPhotoCentroids.length > 0 && 
+    showPhotoBearingPolygon &&
+    new PolygonLayer<any>({
+      id: `photo-bearing-layer`,
+      data: filteredPhotoCentroids.filter(photo => {
+        // Hide only specific photos that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.id === photo.properties.id;
+          const isSpideredConnection = spideredConnections.some(conn => 
+            conn.type === 'photo' && 
+            conn.properties.id === photo.properties.id
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }).map(photo => {
+        // Create sector/arc polygon for each photo bearing
+        const [lng, lat] = photo.coordinates;
+        const heading = parseFloat(photo.properties.photo_heading || '0');
+        const headingRad = (heading * Math.PI) / 180;
+        
+        // Sector parameters
+        const radius = 0.0002; // Sector radius in degrees (about 20 meters)
+        const sectorAngle = Math.PI / 3; // 60 degrees sector angle
+        const startAngle = headingRad - sectorAngle / 2;
+        const endAngle = headingRad + sectorAngle / 2;
+        
+        // Adjust for latitude distortion to create symmetric sectors
+        const latCos = Math.cos(lat * Math.PI / 180);
+        const adjustedRadius = radius / latCos; // Adjust longitude radius based on latitude
+        
+        // Create arc points for polygon
+        const arcPoints = [];
+        const numPoints = 30; // More points for smoother arc
+        
+        // Start from center
+        arcPoints.push([lng, lat]);
+        
+        // Create arc points with latitude correction
+        for (let i = 0; i <= numPoints; i++) {
+          const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+          // Use adjusted radius for longitude to compensate for latitude distortion
+          const x = lng + Math.sin(angle) * adjustedRadius;
+          const y = lat + Math.cos(angle) * radius;
+          arcPoints.push([x, y]);
+        }
+        
+        // Close the polygon back to center
+        arcPoints.push([lng, lat]);
+        
+        return {
+          polygon: [arcPoints], // PolygonLayer expects polygon format
+          properties: photo.properties
+        };
+      }),
+      pickable: false,
+      stroked: true,
+      filled: true,
+      getPolygon: d => d.polygon,
+      getFillColor: () => [0, 255, 0, 100], // Green fill with transparency
+      getLineColor: () => [0, 255, 0, 150], // Green border with slightly more opacity
+      getLineWidth: () => 2,
+      lineWidthMinPixels: 1,
+      lineWidthMaxPixels: 3,
+      updateTriggers: {
+        data: [selectedPoint, spideredConnections, filteredPhotoCentroids],
       },
     }),
     

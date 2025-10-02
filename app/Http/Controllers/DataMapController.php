@@ -36,11 +36,13 @@ class DataMapController extends Controller
     {
         return Inertia::render('DataMap/Index', [
             'shapes' => null,
-            'buildings' => null,
-            'buildingParts' => null,
-            'sites' => null,
-            'nhle' => null,
-            'center' => null
+            'buildings' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'buildingParts' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'sites' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'nhle' => [],
+            'photos' => ['type' => 'FeatureCollection', 'features' => []],
+            'center' => null,
+            'uprn' => ['data' => ['type' => 'FeatureCollection', 'features' => []]]
         ]);
     }
 
@@ -59,6 +61,7 @@ class DataMapController extends Controller
         ini_set('memory_limit', '1024M');
 
         $areaIds = $request->input('area_ids', []);
+        $includeBuaFilter = $request->input('include_bua_filter', true); // Default to true for backward compatibility
         
         if (empty($areaIds)) {
             return response()->json([
@@ -169,13 +172,17 @@ class DataMapController extends Controller
             ->where('ur.role_id', '=', User::FARMER_ROLE)
             ->where('user.active', '=', 1)
             ->where('user.pa_id', '=', Auth::user()->pa_id)
-            ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->where('flg_deleted', 0)
-                    ->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
+            ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery, $includeBuaFilter) {
+                $query->where('flg_deleted', 0);
+                
+                // Only apply BUA spatial filter if includeBuaFilter is true
+                if ($includeBuaFilter) {
+                    $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
                         $subQuery->select(DB::raw(1))
                             ->fromSub($builtupAreaGeometriesQuery, 's')
                             ->whereRaw('ST_INTERSECTS(ST_Transform(ST_SetSRID(ST_MakePoint(photo.lng, photo.lat), 4326), 27700), s.geometry)');
                     });
+                }
             }])
             ->chunk(2000, function ($chunk) use (&$users) {
                 $users = $users->merge($chunk);
