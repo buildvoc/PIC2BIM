@@ -81,7 +81,7 @@ export function Index({ auth }: PageProps) {
 
   const [buildingCentroidsData, setBuildingCentroidsData] = useState<BuildingCentroidState[]>([]);
   const [buildingPartCentroidsData, setBuildingPartCentroidsData] = useState<BuildingPartCentroidState[]>([]);
-  const [buildingPartPolygonsData, setBuildingPartPolygonsData] = useState<any>(null);
+  const [buildingPartPolygonsData, setBuildingPartPolygonsData] = useState<BuildingPartGeoJson | null>(null);
   const [siteCentroidsData, setSiteCentroidsData] = useState<SiteCentroidState[]>([]);
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
