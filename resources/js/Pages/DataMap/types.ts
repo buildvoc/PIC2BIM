@@ -134,3 +134,25 @@ export interface ValidationError {
   to?: number;
   [key: string]: any; // Allow additional properties
 }
+
+// Land Registry Cadastral types
+export interface LandRegistryCadastralProperties {
+  fid: number;
+  county_code: string;
+  county_name: string;
+  bng_easting: number;
+  bng_northing: number;
+  longitude: number;
+  latitude: number;
+  global_id: string;
+}
+
+export interface LandRegistryCadastralFeature extends GeoJSON.Feature {
+  id: string|number;
+  properties: LandRegistryCadastralProperties;
+  geometry: GeoJSON.MultiPolygon;
+}
+
+export interface LandRegistryCadastralGeoJson extends GeoJSON.FeatureCollection {
+  features: LandRegistryCadastralFeature[];
+}

@@ -20,6 +20,7 @@ interface MapLayersProps {
   filteredNhleCentroids: NhleFeatureState[];
   filteredPhotoCentroids: PhotoCentroidState[];
   filteredUprnCentroids: UprnCentroidState[];
+  landRegistryCadastralData: any;
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
   
@@ -56,6 +57,7 @@ export function createMapLayers({
   filteredNhleCentroids,
   filteredPhotoCentroids,
   filteredUprnCentroids = [],
+  landRegistryCadastralData,
   polygonCentroids,
   bidirectionalLinks,
   dataType,
@@ -80,6 +82,48 @@ export function createMapLayers({
 }: MapLayersProps) {
   
   const layers = [
+    // Land Registry Cadastral Layer (Bottom-most layer)
+    landRegistryCadastralData && landRegistryCadastralData.features && new GeoJsonLayer<any>({
+      id: 'land-registry-cadastral-layer',
+      data: landRegistryCadastralData,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      lineWidthMinPixels: 1,
+      getFillColor: [255, 165, 0, 80], // Orange with transparency
+      getLineColor: [255, 140, 0, 200], // Darker orange for borders
+      getLineWidth: 2,
+      onHover: (info: any) => {
+        if (info.object) {
+          setHoverInfo({
+            x: info.x,
+            y: info.y,
+            layer: info.layer,
+            object: {
+              ...info.object,
+              type: 'cadastral',
+              displayName: `Cadastral Parcel ${info.object.properties?.fid}`,
+              details: {
+                'FID': info.object.properties?.fid,
+                'County': info.object.properties?.county_name,
+                'County Code': info.object.properties?.county_code,
+                'Global ID': info.object.properties?.global_id,
+                'BNG Easting': info.object.properties?.bng_easting,
+                'BNG Northing': info.object.properties?.bng_northing,
+                'Longitude': info.object.properties?.longitude,
+                'Latitude': info.object.properties?.latitude,
+              }
+            }
+          });
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      updateTriggers: {
+        data: [landRegistryCadastralData],
+      },
+    }),
+
     // Building Parts Layer
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildingParts) && 
     filteredBuildingPartCentroids.length > 0 && 

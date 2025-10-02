@@ -23,12 +23,14 @@ use App\Models\Attr\BuildingAddress;
 use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingSiteLink;
 use App\Models\Attr\Uprn;
+use App\Models\LandRegistryCadastral;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Artisan;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class DataMapController extends Controller
 {
@@ -160,6 +162,41 @@ class DataMapController extends Controller
         ];
         // dd($uprnGeoJson);
 
+        // Fetch Land Registry Cadastral data within selected areas
+        $landRegistryFeatures = collect();
+        LandRegistryCadastral::query()
+            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(land_registry_cadastral.geometry, ST_Transform(s.geometry, 4326))');
+            })
+            ->chunk(2000, function ($chunk) use (&$landRegistryFeatures) {
+                foreach ($chunk as $row) {
+                    if (!empty($row->geometry)) {
+                        $geometry = is_array($row->geometry) ? $row->geometry : json_decode($row->geometry, true);
+                        $landRegistryFeatures->push([
+                            'type' => 'Feature',
+                            'geometry' => $geometry,
+                            'properties' => [
+                                'fid' => $row->fid,
+                                'county_code' => $row->county_code,
+                                'county_name' => $row->county_name,
+                                'bng_easting' => $row->bng_easting,
+                                'bng_northing' => $row->bng_northing,
+                                'longitude' => $row->longitude,
+                                'latitude' => $row->latitude,
+                                'global_id' => $row->global_id,
+                            ]
+                        ]);
+                    }
+                }
+            });
+
+        $landRegistryGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $landRegistryFeatures->values()
+        ];
+
         // Calculate center point of selected areas
 
         $users = collect();
@@ -214,7 +251,8 @@ class DataMapController extends Controller
             'nhle' => $nhle,
             'center' => $center,
             'photos' => new DataMapPhotoCollection($photos),
-            'uprn' => ['data' => $uprnGeoJson]
+            'uprn' => ['data' => $uprnGeoJson],
+            'landRegistryCadastral' => ['data' => $landRegistryGeoJson]
         ];
 
         return response()->json($responseData);

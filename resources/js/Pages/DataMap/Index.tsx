@@ -62,6 +62,7 @@ export function Index({ auth }: PageProps) {
     photos: { type: 'FeatureCollection', features: any[] };
     center?: { type: 'Point', coordinates: [number, number] };
     uprn?: { data: any };
+    landRegistryCadastral?: { data: any };
   }>().props;
 
   // State for shapes data that will be loaded asynchronously
@@ -83,6 +84,7 @@ export function Index({ auth }: PageProps) {
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
   const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
+  const [landRegistryCadastralData, setLandRegistryCadastralData] = useState<any>(null);
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
@@ -623,7 +625,16 @@ export function Index({ auth }: PageProps) {
       setUprnCentroidsData([]);
     }
   }, [uprn]);
-  
+
+  // Process Land Registry Cadastral data from Inertia props
+  const { landRegistryCadastral } = usePage().props as any;
+  useEffect(() => {
+    if (landRegistryCadastral && landRegistryCadastral.data && Array.isArray(landRegistryCadastral.data.features)) {
+      setLandRegistryCadastralData(landRegistryCadastral.data);
+    } else {
+      setLandRegistryCadastralData(null);
+    }
+  }, [landRegistryCadastral]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -932,6 +943,29 @@ export function Index({ auth }: PageProps) {
           .filter(Boolean);
 
         return [...prev, ...newUprns];
+      });
+    }
+
+    // Merge Land Registry Cadastral data
+    if (newData.landRegistryCadastral?.data?.features) {
+      setLandRegistryCadastralData((prev: any) => {
+        if (!prev?.features) {
+          // If no existing cadastral data, set the new data directly
+          console.log(`Setting ${newData.landRegistryCadastral.data.features.length} cadastral features`);
+          return newData.landRegistryCadastral.data;
+        }
+        
+        // Merge with existing cadastral data
+        const existingIds = new Set(prev.features.map((feature: any) => feature.properties?.fid));
+        const newCadastral = newData.landRegistryCadastral.data.features.filter((feature: any) => !existingIds.has(feature.properties?.fid));
+        
+        const mergedFeatures = [...prev.features, ...newCadastral];
+        console.log(`Adding ${newCadastral.length} new cadastral features to existing ${prev.features.length} features`);
+        
+        return {
+          type: 'FeatureCollection',
+          features: mergedFeatures
+        };
       });
     }
 
@@ -2440,6 +2474,7 @@ export function Index({ auth }: PageProps) {
     filteredPhotoCentroids,
     // Use collapsed UPRN representatives so only one point shows per 30m cluster
     filteredUprnCentroids: uprnCollapsed as any,
+    landRegistryCadastralData,
     polygonCentroids,
     bidirectionalLinks,
     dataType,
