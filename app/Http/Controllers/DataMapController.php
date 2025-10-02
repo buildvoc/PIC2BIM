@@ -36,11 +36,13 @@ class DataMapController extends Controller
     {
         return Inertia::render('DataMap/Index', [
             'shapes' => null,
-            'buildings' => null,
-            'buildingParts' => null,
-            'sites' => null,
-            'nhle' => null,
-            'center' => null
+            'buildings' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'buildingParts' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'sites' => ['data' => ['type' => 'FeatureCollection', 'features' => []]],
+            'nhle' => [],
+            'photos' => ['type' => 'FeatureCollection', 'features' => []],
+            'center' => null,
+            'uprn' => ['data' => ['type' => 'FeatureCollection', 'features' => []]]
         ]);
     }
 
