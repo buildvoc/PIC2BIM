@@ -2499,7 +2499,7 @@ export function Index({ auth }: PageProps) {
           }
         };
         filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
-        filteredBuildingPartCentroids.forEach(p => addCandidate(p, 'buildingPart'));
+        // filteredBuildingPartCentroids.forEach(p => addCandidate(p, 'buildingPart')); // Removed: don't spider building parts for photos
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
       } else if (isSiteSelected) {
@@ -3392,11 +3392,12 @@ export function Index({ auth }: PageProps) {
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                               <span className={`px-2 py-1 text-xs font-medium rounded self-start ${
-                                result.type === 'NHLE' ? 'bg-blue-100 text-blue-800' :
-                                result.type === 'Building' ? 'bg-green-100 text-green-800' :
-                                result.type === 'Building Part' ? 'bg-purple-100 text-purple-800' :
+                                result.type === 'NHLE' ? 'bg-red-100 text-red-800' :
+                                result.type === 'Building' ? 'bg-blue-100 text-blue-800' :
+                                result.type === 'Building Part' ? 'bg-orange-100 text-orange-800' :
+                                result.type === 'Site' ? 'bg-green-100 text-green-800' :
                                 result.type === 'UPRN' ? 'bg-cyan-100 text-cyan-800' :
-                                'bg-orange-100 text-orange-800'
+                                'bg-gray-100 text-gray-800'
                               }`}>
                                 {result.type}
                               </span>

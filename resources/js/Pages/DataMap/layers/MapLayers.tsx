@@ -631,7 +631,7 @@ export function createMapLayers({
       stroked: true,
       filled: true,
       getPolygon: d => d.polygon,
-      getFillColor: () => [0, 255, 0, 100], // Green fill with transparency
+      getFillColor: () => [0, 0, 0, 0], // Green fill with transparency
       getLineColor: () => [0, 255, 0, 150], // Green border with slightly more opacity
       getLineWidth: () => 2,
       lineWidthMinPixels: 1,
