@@ -743,6 +743,10 @@ class DataMapController extends Controller
 
     public function validateLandRegistryCadastral(Request $request)
     {
+        @ini_set( 'upload_max_size' , '256M' );
+        @ini_set( 'post_max_size', '256M');
+        @ini_set( 'max_execution_time', '300' );
+        
         $geojson = $request->input('geojson');
         
         if (!$geojson || !isset($geojson['features'])) {
@@ -818,6 +822,10 @@ class DataMapController extends Controller
 
     public function importLandRegistryCadastral(Request $request)
     {
+        @ini_set( 'upload_max_size' , '256M' );
+        @ini_set( 'post_max_size', '256M');
+        @ini_set( 'max_execution_time', '300' );
+
         $features = $request->input('features');
         $sridNumber = $request->input('srid', 4326) ?? 4326;
 
