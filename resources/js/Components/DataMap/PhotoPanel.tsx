@@ -209,9 +209,13 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Nearby features within photo field of view (±20° bearing, 10m radius)
+              Features connected to this photo:
+              <ul className="mt-1 text-xs space-y-1">
+                <li>• <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Proximity</span> - Within field of view (±20° bearing, 10m radius)</li>
+                <li>• <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Cadastral</span> - NHLE within Land Registry parcels intersected by photo bearing</li>
+              </ul>
               {selectedFeature?.properties?.photo_heading && (
-                <span className="block mt-1">
+                <span className="block mt-2">
                   Photo heading: {Math.round(selectedFeature.properties.photo_heading)}°
                 </span>
               )}
@@ -248,6 +252,9 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
                       Bearing
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Source
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Properties
                     </th>
                   </tr>
@@ -274,6 +281,17 @@ const PhotoPanel: React.FC<PhotoPanelProps> = ({
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                         {connection.bearing ? `${Math.round(connection.bearing)}°` : '-'}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                        {connection.properties?.connection_source === 'land_registry_bearing_intersection' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Cadastral
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Proximity
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-500">
                         <div className="max-w-xs truncate">

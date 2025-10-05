@@ -741,6 +741,202 @@ class DataMapController extends Controller
         return response()->json(['message' => "Import finished. {$importedCount} imported, {$updatedCount} updated, {$skippedCount} skipped. Cache cleared."]);
     }
 
+    public function validateLandRegistryCadastral(Request $request)
+    {
+        $geojson = $request->input('geojson');
+        
+        if (!$geojson || !isset($geojson['features'])) {
+            return response()->json(['error' => 'Invalid GeoJSON data provided.'], 400);
+        }
+
+        $results = [];
+        foreach ($geojson['features'] as $index => $feature) {
+            if (!isset($feature['geometry']) || !isset($feature['properties'])) {
+                continue;
+            }
+
+            $properties = $feature['properties'];
+            $globalId = $properties['GlobalID'] ?? $properties['global_id'] ?? null;
+            
+            $status = 'ok';
+            $details = 'Ready for import';
+            $existingGlobalId = null;
+
+            // Check for duplicate global_id
+            if ($globalId) {
+                $existing = LandRegistryCadastral::where('global_id', $globalId)->first();
+                if ($existing) {
+                    $status = 'duplicate';
+                    $details = 'Global ID already exists in database';
+                    $existingGlobalId = $globalId;
+                }
+            } else {
+                $status = 'warning';
+                $details = 'Missing Global ID';
+            }
+
+            // Check for spatial overlaps if geometry exists
+            if (isset($feature['geometry']) && $status === 'ok') {
+                $geometry = json_encode($feature['geometry']);
+                $srid = $geojson['crs']['properties']['name'] ?? 'EPSG:4326';
+                $sridNumber = (int) filter_var($srid, FILTER_SANITIZE_NUMBER_INT);
+
+                // Check for exact geometry match
+                $exactMatch = LandRegistryCadastral::whereRaw(
+                    "ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))", 
+                    [$geometry, $sridNumber]
+                )->exists();
+
+                if ($exactMatch) {
+                    $status = 'exact_match';
+                    $details = 'Exact geometry match found';
+                } else {
+                    // Check for spatial overlap
+                    $overlap = LandRegistryCadastral::whereRaw(
+                        "ST_Intersects(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?)) AND NOT ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))", 
+                        [$geometry, $sridNumber, $geometry, $sridNumber]
+                    )->exists();
+
+                    if ($overlap) {
+                        $status = 'overlap';
+                        $details = 'Spatial overlap detected';
+                    }
+                }
+            }
+
+            $results[] = [
+                'feature_index' => $index,
+                'properties' => $properties,
+                'status' => $status,
+                'details' => $details,
+                'existing_global_id' => $existingGlobalId,
+            ];
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function importLandRegistryCadastral(Request $request)
+    {
+        $features = $request->input('features');
+        $sridNumber = $request->input('srid', 4326) ?? 4326;
+
+        if (!$features || !is_array($features)) {
+            return response()->json(['error' => 'Invalid feature data provided.'], 400);
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($features as $featureAction) {
+                $action = $featureAction['action'] ?? 'skip';
+                $data = $featureAction['data'] ?? null;
+
+                if (!$data || $action === 'skip') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $properties = $data['properties'] ?? [];
+                $geometry = $data['geometry'] ?? null;
+                
+                $globalId = $properties['GlobalID'] ?? $properties['global_id'] ?? $properties['GLOBAL_ID'] ?? null;
+
+                // Skip if no global_id
+                if (!$globalId) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Prepare attributes based on the LandRegistryCadastral model structure
+                $attributes = [
+                    'global_id' => $globalId,
+                    'fid' => $properties['FID'] ?? $properties['fid'] ?? null,
+                    'county_code' => $properties['CTY24CD'] ?? $properties['county_code'] ?? $properties['COUNTY_CODE'] ?? null,
+                    'county_name' => $properties['CTY24NM'] ?? $properties['county_name'] ?? $properties['COUNTY_NAME'] ?? null,
+                    'bng_easting' => isset($properties['BNG_E']) ? (float)$properties['BNG_E'] : 
+                                   (isset($properties['bng_easting']) ? (float)$properties['bng_easting'] : 
+                                   (isset($properties['BNG_EASTING']) ? (float)$properties['BNG_EASTING'] : null)),
+                    'bng_northing' => isset($properties['BNG_N']) ? (float)$properties['BNG_N'] : 
+                                    (isset($properties['bng_northing']) ? (float)$properties['bng_northing'] : 
+                                    (isset($properties['BNG_NORTHING']) ? (float)$properties['BNG_NORTHING'] : null)),
+                    'longitude' => isset($properties['LONG']) ? (float)$properties['LONG'] : 
+                                 (isset($properties['longitude']) ? (float)$properties['longitude'] : 
+                                 (isset($properties['LONGITUDE']) ? (float)$properties['LONGITUDE'] : null)),
+                    'latitude' => isset($properties['LAT']) ? (float)$properties['LAT'] : 
+                                (isset($properties['latitude']) ? (float)$properties['latitude'] : 
+                                (isset($properties['LATITUDE']) ? (float)$properties['LATITUDE'] : null)),
+                ];
+
+                // Create/update record first without geometry
+                if ($action === 'update') {
+                    // Update existing record
+                    $existing = LandRegistryCadastral::where('global_id', $globalId)->first();
+                    if ($existing) {
+                        $existing->update($attributes);
+                        $updatedCount++;
+                    } else {
+                        // If record doesn't exist, create it
+                        $instance = LandRegistryCadastral::create($attributes);
+                        $importedCount++;
+                    }
+                } else {
+                    // Import new record
+                    $instance = LandRegistryCadastral::updateOrCreate(
+                        ['global_id' => $globalId],
+                        $attributes
+                    );
+                    $importedCount++;
+                }
+
+                // Handle geometry separately using raw SQL
+                if ($geometry && !empty($geometry['coordinates']) && $geometry['type'] === 'MultiPolygon') {
+                    $geometryJson = json_encode($geometry);
+                    
+                    // Insert WGS84 geometry (EPSG:4326) - original coordinates from GeoJSON
+                    DB::statement(
+                        "UPDATE land_registry_cadastral SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) WHERE fid = ? AND county_code = ?",
+                        [$geometryJson, $properties['FID'], $properties['CTY24CD']]
+                    );
+                    
+                    // Convert and store BNG geometry (EPSG:27700) if BNG coordinates are available
+                    if ($properties['BNG_E'] && $properties['BNG_N']) {
+                        // Transform WGS84 geometry to BNG
+                        DB::statement(
+                            "UPDATE land_registry_cadastral SET geometry_bng = ST_Transform(geometry, 27700) WHERE fid = ? AND county_code = ?",
+                            [$properties['FID'], $properties['CTY24CD']]
+                        );
+                    }
+                }
+                
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'An error occurred during import: ' . $e->getMessage()], 500);
+        }
+
+        // Clear caches
+        try {
+            \Artisan::call('optimize:clear');
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:clear');
+            \Artisan::call('route:clear');
+            \Artisan::call('view:clear');
+            if (config('cache.default') === 'redis') {
+                \Cache::flush();
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to clear cache after Land Registry import: ' . $e->getMessage());
+        }
+
+        return response()->json(['message' => "Import finished. {$importedCount} imported, {$updatedCount} updated, {$skippedCount} skipped. Cache cleared."]);
+    }
+
     private function performImport($modelClass, Request $request)
     {
         $features = $request->input('features');

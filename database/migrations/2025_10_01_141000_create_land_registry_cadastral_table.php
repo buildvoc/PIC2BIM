@@ -31,16 +31,6 @@ return new class extends Migration
         // Tambah geometry columns (cara modern)
         DB::statement("ALTER TABLE land_registry_cadastral ADD COLUMN geometry geometry(MULTIPOLYGON, 4326)");
         DB::statement("ALTER TABLE land_registry_cadastral ADD COLUMN geometry_bng geometry(MULTIPOLYGON, 27700)");
-
-        // Tambah spatial indexes
-        DB::statement("CREATE INDEX idx_land_registry_cadastral_geom ON land_registry_cadastral USING GIST (geometry)");
-        DB::statement("CREATE INDEX idx_land_registry_cadastral_geom_bng ON land_registry_cadastral USING GIST (geometry_bng)");
-
-        // Index tambahan untuk koordinat
-        Schema::table('land_registry_cadastral', function (Blueprint $table) {
-            $table->index(['bng_easting', 'bng_northing'], 'idx_land_registry_bng_coords');
-            $table->index(['longitude', 'latitude'], 'idx_land_registry_coords');
-        });
     }
 
     /**

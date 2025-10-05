@@ -201,7 +201,7 @@ export function Index({ auth }: PageProps) {
 
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | ''>('');
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_cadastral' | ''>('');
   // Fetch additional metadata when a feature is selected
   const fetchAdditionalData = useCallback(async (lat: number, lng: number, photoHeading?: number, altitude?: number) => {
     const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}_${photoHeading || 0}`;
@@ -1119,6 +1119,7 @@ export function Index({ auth }: PageProps) {
           } else {
             setStatusMessage('Local validation passed. Checking for duplicates on the server...');
             let validationRoute;
+            console.log(selectedSchema);
             switch (selectedSchema) {
               case 'building':
                 validationRoute = route('data_map.validateBuilding');
@@ -1134,6 +1135,9 @@ export function Index({ auth }: PageProps) {
                 break;
               case 'uprn':
                 validationRoute = route('data_map.validateUprn');
+                break;
+              case 'land_registry_cadastral':
+                validationRoute = route('data_map.validateLandRegistryCadastral');
                 break;
               default:
                 setStatusMessage('Invalid schema selected');
@@ -1216,6 +1220,9 @@ export function Index({ auth }: PageProps) {
           break;
         case 'uprn':
           validationRoute = route('data_map.validateUprn');
+          break;
+        case 'land_registry_cadastral':
+          validationRoute = route('data_map.validateLandRegistryCadastral');
           break;
         default:
           alert('Invalid schema selected');
@@ -2307,6 +2314,122 @@ export function Index({ auth }: PageProps) {
       filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
       filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
       filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+
+      // Add NHLE points from Land Registry cadastral polygons intersected by photo bearing
+      if (landRegistryCadastralData?.features) {
+        // Create the photo bearing polygon (same logic as in MapLayers.tsx)
+        const [lng, lat] = selectedCoords;
+        const headingRad = (photoHeading * Math.PI) / 180;
+        const radius = 0.0002; // Same radius as in bearing visualization
+        const sectorAngle = Math.PI / 3; // 60 degrees sector angle
+        const startAngle = headingRad - sectorAngle / 2;
+        const endAngle = headingRad + sectorAngle / 2;
+        
+        // Adjust for latitude distortion
+        const latCos = Math.cos(lat * Math.PI / 180);
+        const adjustedRadius = radius / latCos;
+        
+        // Create arc points for bearing polygon
+        const arcPoints = [];
+        const numPoints = 30;
+        
+        // Start from center
+        arcPoints.push([lng, lat]);
+        
+        // Create arc points
+        for (let i = 0; i <= numPoints; i++) {
+          const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+          const x = lng + Math.sin(angle) * adjustedRadius;
+          const y = lat + Math.cos(angle) * radius;
+          arcPoints.push([x, y]);
+        }
+        
+        // Close the polygon
+        arcPoints.push([lng, lat]);
+        
+        const bearingPolygon = turf.polygon([arcPoints]);
+        
+        // Find intersecting Land Registry polygons
+        const intersectingPolygons: any[] = [];
+        
+        landRegistryCadastralData.features.forEach((cadastralFeature: any) => {
+          if (cadastralFeature.geometry?.type === 'MultiPolygon') {
+            // Handle MultiPolygon - check each individual polygon
+            cadastralFeature.geometry.coordinates.forEach((polygonCoords: any, index: number) => {
+              const individualPolygon = {
+                type: 'Feature',
+                properties: {
+                  ...cadastralFeature.properties,
+                  polygon_index: index
+                },
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: polygonCoords
+                }
+              };
+              
+              try {
+                if (booleanIntersects(bearingPolygon, individualPolygon)) {
+                  intersectingPolygons.push(individualPolygon);
+                }
+              } catch (e) {
+                console.warn('Error checking intersection with cadastral polygon:', e);
+              }
+            });
+          } else if (cadastralFeature.geometry?.type === 'Polygon') {
+            // Handle single Polygon
+            try {
+              if (booleanIntersects(bearingPolygon, cadastralFeature)) {
+                intersectingPolygons.push(cadastralFeature);
+              }
+            } catch (e) {
+              console.warn('Error checking intersection with cadastral polygon:', e);
+            }
+          }
+        });
+        
+        // Find NHLE points within intersecting polygons
+        intersectingPolygons.forEach((polygon: any) => {
+          filteredNhleCentroids.forEach((nhlePoint: any) => {
+            try {
+              const point = turf.point(nhlePoint.coordinates);
+              if (booleanPointInPolygon(point, polygon)) {
+                // Check if this NHLE point is not already added to connections
+                const alreadyAdded = connections.some(existing => 
+                  existing.type === 'nhle' && existing.properties.nhle_id === nhlePoint.properties.nhle_id
+                );
+                if (!alreadyAdded) {
+                  const nhleCoords: [number, number] = [nhlePoint.coordinates[0], nhlePoint.coordinates[1]];
+                  const photoPoint = turf.point(selectedCoords);
+                  const nhlePointTurf = turf.point(nhleCoords);
+                  const distance = turf.distance(photoPoint, nhlePointTurf, 'kilometers') * 1000;
+                  const bearing = turf.bearing(photoPoint, nhlePointTurf);
+                  
+                  const uniqueId = `nhle-cadastral-${nhlePoint.properties.nhle_id}-${nhleCoords[0].toFixed(6)}-${nhleCoords[1].toFixed(6)}`;
+                  connections.push({
+                    coordinates: nhleCoords,
+                    type: 'nhle',
+                    properties: {
+                      ...nhlePoint.properties,
+                      connection_source: 'land_registry_bearing_intersection',
+                      intersected_cadastral_fid: polygon.properties?.fid
+                    },
+                    id: uniqueId,
+                    distance: Math.round(distance),
+                    bearing: Math.round(bearing)
+                  });
+                }
+              }
+            } catch (e) {
+              console.warn('Error checking NHLE point in polygon:', e);
+            }
+          });
+        });
+        
+        console.log(`Photo bearing intersected with ${intersectingPolygons.length} cadastral polygons`);
+        const cadastralNhleCount = connections.filter(c => c.properties.connection_source === 'land_registry_bearing_intersection').length;
+        console.log(`Found ${cadastralNhleCount} additional NHLE points in intersecting cadastral polygons`);
+      }
     } else if (isSiteSelected) {
       // Site-centric connections
       const siteProperties = selectedFeature.properties as any;
@@ -2409,7 +2532,7 @@ export function Index({ auth }: PageProps) {
 
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
-  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch, buildingPartPolygonsData]);
+  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch, buildingPartPolygonsData, landRegistryCadastralData]);
 
   const handleOpenConnectionsModal = useCallback(() => {
     setConnectionsForModal(photoConnectionsData);
@@ -2499,7 +2622,7 @@ export function Index({ auth }: PageProps) {
           }
         };
         filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
-        // filteredBuildingPartCentroids.forEach(p => addCandidate(p, 'buildingPart')); // Removed: don't spider building parts for photos
+        filteredBuildingPartCentroids.forEach(p => addCandidate(p, 'buildingPart')); // Removed: don't spider building parts for photos
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
       } else if (isSiteSelected) {
@@ -2592,6 +2715,8 @@ export function Index({ auth }: PageProps) {
     landRegistryCadastralData,
     polygonCentroids,
     bidirectionalLinks,
+    shapes,
+    selectedShapeIds,
     buildingPartPolygons: buildingPartPolygonsData,
     dataType,
     category1,
@@ -2882,7 +3007,7 @@ export function Index({ auth }: PageProps) {
                 <select 
                   id="schema-select"
                   value={selectedSchema}
-                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | '')}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_cadastral' | '')}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
@@ -2891,6 +3016,7 @@ export function Index({ auth }: PageProps) {
                   <option value="nhle">NHLE</option>
                   <option value="buildingpart">Building Part V2</option>
                   <option value="uprn">UPRN</option>
+                  <option value="land_registry_cadastral">Land Registry Cadastral</option>
                 </select>
               </div>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>

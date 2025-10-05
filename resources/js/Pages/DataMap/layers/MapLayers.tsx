@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScatterplotLayer, IconLayer, PathLayer, GeoJsonLayer, PolygonLayer } from '@deck.gl/layers';
 import { PathStyleExtension } from '@deck.gl/extensions';
 import { COORDINATE_SYSTEM } from '@deck.gl/core';
 import * as turf from '@turf/turf';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import type { 
     BuildingCentroidState, 
     BuildingPartCentroidState,
@@ -23,6 +24,10 @@ interface MapLayersProps {
   landRegistryCadastralData: any;
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
+  
+  // BUA filtering props
+  shapes: {data: any} | null;
+  selectedShapeIds: string[];
   
   // Polygon data for 2D display
   buildingPartPolygons?: any; // GeoJSON data for building part polygons
@@ -64,6 +69,8 @@ export function createMapLayers({
   landRegistryCadastralData,
   polygonCentroids,
   bidirectionalLinks,
+  shapes,
+  selectedShapeIds,
   buildingPartPolygons,
   dataType,
   category1,
@@ -87,18 +94,119 @@ export function createMapLayers({
   showPhotoBearingPolygon
 }: MapLayersProps) {
   
+  // Helper function to filter by selected shapes (same as in useDataFilters)
+  const filterBySelectedShapes = useMemo(() => {
+    if (!shapes?.data?.features) return () => true;
+    
+    const selectedPolygons = shapes.data.features.filter((shape: any) => 
+      selectedShapeIds.includes(shape.id as string)
+    );
+    const hasSelectedShapes = selectedPolygons.length > 0;
+    
+    if (!hasSelectedShapes) return () => true;
+    
+    return (coordinates: [number, number]) => {
+      const point = turf.point(coordinates);
+      return selectedPolygons.some((polygon: any) => {
+        try {
+          return booleanPointInPolygon(point, polygon);
+        } catch (e) {
+          return false;
+        }
+      });
+    };
+  }, [shapes?.data?.features, selectedShapeIds]);
+
+  // Filter cadastral data to only show individual polygons containing NHLE features
+  const filteredCadastralData = useMemo(() => {
+    if (!landRegistryCadastralData?.features || !filteredNhleCentroids?.length) {
+      return null;
+    }
+
+    const filteredFeatures: any[] = [];
+
+    landRegistryCadastralData.features.forEach((cadastralFeature: any) => {
+      if (cadastralFeature.geometry?.type === 'MultiPolygon') {
+        // Break down MultiPolygon into individual polygons
+        cadastralFeature.geometry.coordinates.forEach((polygonCoords: any, index: number) => {
+          const individualPolygon = {
+            type: 'Feature',
+            properties: {
+              ...cadastralFeature.properties,
+              polygon_index: index // Add index to distinguish individual polygons
+            },
+            geometry: {
+              type: 'Polygon',
+              coordinates: polygonCoords
+            }
+          };
+
+          // Check if any NHLE point is within this individual polygon
+          const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
+            try {
+              const point = turf.point(nhlePoint.coordinates);
+              return booleanPointInPolygon(point, individualPolygon);
+            } catch (e) {
+              return false;
+            }
+          });
+
+          if (hasNhle) {
+            filteredFeatures.push(individualPolygon);
+          }
+        });
+      } else if (cadastralFeature.geometry?.type === 'Polygon') {
+        // Handle single Polygon
+        const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
+          try {
+            const point = turf.point(nhlePoint.coordinates);
+            return booleanPointInPolygon(point, cadastralFeature);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        if (hasNhle) {
+          filteredFeatures.push(cadastralFeature);
+        }
+      }
+    });
+
+    return {
+      type: 'FeatureCollection' as const,
+      features: filteredFeatures
+    };
+  }, [landRegistryCadastralData, filteredNhleCentroids]);
+
   const layers = [
-    // Land Registry Cadastral Layer (Bottom-most layer)
-    landRegistryCadastralData && landRegistryCadastralData.features && new GeoJsonLayer<any>({
+    // Land Registry Cadastral Layer - DISABLED
+    // Note: Land Registry polygons are still used for NHLE discovery logic in photoConnectionsData
+    // but are not displayed on the map to reduce visual clutter
+    /*
+    filteredCadastralData && filteredCadastralData.features && filteredCadastralData.features.length > 0 && new GeoJsonLayer<any>({
       id: 'land-registry-cadastral-layer',
-      data: landRegistryCadastralData,
+      data: filteredCadastralData,
       pickable: true,
       stroked: true,
       filled: true,
       lineWidthMinPixels: 1,
-      getFillColor: [255, 165, 0, 80], // Orange with transparency
-      getLineColor: [255, 140, 0, 200], // Darker orange for borders
-      getLineWidth: 2,
+      lineWidthMaxPixels: 3,
+      getFillColor: (d: any, { index, target }: any) => {
+        const isHovered = target && target.hoveredObjectIndex === index;
+        return isHovered 
+          ? [255, 165, 0, 60] 
+          : [255, 165, 0, 30];
+      },
+      getLineColor: (d: any, { index, target }: any) => {
+        const isHovered = target && target.hoveredObjectIndex === index;
+        return isHovered
+          ? [255, 140, 0, 255]
+          : [220, 120, 0, 180];
+      },
+      getLineWidth: (d: any, { index, target }: any) => {
+        const isHovered = target && target.hoveredObjectIndex === index;
+        return isHovered ? 2.5 : 1.5;
+      },
       onHover: (info: any) => {
         if (info.object) {
           setHoverInfo({
@@ -125,10 +233,53 @@ export function createMapLayers({
           setHoverInfo(null);
         }
       },
+      onClick: (info: any) => {
+        if (info.object) {
+          console.log('=== CLICKED CADASTRAL PARCEL ===');
+          console.log('Cadastral Feature:', info.object);
+          
+          const nhlePointsInside = filteredNhleCentroids.filter((nhlePoint: any) => {
+            try {
+              const point = turf.point(nhlePoint.coordinates);
+              return booleanPointInPolygon(point, info.object);
+            } catch (e) {
+              console.error('Error checking NHLE point:', e);
+              return false;
+            }
+          });
+          
+          console.log(`Found ${nhlePointsInside.length} NHLE points inside this cadastral parcel:`);
+          nhlePointsInside.forEach((nhle: any, index: number) => {
+            console.log(`NHLE ${index + 1}:`, {
+              nhle_id: nhle.properties?.nhle_id,
+              name: nhle.properties?.name,
+              listentry_name: nhle.properties?.listentry_name,
+              grade: nhle.properties?.grade,
+              coordinates: nhle.coordinates,
+              full_data: nhle.properties
+            });
+          });
+          
+          console.log('=== END CADASTRAL CLICK DEBUG ===');
+          
+          setSelectedFeature({
+            coordinates: info.coordinate || [0, 0],
+            properties: {
+              ...info.object.properties,
+              nhle_count: nhlePointsInside.length,
+              nhle_points: nhlePointsInside
+            }
+          });
+        }
+      },
       updateTriggers: {
-        data: [landRegistryCadastralData],
+        data: [filteredCadastralData],
+        getFillColor: [filteredCadastralData],
+        getLineColor: [filteredCadastralData],
+        getLineWidth: [filteredCadastralData],
       },
     }),
+    */
 
     // Building Part Polygons Layer (2D) - Show when data available AND filter enabled AND photo bearing toggle is active
     buildingPartPolygons && 

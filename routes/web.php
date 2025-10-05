@@ -105,11 +105,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/data_map_validate_building_part', [DataMapController::class, 'validateBuildingPart'])->name('data_map.validateBuildingPart');
         Route::post('/data_map_validate_site', [DataMapController::class, 'validateSite'])->name('data_map.validateSite');
         Route::post('/data_map_validate_uprn', [DataMapController::class, 'validateUprn'])->name('data_map.validateUprn');
+        Route::post('/data_map_validate_land_registry_cadastral', [DataMapController::class, 'validateLandRegistryCadastral'])->name('data_map.validateLandRegistryCadastral');
         Route::post('/data_map_import_building', [DataMapController::class, 'importBuilding'])->name('data_map.import_building');
         Route::post('/data_map_import_site', [DataMapController::class, 'importSite'])->name('data_map.import_site');
         Route::post('/data_map_import_nhle', [DataMapController::class, 'importNhle'])->name('data_map.import_nhle');
         Route::post('/data_map_import_building_part', [DataMapController::class, 'importBuildingPart'])->name('data_map.import_building_part');
         Route::post('/data_map_import_uprn', [DataMapController::class, 'importUprn'])->name('data_map.import_uprn');
+        Route::post('/data_map_import_land_registry_cadastral', [DataMapController::class, 'importLandRegistryCadastral'])->name('data_map.import_land_registry_cadastral');
 
         // Entity links (web endpoints)
         Route::post('/entity-links', [EntityLinkController::class, 'upsert'])->name('entity_links.upsert');
