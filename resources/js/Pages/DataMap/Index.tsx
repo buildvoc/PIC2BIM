@@ -63,7 +63,7 @@ export function Index({ auth }: PageProps) {
     photos: { type: 'FeatureCollection', features: any[] };
     center?: { type: 'Point', coordinates: [number, number] };
     uprn?: { data: any };
-    landRegistryCadastral?: { data: any };
+    landRegistryInspire?: { data: any };
   }>().props;
 
 
@@ -87,7 +87,8 @@ export function Index({ auth }: PageProps) {
   const [nhleCentroidsData, setNhleCentroidsData] = useState<NhleFeatureState[]>([]);
   const [photoCentroidsData, setPhotoCentroidsData] = useState<PhotoCentroidState[]>([]);
   const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
-  const [landRegistryCadastralData, setLandRegistryCadastralData] = useState<any>(null);
+  const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
+  const [contextualInspireData, setContextualInspireData] = useState<any>(null); // For contextual data near selected feature
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
@@ -112,7 +113,6 @@ export function Index({ auth }: PageProps) {
   const [additionalDataCache, setAdditionalDataCache] = useState<{[key: string]: any}>({});
   const [codepointData, setCodepointData] = useState<any>(null);
   const [uprnData, setUprnData] = useState<any>(null);
-  const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
   const [landData, setLandData] = useState<any>(null);
   const [shapeData, setShapeData] = useState<any>(null);
   const [buildingApiData, setBuildingApiData] = useState<any>(null);
@@ -210,7 +210,7 @@ export function Index({ auth }: PageProps) {
       const cachedData = additionalDataCache[cacheKey];
       setCodepointData(cachedData.codepoint?.properties || null);
       setUprnData(cachedData.uprn?.properties || null);
-      setLandRegistryInspireData(cachedData.inspire?.properties || null);
+      setContextualInspireData(cachedData.inspire?.properties || null);
       setLandData(cachedData.land?.properties || null);
       setShapeData(cachedData.shape?.properties || null);
       setBuildingApiData(cachedData.building || null);
@@ -266,7 +266,7 @@ export function Index({ auth }: PageProps) {
       // Set the state
       setCodepointData(nearestCodepoint?.properties || null);
       setUprnData(nearestUprn?.properties || null);
-      setLandRegistryInspireData(nearestInspire?.properties || null);
+      setContextualInspireData(nearestInspire?.properties || null);
       setLandData(nearestLand?.properties || null);
       setShapeData(nearestShape?.properties || null);
       setBuildingApiData(data?.building || null);
@@ -294,20 +294,20 @@ export function Index({ auth }: PageProps) {
         
         fetchAdditionalData(lat, lng, photoHeading, altitude);
       } else {
-        // For non-photo features, reset additional data immediately
+        // For non-photo features, reset contextual data immediately (keep global INSPIRE data)
         setCodepointData(null);
         setUprnData(null);
-        setLandRegistryInspireData(null);
+        setContextualInspireData(null);
         setLandData(null);
         setShapeData(null);
         setBuildingApiData(null);
         setIsLoadingAdditionalData(false);
       }
     } else {
-      // Reset additional data when no feature is selected
+      // Reset contextual data when no feature is selected (keep global INSPIRE data)
       setCodepointData(null);
       setUprnData(null);
-      setLandRegistryInspireData(null);
+      setContextualInspireData(null);
       setLandData(null);
       setShapeData(null);
       setBuildingApiData(null);
@@ -634,15 +634,15 @@ export function Index({ auth }: PageProps) {
     }
   }, [uprn]);
 
-  // Process Land Registry Cadastral data from Inertia props
-  const { landRegistryCadastral } = usePage().props as any;
+  // Process Land Registry INSPIRE data from Inertia props
+  const { landRegistryInspire } = usePage().props as any;
   useEffect(() => {
-    if (landRegistryCadastral && landRegistryCadastral.data && Array.isArray(landRegistryCadastral.data.features)) {
-      setLandRegistryCadastralData(landRegistryCadastral.data);
+    if (landRegistryInspire && landRegistryInspire.data && Array.isArray(landRegistryInspire.data.features)) {
+      setLandRegistryInspireData(landRegistryInspire.data);
     } else {
-      setLandRegistryCadastralData(null);
+      setLandRegistryInspireData(null);
     }
-  }, [landRegistryCadastral]);
+  }, [landRegistryInspire]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -720,7 +720,7 @@ export function Index({ auth }: PageProps) {
         ...prev,
         [cacheKey]: newData
       }));
-
+console.log(newData);
       return newData;
     } catch (error) {
       console.error('Error fetching area data:', error);
@@ -971,21 +971,21 @@ export function Index({ auth }: PageProps) {
       });
     }
 
-    // Merge Land Registry Cadastral data
-    if (newData.landRegistryCadastral?.data?.features) {
-      setLandRegistryCadastralData((prev: any) => {
+    // Merge Land Registry INSPIRE data
+    if (newData.landRegistryInspire?.data?.features) {
+      setLandRegistryInspireData((prev: any) => {
         if (!prev?.features) {
-          // If no existing cadastral data, set the new data directly
-          console.log(`Setting ${newData.landRegistryCadastral.data.features.length} cadastral features`);
-          return newData.landRegistryCadastral.data;
+          // If no existing INSPIRE data, set the new data directly
+          console.log(`Setting ${newData.landRegistryInspire.data.features.length} INSPIRE features`);
+          return newData.landRegistryInspire.data;
         }
         
-        // Merge with existing cadastral data
-        const existingIds = new Set(prev.features.map((feature: any) => feature.properties?.fid));
-        const newCadastral = newData.landRegistryCadastral.data.features.filter((feature: any) => !existingIds.has(feature.properties?.fid));
+        // Merge with existing INSPIRE data
+        const existingIds = new Set(prev.features.map((feature: any) => feature.properties?.gml_id));
+        const newInspire = newData.landRegistryInspire.data.features.filter((feature: any) => !existingIds.has(feature.properties?.gml_id));
         
-        const mergedFeatures = [...prev.features, ...newCadastral];
-        console.log(`Adding ${newCadastral.length} new cadastral features to existing ${prev.features.length} features`);
+        const mergedFeatures = [...prev.features, ...newInspire];
+        console.log(`Adding ${newInspire.length} new INSPIRE features to existing ${prev.features.length} features`);
         
         return {
           type: 'FeatureCollection',
@@ -2315,8 +2315,8 @@ export function Index({ auth }: PageProps) {
       filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
       filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
 
-      // Add NHLE points from Land Registry cadastral polygons intersected by photo bearing
-      if (landRegistryCadastralData?.features) {
+      // Add NHLE points from Land Registry INSPIRE polygons intersected by photo bearing
+      if (landRegistryInspireData?.features && filteredNhleCentroids?.length > 0) {
         // Create the photo bearing polygon (same logic as in MapLayers.tsx)
         const [lng, lat] = selectedCoords;
         const headingRad = (photoHeading * Math.PI) / 180;
@@ -2349,42 +2349,37 @@ export function Index({ auth }: PageProps) {
         
         const bearingPolygon = turf.polygon([arcPoints]);
         
-        // Find intersecting Land Registry polygons
+        // Find intersecting Land Registry INSPIRE polygons that contain NHLE features
         const intersectingPolygons: any[] = [];
+        const inspirePolygonsWithNhle: any[] = [];
         
-        landRegistryCadastralData.features.forEach((cadastralFeature: any) => {
-          if (cadastralFeature.geometry?.type === 'MultiPolygon') {
-            // Handle MultiPolygon - check each individual polygon
-            cadastralFeature.geometry.coordinates.forEach((polygonCoords: any, index: number) => {
-              const individualPolygon = {
-                type: 'Feature',
-                properties: {
-                  ...cadastralFeature.properties,
-                  polygon_index: index
-                },
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: polygonCoords
-                }
-              };
-              
+        // First, filter INSPIRE polygons that contain NHLE features
+        landRegistryInspireData.features.forEach((inspireFeature: any) => {
+          if (inspireFeature.geometry?.type === 'Polygon' || inspireFeature.geometry?.type === 'MultiPolygon') {
+            // Check if this INSPIRE polygon contains any NHLE features
+            const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
               try {
-                if (booleanIntersects(bearingPolygon, individualPolygon)) {
-                  intersectingPolygons.push(individualPolygon);
-                }
+                const point = turf.point(nhlePoint.coordinates);
+                return booleanPointInPolygon(point, inspireFeature);
               } catch (e) {
-                console.warn('Error checking intersection with cadastral polygon:', e);
+                return false;
               }
             });
-          } else if (cadastralFeature.geometry?.type === 'Polygon') {
-            // Handle single Polygon
-            try {
-              if (booleanIntersects(bearingPolygon, cadastralFeature)) {
-                intersectingPolygons.push(cadastralFeature);
-              }
-            } catch (e) {
-              console.warn('Error checking intersection with cadastral polygon:', e);
+            
+            if (hasNhle) {
+              inspirePolygonsWithNhle.push(inspireFeature);
             }
+          }
+        });
+        
+        // Then check which of these polygons intersect with photo bearing
+        inspirePolygonsWithNhle.forEach((inspireFeature: any) => {
+          try {
+            if (booleanIntersects(bearingPolygon, inspireFeature)) {
+              intersectingPolygons.push(inspireFeature);
+            }
+          } catch (e) {
+            console.warn('Error checking intersection with INSPIRE polygon:', e);
           }
         });
         
@@ -2405,14 +2400,16 @@ export function Index({ auth }: PageProps) {
                   const distance = turf.distance(photoPoint, nhlePointTurf, 'kilometers') * 1000;
                   const bearing = turf.bearing(photoPoint, nhlePointTurf);
                   
-                  const uniqueId = `nhle-cadastral-${nhlePoint.properties.nhle_id}-${nhleCoords[0].toFixed(6)}-${nhleCoords[1].toFixed(6)}`;
+                  const uniqueId = `nhle-inspire-${nhlePoint.properties.nhle_id}-${nhleCoords[0].toFixed(6)}-${nhleCoords[1].toFixed(6)}`;
                   connections.push({
                     coordinates: nhleCoords,
                     type: 'nhle',
                     properties: {
                       ...nhlePoint.properties,
-                      connection_source: 'land_registry_bearing_intersection',
-                      intersected_cadastral_fid: polygon.properties?.fid
+                      connection_source: 'land_registry_inspire_bearing_intersection',
+                      intersected_inspire_gml_id: polygon.properties?.gml_id,
+                      intersected_inspire_id: polygon.properties?.INSPIREID,
+                      intersected_inspire_label: polygon.properties?.LABEL
                     },
                     id: uniqueId,
                     distance: Math.round(distance),
@@ -2426,9 +2423,6 @@ export function Index({ auth }: PageProps) {
           });
         });
         
-        console.log(`Photo bearing intersected with ${intersectingPolygons.length} cadastral polygons`);
-        const cadastralNhleCount = connections.filter(c => c.properties.connection_source === 'land_registry_bearing_intersection').length;
-        console.log(`Found ${cadastralNhleCount} additional NHLE points in intersecting cadastral polygons`);
       }
     } else if (isSiteSelected) {
       // Site-centric connections
@@ -2532,7 +2526,7 @@ export function Index({ auth }: PageProps) {
 
     // Sort by distance
     return connections.sort((a, b) => a.distance - b.distance);
-  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch, buildingPartPolygonsData, landRegistryCadastralData]);
+  }, [selectedFeature, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, bearingMatch, buildingPartPolygonsData, landRegistryInspireData]);
 
   const handleOpenConnectionsModal = useCallback(() => {
     setConnectionsForModal(photoConnectionsData);
@@ -2712,7 +2706,7 @@ export function Index({ auth }: PageProps) {
     filteredPhotoCentroids,
     // Use collapsed UPRN representatives so only one point shows per 30m cluster
     filteredUprnCentroids: uprnCollapsed as any,
-    landRegistryCadastralData,
+    landRegistryInspireData,
     polygonCentroids,
     bidirectionalLinks,
     shapes,
@@ -2920,7 +2914,7 @@ export function Index({ auth }: PageProps) {
                 buildingApiData={buildingApiData}
                 codepointData={codepointData}
                 uprnData={uprnData}
-                landRegistryInspireData={landRegistryInspireData}
+                landRegistryInspireData={contextualInspireData}
                 landData={landData}
                 shapeData={shapeData}
                 nhleData={nhleData}

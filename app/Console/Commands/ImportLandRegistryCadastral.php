@@ -32,7 +32,7 @@ class ImportLandRegistryCadastral extends Command
     public function handle()
     {
         // Use provided path or default
-        $filePath = $this->argument('path') ?: public_path('Land_Registry_Cadastral_Parcels_Surrey.geojson');
+        $filePath = $this->argument('path') ?: public_path('Land_registry_export_qgis.geojson');
         
         if (!File::exists($filePath)) {
             $this->error("GeoJSON file not found: {$filePath}");

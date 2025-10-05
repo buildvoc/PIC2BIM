@@ -406,6 +406,9 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
                       Bearing Δ
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Source
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -462,6 +465,30 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {connection.bearing ? `${Math.round(connection.bearing)}°` : '-'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                          {(() => {
+                            const source = connection.properties?.connection_source;
+                            if (source === 'land_registry_inspire_bearing_intersection') {
+                              return (
+                                <div className="space-y-1">
+                                  <div className="text-orange-600 font-medium">🏛️ INSPIRE Polygon</div>
+                                  <div className="text-gray-500">
+                                    ID: {connection.properties?.intersected_inspire_id || 'N/A'}
+                                  </div>
+                                  {connection.properties?.intersected_inspire_label && (
+                                    <div className="text-gray-500 truncate max-w-32" title={connection.properties.intersected_inspire_label}>
+                                      {connection.properties.intersected_inspire_label}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            } else if (source === 'land_registry_bearing_intersection') {
+                              return <span className="text-blue-600">📐 Cadastral Polygon</span>;
+                            } else {
+                              return <span className="text-green-600">📍 Direct</span>;
+                            }
+                          })()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>

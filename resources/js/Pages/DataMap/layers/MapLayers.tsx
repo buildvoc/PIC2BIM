@@ -21,7 +21,7 @@ interface MapLayersProps {
   filteredNhleCentroids: NhleFeatureState[];
   filteredPhotoCentroids: PhotoCentroidState[];
   filteredUprnCentroids: UprnCentroidState[];
-  landRegistryCadastralData: any;
+  landRegistryInspireData: any;
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
   
@@ -66,7 +66,7 @@ export function createMapLayers({
   filteredNhleCentroids,
   filteredPhotoCentroids,
   filteredUprnCentroids = [],
-  landRegistryCadastralData,
+  landRegistryInspireData,
   polygonCentroids,
   bidirectionalLinks,
   shapes,
@@ -117,170 +117,10 @@ export function createMapLayers({
     };
   }, [shapes?.data?.features, selectedShapeIds]);
 
-  // Filter cadastral data to only show individual polygons containing NHLE features
-  const filteredCadastralData = useMemo(() => {
-    if (!landRegistryCadastralData?.features || !filteredNhleCentroids?.length) {
-      return null;
-    }
-
-    const filteredFeatures: any[] = [];
-
-    landRegistryCadastralData.features.forEach((cadastralFeature: any) => {
-      if (cadastralFeature.geometry?.type === 'MultiPolygon') {
-        // Break down MultiPolygon into individual polygons
-        cadastralFeature.geometry.coordinates.forEach((polygonCoords: any, index: number) => {
-          const individualPolygon = {
-            type: 'Feature',
-            properties: {
-              ...cadastralFeature.properties,
-              polygon_index: index // Add index to distinguish individual polygons
-            },
-            geometry: {
-              type: 'Polygon',
-              coordinates: polygonCoords
-            }
-          };
-
-          // Check if any NHLE point is within this individual polygon
-          const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
-            try {
-              const point = turf.point(nhlePoint.coordinates);
-              return booleanPointInPolygon(point, individualPolygon);
-            } catch (e) {
-              return false;
-            }
-          });
-
-          if (hasNhle) {
-            filteredFeatures.push(individualPolygon);
-          }
-        });
-      } else if (cadastralFeature.geometry?.type === 'Polygon') {
-        // Handle single Polygon
-        const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
-          try {
-            const point = turf.point(nhlePoint.coordinates);
-            return booleanPointInPolygon(point, cadastralFeature);
-          } catch (e) {
-            return false;
-          }
-        });
-
-        if (hasNhle) {
-          filteredFeatures.push(cadastralFeature);
-        }
-      }
-    });
-
-    return {
-      type: 'FeatureCollection' as const,
-      features: filteredFeatures
-    };
-  }, [landRegistryCadastralData, filteredNhleCentroids]);
+  // Note: Land Registry INSPIRE data is used for photo bearing connections but not displayed as layer
+  // The connection logic is handled in Index.tsx photo bearing intersection
 
   const layers = [
-    // Land Registry Cadastral Layer - DISABLED
-    // Note: Land Registry polygons are still used for NHLE discovery logic in photoConnectionsData
-    // but are not displayed on the map to reduce visual clutter
-    /*
-    filteredCadastralData && filteredCadastralData.features && filteredCadastralData.features.length > 0 && new GeoJsonLayer<any>({
-      id: 'land-registry-cadastral-layer',
-      data: filteredCadastralData,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 3,
-      getFillColor: (d: any, { index, target }: any) => {
-        const isHovered = target && target.hoveredObjectIndex === index;
-        return isHovered 
-          ? [255, 165, 0, 60] 
-          : [255, 165, 0, 30];
-      },
-      getLineColor: (d: any, { index, target }: any) => {
-        const isHovered = target && target.hoveredObjectIndex === index;
-        return isHovered
-          ? [255, 140, 0, 255]
-          : [220, 120, 0, 180];
-      },
-      getLineWidth: (d: any, { index, target }: any) => {
-        const isHovered = target && target.hoveredObjectIndex === index;
-        return isHovered ? 2.5 : 1.5;
-      },
-      onHover: (info: any) => {
-        if (info.object) {
-          setHoverInfo({
-            x: info.x,
-            y: info.y,
-            layer: info.layer,
-            object: {
-              ...info.object,
-              type: 'cadastral',
-              displayName: `Cadastral Parcel ${info.object.properties?.fid}`,
-              details: {
-                'FID': info.object.properties?.fid,
-                'County': info.object.properties?.county_name,
-                'County Code': info.object.properties?.county_code,
-                'Global ID': info.object.properties?.global_id,
-                'BNG Easting': info.object.properties?.bng_easting,
-                'BNG Northing': info.object.properties?.bng_northing,
-                'Longitude': info.object.properties?.longitude,
-                'Latitude': info.object.properties?.latitude,
-              }
-            }
-          });
-        } else {
-          setHoverInfo(null);
-        }
-      },
-      onClick: (info: any) => {
-        if (info.object) {
-          console.log('=== CLICKED CADASTRAL PARCEL ===');
-          console.log('Cadastral Feature:', info.object);
-          
-          const nhlePointsInside = filteredNhleCentroids.filter((nhlePoint: any) => {
-            try {
-              const point = turf.point(nhlePoint.coordinates);
-              return booleanPointInPolygon(point, info.object);
-            } catch (e) {
-              console.error('Error checking NHLE point:', e);
-              return false;
-            }
-          });
-          
-          console.log(`Found ${nhlePointsInside.length} NHLE points inside this cadastral parcel:`);
-          nhlePointsInside.forEach((nhle: any, index: number) => {
-            console.log(`NHLE ${index + 1}:`, {
-              nhle_id: nhle.properties?.nhle_id,
-              name: nhle.properties?.name,
-              listentry_name: nhle.properties?.listentry_name,
-              grade: nhle.properties?.grade,
-              coordinates: nhle.coordinates,
-              full_data: nhle.properties
-            });
-          });
-          
-          console.log('=== END CADASTRAL CLICK DEBUG ===');
-          
-          setSelectedFeature({
-            coordinates: info.coordinate || [0, 0],
-            properties: {
-              ...info.object.properties,
-              nhle_count: nhlePointsInside.length,
-              nhle_points: nhlePointsInside
-            }
-          });
-        }
-      },
-      updateTriggers: {
-        data: [filteredCadastralData],
-        getFillColor: [filteredCadastralData],
-        getLineColor: [filteredCadastralData],
-        getLineWidth: [filteredCadastralData],
-      },
-    }),
-    */
-
     // Building Part Polygons Layer (2D) - Show when data available AND filter enabled AND photo bearing toggle is active
     buildingPartPolygons && 
     buildingPartPolygons.features && 

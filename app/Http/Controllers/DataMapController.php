@@ -24,6 +24,7 @@ use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingSiteLink;
 use App\Models\Attr\Uprn;
 use App\Models\LandRegistryCadastral;
+use App\Models\LandRegistryInspire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -165,35 +166,209 @@ class DataMapController extends Controller
         ];
         // dd($uprnGeoJson);
 
-        // Fetch Land Registry Cadastral data within selected areas
+        // Fetch Land Registry INSPIRE data within selected areas (with BUA filtering)
         $landRegistryFeatures = collect();
-        LandRegistryCadastral::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(land_registry_cadastral.geometry, ST_Transform(s.geometry, 4326))');
-            })
-            ->chunk(2000, function ($chunk) use (&$landRegistryFeatures) {
-                foreach ($chunk as $row) {
-                    if (!empty($row->geometry)) {
-                        $geometry = is_array($row->geometry) ? $row->geometry : json_decode($row->geometry, true);
+        
+        // Only proceed if we have selected areas
+        if (!empty($areaIds)) {
+            Log::info('Processing Land Registry INSPIRE query for BUA areas', ['area_ids' => $areaIds]);
+            
+            // First, let's check what columns actually exist in the table
+            try {
+                $columns = DB::select("
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'land_registry_inspire'
+                    ORDER BY ordinal_position
+                ");
+                Log::info('Land Registry INSPIRE table columns', ['columns' => array_map(fn($col) => $col->column_name, $columns)]);
+            } catch (\Exception $e) {
+                Log::error('Failed to check table structure', ['error' => $e->getMessage()]);
+            }
+            
+            // First get bounding box of selected BUA areas for efficient pre-filtering
+            // Fix SRID issue by setting it to 27700 (BNG) first, then transform to 4326 (WGS84)
+            try {
+                $bbox = DB::table('ons_bua')
+                    ->selectRaw('
+                        ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
+                        ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
+                        ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
+                        ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
+                    ')
+                    ->whereIn('fid', $areaIds)
+                    ->first();
+            } catch (\Exception $e) {
+                Log::error('BUA bounding box calculation failed', ['error' => $e->getMessage()]);
+                $bbox = null;
+            }
+                
+            Log::info('BUA Bounding box calculated', ['bbox' => $bbox]);
+
+            if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
+                try {
+                    // Set longer timeout for large queries
+                    DB::statement('SET statement_timeout = 120000'); // 2 minutes
+                    // Get more data with expanded bounding box and higher limit
+                    $expandedBbox = [
+                        'min_lng' => $bbox->min_lng - 0.01, // Expand by ~1km
+                        'min_lat' => $bbox->min_lat - 0.01,
+                        'max_lng' => $bbox->max_lng + 0.01,
+                        'max_lat' => $bbox->max_lat + 0.01
+                    ];
+                    
+                    Log::info('Using expanded bounding box', ['original' => $bbox, 'expanded' => $expandedBbox]);
+                    
+                    $landRegistryData = DB::select("
+                        SELECT DISTINCT ON (gml_id)
+                            gml_id,
+                            \"INSPIREID\",
+                            \"LABEL\",
+                            \"NATIONALCADASTRALREFERENCE\",
+                            \"VALIDFROM\",
+                            \"BEGINLIFESPANVERSION\",
+                            ST_AsGeoJSON(geom) as geometry,
+                            GeometryType(geom) as geom_type
+                        FROM land_registry_inspire 
+                        WHERE geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                        ORDER BY gml_id
+                    ", [
+                        $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
+                        $expandedBbox['max_lng'], $expandedBbox['max_lat']
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Land Registry INSPIRE query failed', ['error' => $e->getMessage()]);
+                    $landRegistryData = [];
+                }
+                
+                // Check for duplicates by gml_id
+                $gmlIds = array_map(fn($row) => $row->gml_id, $landRegistryData);
+                $uniqueGmlIds = array_unique($gmlIds);
+                $duplicateCount = count($gmlIds) - count($uniqueGmlIds);
+                
+                Log::info('Land Registry INSPIRE query executed (NO LIMIT)', [
+                    'result_count' => count($landRegistryData),
+                    'unique_gml_ids' => count($uniqueGmlIds),
+                    'duplicate_count' => $duplicateCount,
+                    'geometry_types' => array_count_values(array_map(fn($row) => $row->geom_type ?? 'unknown', $landRegistryData)),
+                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB',
+                    'sample_gml_ids' => array_slice($gmlIds, 0, 5)
+                ]);
+
+                // Deduplicate by gml_id to prevent double rendering
+                $seenGmlIds = [];
+                foreach ($landRegistryData as $row) {
+                    if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
+                        $seenGmlIds[] = $row->gml_id;
+                        $geometry = json_decode($row->geometry, true);
                         $landRegistryFeatures->push([
                             'type' => 'Feature',
                             'geometry' => $geometry,
                             'properties' => [
-                                'fid' => $row->fid,
-                                'county_code' => $row->county_code,
-                                'county_name' => $row->county_name,
-                                'bng_easting' => $row->bng_easting,
-                                'bng_northing' => $row->bng_northing,
-                                'longitude' => $row->longitude,
-                                'latitude' => $row->latitude,
-                                'global_id' => $row->global_id,
+                                'gml_id' => $row->gml_id,
+                                'INSPIREID' => $row->INSPIREID ?? null,
+                                'LABEL' => $row->LABEL ?? null,
+                                'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
+                                'VALIDFROM' => $row->VALIDFROM ?? null,
+                                'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
                             ]
                         ]);
                     }
                 }
-            });
+                
+                Log::info('After deduplication (primary query)', [
+                    'original_count' => count($landRegistryData),
+                    'final_features' => $landRegistryFeatures->count(),
+                    'duplicates_removed' => count($landRegistryData) - $landRegistryFeatures->count()
+                ]);
+            } else {
+                Log::warning('No valid bounding box calculated for BUA areas, trying simple fallback');
+                
+                // Fallback: Get larger sample of INSPIRE data without spatial filtering
+                try {
+                    $landRegistryData = DB::select("
+                        SELECT 
+                            gml_id,
+                            \"INSPIREID\",
+                            \"LABEL\",
+                            \"NATIONALCADASTRALREFERENCE\",
+                            \"VALIDFROM\",
+                            \"BEGINLIFESPANVERSION\",
+                            ST_AsGeoJSON(geom) as geometry,
+                            GeometryType(geom) as geom_type
+                        FROM land_registry_inspire
+                    ");
+                    
+                    Log::info('Fallback Land Registry INSPIRE query executed (NO LIMIT)', [
+                        'result_count' => count($landRegistryData),
+                        'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+                    ]);
+                    
+                    foreach ($landRegistryData as $row) {
+                        if (!empty($row->geometry)) {
+                            $geometry = json_decode($row->geometry, true);
+                            $landRegistryFeatures->push([
+                                'type' => 'Feature',
+                                'geometry' => $geometry,
+                                'properties' => [
+                                    'gml_id' => $row->gml_id,
+                                    'INSPIREID' => $row->INSPIREID ?? null,
+                                    'LABEL' => $row->LABEL ?? null,
+                                    'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
+                                    'VALIDFROM' => $row->VALIDFROM ?? null,
+                                    'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
+                                ]
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Fallback Land Registry INSPIRE query also failed', ['error' => $e->getMessage()]);
+                }
+            }
+        } else {
+            Log::info('No area IDs provided, getting sample Land Registry INSPIRE data');
+            
+            // If no areas selected, get sample data for debugging
+            try {
+                $landRegistryData = DB::select("
+                    SELECT 
+                        gml_id,
+                        \"INSPIREID\",
+                        \"LABEL\",
+                        \"NATIONALCADASTRALREFERENCE\",
+                        \"VALIDFROM\",
+                        \"BEGINLIFESPANVERSION\",
+                        ST_AsGeoJSON(geom) as geometry,
+                        GeometryType(geom) as geom_type
+                    FROM land_registry_inspire
+                ");
+                
+                Log::info('Sample Land Registry INSPIRE query executed (NO LIMIT)', [
+                    'result_count' => count($landRegistryData),
+                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+                ]);
+                
+                foreach ($landRegistryData as $row) {
+                    if (!empty($row->geometry)) {
+                        $geometry = json_decode($row->geometry, true);
+                        $landRegistryFeatures->push([
+                            'type' => 'Feature',
+                            'geometry' => $geometry,
+                            'properties' => [
+                                'gml_id' => $row->gml_id,
+                                'INSPIREID' => $row->INSPIREID ?? null,
+                                'LABEL' => $row->LABEL ?? null,
+                                'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
+                                'VALIDFROM' => $row->VALIDFROM ?? null,
+                                'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
+                            ]
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Sample Land Registry INSPIRE query failed', ['error' => $e->getMessage()]);
+            }
+        }
 
         $landRegistryGeoJson = [
             'type' => 'FeatureCollection',
@@ -259,7 +434,7 @@ class DataMapController extends Controller
             'center' => $center,
             'photos' => new DataMapPhotoCollection($photos),
             'uprn' => ['data' => $uprnGeoJson],
-            'landRegistryCadastral' => ['data' => $landRegistryGeoJson]
+            'landRegistryInspire' => ['data' => $landRegistryGeoJson]
         ];
 
         return response()->json($responseData);
