@@ -4,6 +4,7 @@ import { PathStyleExtension } from '@deck.gl/extensions';
 import { COORDINATE_SYSTEM } from '@deck.gl/core';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import booleanIntersects from '@turf/boolean-intersects';
 import type { 
     BuildingCentroidState, 
     BuildingPartCentroidState,
@@ -121,14 +122,69 @@ export function createMapLayers({
   // The connection logic is handled in Index.tsx photo bearing intersection
 
   const layers = [
-    // Building Part Polygons Layer (2D) - Show when data available AND filter enabled AND photo bearing toggle is active
+    // Building Part Polygons Layer (2D) - Show only when photo spidering is active AND polygons intersect with photo bearing
     buildingPartPolygons && 
     buildingPartPolygons.features && 
     buildingPartPolygons.features.length > 0 &&
     showPhotoBearingPolygon &&
+    selectedPoint &&
+    'file_name' in selectedPoint.properties && // Check if spidering point is a photo
     new GeoJsonLayer({
       id: `building-part-polygons-layer`,
-      data: buildingPartPolygons,
+      data: {
+        type: 'FeatureCollection',
+        features: buildingPartPolygons.features.filter((polygon: any) => {
+          // Only show polygons that intersect with the spidering photo's bearing
+          if (!selectedPoint || !('file_name' in selectedPoint.properties)) {
+            return false;
+          }
+          
+          try {
+            // Get photo details from spidering point
+            const photoCoords: [number, number] = [selectedPoint.coordinates[0], selectedPoint.coordinates[1]];
+            const photoHeading = typeof selectedPoint.properties.photo_heading === 'string' 
+              ? parseFloat(selectedPoint.properties.photo_heading) 
+              : (selectedPoint.properties.photo_heading || 0);
+            
+            // Create photo bearing sector (same logic as in photo bearing layer)
+            const [lng, lat] = photoCoords;
+            const headingRad = (photoHeading * Math.PI) / 180;
+            const radius = 0.0001; // 10m radius in degrees
+            const sectorAngle = Math.PI / 3; // 60 degrees sector angle
+            const startAngle = headingRad - sectorAngle / 2;
+            const endAngle = headingRad + sectorAngle / 2;
+            
+            // Adjust for latitude distortion
+            const latCos = Math.cos(lat * Math.PI / 180);
+            const adjustedRadius = radius / latCos;
+            
+            // Create arc points for bearing sector
+            const arcPoints = [];
+            const numPoints = 30;
+            arcPoints.push([lng, lat]); // Start from center
+            
+            for (let i = 0; i <= numPoints; i++) {
+              const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+              const x = lng + Math.sin(angle) * adjustedRadius;
+              const y = lat + Math.cos(angle) * radius;
+              arcPoints.push([x, y]);
+            }
+            arcPoints.push([lng, lat]); // Close polygon
+            
+            const bearingSector = turf.polygon([arcPoints]);
+            
+            // Check if photo point is inside polygon OR bearing sector intersects with polygon
+            const photoPoint = turf.point(photoCoords);
+            const photoInsidePolygon = booleanPointInPolygon(photoPoint, polygon);
+            const intersects = booleanIntersects(bearingSector, polygon);
+            
+            return photoInsidePolygon || intersects;
+          } catch (error) {
+            console.warn('Error checking polygon intersection with photo bearing:', error);
+            return false;
+          }
+        })
+      },
       pickable: true,
       stroked: true,
       filled: true,
@@ -156,7 +212,7 @@ export function createMapLayers({
         }
       },
       updateTriggers: {
-        data: [buildingPartPolygons],
+        data: [buildingPartPolygons, selectedPoint, showPhotoBearingPolygon],
       },
     }),
 
@@ -585,7 +641,7 @@ export function createMapLayers({
         const headingRad = (heading * Math.PI) / 180;
         
         // Sector parameters
-        const radius = 0.0002; // Sector radius in degrees (about 20 meters)
+        const radius = 0.0001; // Sector radius in degrees (about 10 meters)
         const sectorAngle = Math.PI / 3; // 60 degrees sector angle
         const startAngle = headingRad - sectorAngle / 2;
         const endAngle = headingRad + sectorAngle / 2;

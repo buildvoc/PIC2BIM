@@ -32,7 +32,7 @@ class ImportLandRegistryInspire extends Command
     public function handle()
     {
         // Use provided path or default
-        $filePath = $this->argument('path') ?: public_path('Land_registry_export_qgis.geojson');
+        $filePath = $this->argument('path') ?: public_path('Land_registry_50873136_st_andrews_boundary.geojson');
         
         if (!File::exists($filePath)) {
             $this->error("GeoJSON file not found: {$filePath}");

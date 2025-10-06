@@ -19,7 +19,7 @@ interface ValidationReportModalProps {
   results: ValidationResult[];
   geoJson: any; 
   onImportSuccess: () => void;
-  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_cadastral' | '';
+  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | '';
 }
 
 type Order = 'asc' | 'desc';
@@ -86,8 +86,8 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
       case 'uprn':
         importUrl = route('data_map.import_uprn');
         break;
-      case 'land_registry_cadastral':
-        importUrl = route('data_map.import_land_registry_cadastral');
+      case 'land_registry_inspire':
+        importUrl = route('data_map.import_land_registry_inspire');
         break;
       default:
         alert('Invalid schema selected');
@@ -107,11 +107,11 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
   };
 
   const downloadCsv = () => {
-        const idHeader = schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : (schema === 'land_registry_cadastral' ? 'Global ID' : 'OSID'));
+        const idHeader = schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : (schema === 'land_registry_inspire' ? 'GML ID' : 'OSID'));
     const headers = `"Status","Feature Index","${idHeader}","Details"`;
     const sorted = sortedResults; // Use already sorted results
     const csvContent = sorted.map(r => {
-      const idValue = schema === 'nhle' ? r.properties.listentry : (schema === 'uprn' ? r.properties.uprn : (schema === 'land_registry_cadastral' ? r.properties.GlobalID : r.properties.osid));
+      const idValue = schema === 'nhle' ? r.properties.listentry : (schema === 'uprn' ? r.properties.uprn : (schema === 'land_registry_inspire' ? r.properties.gml_id : r.properties.osid));
       return `"${r.status}","${r.feature_index}","${idValue || 'N/A'}","${r.details.replace(/"/g, '""')}"`;
     }
     ).join('\n');
@@ -135,8 +135,8 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
       let bValue = b[key];
 
       if (key === 'properties') {
-        aValue = (schema === 'nhle' ? a.properties.listentry : (schema === 'uprn' ? a.properties.uprn : (schema === 'land_registry_cadastral' ? a.properties.GlobalID : a.properties.osid))) || '';
-        bValue = (schema === 'nhle' ? b.properties.listentry : (schema === 'uprn' ? b.properties.uprn : (schema === 'land_registry_cadastral' ? b.properties.GlobalID : b.properties.osid))) || '';
+        aValue = (schema === 'nhle' ? a.properties.listentry : (schema === 'uprn' ? a.properties.uprn : (schema === 'land_registry_inspire' ? a.properties.gml_id : a.properties.osid))) || '';
+        bValue = (schema === 'nhle' ? b.properties.listentry : (schema === 'uprn' ? b.properties.uprn : (schema === 'land_registry_inspire' ? b.properties.gml_id : b.properties.osid))) || '';
       }
 
       const valA = aValue ?? '';
@@ -175,7 +175,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                 </TableCell>
                 <TableCell sx={{ width: '20%' }}>
                   <TableSortLabel active={sortConfig.key === 'properties'} direction={sortConfig.direction} onClick={() => handleSortRequest('properties')}>
-                    {schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : (schema === 'land_registry_cadastral' ? 'Global ID' : 'OSID'))}
+                    {schema === 'nhle' ? 'List Entry' : (schema === 'uprn' ? 'UPRN' : (schema === 'land_registry_inspire' ? 'GML ID' : 'OSID'))}
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Details</TableCell>
@@ -193,7 +193,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                     {result.status === 'warning' && <Chip label="Warning" color="error" size="small" />}
                   </TableCell>
                   <TableCell>{result.feature_index + 1}</TableCell>
-                  <TableCell>{(schema === 'nhle' ? result.properties.listentry : (schema === 'uprn' ? result.properties.uprn : (schema === 'land_registry_cadastral' ? result.properties.GlobalID : result.properties.osid))) || 'N/A'}</TableCell>
+                  <TableCell>{(schema === 'nhle' ? result.properties.listentry : (schema === 'uprn' ? result.properties.uprn : (schema === 'land_registry_inspire' ? result.properties.gml_id : result.properties.osid))) || 'N/A'}</TableCell>
                   <TableCell>{result.details}</TableCell>
                   <TableCell>
                     {['duplicate', 'overlap', 'exact_match'].includes(result.status) ? (

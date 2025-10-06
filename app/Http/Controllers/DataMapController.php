@@ -164,7 +164,6 @@ class DataMapController extends Controller
             'type' => 'FeatureCollection',
             'features' => $uprnFeatures->values()
         ];
-        // dd($uprnGeoJson);
 
         // Fetch Land Registry INSPIRE data within selected areas (with BUA filtering)
         $landRegistryFeatures = collect();
@@ -1393,5 +1392,185 @@ class DataMapController extends Controller
             ];
         }
         return $results;
+    }
+
+    public function validateLandRegistryInspire(Request $request)
+    {
+        @ini_set('upload_max_size', '256M');
+        @ini_set('post_max_size', '256M');
+        @ini_set('max_execution_time', '300');
+
+        $geojson = $request->input('geojson');
+        if (!$geojson || !isset($geojson['features'])) {
+            return response()->json(['error' => 'Invalid GeoJSON data provided.'], 400);
+        }
+
+        $features = collect($geojson['features'])
+            ->filter(fn($f) => isset($f['properties']))
+            ->values();
+
+        $gmlIds = $features
+            ->map(fn($f) => $f['properties']['gml_id'] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $existingIds = LandRegistryInspire::whereIn('gml_id', $gmlIds)
+            ->pluck('gml_id')
+            ->toArray();
+
+        $results = [];
+        foreach ($features as $index => $feature) {
+            $properties = $feature['properties'] ?? [];
+            $gmlId = $properties['gml_id'] ?? null;
+            $inspireId = $properties['INSPIREID'] ?? null;
+
+            $status = 'ok';
+            $details = 'Ready for import';
+
+            if (!$gmlId) {
+                $status = 'warning';
+                $details = 'Missing GML ID';
+            } elseif (in_array($gmlId, $existingIds)) {
+                $status = 'duplicate';
+                $details = 'GML ID already exists';
+            } elseif (!$inspireId) {
+                $status = 'warning';
+                $details = 'Missing INSPIRE ID';
+            }
+
+            $results[] = [
+                'feature_index' => $index,
+                'properties' => $properties,
+                'status' => $status,
+                'details' => $details,
+            ];
+        }
+
+        return response()->json([
+            'summary' => [
+                'total' => count($results),
+                'duplicates' => count(array_filter($results, fn($r) => $r['status'] === 'duplicate')),
+                'warnings' => count(array_filter($results, fn($r) => $r['status'] === 'warning')),
+            ],
+            'results' => $results,
+        ]);
+    }
+
+    public function importLandRegistryInspire(Request $request)
+    {
+        @ini_set('upload_max_size', '256M');
+        @ini_set('post_max_size', '256M');
+        @ini_set('max_execution_time', '600');
+
+        $features = $request->input('features');
+        $sridNumber = $request->input('srid', 4326);
+
+        if (!$features || !is_array($features)) {
+            return response()->json(['error' => 'Invalid feature data provided.'], 400);
+        }
+
+        $insertBatch = [];
+        $updateBatch = [];
+        $geometryBatch = [];
+
+        foreach ($features as $featureAction) {
+            $action = $featureAction['action'] ?? 'skip';
+            $data = $featureAction['data'] ?? null;
+            if (!$data || $action === 'skip') continue;
+
+            $p = $data['properties'] ?? [];
+            $geometry = $data['geometry'] ?? null;
+
+            $gmlId = $p['gml_id'] ?? null;
+            $inspireId = $p['INSPIREID'] ?? null;
+            if (!$gmlId || !$inspireId) continue;
+
+            $row = [
+                'gml_id' => $gmlId,
+                'INSPIREID' => $inspireId,
+                'LABEL' => $p['LABEL'] ?? null,
+                'NATIONALCADASTRALREFERENCE' => $p['NATIONALCADASTRALREFERENCE'] ?? null,
+                'VALIDFROM' => self::parseDate($p['VALIDFROM'] ?? null),
+                'BEGINLIFESPANVERSION' => self::parseDate($p['BEGINLIFESPANVERSION'] ?? null),
+            ];
+
+            if ($action === 'import') {
+                $insertBatch[] = $row;
+            } elseif ($action === 'update') {
+                $updateBatch[] = $row;
+            }
+
+            if ($geometry && !empty($geometry['coordinates'])) {
+                $geometryBatch[] = [
+                    'gml_id' => $gmlId,
+                    'geometry' => json_encode($geometry),
+                ];
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            
+            if (!empty($insertBatch)) {
+                // DB::table('land_registry_inspire')->upsert($insertBatch, ['gml_id']);
+                DB::table('land_registry_inspire')->insertOrIgnore($insertBatch);
+            }
+
+            if (!empty($updateBatch)) {
+                DB::table('land_registry_inspire')->upsert($updateBatch, ['gml_id'], [
+                    'INSPIREID', 'LABEL', 'NATIONALCADASTRALREFERENCE', 'VALIDFROM', 'BEGINLIFESPANVERSION'
+                ]);
+            }
+
+            foreach (array_chunk($geometryBatch, 500) as $chunk) {
+                $values = collect($chunk)
+                    ->map(fn($g) =>
+                        "(" . DB::getPdo()->quote($g['geometry']) . ", " . DB::getPdo()->quote($g['gml_id']) . ")"
+                    )->implode(',');
+
+                if ($sridNumber == 27700) {
+                    DB::statement("
+                        UPDATE land_registry_inspire
+                        SET geom = ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(v.geom), 27700), 4326)
+                        FROM (VALUES $values) AS v(geom, gml_id)
+                        WHERE land_registry_inspire.gml_id = v.gml_id
+                    ");
+                } else {
+                    DB::statement("
+                        UPDATE land_registry_inspire
+                        SET geom = ST_SetSRID(ST_GeomFromGeoJSON(v.geom), 4326)
+                        FROM (VALUES $values) AS v(geom, gml_id)
+                        WHERE land_registry_inspire.gml_id = v.gml_id
+                    ");
+                }
+            }
+
+            DB::commit();
+            Cache::forget('land_registry_inspire_data');
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'message' => sprintf(
+                "Import finished. %d inserted, %d updated. Geometry updated for %d records. Cache cleared.",
+                count($insertBatch),
+                count($updateBatch),
+                count($geometryBatch)
+            )
+        ]);
+    }
+
+    private static function parseDate($value)
+    {
+        if (!$value) return null;
+        try {
+            return Carbon::parse($value)->format('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }
