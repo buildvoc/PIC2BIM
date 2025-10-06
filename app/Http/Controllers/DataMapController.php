@@ -218,23 +218,47 @@ class DataMapController extends Controller
                     
                     Log::info('Using expanded bounding box', ['original' => $bbox, 'expanded' => $expandedBbox]);
                     
-                    $landRegistryData = DB::select("
-                        SELECT DISTINCT ON (gml_id)
-                            gml_id,
-                            \"INSPIREID\",
-                            \"LABEL\",
-                            \"NATIONALCADASTRALREFERENCE\",
-                            \"VALIDFROM\",
-                            \"BEGINLIFESPANVERSION\",
-                            ST_AsGeoJSON(geom) as geometry,
-                            GeometryType(geom) as geom_type
-                        FROM land_registry_inspire 
-                        WHERE geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
-                        ORDER BY gml_id
+                    // First, get NHLE data in the bounding box and transform to WGS84
+                    $nhleInBbox = DB::select("
+                        SELECT ST_Transform(geom, 4326) as geom_wgs84
+                        FROM nhle_ 
+                        WHERE geom && ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), 27700)
                     ", [
                         $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
                         $expandedBbox['max_lng'], $expandedBbox['max_lat']
                     ]);
+                    
+                    if (empty($nhleInBbox)) {
+                        Log::info('No NHLE data found in bounding box, skipping Land Registry INSPIRE query');
+                        $landRegistryData = [];
+                    } else {
+                        // Create a union of all NHLE geometries for efficient intersection
+                        $landRegistryData = DB::select("
+                            WITH nhle_union AS (
+                                SELECT ST_Union(ST_Transform(geom, 4326)) as union_geom
+                                FROM nhle_ 
+                                WHERE geom && ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), 27700)
+                            )
+                            SELECT DISTINCT ON (lri.gml_id)
+                                lri.gml_id,
+                                lri.\"INSPIREID\",
+                                lri.\"LABEL\",
+                                lri.\"NATIONALCADASTRALREFERENCE\",
+                                lri.\"VALIDFROM\",
+                                lri.\"BEGINLIFESPANVERSION\",
+                                ST_AsGeoJSON(lri.geom) as geometry,
+                                GeometryType(lri.geom) as geom_type
+                            FROM land_registry_inspire lri, nhle_union nu
+                            WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                            AND ST_INTERSECTS(nu.union_geom, lri.geom)
+                            ORDER BY lri.gml_id
+                        ", [
+                            $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
+                            $expandedBbox['max_lng'], $expandedBbox['max_lat'],
+                            $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
+                            $expandedBbox['max_lng'], $expandedBbox['max_lat']
+                        ]);
+                    }
                 } catch (\Exception $e) {
                     Log::error('Land Registry INSPIRE query failed', ['error' => $e->getMessage()]);
                     $landRegistryData = [];

@@ -4,7 +4,7 @@ import { Head, router, usePage, useRemember, } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 import DeckGL from '@deck.gl/react';
-import Map from 'react-map-gl/maplibre';
+import MapGL from 'react-map-gl/maplibre';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
@@ -1380,6 +1380,43 @@ console.log(newData);
     showSelectedOnly
   });
 
+  // Pre-computed NHLE-INSPIRE mapping for performance optimization
+  const nhleInspireMapping = useMemo(() => {
+    if (!landRegistryInspireData?.features || !filteredNhleCentroids?.length) {
+      return [];
+    }
+    
+    const mapping: Array<{ inspireIndex: number; inspireFeature: any; nhlePoints: any[] }> = [];
+    
+    // Pre-compute which INSPIRE polygons contain which NHLE points
+    landRegistryInspireData.features.forEach((inspireFeature: any, inspireIndex: number) => {
+      if (inspireFeature.geometry?.type === 'Polygon' || inspireFeature.geometry?.type === 'MultiPolygon') {
+        const containedNhle: any[] = [];
+        
+        filteredNhleCentroids.forEach((nhlePoint: any) => {
+          try {
+            const point = turf.point(nhlePoint.coordinates);
+            if (booleanPointInPolygon(point, inspireFeature)) {
+              containedNhle.push(nhlePoint);
+            }
+          } catch (e) {
+            // Skip invalid geometries
+          }
+        });
+        
+        if (containedNhle.length > 0) {
+          mapping.push({
+            inspireIndex,
+            inspireFeature,
+            nhlePoints: containedNhle
+          });
+        }
+      }
+    });
+    
+    return mapping;
+  }, [landRegistryInspireData, filteredNhleCentroids]);
+
   // Build collapsed UPRN representatives from FILTERED UPRN set
   const uprnCollapsed = useMemo(() => {
     const src = filteredUprnCentroids || [];
@@ -2551,6 +2588,40 @@ console.log(newData);
     );
   }, []);
 
+  // Helper function to create bearing polygon (cached to avoid duplication)
+  const createBearingPolygon = useCallback((coords: [number, number], photoHeading: number) => {
+    const [lng, lat] = coords;
+    const headingRad = (photoHeading * Math.PI) / 180;
+    const radius = 0.0001; // 10m radius in degrees
+    const sectorAngle = Math.PI / 3; // 60 degrees sector angle
+    const startAngle = headingRad - sectorAngle / 2;
+    const endAngle = headingRad + sectorAngle / 2;
+    
+    // Adjust for latitude distortion
+    const latCos = Math.cos(lat * Math.PI / 180);
+    const adjustedRadius = radius / latCos;
+    
+    // Create arc points for bearing polygon
+    const arcPoints = [];
+    const numPoints = 15; // Reduced from 30 to 15 for better performance
+    
+    // Start from center
+    arcPoints.push([lng, lat]);
+    
+    // Create arc points
+    for (let i = 0; i <= numPoints; i++) {
+      const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+      const x = lng + Math.sin(angle) * adjustedRadius;
+      const y = lat + Math.cos(angle) * radius;
+      arcPoints.push([x, y]);
+    }
+    
+    // Close the polygon
+    arcPoints.push([lng, lat]);
+    
+    return turf.polygon([arcPoints]);
+  }, []);
+
   // Spidering functionality
   const handlePointClick = useCallback((point: any) => {
     if (!point || point === selectedPoint) {
@@ -2640,8 +2711,8 @@ console.log(newData);
           }
         };
 
-        // Enhanced building part candidate with polygon intersection
-        const addBuildingPartCandidate = (part: any) => {
+        // Enhanced building part candidate with polygon intersection (optimized)
+        const addBuildingPartCandidate = (part: any, cachedBearingPolygon: any) => {
           const partCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
           const photoPoint = turf.point(selectedCoords);
           const partPoint = turf.point(partCoords);
@@ -2665,30 +2736,8 @@ console.log(newData);
             
             if (partPolygon) {
               try {
-                // Create bearing sector for intersection check
-                const [lng, lat] = selectedCoords;
-                const headingRad = (photoHeading * Math.PI) / 180;
-                const radius = 0.0001; // 10m radius in degrees
-                const sectorAngle = Math.PI / 3; // 60 degrees
-                const startAngle = headingRad - sectorAngle / 2;
-                const endAngle = headingRad + sectorAngle / 2;
-                
-                const latCos = Math.cos(lat * Math.PI / 180);
-                const adjustedRadius = radius / latCos;
-                
-                const arcPoints = [];
-                const numPoints = 30;
-                arcPoints.push([lng, lat]);
-                
-                for (let i = 0; i <= numPoints; i++) {
-                  const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
-                  const x = lng + Math.sin(angle) * adjustedRadius;
-                  const y = lat + Math.cos(angle) * radius;
-                  arcPoints.push([x, y]);
-                }
-                arcPoints.push([lng, lat]);
-                
-                const bearingSector = turf.polygon([arcPoints]);
+                // Use cached bearing polygon instead of recreating
+                const bearingSector = cachedBearingPolygon;
                 
                 // Check if photo point is inside polygon
                 const photoInsidePolygon = booleanPointInPolygon(photoPoint, partPolygon);
@@ -2731,89 +2780,33 @@ console.log(newData);
           }
         };
         
+        // Create cached bearing polygon once for reuse
+        const cachedBearingPolygon = createBearingPolygon(selectedCoords, photoHeading);
+        
         filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
-        filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p)); // Use enhanced function
+        filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
 
-        // Add NHLE points from Land Registry INSPIRE polygons intersected by photo bearing
-        if (landRegistryInspireData?.features && filteredNhleCentroids?.length > 0) {
-          // Create the photo bearing polygon
-          const [lng, lat] = selectedCoords;
-          const headingRad = (photoHeading * Math.PI) / 180;
-          const radius = 0.0001; // Same radius as in PhotoPanel
-          const sectorAngle = Math.PI / 3; // 60 degrees sector angle
-          const startAngle = headingRad - sectorAngle / 2;
-          const endAngle = headingRad + sectorAngle / 2;
+        // Optimized NHLE Land Registry INSPIRE logic using pre-computed mapping
+        if (nhleInspireMapping.length > 0) {
+          // Use cached bearing polygon for intersection checks
+          const bearingPolygon = cachedBearingPolygon;
           
-          // Adjust for latitude distortion
-          const latCos = Math.cos(lat * Math.PI / 180);
-          const adjustedRadius = radius / latCos;
-          
-          // Create arc points for bearing polygon
-          const arcPoints = [];
-          const numPoints = 30;
-          
-          // Start from center
-          arcPoints.push([lng, lat]);
-          
-          // Create arc points
-          for (let i = 0; i <= numPoints; i++) {
-            const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
-            const x = lng + Math.sin(angle) * adjustedRadius;
-            const y = lat + Math.cos(angle) * radius;
-            arcPoints.push([x, y]);
-          }
-          
-          // Close the polygon
-          arcPoints.push([lng, lat]);
-          
-          const bearingPolygon = turf.polygon([arcPoints]);
-          
-          // Find intersecting Land Registry INSPIRE polygons that contain NHLE features
-          const intersectingPolygons: any[] = [];
-          const inspirePolygonsWithNhle: any[] = [];
-          
-          // First, filter INSPIRE polygons that contain NHLE features
-          landRegistryInspireData.features.forEach((inspireFeature: any) => {
-            if (inspireFeature.geometry?.type === 'Polygon' || inspireFeature.geometry?.type === 'MultiPolygon') {
-              // Check if this INSPIRE polygon contains any NHLE features
-              const hasNhle = filteredNhleCentroids.some((nhlePoint: any) => {
-                try {
-                  const point = turf.point(nhlePoint.coordinates);
-                  return booleanPointInPolygon(point, inspireFeature);
-                } catch (e) {
-                  return false;
-                }
-              });
-              
-              if (hasNhle) {
-                inspirePolygonsWithNhle.push(inspireFeature);
-              }
-            }
-          });
-          
-          // Then check which of these polygons intersect with photo bearing
-          inspirePolygonsWithNhle.forEach((inspireFeature: any) => {
+          // Only check pre-computed INSPIRE polygons that contain NHLE points
+          for (const mappingData of nhleInspireMapping) {
+            const { inspireFeature, nhlePoints } = mappingData;
+            
             try {
+              // Check if this INSPIRE polygon intersects with photo bearing
               if (booleanIntersects(bearingPolygon, inspireFeature)) {
-                intersectingPolygons.push(inspireFeature);
-              }
-            } catch (e) {
-              console.warn('Error checking intersection with INSPIRE polygon:', e);
-            }
-          });
-          
-          // Find NHLE points within intersecting polygons
-          intersectingPolygons.forEach((polygon: any) => {
-            filteredNhleCentroids.forEach((nhlePoint: any) => {
-              try {
-                const point = turf.point(nhlePoint.coordinates);
-                if (booleanPointInPolygon(point, polygon)) {
+                // Add all NHLE points from this intersecting polygon
+                nhlePoints.forEach((nhlePoint: any) => {
                   // Check if this NHLE point is not already added to result
                   const alreadyAdded = result.some(existing => 
                     existing.type === 'nhle' && existing.properties.nhle_id === nhlePoint.properties.nhle_id
                   );
+                  
                   if (!alreadyAdded) {
                     const nhleCoords: [number, number] = [nhlePoint.coordinates[0], nhlePoint.coordinates[1]];
                     const photoPoint = turf.point(selectedCoords);
@@ -2831,18 +2824,18 @@ console.log(newData);
                         distance: Math.round(distance),
                         bearing: Math.round(bearing),
                         connection_type: 'land_registry_inspire_bearing_intersection',
-                        intersected_inspire_gml_id: polygon.properties?.gml_id,
-                        intersected_inspire_id: polygon.properties?.INSPIREID,
-                        intersected_inspire_label: polygon.properties?.LABEL
+                        intersected_inspire_gml_id: inspireFeature.properties?.gml_id,
+                        intersected_inspire_id: inspireFeature.properties?.INSPIREID,
+                        intersected_inspire_label: inspireFeature.properties?.LABEL
                       }
                     });
                   }
-                }
-              } catch (e) {
-                console.warn('Error checking NHLE point in polygon:', e);
+                });
               }
-            });
-          });
+            } catch (e) {
+              console.warn('Error checking intersection with INSPIRE polygon:', e);
+            }
+          }
         }
       } else if (isSiteSelected) {
         // Site → related buildings and parts
@@ -2920,7 +2913,7 @@ console.log(newData);
         }
       }
     }
-  }, [selectedPoint, selectedFeature, uprnCentroidsData]);
+  }, [selectedPoint, selectedFeature, uprnCentroidsData, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, nhleInspireMapping, buildingPartPolygonsData, createBearingPolygon, bearingMatch]);
 
 
   const layers = createMapLayers({
@@ -3019,7 +3012,7 @@ console.log(newData);
             onViewStateChange={handleViewStateChange}
             getCursor={getCursor}
           >
-            <Map
+            <MapGL
               mapStyle={mapStyle}
             />
 
