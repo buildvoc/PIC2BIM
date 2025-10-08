@@ -64,6 +64,7 @@ export function Index({ auth }: PageProps) {
     center?: { type: 'Point', coordinates: [number, number] };
     uprn?: { data: any };
     landRegistryInspire?: { data: any };
+    osmBuildingParts?: { data: any };
   }>().props;
 
 
@@ -89,6 +90,8 @@ export function Index({ auth }: PageProps) {
   const [uprnCentroidsData, setUprnCentroidsData] = useState<UprnCentroidState[]>([]);
   const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
   const [contextualInspireData, setContextualInspireData] = useState<any>(null); // For contextual data near selected feature
+  const [osmBuildingPartCentroidsData, setOsmBuildingPartCentroidsData] = useState<any[]>([]);
+  const [osmLanduseAreasData, setOsmLanduseAreasData] = useState<any[]>([]);
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
@@ -99,7 +102,7 @@ export function Index({ auth }: PageProps) {
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false });
   const [showPhotoBearingPolygon, setShowPhotoBearingPolygon] = useState(false);
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
@@ -201,7 +204,7 @@ export function Index({ auth }: PageProps) {
 
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | ''>('');
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | ''>('');
   // Fetch additional metadata when a feature is selected
   const fetchAdditionalData = useCallback(async (lat: number, lng: number, photoHeading?: number, altitude?: number) => {
     const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}_${photoHeading || 0}`;
@@ -364,6 +367,7 @@ export function Index({ auth }: PageProps) {
       buildingParts: ['OSLandTiera'],
       photos: ['User'],
       uprn: [] as string[],
+      osmBuildingParts: [] as string[],
     };
 
     const activeTypes = Object.keys(dataType).filter(
@@ -643,6 +647,46 @@ export function Index({ auth }: PageProps) {
       setLandRegistryInspireData(null);
     }
   }, [landRegistryInspire]);
+
+  // Process OSM Building Part data from Inertia props
+  const { osmBuildingParts } = usePage().props as any;
+  useEffect(() => {
+    if (osmBuildingParts && osmBuildingParts.data && Array.isArray(osmBuildingParts.data.features)) {
+      const centroids: any[] = [];
+      for (const feature of osmBuildingParts.data.features) {
+        if (feature.geometry) {
+          try {
+            const centroid = turf.centroid(feature.geometry as any);
+            const coordinates = centroid.geometry.coordinates as [number, number];
+            
+            centroids.push({
+              id: feature.properties.id?.toString() || '',
+              coordinates,
+              properties: {
+                id: feature.properties.id,
+                source: feature.properties.source,
+                osm_id: feature.properties.osm_id,
+                name: feature.properties.name,
+                ref_gb_uprn: feature.properties.ref_gb_uprn,
+                base_shape: feature.properties.base_shape,
+                base_orientation: feature.properties.base_orientation,
+                building: feature.properties.building,
+                building_part: feature.properties.building_part,
+                building_levels: feature.properties.building_levels,
+                roof_shape: feature.properties.roof_shape,
+                height_m: feature.properties.height_m,
+              }
+            });
+          } catch (error) {
+            console.error('Error calculating centroid for OSM building part feature:', feature.properties.id, error);
+          }
+        }
+      }
+      setOsmBuildingPartCentroidsData(centroids);
+    } else {
+      setOsmBuildingPartCentroidsData([]);
+    }
+  }, [osmBuildingParts]);
 
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
@@ -995,6 +1039,90 @@ console.log(newData);
       });
     }
 
+    // Merge OSM Building Parts data
+    if (newData.osmBuildingParts?.data?.features) {
+      setOsmBuildingPartCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newOsmBuildingParts = newData.osmBuildingParts.data.features
+          .filter((feature: any) => !existingIds.has(feature.properties?.id?.toString()))
+          .map((feature: any) => {
+            if (feature.geometry) {
+              try {
+                const centroid = turf.centroid(feature.geometry as any);
+                const coordinates = centroid.geometry.coordinates as [number, number];
+                
+                return {
+                  id: feature.properties.id?.toString() || '',
+                  coordinates,
+                  properties: {
+                    id: feature.properties.id,
+                    source: feature.properties.source,
+                    osm_id: feature.properties.osm_id,
+                    name: feature.properties.name,
+                    ref_gb_uprn: feature.properties.ref_gb_uprn,
+                    base_shape: feature.properties.base_shape,
+                    base_orientation: feature.properties.base_orientation,
+                    building: feature.properties.building,
+                    building_part: feature.properties.building_part,
+                    building_levels: feature.properties.building_levels,
+                    roof_shape: feature.properties.roof_shape,
+                    height_m: feature.properties.height_m,
+                  }
+                };
+              } catch (error) {
+                console.error('Error calculating centroid for OSM building part feature:', feature.properties.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newOsmBuildingParts.length} new OSM building parts to existing ${prev.length} OSM building parts`);
+        return [...prev, ...newOsmBuildingParts];
+      });
+    }
+
+    // Merge OSM Landuse Areas data
+    if (newData.osmLanduseAreas?.data?.features) {
+      setOsmLanduseAreasData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newOsmLanduseAreas = newData.osmLanduseAreas.data.features
+          .filter((feature: any) => !existingIds.has(feature.properties?.id?.toString()))
+          .map((feature: any) => {
+            if (feature.geometry) {
+              try {
+                const centroid = turf.centroid(feature.geometry as any);
+                const coordinates = centroid.geometry.coordinates as [number, number];
+                
+                return {
+                  id: feature.properties.id?.toString() || '',
+                  coordinates,
+                  properties: {
+                    id: feature.properties.id,
+                    source: feature.properties.source,
+                    osm_id: feature.properties.osm_id,
+                    name: feature.properties.name,
+                    landuse: feature.properties.landuse,
+                    operator: feature.properties.operator,
+                    ref: feature.properties.ref,
+                  },
+                  geometry: feature.geometry // Keep full geometry for polygon display
+                };
+              } catch (error) {
+                console.error('Error calculating centroid for OSM landuse area feature:', feature.properties.id, error);
+                return null;
+              }
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newOsmLanduseAreas.length} new OSM landuse areas to existing ${prev.length} OSM landuse areas`);
+        return [...prev, ...newOsmLanduseAreas];
+      });
+    }
+
     // Merge shapes data
     if (newData.shapes?.features) {
       setShapes(prev => {
@@ -1140,6 +1268,15 @@ console.log(newData);
               case 'land_registry_inspire':
                 validationRoute = route('data_map.validateLandRegistryInspire');
                 break;
+              case 'osm_building_part':
+                validationRoute = route('data_map.validateOsmBuildingPart');
+                break;
+              case 'osm_address':
+                validationRoute = route('data_map.validateOsmAddress');
+                break;
+              case 'osm_landuse_area':
+                validationRoute = route('data_map.validateOsmLanduseArea');
+                break;
               default:
                 setStatusMessage('Invalid schema selected');
                 setIsValidationSuccessful(false);
@@ -1224,6 +1361,15 @@ console.log(newData);
           break;
         case 'land_registry_inspire':
           validationRoute = route('data_map.validateLandRegistryInspire');
+          break;
+        case 'osm_building_part':
+          validationRoute = route('data_map.validateOsmBuildingPart');
+          break;
+        case 'osm_address':
+          validationRoute = route('data_map.validateOsmAddress');
+          break;
+        case 'osm_landuse_area':
+          validationRoute = route('data_map.validateOsmLanduseArea');
           break;
         default:
           alert('Invalid schema selected');
@@ -1361,6 +1507,7 @@ console.log(newData);
     filteredNhleCentroids,
     filteredPhotoCentroids,
     filteredUprnCentroids,
+    filteredOsmBuildingPartCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData
@@ -1371,6 +1518,7 @@ console.log(newData);
     nhleCentroidsData,
     photoCentroidsData,
     uprnCentroidsData,
+    osmBuildingPartCentroidsData,
     shapes,
     selectedShapeIds,
     floorRange,
@@ -2787,6 +2935,7 @@ console.log(newData);
         filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
+        filteredOsmBuildingPartCentroids.forEach(osm => addCandidate(osm, 'osmBuildingPart'));
 
         // Optimized NHLE Land Registry INSPIRE logic using pre-computed mapping
         if (nhleInspireMapping.length > 0) {
@@ -2924,6 +3073,8 @@ console.log(newData);
     filteredPhotoCentroids,
     // Use collapsed UPRN representatives so only one point shows per 30m cluster
     filteredUprnCentroids: uprnCollapsed as any,
+    filteredOsmBuildingPartCentroids,
+    filteredOsmLanduseAreasCentroids: osmLanduseAreasData,
     landRegistryInspireData,
     polygonCentroids,
     bidirectionalLinks,
@@ -3091,6 +3242,16 @@ console.log(newData);
                 (hoverInfo.object.properties?.buildinguse || 
                  `Photo ID: ${hoverInfo.object.properties?.id}`)
               }
+              {hoverInfo.layer?.id.startsWith('osm-building-part-layer') && 
+                (hoverInfo.object.properties?.name || 
+                 hoverInfo.object.properties?.building || 
+                 `OSM Building Part ID: ${hoverInfo.object.properties?.id}`)
+              }
+              {hoverInfo.layer?.id.startsWith('osm-landuse-areas-layer') && 
+                (hoverInfo.object.properties?.name || 
+                 hoverInfo.object.properties?.landuse || 
+                 `OSM Landuse Area ID: ${hoverInfo.object.properties?.id}`)
+              }
               {hoverInfo.layer?.id.startsWith('polygon-centroids-') && (
                 <div>
                   <div><strong>Polygon Feature</strong></div>
@@ -3117,8 +3278,10 @@ console.log(newData);
                 'file_name' in selectedFeature.properties ? 'Photo Details' :
                 'roofmaterial' in selectedFeature.properties ? 'Building Details' : 
                 'absoluteheightroofbase' in selectedFeature.properties ? 'Building Part Details' :
+                'building' in selectedFeature.properties ? 'OSM Building Part Details' :
+                'landuse' in selectedFeature.properties ? 'OSM Landuse Area Details' :
                 'oslanduse_capturemethod' in selectedFeature.properties ? 'Site Details' :
-                 'grade' in selectedFeature.properties ? 'NHLE Details' : 'UPRN Details')
+                'grade' in selectedFeature.properties ? 'NHLE Details' : 'UPRN Details')
               : isImportPanelOpen
               ? 'Import GeoJSON'
               : 'Filter Options'
@@ -3219,7 +3382,7 @@ console.log(newData);
                 <select 
                   id="schema-select"
                   value={selectedSchema}
-                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | '')}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | '')}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
@@ -3229,6 +3392,11 @@ console.log(newData);
                   <option value="buildingpart">Building Part V2</option>
                   <option value="uprn">UPRN</option>
                   <option value="land_registry_inspire">Land Registry INSPIRE</option>
+                  <optgroup label="OSM Data">
+                    <option value="osm_building_part">OSM Building Part</option>
+                    <option value="osm_address">OSM Address</option>
+                    <option value="osm_landuse_area">OSM Landuse Area</option>
+                  </optgroup>
                 </select>
               </div>
               <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
@@ -3401,7 +3569,7 @@ console.log(newData);
                 <button
                   onClick={() => {
                     // Show all data types
-                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false });
+                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false });
                     setSelectedGrades([]);
                     setSelectedShapeIds([]);
                     setFloorRange({ min: 0, max: maxFloors });
@@ -3547,6 +3715,42 @@ console.log(newData);
                   />
                   <span className="ml-3">
                     UPRN
+                  </span>
+                </label>
+
+                <label 
+                  htmlFor="show-osm-building-parts"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.osmBuildingParts
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    id="show-osm-building-parts"
+                    checked={dataType.osmBuildingParts}
+                    onChange={() => {
+                      setDataType(prev => ({ ...prev, osmBuildingParts: !prev.osmBuildingParts }));
+                    }}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    OSM Building Parts
+                  </span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="show-osm-landuse-areas"
+                    checked={dataType.osmLanduseAreas}
+                    onChange={() => {
+                      setDataType(prev => ({ ...prev, osmLanduseAreas: !prev.osmLanduseAreas }));
+                    }}
+                    className="h-5 w-5 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-3">
+                    OSM Landuse Areas
                   </span>
                 </label>
 

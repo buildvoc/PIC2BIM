@@ -22,6 +22,8 @@ interface MapLayersProps {
   filteredNhleCentroids: NhleFeatureState[];
   filteredPhotoCentroids: PhotoCentroidState[];
   filteredUprnCentroids: UprnCentroidState[];
+  filteredOsmBuildingPartCentroids: any[];
+  filteredOsmLanduseAreasCentroids: any[];
   landRegistryInspireData: any;
   polygonCentroids: Array<{coordinates: [number, number], properties: any}>;
   bidirectionalLinks: any[];
@@ -34,7 +36,7 @@ interface MapLayersProps {
   buildingPartPolygons?: any; // GeoJSON data for building part polygons
   
   // State variables
-  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
+  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean; osmBuildingParts: boolean; osmLanduseAreas: boolean };
   category1: string;
   category2: string;
   selectedLegendItem: any | null;
@@ -67,6 +69,8 @@ export function createMapLayers({
   filteredNhleCentroids,
   filteredPhotoCentroids,
   filteredUprnCentroids = [],
+  filteredOsmBuildingPartCentroids = [],
+  filteredOsmLanduseAreasCentroids = [],
   landRegistryInspireData,
   polygonCentroids,
   bidirectionalLinks,
@@ -217,7 +221,7 @@ export function createMapLayers({
     }),
 
     // Building Parts Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildingParts) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.buildingParts) && 
     filteredBuildingPartCentroids.length > 0 && 
     new ScatterplotLayer<BuildingPartCentroidState>({
       id: `buildingpart-layer`,
@@ -295,7 +299,7 @@ export function createMapLayers({
     }),
 
     // Sites Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.sites) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.sites) && 
     filteredSiteCentroids.length > 0 && 
     new ScatterplotLayer<SiteCentroidState>({
       id: `site-layer`,
@@ -372,7 +376,7 @@ export function createMapLayers({
     }),
 
     // NHLE Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.nhle) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.nhle) && 
     filteredNhleCentroids.length > 0 && 
     new ScatterplotLayer<NhleFeatureState>({
       id: `nhle-layer`,
@@ -432,7 +436,7 @@ export function createMapLayers({
     }),
 
     // Buildings Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.buildings) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.buildings) && 
     filteredBuildingCentroids.length > 0 && 
     new ScatterplotLayer<BuildingCentroidState>({
       id: `building-layer`,
@@ -509,7 +513,7 @@ export function createMapLayers({
     }),
 
     // UPRN Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.uprn) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.uprn) && 
     filteredUprnCentroids.length > 0 &&
     new ScatterplotLayer<UprnCentroidState>({
       id: `uprn-layer`,
@@ -556,8 +560,126 @@ export function createMapLayers({
       },
     }),
 
+    // OSM Building Parts Layer
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.osmBuildingParts) && 
+    filteredOsmBuildingPartCentroids.length > 0 &&
+    new ScatterplotLayer({
+      id: `osm-building-part-layer`,
+      data: filteredOsmBuildingPartCentroids.filter((osmPart: any) => {
+        // Hide only specific OSM building parts that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.id === osmPart.properties.id;
+          const isSpideredConnection = spideredConnections.some((conn: any) => 
+            conn.type === 'osmBuildingPart' && 
+            conn.properties.id === osmPart.properties.id
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 16,
+      radiusMinPixels: 2,
+      lineWidthMinPixels: 1,
+      getPosition: (d: any) => d.coordinates,
+      getRadius: (d: any) => {
+        let baseRadius = 8; // Base size for OSM building parts
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const dataWithType = { ...d, dataType: 'buildings' };
+        return getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]) as [number, number, number, number];
+      },
+      getLineColor: (d: any) => [51, 51, 51, 255], // Dark stroke
+      onHover: (info: any) => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: (info: any) => {
+        if (info.object && info.object.properties) {
+          // For OSM Building Parts: trigger spidering to show nearby features
+          onPointClick(info.object);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [filteredOsmBuildingPartCentroids, zoomBasedRadius],
+      },
+    }),
+
+    // OSM Landuse Areas Layer
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.osmLanduseAreas) && 
+    filteredOsmLanduseAreasCentroids.length > 0 &&
+    new ScatterplotLayer({
+      id: `osm-landuse-areas-layer`,
+      data: filteredOsmLanduseAreasCentroids.filter((landuseArea: any) => {
+        // Hide only specific landuse areas that are being spidered (but not the selected point)
+        if (selectedPoint && spideredConnections.length > 0) {
+          const isSelectedPoint = selectedPoint.properties.id === landuseArea.properties.id;
+          const isSpideredConnection = spideredConnections.some((conn: any) => 
+            conn.type === 'osmLanduseArea' && 
+            conn.properties.id === landuseArea.properties.id
+          );
+          return !isSpideredConnection || isSelectedPoint; // Keep selected point visible
+        }
+        return true;
+      }),
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusScale: zoomBasedRadius,
+      radiusMaxPixels: 16,
+      radiusMinPixels: 2,
+      lineWidthMinPixels: 1,
+      getPosition: (d: any) => d.coordinates,
+      getRadius: (d: any) => {
+        let baseRadius = 8; // Base size for OSM landuse areas
+        if (selectedLegendItem !== null) {
+          const propertyName = groupByMapping[category2];
+          const propValue = (d.properties as any)?.[propertyName];
+          return propValue === selectedLegendItem ? baseRadius * 1.5 : baseRadius / 2;
+        }
+        return baseRadius;
+      },
+      getFillColor: (d: any) => {
+        const dataWithType = { ...d, dataType: 'sites' };
+        return getFillColorForData(dataWithType, [0, 255, 0, 200], [0, 255, 0]) as [number, number, number, number];
+      },
+      getLineColor: (d: any) => [0, 0, 0, 255], // Black stroke like sites
+      onHover: (info: any) => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: (info: any) => {
+        if (info.object && info.object.properties) {
+          // For OSM Landuse Areas: trigger spidering to show nearby features
+          onPointClick(info.object);
+        }
+      },
+      updateTriggers: {
+        getFillColor: [category2, selectedLegendItem],
+        getRadius: [category1, category2, selectedLegendItem, zoomBasedRadius],
+        data: [filteredOsmLanduseAreasCentroids, zoomBasedRadius],
+      },
+    }),
+
     // Photos Layer
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.photos) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.photos) && 
     filteredPhotoCentroids.length > 0 && 
     new ScatterplotLayer<PhotoCentroidState>({
       id: `photo-layer`,
@@ -618,7 +740,7 @@ export function createMapLayers({
     }),
 
     // Photo Bearing Layer - Sector/Arc shape with green transparent fill
-    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn) || dataType.photos) && 
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.photos) && 
     filteredPhotoCentroids.length > 0 && 
     showPhotoBearingPolygon &&
     new PolygonLayer<any>({
@@ -821,6 +943,7 @@ export function createMapLayers({
           case 'nhle': return [231, 76, 60, 200]; // NHLE Red
           case 'photo': return [255, 0, 255, 200]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 200]; // UPRN Cyan (match uprn-layer)
+          case 'osmBuildingPart': return [156, 39, 176, 200]; // OSM Building Part Purple
           default: return [128, 128, 128, 200]; // Default Gray
         }
       },
@@ -859,6 +982,8 @@ export function createMapLayers({
             actualFeature = filteredPhotoCentroids.find(p => p.properties.id === info.object.properties.id);
           } else if (connectionType === 'uprn') {
             actualFeature = info.object;
+          } else if (connectionType === 'osmBuildingPart') {
+            actualFeature = filteredOsmBuildingPartCentroids.find(osm => osm.properties.id === info.object.properties.id);
           }
           
           if (actualFeature) {
@@ -912,6 +1037,7 @@ export function createMapLayers({
           case 'nhle': return [231, 76, 60, 150]; // NHLE Red
           case 'photo': return [255, 0, 255, 150]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 150]; // UPRN Cyan (match uprn-layer)
+          case 'osmBuildingPart': return [156, 39, 176, 150]; // OSM Building Part Purple
           default: return [128, 128, 128, 150]; // Default Gray
         }
       },

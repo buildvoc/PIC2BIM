@@ -449,6 +449,122 @@ class DataMapController extends Controller
             }
         }
 
+        // osm data        
+        // Fetch OSM Building Parts within selected areas
+        $osmBuildingParts = collect();
+        $rawResults = DB::select("
+            SELECT 
+                id, source, osm_id, name, ref_gb_uprn,
+                base_shape, base_orientation, building, building_part,
+                building_levels, roof_shape, height_m,
+                ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+            FROM osm_building_part
+            WHERE geom IS NOT NULL
+        ");
+        
+        foreach ($rawResults as $row) {
+            if (!empty($row->geometry)) {
+                $geometry = json_decode($row->geometry, true);
+                $osmBuildingParts->push([
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => [
+                        'id' => $row->id,
+                        'source' => $row->source,
+                        'osm_id' => $row->osm_id,
+                        'name' => $row->name,
+                        'ref_gb_uprn' => $row->ref_gb_uprn,
+                        'base_shape' => $row->base_shape,
+                        'base_orientation' => $row->base_orientation,
+                        'building' => $row->building,
+                        'building_part' => $row->building_part,
+                        'building_levels' => $row->building_levels,
+                        'roof_shape' => $row->roof_shape,
+                        'height_m' => $row->height_m,
+                    ]
+                ]);
+            }
+        }
+
+        // Fetch OSM Addresses within selected areas
+        $osmAddresses = collect();
+        $addressResults = DB::select("
+            SELECT 
+                id, building_part_id, osm_id, uprn, source,
+                housenumber, unit, street, suburb, city, postcode,
+                ST_AsGeoJSON(point_wgs84) as geometry
+            FROM osm_address
+            WHERE point_wgs84 IS NOT NULL
+        ");
+        
+        foreach ($addressResults as $row) {
+            if (!empty($row->geometry)) {
+                $geometry = json_decode($row->geometry, true);
+                $osmAddresses->push([
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => [
+                        'id' => $row->id,
+                        'building_part_id' => $row->building_part_id,
+                        'osm_id' => $row->osm_id,
+                        'uprn' => $row->uprn,
+                        'source' => $row->source,
+                        'housenumber' => $row->housenumber,
+                        'unit' => $row->unit,
+                        'street' => $row->street,
+                        'suburb' => $row->suburb,
+                        'city' => $row->city,
+                        'postcode' => $row->postcode,
+                    ]
+                ]);
+            }
+        }
+
+        // Fetch OSM Landuse Areas within selected areas
+        $osmLanduseAreas = collect();
+        $landuseResults = DB::select("
+            SELECT 
+                id, source, osm_id, name, landuse, operator, ref,
+                ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+            FROM osm_landuse_area
+            WHERE geom IS NOT NULL
+        ");
+        
+        foreach ($landuseResults as $row) {
+            if (!empty($row->geometry)) {
+                $geometry = json_decode($row->geometry, true);
+                $osmLanduseAreas->push([
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => [
+                        'id' => $row->id,
+                        'source' => $row->source,
+                        'osm_id' => $row->osm_id,
+                        'name' => $row->name,
+                        'landuse' => $row->landuse,
+                        'operator' => $row->operator,
+                        'ref' => $row->ref,
+                    ]
+                ]);
+            }
+        }
+
+        // Format OSM data as GeoJSON FeatureCollections
+        $osmBuildingPartsGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $osmBuildingParts->values()
+        ];
+        
+        $osmAddressesGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $osmAddresses->values()
+        ];
+        
+        $osmLanduseAreasGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $osmLanduseAreas->values()
+        ];
+
         $responseData = [
             'buildings' => new BuildingCollectionV4($buildings),
             'buildingParts' => new BuildingPartCollectionV2($buildingParts),
@@ -457,7 +573,10 @@ class DataMapController extends Controller
             'center' => $center,
             'photos' => new DataMapPhotoCollection($photos),
             'uprn' => ['data' => $uprnGeoJson],
-            'landRegistryInspire' => ['data' => $landRegistryGeoJson]
+            'landRegistryInspire' => ['data' => $landRegistryGeoJson],
+            'osmBuildingParts' => ['data' => $osmBuildingPartsGeoJson],
+            'osmAddresses' => ['data' => $osmAddressesGeoJson],
+            'osmLanduseAreas' => ['data' => $osmLanduseAreasGeoJson]
         ];
 
         return response()->json($responseData);
@@ -1596,5 +1715,663 @@ class DataMapController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    // OSM Building Part validation and import
+    public function validateOsmBuildingPart(Request $request)
+    {
+        return $this->performOsmValidation(\App\Models\OsmBuildingPart::class, $request->input('geojson'));
+    }
+
+    public function importOsmBuildingPart(Request $request)
+    {
+        return $this->performOsmImport(\App\Models\OsmBuildingPart::class, $request);
+    }
+
+    // OSM Address validation and import
+    public function validateOsmAddress(Request $request)
+    {
+        return $this->performOsmAddressValidation($request->input('geojson'));
+    }
+
+    public function importOsmAddress(Request $request)
+    {
+        return $this->performOsmAddressImport($request);
+    }
+
+    // OSM Landuse Area validation and import
+    public function validateOsmLanduseArea(Request $request)
+    {
+        return $this->performOsmValidation(\App\Models\OsmLanduseArea::class, $request->input('geojson'));
+    }
+
+    public function importOsmLanduseArea(Request $request)
+    {
+        return $this->performOsmImport(\App\Models\OsmLanduseArea::class, $request);
+    }
+
+    private function performOsmValidation($modelClass, $geojson)
+    {
+        $results = [];
+
+        if (!$geojson || !isset($geojson['features'])) {
+            return response()->json(['results' => []]);
+        }
+
+        foreach ($geojson['features'] as $index => $feature) {
+            if (!isset($feature['geometry']) || !isset($feature['properties'])) {
+                continue;
+            }
+
+            $osmId = $feature['properties']['osm_id'] ?? null;
+            $geometry = json_encode($feature['geometry']);
+
+            $featureData = [
+                'feature_index' => $index,
+                'properties' => $feature['properties'],
+                'status' => 'ok',
+                'details' => 'Ready to import.',
+                'existing_osm_id' => null
+            ];
+
+            // Check for duplicate OSM ID if provided
+            if (!empty($osmId) && is_numeric($osmId)) {
+                $existingItem = $modelClass::where('osm_id', $osmId)->first();
+                if ($existingItem) {
+                    $featureData['status'] = 'duplicate';
+                    $featureData['details'] = "Duplicate OSM ID: Matches existing item with OSM ID '{$osmId}'.";
+                    $featureData['existing_osm_id'] = $existingItem->osm_id;
+                    $results[] = $featureData;
+                    continue;
+                }
+            }
+
+            // Additional validation based on model type
+            if ($modelClass === \App\Models\OsmBuildingPart::class) {
+                // Building part specific validation
+                if (empty($feature['properties']['building']) && empty($feature['properties']['building:part'])) {
+                    $featureData['status'] = 'warning';
+                    $featureData['details'] = 'No building or building:part tag found.';
+                }
+            } elseif ($modelClass === \App\Models\OsmLanduseArea::class) {
+                // Landuse specific validation
+                if (empty($feature['properties']['landuse'])) {
+                    $featureData['status'] = 'warning';
+                    $featureData['details'] = 'No landuse tag found.';
+                }
+            }
+
+            $results[] = $featureData;
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    private function performOsmImport($modelClass, Request $request)
+    {
+        $features = $request->input('features', []);
+        $srid = $request->input('srid', 4326);
+
+        if (empty($features)) {
+            return response()->json(['error' => 'No features provided for import'], 400);
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($features, $srid, $modelClass, &$importedCount, &$updatedCount, &$skippedCount) {
+            foreach ($features as $featureData) {
+                $action = $featureData['action'] ?? 'import';
+                $feature = $featureData['feature'] ?? $featureData;
+
+                if ($action === 'skip') {
+                    Log::info("OSM feature skipped by user action", [
+                        'model' => $modelClass,
+                        'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                        'reason' => 'user_action_skip'
+                    ]);
+                    $skippedCount++;
+                    continue;
+                }
+
+                try {
+                    $properties = $feature['properties'] ?? [];
+                    $geometry = $feature['geometry'] ?? null;
+
+                    if (!$geometry) {
+                        Log::warning("OSM feature skipped - no geometry", [
+                            'model' => $modelClass,
+                            'osm_id' => $properties['osm_id'] ?? 'unknown',
+                            'reason' => 'missing_geometry',
+                            'properties' => $properties
+                        ]);
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    // Prepare data based on model type
+                    $data = $this->prepareOsmData($modelClass, $properties, $geometry, $srid);
+
+                    // Skip if data preparation failed
+                    if (empty($data)) {
+                        Log::warning("OSM feature skipped - data preparation failed", [
+                            'model' => $modelClass,
+                            'osm_id' => $properties['osm_id'] ?? 'unknown',
+                            'reason' => 'data_preparation_failed',
+                            'properties' => $properties,
+                            'geometry_type' => $geometry['type'] ?? 'unknown'
+                        ]);
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    if ($action === 'update' && !empty($properties['osm_id'])) {
+                        // Update existing record
+                        $existing = $modelClass::where('osm_id', $properties['osm_id'])->first();
+                        if ($existing) {
+                            $existing->update($data);
+                            $updatedCount++;
+                        } else {
+                            $modelClass::create($data);
+                            $importedCount++;
+                        }
+                    } else {
+                        // Create new record
+                        $modelClass::create($data);
+                        $importedCount++;
+                    }
+                } catch (\Exception $e) {
+                    Log::error("OSM feature skipped - import error: " . $e->getMessage(), [
+                        'model' => $modelClass,
+                        'osm_id' => $properties['osm_id'] ?? 'unknown',
+                        'reason' => 'import_exception',
+                        'error_message' => $e->getMessage(),
+                        'error_file' => $e->getFile(),
+                        'error_line' => $e->getLine(),
+                        'feature' => $feature
+                    ]);
+                    $skippedCount++;
+                }
+            }
+        });
+
+        // Clear relevant cache
+        Cache::flush();
+
+        return response()->json([
+            'message' => "Import completed. {$importedCount} imported, {$updatedCount} updated, {$skippedCount} skipped."
+        ]);
+    }
+
+    private function prepareOsmData($modelClass, $properties, $geometry, $srid)
+    {
+        $geometryJson = json_encode($geometry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        
+        if ($modelClass === \App\Models\OsmBuildingPart::class) {
+            // Transform geometry to BNG (EPSG:27700)
+            $bngGeometry = DB::selectOne(
+                "SELECT ST_AsText(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)) as geom",
+                [$geometryJson]
+            )->geom;
+
+            return [
+                'source' => 'OSM',
+                'osm_id' => $this->parseNumeric($properties['osm_id'] ?? null),
+                'name' => $this->parseText($properties['name'] ?? null),
+                'geom' => $bngGeometry,
+                
+                // UPRN
+                'ref_gb_uprn' => $this->parseText(
+                    $properties['ref:GB:uprn'] ?? $properties['ref_gb_uprn'] ?? null
+                ),
+
+                // Base properties (sesuai ENUM di schema)
+                'base_shape' => $this->parseEnum(
+                    $properties['base_shape'] ?? null,
+                    ['flat','slope','pyramidal','inverted_pyramidal','dome','inverted_dome',
+                    'round','inverted_round','gabled','gambrel','segmental_arch',
+                    'inverted_segmental_arch','partial_arch']
+                ),
+                'base_direction' => $this->parseNumeric($properties['base_direction'] ?? null),
+                'base_orientation' => $this->parseEnum(
+                    $properties['base_orientation'] ?? null,
+                    ['along','across']
+                ),
+                'base_height_m' => $this->parseNumeric($properties['base_height_m'] ?? null),
+                'base_levels' => $this->parseInteger($properties['base_levels'] ?? null),
+                'base_colour' => $this->parseText($properties['base_colour'] ?? null),
+                'base_material' => $this->parseText($properties['base_material'] ?? $properties['building:material'] ?? null),
+                'base_angle_deg' => $this->parseNumeric($properties['base_angle_deg'] ?? null),
+
+                // Building
+                'building' => $this->parseText($properties['building'] ?? null),
+                'building_part' => $this->parseText($properties['building:part'] ?? $properties['building_part'] ?? null),
+                'building_levels' => $this->parseInteger($properties['building_levels'] ?? $properties['building:levels'] ?? null),
+                'building_min_level' => $this->parseInteger($properties['building_min_level'] ?? null),
+                'building_levels_underground' => $this->parseInteger($properties['building_levels_underground'] ?? $properties['building:levels:underground'] ?? null),
+
+                // Roof
+                'roof_levels' => $this->parseInteger($properties['roof_levels'] ?? $properties['roof:levels'] ?? null),
+                'roof_shape' => $this->parseText($properties['roof_shape'] ?? $properties['roof:shape'] ?? null),
+
+                // Height
+                'height_m' => $this->parseNumeric($properties['height_m'] ?? $properties['height'] ?? null),
+                'min_height_m' => $this->parseNumeric($properties['min_height_m'] ?? null),
+                'roof_height_m' => $this->parseNumeric($properties['roof_height_m'] ?? $properties['roof:height'] ?? null),
+
+                // Levels
+                'levels' => $this->parseInteger($properties['levels'] ?? null),
+                'min_level' => $this->parseInteger($properties['min_level'] ?? null),
+
+                // Additional
+                'building_reference_number' => $this->parseText($properties['building_reference_number'] ?? null),
+                'tenure' => $this->parseText($properties['tenure'] ?? null),
+                'construction_age_band' => $this->parseText($properties['construction_age_band'] ?? null),
+                'transaction_type' => $this->parseText($properties['transaction_type'] ?? null),
+            ];
+        } elseif ($modelClass === \App\Models\OsmAddress::class) {
+            // Skip if no geometry or not a Point
+            if (!$geometry || $geometry['type'] !== 'Point') {
+                return [];
+            }
+
+            // Extract coordinates
+            $coordinates = $geometry['coordinates'];
+            if (count($coordinates) < 2) {
+                return [];
+            }
+
+            $longitude = $coordinates[0];
+            $latitude = $coordinates[1];
+
+            // Skip if coordinates are invalid
+            if (!is_numeric($longitude) || !is_numeric($latitude)) {
+                return [];
+            }
+
+            // Find building part ID if provided
+            $buildingPartId = $this->extractValue($properties, ['building_part_id']);
+            if (!empty($buildingPartId) && is_numeric($buildingPartId)) {
+                // Verify building part exists
+                if (!\App\Models\OsmBuildingPart::where('id', $buildingPartId)->exists()) {
+                    $buildingPartId = null;
+                }
+            } else {
+                $buildingPartId = null;
+            }
+
+            // Create WGS84 Point geometry
+            $wgs84Point = DB::selectOne(
+                "SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326) as geom",
+                [$longitude, $latitude]
+            )->geom;
+
+            return [
+                'building_part_id' => $buildingPartId,
+                'osm_id' => $this->parseInteger($this->extractValue($properties, ['osm_id'])),
+                'uprn' => $this->extractValue($properties, ['uprn']),
+                'source' => $this->extractValue($properties, ['source']) ?: 'osm',
+                'housenumber' => $this->extractValue($properties, ['housenumber', 'addr:housenumber']),
+                'unit' => $this->extractValue($properties, ['unit', 'addr:unit']),
+                'street' => $this->extractValue($properties, ['street', 'addr:street']),
+                'suburb' => $this->extractValue($properties, ['suburb', 'addr:suburb']),
+                'city' => $this->extractValue($properties, ['city', 'addr:city']),
+                'postcode' => $this->extractValue($properties, ['postcode', 'addr:postcode']),
+                'county' => $this->extractValue($properties, ['county', 'addr:county']),
+                'state' => $this->extractValue($properties, ['state', 'addr:state']),
+                'country' => $this->extractValue($properties, ['country', 'addr:country']),
+                'country_code' => $this->extractValue($properties, ['country_code', 'addr:country_code']),
+                'point_wgs84' => $wgs84Point,
+            ];
+        } elseif ($modelClass === \App\Models\OsmLanduseArea::class) {
+            // Transform geometry to BNG (EPSG:27700)
+            $bngGeometry = DB::selectOne(
+                "SELECT ST_Transform(ST_GeomFromGeoJSON(?), 27700) as geom",
+                [$geometryJson]
+            )->geom;
+
+            return [
+                'source' => $properties['source'] ?? 'osm',
+                'osm_id' => (!empty($properties['osm_id']) && trim($properties['osm_id']) !== '' && is_numeric($properties['osm_id'])) ? (int)$properties['osm_id'] : null,
+                'name' => $properties['name'] ?? null,
+                'geom' => $bngGeometry,
+                'landuse' => $properties['landuse'] ?? 'unknown',
+                'operator' => $properties['operator'] ?? null,
+                'ref' => $properties['ref'] ?? null,
+                'start_date' => $this->parseDate($properties['start_date'] ?? null),
+                'opening_date' => $this->parseDate($properties['opening_date'] ?? null),
+                'end_date' => $this->parseDate($properties['end_date'] ?? null),
+                'tags' => $this->extractAdditionalTags($properties, [
+                    'source', 'osm_id', 'name', 'landuse', 'operator', 'ref', 'start_date', 'opening_date', 'end_date'
+                ])
+            ];
+        }
+
+        return [];
+    }
+
+    private function extractAdditionalTags($properties, $excludeFields)
+    {
+        $tags = [];
+        foreach ($properties as $key => $value) {
+            if (!in_array($key, $excludeFields) && !empty(trim($value))) {
+                $tags[$key] = trim($value);
+            }
+        }
+        return $tags;
+    }
+
+    /**
+     * Parse text value, return null if empty
+     */
+    private function parseText($value)
+    {
+        if (is_null($value) || $value === '' || $value === 'null') {
+            return null;
+        }
+        return trim($value);
+    }
+
+    /**
+     * Parse numeric value, return null if not numeric
+     */
+    private function parseNumeric($value)
+    {
+        if (is_null($value) || $value === '' || $value === 'null') {
+            return null;
+        }
+        
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Parse integer value, return null if not integer
+     */
+    private function parseInteger($value)
+    {
+        if (is_null($value) || $value === '' || $value === 'null') {
+            return null;
+        }
+        
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Parse enum value, return null if not in allowed values
+     */
+    private function parseEnum($value, $allowedValues)
+    {
+        if (is_null($value) || $value === '' || $value === 'null') {
+            return null;
+        }
+        
+        $value = strtolower(trim($value));
+        
+        if (in_array($value, $allowedValues)) {
+            return $value;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Extract value from properties, trying multiple possible keys
+     */
+    private function extractValue(array $properties, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (isset($properties[$key]) && !empty(trim($properties[$key]))) {
+                return trim($properties[$key]);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Check if feature contains address-related keys (keys starting with "addr")
+     */
+    private function hasAddressKeys(array $properties): bool
+    {
+        foreach (array_keys($properties) as $key) {
+            if (strpos($key, 'addr:') === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Extract first coordinate pair from nested coordinate structure
+     */
+    private function extractFirstCoordinate($coordinates): ?array
+    {
+        if (!is_array($coordinates)) {
+            return null;
+        }
+
+        // If it's already a coordinate pair [lng, lat]
+        if (count($coordinates) >= 2 && is_numeric($coordinates[0]) && is_numeric($coordinates[1])) {
+            return [$coordinates[0], $coordinates[1]];
+        }
+
+        // If it's nested, recursively search for first coordinate pair
+        foreach ($coordinates as $coord) {
+            if (is_array($coord)) {
+                $result = $this->extractFirstCoordinate($coord);
+                if ($result) {
+                    return $result;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Custom validation for OSM Address - only process features with address keys
+     */
+    private function performOsmAddressValidation($geojson)
+    {
+        $results = [];
+
+        if (!$geojson || !isset($geojson['features'])) {
+            return response()->json(['results' => []]);
+        }
+
+        foreach ($geojson['features'] as $index => $feature) {
+            if (!isset($feature['geometry']) || !isset($feature['properties'])) {
+                continue;
+            }
+
+            // Skip features that don't contain address keys
+            if (!$this->hasAddressKeys($feature['properties'])) {
+                continue;
+            }
+
+            $osmId = $feature['properties']['osm_id'] ?? null;
+            $geometry = json_encode($feature['geometry']);
+
+            $featureData = [
+                'feature_index' => $index,
+                'properties' => $feature['properties'],
+                'status' => 'ok',
+                'details' => 'Ready to import.',
+                'existing_osm_id' => null
+            ];
+
+            // Check for duplicate OSM ID if provided
+            if (!empty($osmId) && is_numeric($osmId)) {
+                $existingItem = \App\Models\OsmAddress::where('osm_id', $osmId)->first();
+                if ($existingItem) {
+                    $featureData['status'] = 'duplicate';
+                    $featureData['details'] = "Duplicate OSM ID: Matches existing item with OSM ID '{$osmId}'.";
+                    $featureData['existing_osm_id'] = $existingItem->osm_id;
+                    $results[] = $featureData;
+                    continue;
+                }
+            }
+
+            // Address specific validation
+            $addressKeys = array_filter(array_keys($feature['properties']), function($key) {
+                return strpos($key, 'addr:') === 0;
+            });
+
+            if (empty($addressKeys)) {
+                $featureData['status'] = 'warning';
+                $featureData['details'] = 'No address tags found. Feature will be skipped.';
+            } else {
+                $featureData['details'] = 'Contains address tags: ' . implode(', ', $addressKeys);
+            }
+
+            $results[] = $featureData;
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Custom import for OSM Address - only import features with address keys
+     */
+    private function performOsmAddressImport(Request $request)
+    {
+        $features = $request->input('features', []);
+        $srid = $request->input('srid', 4326);
+
+        if (empty($features)) {
+            return response()->json(['error' => 'No features provided for import'], 400);
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($features, $srid, &$importedCount, &$updatedCount, &$skippedCount) {
+            foreach ($features as $featureData) {
+                $action = $featureData['action'] ?? 'import';
+                $feature = $featureData['feature'] ?? $featureData;
+
+                if ($action === 'skip') {
+                    Log::info("OSM Address feature skipped by user action", [
+                        'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                    ]);
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Skip features that don't contain address keys
+                if (!$this->hasAddressKeys($feature['properties'])) {
+                    Log::info("OSM Address feature skipped - no address keys", [
+                        'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                    ]);
+                    $skippedCount++;
+                    continue;
+                }
+
+                try {
+                    $properties = $feature['properties'];
+                    $geometry = $feature['geometry'];
+
+                    // Extract coordinates from geometry
+                    if (!isset($geometry['coordinates'])) {
+                        Log::warning("OSM Address feature skipped - no coordinates", [
+                            'osm_id' => $properties['osm_id'] ?? 'unknown',
+                        ]);
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    $coordinates = $geometry['coordinates'];
+                    
+                    // Handle different geometry types - extract first coordinate pair
+                    if ($geometry['type'] === 'Point') {
+                        $longitude = $coordinates[0];
+                        $latitude = $coordinates[1];
+                    } elseif ($geometry['type'] === 'Polygon' && isset($coordinates[0][0])) {
+                        // Use first coordinate of first ring
+                        $longitude = $coordinates[0][0][0];
+                        $latitude = $coordinates[0][0][1];
+                    } elseif ($geometry['type'] === 'LineString' && isset($coordinates[0])) {
+                        // Use first coordinate of line
+                        $longitude = $coordinates[0][0];
+                        $latitude = $coordinates[0][1];
+                    } else {
+                        // Try to extract from any nested structure
+                        $flatCoords = $this->extractFirstCoordinate($coordinates);
+                        if (!$flatCoords) {
+                            Log::warning("OSM Address feature skipped - cannot extract coordinates", [
+                                'osm_id' => $properties['osm_id'] ?? 'unknown',
+                                'geometry_type' => $geometry['type'] ?? 'unknown'
+                            ]);
+                            $skippedCount++;
+                            continue;
+                        }
+                        $longitude = $flatCoords[0];
+                        $latitude = $flatCoords[1];
+                    }
+
+                    // Create geometry using PostGIS ST_MakePoint
+                    $point = DB::selectOne(
+                        "SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326) as geom",
+                        [$longitude, $latitude]
+                    )->geom;
+
+                    $addressData = [
+                        'source' => $this->extractValue($properties, ['source']) ?? 'osm',
+                        'osm_id' => isset($properties['osm_id']) && is_numeric($properties['osm_id']) ? (int)$properties['osm_id'] : null,
+                        'housenumber' => $this->extractValue($properties, ['addr:housenumber']),
+                        'unit' => $this->extractValue($properties, ['addr:unit']),
+                        'street' => $this->extractValue($properties, ['addr:street']),
+                        'suburb' => $this->extractValue($properties, ['addr:suburb']),
+                        'city' => $this->extractValue($properties, ['addr:city']),
+                        'postcode' => $this->extractValue($properties, ['addr:postcode']),
+                        'county' => $this->extractValue($properties, ['addr:county']),
+                        'state' => $this->extractValue($properties, ['addr:state']),
+                        'country' => $this->extractValue($properties, ['addr:country']),
+                        'country_code' => $this->extractValue($properties, ['addr:country_code']),
+                        'point_wgs84' => $point,
+                    ];
+
+                    if ($action === 'update' && !empty($properties['osm_id'])) {
+                        $existingAddress = \App\Models\OsmAddress::where('osm_id', $properties['osm_id'])->first();
+                        if ($existingAddress) {
+                            $existingAddress->update($addressData);
+                            $updatedCount++;
+                            continue;
+                        }
+                    }
+
+                    \App\Models\OsmAddress::create($addressData);
+                    $importedCount++;
+
+                } catch (\Exception $e) {
+                    Log::error("Error importing OSM Address feature", [
+                        'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    $skippedCount++;
+                }
+            }
+        });
+
+        // Clear cache
+        Cache::forget('area_data');
+
+        return response()->json([
+            'message' => 'OSM Address import completed',
+            'imported' => $importedCount,
+            'updated' => $updatedCount,
+            'skipped' => $skippedCount,
+            'total_processed' => $importedCount + $updatedCount + $skippedCount
+        ]);
     }
 }
