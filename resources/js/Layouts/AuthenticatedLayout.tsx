@@ -83,7 +83,7 @@ export default function Authenticated({
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
                                     href={route("dashboard")}
-                                    active={route().current("dashboard") || route().current("user_task.index")}
+                                    active={route().current("dashboard.agencies.*") || route().current("user_task.index")}
                                 >
                                     Tasks
                                 </NavLink>
@@ -117,7 +117,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("types.index")}
                                             active={route().current(
-                                                "types.index"
+                                                "types.*"
                                             )}
                                         >
                                             Task Purpose

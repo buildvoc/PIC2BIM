@@ -15,13 +15,17 @@ export default function Dashboard({ auth }: PageProps) {
 
   const {
     data,
-    links
+    links,
+    total
   } = task_types;
 
   function destroy(id : number | string) : void {
     if (confirm('Are you sure with deactivating?')) {
       router.delete(route('types.destroy', id));
     }
+  }
+  function handlePageChange(url: string) {
+    router.get(url);
   }
 
   return (
@@ -91,6 +95,24 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
+          <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
+            <span>Showing {data.length} out of {total}</span>
+          </div>
+          {task_types.total > 10 && <div className="flex items-center justify-center mt-4 mb-4">
+            {links.map((link, index) => (
+                <button
+                key={index}
+                disabled={!link.url}
+                onClick={() => handlePageChange(link.url)}
+                className={`mx-1 px-3 py-1 border rounded ${
+                    link.active
+                    ? 'text-white bg-indigo-600 border-indigo-600'
+                    : 'dark:text-white border-gray-300'
+                } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+            ))}
+          </div>}
           </div>
         </div>
       </div>
