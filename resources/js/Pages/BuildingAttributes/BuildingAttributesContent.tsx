@@ -37,68 +37,206 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [selectedLaz, setSelectedLaz] = useState<string>("");
   const [terrainEnabled, setTerrainEnabled] = useState(true);
   const [terrainReady, setTerrainReady] = useState(false);
+  const [showOsmData, setShowOsmData] = useState(false);
+  const [osmBuildingData, setOsmBuildingData] = useState<any[]>([]);
+  const [loadingOsmData, setLoadingOsmData] = useState(false);
 
   const elevationCache = useRef(new Map<string, number>());
 
   const createBuildingGeometriesGeoJSON = () => {
-    const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
-      if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
+    // Use OSM data when toggle is active
+    if (showOsmData && osmBuildingData.length > 0) {
+      const features = osmBuildingData.map((building: any) => {
+        if (!building.geojson?.features?.length || 
+            !building.geojson.features[0]?.geometry?.coordinates?.length) return null;
+        
+        const coordinates = building.geojson.features[0].geometry.coordinates[0];
+        const properties = building.geojson.features[0].properties;
+        
+        const height = properties?.height_m 
+          ? parseFloat(properties.height_m) 
+          : (properties?.roof_height_m ? parseFloat(properties.roof_height_m) : 10);
+        
+        const base = properties?.min_height_m
+          ? parseFloat(properties.min_height_m)
+          : 0;
+        
+        return {
+          type: 'Feature',
+          properties: {
+            buildingId: building.id || building.osm_id,
+            osmId: building.osm_id,
+            name: building.name,
+            height: height,
+            base: base,
+            building_levels: properties?.building_levels,
+            roof_shape: properties?.roof_shape,
+            base_shape: properties?.base_shape,
+            source: 'osm'
+          },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates]
+          }
+        };
+      }).filter(feature => feature !== null);
       
       return {
-        type: 'Feature',
-        properties: {
-          photoId: parseInt(photoId),
-          buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
-          height: buildingData.height || 10,
-          base: buildingData.base || 0
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [buildingData.coordinates]
-        }
+        type: 'FeatureCollection',
+        features
       };
-    }).filter(feature => feature !== null);
+    }
     
+    // When OSM toggle is off, only show legacy photo-based building geometries
+    if (!showOsmData) {
+      const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
+        if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
+        
+        return {
+          type: 'Feature',
+          properties: {
+            photoId: parseInt(photoId),
+            buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
+            height: buildingData.height || 10,
+            base: buildingData.base || 0,
+            source: 'legacy'
+          },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [buildingData.coordinates]
+          }
+        };
+      }).filter(feature => feature !== null);
+      
+      return {
+        type: 'FeatureCollection',
+        features
+      };
+    }
+    
+    // Return empty feature collection if no conditions are met
     return {
       type: 'FeatureCollection',
-      features
+      features: []
     };
   };
 
 
   const createRoofGeometriesGeoJSON = () => {
-    const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
-      if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
+    // Use OSM data when toggle is active
+    if (showOsmData && osmBuildingData.length > 0) {
+      const features = osmBuildingData.map((building: any) => {
+        if (!building.geojson?.features?.length || 
+            !building.geojson.features[0]?.geometry?.coordinates?.length) return null;
+        
+        const coordinates = building.geojson.features[0].geometry.coordinates[0];
+        const properties = building.geojson.features[0].properties;
+        
+        const height = properties?.height_m 
+          ? parseFloat(properties.height_m) 
+          : (properties?.roof_height_m ? parseFloat(properties.roof_height_m) : 10);
+        
+        const base = properties?.min_height_m
+          ? parseFloat(properties.min_height_m)
+          : 0;
+        
+        return {
+          type: 'Feature',
+          properties: {
+            buildingId: building.id || building.osm_id,
+            osmId: building.osm_id,
+            name: building.name,
+            height: height,
+            base: base,
+            building_levels: properties?.building_levels,
+            roof_shape: properties?.roof_shape,
+            base_shape: properties?.base_shape,
+            source: 'osm'
+          },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates]
+          }
+        };
+      }).filter(feature => feature !== null);
       
       return {
-        type: 'Feature',
-        properties: {
-          photoId: parseInt(photoId),
-          buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
-          height: buildingData.height || 10,
-          base: buildingData.base || 0
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [buildingData.coordinates]
-        }
+        type: 'FeatureCollection',
+        features
       };
-    }).filter(feature => feature !== null);
+    }
     
+    // When OSM toggle is off, only show legacy photo-based building geometries
+    if (!showOsmData) {
+      const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
+        if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
+        
+        return {
+          type: 'Feature',
+          properties: {
+            photoId: parseInt(photoId),
+            buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
+            height: buildingData.height || 10,
+            base: buildingData.base || 0,
+            source: 'legacy'
+          },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [buildingData.coordinates]
+          }
+        };
+      }).filter(feature => feature !== null);
+      
+      return {
+        type: 'FeatureCollection',
+        features
+      };
+    }
+    
+    // Return empty feature collection if no conditions are met
     return {
       type: 'FeatureCollection',
-      features
+      features: []
     };
   };
 
 
+  const fetchAllOsmBuildingData = async () => {
+    if (!showOsmData) return;
+    
+    setLoadingOsmData(true);
+    try {
+      const response = await fetch('/comm_osm_building_part_nearest');
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const responseData = await response.json();
+      
+      if (responseData.success && responseData.data?.building_part?.length > 0) {
+        setOsmBuildingData(responseData.data.building_part);
+      } else {
+        setOsmBuildingData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching OSM building data:', error);
+      setOsmBuildingData([]);
+    } finally {
+      setLoadingOsmData(false);
+    }
+  };
+
   const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, direction: string) => {
     try {
       const controller = new AbortController();
-      const response = await fetch(
-        `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`,
-        { signal: controller.signal }
-      );
+      // Use OSM endpoint if toggle is active, otherwise use legacy endpoint
+      const endpoint = showOsmData 
+        ? `/comm_osm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`
+        : `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`;
+      
+      console.log(`Fetching building for photo ${photoId} using endpoint:`, endpoint);
+      const response = await fetch(endpoint, { signal: controller.signal });
       
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -154,12 +292,14 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
 
   const fetchAllNearestBuildings = async () => {
+    console.log('fetchAllNearestBuildings called, showOsmData:', showOsmData, 'photos count:', photos.length);
     setLoadingPhotos(true);
     try {
       const promises = photos.map(photo => 
         fetchNearestBuilding(photo.id, photo.lat, photo.lng, photo.photo_heading)
       );
       await Promise.all(promises);
+      console.log('All nearest buildings fetched successfully');
     } catch (error) {
       console.error('Error fetching all nearest buildings:', error);
     } finally {
@@ -167,11 +307,26 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     }
   };
 
+  // Re-fetch building data when toggle changes
   useEffect(() => {
-    if (photos.length > 0) {
-      fetchAllNearestBuildings();
+    console.log('Toggle changed, showOsmData:', showOsmData);
+    
+    if (showOsmData) { 
+      setNearestBuildings({});
+      setBuildingGeometries({});      
+      setOsmBuildingData([]);         
+      fetchAllOsmBuildingData();
+    } else {
+      console.log('Toggle OFF: Clearing OSM, fetching legacy');
+      setOsmBuildingData([]);         
+      setNearestBuildings({});
+      setBuildingGeometries({});
+      
+      if (photos.length > 0) {
+        fetchAllNearestBuildings();
+      }
     }
-  }, [photos]);
+  }, [showOsmData, photos.length]);
 
   useEffect(() => {
     const loadScripts = async () => {
@@ -376,7 +531,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       const roofsGeoJSON = createRoofGeometriesGeoJSON();
       map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
     }
-  }, [buildingGeometries]);
+  }, [buildingGeometries, osmBuildingData, showOsmData]);
 
 
   const processedBuildingData = useMemo(() => {
@@ -429,7 +584,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     });
     
     return { groundData, buildingData, roofData };
-  }, [buildingGeometries, terrainReady, terrainEnabled, getCachedElevation]);
+  }, [buildingGeometries, osmBuildingData, showOsmData, terrainReady, terrainEnabled, getCachedElevation]);
   
 
   const processedPhotoData = useMemo(() => {
@@ -461,44 +616,44 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     const { groundData, buildingData, roofData } = processedBuildingData;
     const photoData = processedPhotoData;
     
-
-    const groundLayer = new window.deck.GeoJsonLayer({
-      id: 'deckgl-ground-layer',
-      data: groundData,
-      getLineColor: [0, 0, 0, 255],
-      getFillColor: [183, 244, 216, 255],
-      getLineWidth: () => 0.3,
-      opacity: 1,
-      pickable: false
-    });
-    
-
-    const storeyLayer = new window.deck.PolygonLayer({
-      id: 'deckgl-storey-building',
-      data: buildingData,
-      extruded: true,
-      wireframe: true,
-      getPolygon: (d:any) => d.contour,
-      getFillColor: [249, 180, 45, 255],
-      getLineColor: [0, 0, 0, 255],
-      getElevation: (d:any) => d.height,
-      opacity: 1,
-      pickable: true
-    });
-    
-
-    const roofLayer = new window.deck.PolygonLayer({
-      id: 'deckgl-roof-layer',
-      data: roofData,
-      extruded: true,
-      wireframe: true,
-      getPolygon: (d:any) => d.contour,
-      getFillColor: [33, 150, 243, 200],
-      getLineColor: [0, 0, 0, 255],
-      getElevation: (d:any) => d.height,
-      opacity: 0.8,
-      pickable: true
-    });
+    // Always show building layers (data source determined by toggle)
+    const buildingLayers = [
+      new window.deck.GeoJsonLayer({
+        id: 'deckgl-ground-layer',
+        data: groundData,
+        getLineColor: [0, 0, 0, 255],
+        getFillColor: [183, 244, 216, 255],
+        getLineWidth: () => 0.3,
+        opacity: 1,
+        pickable: false
+      }),
+      
+      new window.deck.PolygonLayer({
+        id: 'deckgl-storey-building',
+        data: buildingData,
+        extruded: true,
+        wireframe: true,
+        getPolygon: (d:any) => d.contour,
+        getFillColor: [249, 180, 45, 255],
+        getLineColor: [0, 0, 0, 255],
+        getElevation: (d:any) => d.height,
+        opacity: 1,
+        pickable: true
+      }),
+      
+      new window.deck.PolygonLayer({
+        id: 'deckgl-roof-layer',
+        data: roofData,
+        extruded: true,
+        wireframe: true,
+        getPolygon: (d:any) => d.contour,
+        getFillColor: [33, 150, 243, 200],
+        getLineColor: [0, 0, 0, 255],
+        getElevation: (d:any) => d.height,
+        opacity: 0.8,
+        pickable: true
+      })
+    ];
     
 
     // Create combined photo layers (camera and photo icon)
@@ -584,11 +739,11 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     });
 
     const newOverlayBuilding = new window.deck.MapboxOverlay({
-      layers: [groundLayer, storeyLayer, roofLayer, markerLayer, cameraLayer, photoIconLayer]
+      layers: [...buildingLayers, markerLayer, cameraLayer, photoIconLayer]
     });
     map.current.addControl(newOverlayBuilding);
     setOverlayBuilding(newOverlayBuilding);
-  }, [terrainReady, processedBuildingData, processedPhotoData]);
+  }, [terrainReady, processedBuildingData, processedPhotoData, showOsmData]);
   
 
   // Helper function to calculate offset position based on bearing
@@ -679,6 +834,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     }
   }, [terrainEnabled, terrainReady, debouncedCreateOverlay]);
   
+  // Update overlay when OSM data toggle changes
+  useEffect(() => {
+    if (terrainReady) {
+      debouncedCreateOverlay();
+    }
+  }, [showOsmData, terrainReady, debouncedCreateOverlay]);
+  
 
   useEffect(() => {
     elevationCache.current.clear();
@@ -768,6 +930,29 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     <div className="relative w-full h-[calc(100vh-74px)] flex flex-col">
       {/* Collapsible LAZ Section */}
       <div className="w-full bg-white shadow mb-2">
+        {/* Building Data Source Toggle */}
+        <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="font-semibold text-lg">Building Data Source</span>
+            <span className="text-sm text-gray-600">
+              Switch between legacy and OSM building data
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={showOsmData}
+              onChange={(e) => setShowOsmData(e.target.checked)}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <span className="ml-3 text-sm font-medium text-gray-700">
+              {showOsmData ? 'OSM Data' : 'Legacy Data'}
+            </span>
+          </label>
+        </div>
+        
+        {/* LAZ Section */}
         <button
           className="w-full flex items-center justify-between px-4 py-3 font-semibold text-left text-lg border-b hover:bg-gray-50 focus:outline-none transition"
           onClick={() => setShowLazSection((v) => !v)}
@@ -840,9 +1025,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       </div>
 
       <div ref={mapContainer} id="map" className="w-full flex-1 min-h-[300px]"></div>
-      {loadingPhotos && (
+      {(loadingPhotos || loadingOsmData) && (
         <div className="fixed top-4 right-4 bg-white p-2 rounded shadow z-10">
-          Loading nearest buildings data...
+          {loadingOsmData ? 'Loading OSM building data...' : 'Loading nearest buildings data...'}
         </div>
       )}
       <div className="fixed bottom-4 right-4 bg-white p-2 rounded shadow z-10">
