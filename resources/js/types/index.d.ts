@@ -53,6 +53,13 @@ export type PaginatedData<T> = {
   links: PaginationLink[];
   total : number;
 };
+export type PaginatedDataExtended<T> = {
+  from: number;
+  to: number;
+  data: T[];
+  links: PaginationLink[];
+  total : number;
+};
 
 export interface PaginationLink {
   url: string;

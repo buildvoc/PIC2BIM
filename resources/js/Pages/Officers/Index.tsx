@@ -1,11 +1,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, Officer, PageProps, PaginatedData} from '@/types';
+import {Agency, Officer, PageProps, PaginatedDataExtended} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
+import Pagination from '@/Components/Pagination/Pagination';
 
 export default function Dashboard({ auth }: PageProps) {
   const { agency } = usePage<{
@@ -15,13 +16,11 @@ export default function Dashboard({ auth }: PageProps) {
   
   
   const { officers } = usePage<{
-    officers: PaginatedData<Officer>;
+    officers: PaginatedDataExtended<Officer>;
   }>().props;
 
   const {
     data,
-    links,
-    total
   } = officers;
 
   function destroy(id : number | string) : void {
@@ -29,10 +28,6 @@ export default function Dashboard({ auth }: PageProps) {
       router.delete(route('dashboard.agencies.officers.destroy', id)+`?agencyId=${agency.id}`);
     }
   }
-  function handlePageChange(url: string) {
-      router.get(url);
-  }
-
   return (
     <AuthenticatedLayout
       user={auth.user}
@@ -129,24 +124,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
-            <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
-              <span>Showing {data.length} out of {total}</span>
-            </div>
-            {officers.total > 10 && <div className="flex items-center justify-center mt-4 mb-4">
-              {links.map((link, index) => (
-                  <button
-                  key={index}
-                  disabled={!link.url}
-                  onClick={() => handlePageChange(link.url)}
-                  className={`mx-1 px-3 py-1 border rounded ${
-                      link.active
-                      ? 'text-white bg-indigo-600 border-indigo-600'
-                      : 'dark:text-white border-gray-300'
-                  } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-              ))}
-            </div>}
+            <Pagination pagination={officers} />
           </div>
         </div>
       </div>
