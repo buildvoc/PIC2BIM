@@ -44,6 +44,11 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const elevationCache = useRef(new Map<string, number>());
 
   const createBuildingGeometriesGeoJSON = () => {
+    console.log('createBuildingGeometriesGeoJSON called:', {
+      showOsmData,
+      osmBuildingDataLength: osmBuildingData.length,
+      buildingGeometriesLength: Object.keys(buildingGeometries).length
+    });
     // Use OSM data when toggle is active
     if (showOsmData && osmBuildingData.length > 0) {
       const features = osmBuildingData.map((building: any) => {
@@ -87,7 +92,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
     }
     
-    // When OSM toggle is off, only show legacy photo-based building geometries
     if (!showOsmData) {
       const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
         if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
@@ -114,7 +118,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
     }
     
-    // Return empty feature collection if no conditions are met
     return {
       type: 'FeatureCollection',
       features: []
@@ -123,7 +126,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
 
   const createRoofGeometriesGeoJSON = () => {
-    // Use OSM data when toggle is active
     if (showOsmData && osmBuildingData.length > 0) {
       const features = osmBuildingData.map((building: any) => {
         if (!building.geojson?.features?.length || 
@@ -166,7 +168,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
     }
     
-    // When OSM toggle is off, only show legacy photo-based building geometries
     if (!showOsmData) {
       const features = Object.entries(buildingGeometries).map(([photoId, buildingData]) => {
         if (!buildingData || !buildingData.coordinates || buildingData.coordinates.length === 0) return null;
@@ -193,7 +194,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       };
     }
     
-    // Return empty feature collection if no conditions are met
     return {
       type: 'FeatureCollection',
       features: []
@@ -230,12 +230,10 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const fetchNearestBuilding = async (photoId: number, lat: string, lng: string, direction: string) => {
     try {
       const controller = new AbortController();
-      // Use OSM endpoint if toggle is active, otherwise use legacy endpoint
       const endpoint = showOsmData 
         ? `/comm_osm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`
         : `/comm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`;
       
-      console.log(`Fetching building for photo ${photoId} using endpoint:`, endpoint);
       const response = await fetch(endpoint, { signal: controller.signal });
       
       if (!response.ok) {
@@ -292,14 +290,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
 
   const fetchAllNearestBuildings = async () => {
-    console.log('fetchAllNearestBuildings called, showOsmData:', showOsmData, 'photos count:', photos.length);
     setLoadingPhotos(true);
     try {
       const promises = photos.map(photo => 
         fetchNearestBuilding(photo.id, photo.lat, photo.lng, photo.photo_heading)
       );
       await Promise.all(promises);
-      console.log('All nearest buildings fetched successfully');
     } catch (error) {
       console.error('Error fetching all nearest buildings:', error);
     } finally {
@@ -309,16 +305,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
   // Re-fetch building data when toggle changes
   useEffect(() => {
-    console.log('Toggle changed, showOsmData:', showOsmData);
-    
-    if (showOsmData) { 
+    if (showOsmData) {
       setNearestBuildings({});
-      setBuildingGeometries({});      
+      setBuildingGeometries({});
       setOsmBuildingData([]);         
       fetchAllOsmBuildingData();
     } else {
-      console.log('Toggle OFF: Clearing OSM, fetching legacy');
-      setOsmBuildingData([]);         
+      setOsmBuildingData([]);
       setNearestBuildings({});
       setBuildingGeometries({});
       
@@ -327,6 +320,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       }
     }
   }, [showOsmData, photos.length]);
+
+  // Initial load of legacy data when photos are available
+  useEffect(() => {
+    if (photos.length > 0 && !showOsmData) {
+      fetchAllNearestBuildings();
+    }
+  }, [photos]);
 
   useEffect(() => {
     const loadScripts = async () => {
