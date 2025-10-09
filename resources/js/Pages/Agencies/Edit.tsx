@@ -6,6 +6,8 @@ import LoadingButton from '@/Components/Button/LoadingButton';
 import TextInput from '@/Components/Form/TextInput';
 import FieldGroup from '@/Components/Form/FieldGroup';
 import { Agency, PageProps } from '@/types';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 
 export function Edit({ auth }: PageProps) {
   const { agency } = usePage<{ agency: Agency }>().props;
@@ -35,8 +37,15 @@ export function Edit({ auth }: PageProps) {
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-start mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
+              <Link
+                className="text-indigo-600 dark:text-indigo-400 mr-8"
+                href={route('dashboard')}  title='Back'
+              >
+                <FontAwesomeIcon icon={faChevronLeft} className='mr-2' />
+                Back
+              </Link>
               <h1 className="text-3xl font-bold">Edit agency</h1>
             </div>
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">
