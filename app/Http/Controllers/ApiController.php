@@ -16,6 +16,7 @@ use App\Models\Attr\Codepoint;
 use App\Models\Attr\BuildingPart;
 use Illuminate\Support\Facades\DB;
 use App\Models\LandRegistryInspire;
+use App\Models\OsmBuildingPart;
 use Illuminate\Support\Facades\Log;
 use App\Http\Resources\NhleCollection;
 use App\Http\Resources\UprnCollection;
@@ -647,6 +648,169 @@ class ApiController extends Controller
             'http_code' => 200,
             'data' => ['building_part' => $data]
         ], 200);
+    }
+
+    /**
+     * @OA\Get(
+     * path="/comm_osm_building_part_nearest",
+     * security={{"bearerAuth":{}}},
+     * tags={"OSM Building Part"},
+     * @OA\Parameter(
+     * name="latitude",
+     * in="query",
+     * required=true,
+     * @OA\Schema(type="number", format="float")
+     * ),
+     * @OA\Parameter(
+     * name="longitude",
+     * in="query",
+     * required=true,
+     * @OA\Schema(type="number", format="float")
+     * ),
+     * @OA\Parameter(
+     * name="distance",
+     * in="query",
+     * required=false,
+     * @OA\Schema(type="number", format="float", default=10)
+     * ),
+     * @OA\Parameter(
+     * name="imagedirection",
+     * in="query",
+     * required=false,
+     * @OA\Schema(type="number", format="float", default=9)
+     * ),
+     * @OA\Response(
+     * response=200,
+     * description="Successful response",
+     * @OA\JsonContent(
+     * @OA\Property(property="success", type="boolean", example=true),
+     * @OA\Property(property="http_code", type="integer", example=200),
+     * @OA\Property(property="data", type="object",
+     * @OA\Property(property="building_part", type="array", @OA\Items(type="object"))
+     * )
+     * )
+     * ),
+     * )
+     */
+    public function comm_osm_building_part_nearest(Request $request)
+    {
+        $latitude = $request->latitude;
+        $longitude = $request->longitude;
+        $distance = $request->distance ?: 10;
+        $imagedirection = $request->imagedirection ?: 9;
+
+        try {
+            $data = OsmBuildingPart::query()
+                ->select([
+                    'id',
+                    'source',
+                    'osm_id',
+                    'name',
+                    'ref_gb_uprn',
+                    'base_shape',
+                    'base_direction',
+                    'base_orientation',
+                    'base_height_m',
+                    'base_levels',
+                    'base_colour',
+                    'base_material',
+                    'base_angle_deg',
+                    'building',
+                    'building_part',
+                    'building_levels',
+                    'building_min_level',
+                    'building_levels_underground',
+                    'roof_levels',
+                    'roof_shape',
+                    'height_m',
+                    'min_height_m',
+                    'roof_height_m',
+                    'levels',
+                    'min_level',
+                    'building_reference_number',
+                    'tenure',
+                    'construction_age_band',
+                    'transaction_type'
+                ])
+                ->selectRaw("ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry_json")
+                ->where(function($query) {
+                    $query->whereNull('building_part')
+                          ->orWhere('building_part', '!=', 'yes');
+                })
+                ->get();
+
+            // Transform data to match expected format
+            $transformedData = $data->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'osm_id' => $item->osm_id,
+                    'name' => $item->name,
+                    'source' => $item->source,
+                    'ref_gb_uprn' => $item->ref_gb_uprn,
+                    'geojson' => [
+                        'type' => 'FeatureCollection',
+                        'features' => [
+                            [
+                                'type' => 'Feature',
+                                'id' => $item->id,
+                                'geometry' => json_decode($item->geometry_json),
+                                'properties' => [
+                                    'osm_id' => $item->osm_id,
+                                    'name' => $item->name,
+                                    'source' => $item->source,
+                                    'ref_gb_uprn' => $item->ref_gb_uprn,
+                                    'base_shape' => $item->base_shape,
+                                    'base_direction' => $item->base_direction,
+                                    'base_orientation' => $item->base_orientation,
+                                    'base_height_m' => $item->base_height_m,
+                                    'base_levels' => $item->base_levels,
+                                    'base_colour' => $item->base_colour,
+                                    'base_material' => $item->base_material,
+                                    'base_angle_deg' => $item->base_angle_deg,
+                                    'building' => $item->building,
+                                    'building_part' => $item->building_part,
+                                    'building_levels' => $item->building_levels,
+                                    'building_min_level' => $item->building_min_level,
+                                    'building_levels_underground' => $item->building_levels_underground,
+                                    'roof_levels' => $item->roof_levels,
+                                    'roof_shape' => $item->roof_shape,
+                                    'height_m' => $item->height_m,
+                                    'min_height_m' => $item->min_height_m,
+                                    'roof_height_m' => $item->roof_height_m,
+                                    'levels' => $item->levels,
+                                    'min_level' => $item->min_level,
+                                    'building_reference_number' => $item->building_reference_number,
+                                    'tenure' => $item->tenure,
+                                    'construction_age_band' => $item->construction_age_band,
+                                    'transaction_type' => $item->transaction_type,
+                                    // Map OSM fields to legacy format for compatibility
+                                    'relativeheightmaximum' => $item->height_m ?: $item->roof_height_m,
+                                    'relativeheightroofbase' => $item->min_height_m ?: 0,
+                                    'absoluteheightmaximum' => $item->height_m ?: $item->roof_height_m,
+                                    'absoluteheightminimum' => $item->min_height_m
+                                ]
+                            ]
+                        ]
+                    ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'http_code' => 200,
+                'data' => ['building_part' => $transformedData]
+            ], 200);
+
+        } catch (Exception $e) {
+            Log::error('OSM Building Part Nearest Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'http_code' => 500,
+                'message' => 'Error fetching OSM building part data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function comm_codepoint(Request $request)
