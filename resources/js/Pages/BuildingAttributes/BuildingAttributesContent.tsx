@@ -37,18 +37,25 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [selectedLaz, setSelectedLaz] = useState<string>("");
   const [terrainEnabled, setTerrainEnabled] = useState(true);
   const [terrainReady, setTerrainReady] = useState(false);
-  const [showOsmData, setShowOsmData] = useState(false);
+  const [showOsmData, setShowOsmData] = useState(true);
   const [osmBuildingData, setOsmBuildingData] = useState<any[]>([]);
   const [loadingOsmData, setLoadingOsmData] = useState(false);
 
   const elevationCache = useRef(new Map<string, number>());
 
+  // Helper function to convert hex color to RGB array
+  const hexToRgb = (hex: string): [number, number, number, number] => {
+    const cleanHex = hex.replace('#', '');
+    if (cleanHex.length !== 6) {
+      return [249, 180, 45, 255]; // Default orange if invalid hex
+    }
+    const r = parseInt(cleanHex.substr(0, 2), 16);
+    const g = parseInt(cleanHex.substr(2, 2), 16);
+    const b = parseInt(cleanHex.substr(4, 2), 16);
+    return [r, g, b, 255];
+  };
+
   const createBuildingGeometriesGeoJSON = () => {
-    console.log('createBuildingGeometriesGeoJSON called:', {
-      showOsmData,
-      osmBuildingDataLength: osmBuildingData.length,
-      buildingGeometriesLength: Object.keys(buildingGeometries).length
-    });
     // Use OSM data when toggle is active
     if (showOsmData && osmBuildingData.length > 0) {
       const features = osmBuildingData.map((building: any) => {
@@ -60,7 +67,11 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         
         const height = properties?.height_m 
           ? parseFloat(properties.height_m) 
-          : (properties?.roof_height_m ? parseFloat(properties.roof_height_m) : 10);
+          : 10;
+        
+        const roofHeight = properties?.roof_height_m 
+          ? parseFloat(properties.roof_height_m) 
+          : height;
         
         const base = properties?.min_height_m
           ? parseFloat(properties.min_height_m)
@@ -73,7 +84,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
             osmId: building.osm_id,
             name: building.name,
             height: height,
+            roof_height: roofHeight,
             base: base,
+            base_colour: properties?.base_colour,
             building_levels: properties?.building_levels,
             roof_shape: properties?.roof_shape,
             base_shape: properties?.base_shape,
@@ -136,7 +149,11 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         
         const height = properties?.height_m 
           ? parseFloat(properties.height_m) 
-          : (properties?.roof_height_m ? parseFloat(properties.roof_height_m) : 10);
+          : 10;
+
+        const roofHeight = properties?.roof_height_m 
+          ? parseFloat(properties.roof_height_m) 
+          : 0;
         
         const base = properties?.min_height_m
           ? parseFloat(properties.min_height_m)
@@ -149,7 +166,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
             osmId: building.osm_id,
             name: building.name,
             height: height,
+            roof_height: roofHeight,
             base: base,
+            base_colour: properties?.base_colour,
             building_levels: properties?.building_levels,
             roof_shape: properties?.roof_shape,
             base_shape: properties?.base_shape,
@@ -563,7 +582,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       return {
         ...f.properties,
         contour,
-        height: f.properties.base || 0,
+        height: f.properties.height || 0,
         base: f.properties.base || 0
       };
     });
@@ -578,7 +597,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       return {
         ...f.properties,
         contour,
-        height: (f.properties.height || 0) - (f.properties.base || 0),
+        height: ((f.properties as any).roof_height ? (f.properties as any).roof_height : (f.properties.height || 0) - (f.properties.base || 0)),
         base: f.properties.base || 0
       };
     });
@@ -634,7 +653,10 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         extruded: true,
         wireframe: true,
         getPolygon: (d:any) => d.contour,
-        getFillColor: [249, 180, 45, 255],
+        getFillColor: (d:any) => {
+          // Use base_colour if available, otherwise default to orange
+          return d.base_colour ? hexToRgb(d.base_colour) : [249, 180, 45, 255];
+        },
         getLineColor: [0, 0, 0, 255],
         getElevation: (d:any) => d.height,
         opacity: 1,

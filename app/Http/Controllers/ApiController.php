@@ -733,10 +733,7 @@ class ApiController extends Controller
                     'transaction_type'
                 ])
                 ->selectRaw("ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry_json")
-                ->where(function($query) {
-                    $query->whereNull('building_part')
-                          ->orWhere('building_part', '!=', 'yes');
-                })
+                ->where('building_part', 'yes')
                 ->get();
 
             // Transform data to match expected format
