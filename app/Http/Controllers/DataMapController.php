@@ -1940,8 +1940,8 @@ class DataMapController extends Controller
                 ),
                 'base_height_m' => $this->parseNumeric($properties['base_height_m'] ?? null),
                 'base_levels' => $this->parseInteger($properties['base_levels'] ?? null),
-                'base_colour' => $this->parseText($properties['base_colour'] ?? null),
-                'base_material' => $this->parseText($properties['base_material'] ?? $properties['building:material'] ?? null),
+                'base_colour' => $this->parseText($properties['building:colour'] ?? null),
+                'base_material' => $this->parseText($properties['building:material'] ?? null),
                 'base_angle_deg' => $this->parseNumeric($properties['base_angle_deg'] ?? null),
 
                 // Building
@@ -1952,13 +1952,13 @@ class DataMapController extends Controller
                 'building_levels_underground' => $this->parseInteger($properties['building_levels_underground'] ?? $properties['building:levels:underground'] ?? null),
 
                 // Roof
-                'roof_levels' => $this->parseInteger($properties['roof_levels'] ?? $properties['roof:levels'] ?? null),
-                'roof_shape' => $this->parseText($properties['roof_shape'] ?? $properties['roof:shape'] ?? null),
+                'roof_levels' => $this->parseInteger($properties['roof:levels'] ?? null),
+                'roof_shape' => $this->parseText($properties['roof:shape'] ?? null),
 
                 // Height
                 'height_m' => $this->parseNumeric($properties['height_m'] ?? $properties['height'] ?? null),
                 'min_height_m' => $this->parseNumeric($properties['min_height_m'] ?? null),
-                'roof_height_m' => $this->parseNumeric($properties['roof_height_m'] ?? $properties['roof:height'] ?? null),
+                'roof_height_m' => $this->parseNumeric($properties['roof:height'] ?? null),
 
                 // Levels
                 'levels' => $this->parseInteger($properties['levels'] ?? null),
