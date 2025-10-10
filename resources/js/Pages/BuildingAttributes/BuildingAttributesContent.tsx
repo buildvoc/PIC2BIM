@@ -37,7 +37,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [selectedLaz, setSelectedLaz] = useState<string>("");
   const [terrainEnabled, setTerrainEnabled] = useState(true);
   const [terrainReady, setTerrainReady] = useState(false);
-  const [showOsmData, setShowOsmData] = useState(true);
+  const [showOsmData, setShowOsmData] = useState(false);
   const [osmBuildingData, setOsmBuildingData] = useState<any[]>([]);
   const [loadingOsmData, setLoadingOsmData] = useState(false);
 
