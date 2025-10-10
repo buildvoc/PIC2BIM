@@ -1,21 +1,20 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, PageProps, PaginatedData} from '@/types';
+import {Agency, PageProps, PaginatedDataExtended} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
-import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye } from '@fortawesome/free-solid-svg-icons';
+import Pagination from '@/Components/Pagination/Pagination';
 
 export default function Dashboard({ auth }: PageProps) {
 
   const { agencies } = usePage<{
-    agencies: PaginatedData<Agency>;
+    agencies: PaginatedDataExtended<Agency>;
   }>().props;
+  console.log(agencies);
   const {
-    data,
-    links,
-    total
+    data
   } = agencies;
 
   function destroy(id : number | string) : void {
@@ -26,9 +25,6 @@ export default function Dashboard({ auth }: PageProps) {
 
   function handleRowClick(row:Agency){
     router.get(route('dashboard.agencies.show',row.id));
-  }
-  function handlePageChange(url: string) {
-    router.get(url);
   }
 
   return (
@@ -90,24 +86,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
-            <div className="flex items-center justify-center mt-4 mb-4 dark:text-white">
-              <span>Showing {data.length} out of {total}</span>
-            </div>
-            {agencies.total > 10 && <div className="flex items-center justify-center mt-4 mb-4">
-              {links.map((link, index) => (
-                  <button
-                  key={index}
-                  disabled={!link.url}
-                  onClick={() => handlePageChange(link.url)}
-                  className={`mx-1 px-3 py-1 border rounded ${
-                      link.active
-                      ? 'text-white bg-indigo-600 border-indigo-600'
-                      : 'dark:text-white border-gray-300'
-                  } ${!link.url ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-              ))}
-            </div>}
+            <Pagination pagination={agencies} />
           </div>
         </div>
       </div>
