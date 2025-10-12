@@ -734,6 +734,8 @@ class ApiController extends Controller
                 ])
                 ->selectRaw("ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry_json")
                 ->where('building_part', 'yes')
+                ->whereRaw("st_intersects(st_transform(ST_MakeLine(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857), st_transform(geom, 3857))")
+                ->orderByRaw("st_transform(geom, 3857) <-> st_transform(ST_MakeLine( ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, ST_SetSRID(ST_Project(ST_SetSRID(ST_MakePoint($longitude, $latitude), 4326)::geometry, $distance, radians($imagedirection))::geometry, 4326)::geometry), 3857)")
                 ->get();
 
             // Transform data to match expected format
