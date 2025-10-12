@@ -220,12 +220,12 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   };
 
 
-  const fetchAllOsmBuildingData = async () => {
-    if (!showOsmData) return;
-    
-    setLoadingOsmData(true);
+  const fetchOsmBuildingDataForPhoto = async (photoId: number, lat: string, lng: string, direction: string) => {
     try {
-      const response = await fetch('/comm_osm_building_part_nearest');
+      const controller = new AbortController();
+      const endpoint = `/comm_osm_building_part_nearest?latitude=${lat}&longitude=${lng}&imagedirection=${direction}`;
+      
+      const response = await fetch(endpoint, { signal: controller.signal });
       
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -234,10 +234,34 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       const responseData = await response.json();
       
       if (responseData.success && responseData.data?.building_part?.length > 0) {
-        setOsmBuildingData(responseData.data.building_part);
-      } else {
-        setOsmBuildingData([]);
+        return responseData.data.building_part;
       }
+      
+      return [];
+    } catch (error) {
+      console.error('Error fetching OSM building data for photo:', error);
+      return [];
+    }
+  };
+
+  const fetchAllOsmBuildingData = async () => {
+    if (!showOsmData || photos.length === 0) return;
+    
+    setLoadingOsmData(true);
+    try {
+      const promises = photos.map(photo => 
+        fetchOsmBuildingDataForPhoto(photo.id, photo.lat, photo.lng, photo.photo_heading)
+      );
+      
+      const results = await Promise.all(promises);
+      
+      // Flatten all results and remove duplicates based on osm_id
+      const allOsmData = results.flat();
+      const uniqueOsmData = allOsmData.filter((building, index, self) => 
+        index === self.findIndex(b => b.osm_id === building.osm_id)
+      );
+      
+      setOsmBuildingData(uniqueOsmData);
     } catch (error) {
       console.error('Error fetching OSM building data:', error);
       setOsmBuildingData([]);
@@ -328,7 +352,9 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       setNearestBuildings({});
       setBuildingGeometries({});
       setOsmBuildingData([]);         
-      fetchAllOsmBuildingData();
+      if (photos.length > 0) {
+        fetchAllOsmBuildingData();
+      }
     } else {
       setOsmBuildingData([]);
       setNearestBuildings({});
@@ -338,7 +364,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         fetchAllNearestBuildings();
       }
     }
-  }, [showOsmData, photos.length]);
+  }, [showOsmData, photos]);
 
   // Initial load of legacy data when photos are available
   useEffect(() => {
