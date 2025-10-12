@@ -536,8 +536,8 @@ export function createMapLayers({
         return baseRadius;
       },
       getFillColor: (d: any) => {
-        // UPRN fill: #00BCD4
-        return [0, 188, 212, 220] as [number, number, number, number];
+        const dataWithType = { ...d, dataType: 'uprn' };
+        return getFillColorForData(dataWithType, [0, 188, 212, 220], [0, 188, 212]) as [number, number, number, number];
       },
       getLineColor: (d: any) => [51, 51, 51, 255], // stroke: #333
       onHover: info => {
@@ -595,6 +595,12 @@ export function createMapLayers({
         return baseRadius;
       },
       getFillColor: (d: any) => {
+        // Check if building_part is "yes" to use orange color, otherwise use blue
+        const buildingPart = d.properties?.building_part;
+        if (buildingPart === 'yes') {
+          return [255, 165, 0, 200] as [number, number, number, number]; // Orange color
+        }
+        
         const dataWithType = { ...d, dataType: 'buildings' };
         return getFillColorForData(dataWithType, [0, 0, 255, 200], [0, 0, 255]) as [number, number, number, number];
       },
@@ -944,6 +950,7 @@ export function createMapLayers({
           case 'photo': return [255, 0, 255, 200]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 200]; // UPRN Cyan (match uprn-layer)
           case 'osmBuildingPart': return [156, 39, 176, 200]; // OSM Building Part Purple
+          case 'osmLanduseArea': return [0, 255, 0, 200]; // OSM Landuse Area Green (same as sites)
           default: return [128, 128, 128, 200]; // Default Gray
         }
       },
@@ -984,6 +991,8 @@ export function createMapLayers({
             actualFeature = info.object;
           } else if (connectionType === 'osmBuildingPart') {
             actualFeature = filteredOsmBuildingPartCentroids.find(osm => osm.properties.id === info.object.properties.id);
+          } else if (connectionType === 'osmLanduseArea') {
+            actualFeature = filteredOsmLanduseAreasCentroids.find(osm => osm.properties.id === info.object.properties.id);
           }
           
           if (actualFeature) {
@@ -1038,6 +1047,7 @@ export function createMapLayers({
           case 'photo': return [255, 0, 255, 150]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 150]; // UPRN Cyan (match uprn-layer)
           case 'osmBuildingPart': return [156, 39, 176, 150]; // OSM Building Part Purple
+          case 'osmLanduseArea': return [0, 255, 0, 150]; // OSM Landuse Area Green (same as sites)
           default: return [128, 128, 128, 150]; // Default Gray
         }
       },
