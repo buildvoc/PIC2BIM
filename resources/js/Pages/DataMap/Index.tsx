@@ -91,7 +91,7 @@ export function Index({ auth }: PageProps) {
   const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
   const [contextualInspireData, setContextualInspireData] = useState<any>(null); // For contextual data near selected feature
   const [osmBuildingPartCentroidsData, setOsmBuildingPartCentroidsData] = useState<any[]>([]);
-  const [osmLanduseAreasData, setOsmLanduseAreasData] = useState<any[]>([]);
+  const [osmLanduseAreasCentroidsData, setosmLanduseAreasCentroidsData] = useState<any[]>([]);
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
@@ -1085,7 +1085,7 @@ console.log(newData);
 
     // Merge OSM Landuse Areas data
     if (newData.osmLanduseAreas?.data?.features) {
-      setOsmLanduseAreasData(prev => {
+      setosmLanduseAreasCentroidsData(prev => {
         const existingIds = new Set(prev.map(item => item.id));
         const newOsmLanduseAreas = newData.osmLanduseAreas.data.features
           .filter((feature: any) => !existingIds.has(feature.properties?.id?.toString()))
@@ -1508,6 +1508,7 @@ console.log(newData);
     filteredPhotoCentroids,
     filteredUprnCentroids,
     filteredOsmBuildingPartCentroids,
+    filteredOsmLanduseAreasCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData
@@ -1519,6 +1520,7 @@ console.log(newData);
     photoCentroidsData,
     uprnCentroidsData,
     osmBuildingPartCentroidsData,
+    osmLanduseAreasCentroidsData,
     shapes,
     selectedShapeIds,
     floorRange,
@@ -1651,7 +1653,7 @@ console.log(newData);
     if (!propertyName || !d.properties) return defaultColor as [number, number, number, number];
 
     const propValue = d.properties[propertyName];
-    const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids];
+    const allData = [...filteredBuildingCentroids, ...filteredBuildingPartCentroids, ...filteredSiteCentroids, ...filteredNhleCentroids, ...filteredPhotoCentroids, ...filteredUprnCentroids];
     const uniqueValues = Array.from(new Set(allData.map(item => (item.properties as any)?.[propertyName]).filter(Boolean)));
     const color = getColorForValue(propValue, uniqueValues);
 
@@ -1659,7 +1661,7 @@ console.log(newData);
     const alpha = selectedLegendItem === null || isSelected ? 220 : 80;
 
     return [color[0], color[1], color[2], alpha];
-  }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, groupByMapping]);
+  }, [category2, selectedLegendItem, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, filteredUprnCentroids, groupByMapping]);
 
 
   const performSearch = useCallback((query: string, field: string) => {
@@ -1678,7 +1680,9 @@ console.log(newData);
       buildingPart: filteredBuildingPartCentroids,
       site: filteredSiteCentroids,
       uprn: uprnCentroidsData,
-      photo: filteredPhotoCentroids
+      photo: filteredPhotoCentroids,
+      osmBuildingPart: filteredOsmBuildingPartCentroids,
+      osmLanduseArea: filteredOsmLanduseAreasCentroids
     };
 
     // Search NHLE data (only within selected shapes)
@@ -1831,8 +1835,52 @@ console.log(newData);
       }
     });
 
+    // Search OSM Building Part data (only within selected shapes)
+    dataToSearch.osmBuildingPart.forEach(item => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.osmBuildingPart.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.osmBuildingPart : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+
+        if (matches) {
+          results.push({
+            type: 'OSM Building Part',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.name || props.building || `OSM Building Part ${props.osm_id}` || 'Unnamed OSM Building Part'
+          });
+        }
+      }
+    });
+
+    // Search OSM Landuse Area data (only within selected shapes)
+    dataToSearch.osmLanduseArea.forEach((item: any) => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.osmLanduseArea.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.osmLanduseArea : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+
+        if (matches) {
+          results.push({
+            type: 'OSM Landuse Area',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.name || props.landuse || `OSM Landuse Area ${props.osm_id}` || 'Unnamed OSM Landuse Area'
+          });
+        }
+      }
+    });
+
     setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredUprnCentroids, uprnCentroidsData, filteredPhotoCentroids]);
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredUprnCentroids, uprnCentroidsData, filteredPhotoCentroids, filteredOsmBuildingPartCentroids, filteredOsmLanduseAreasCentroids]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -3074,7 +3122,7 @@ console.log(newData);
     // Use collapsed UPRN representatives so only one point shows per 30m cluster
     filteredUprnCentroids: uprnCollapsed as any,
     filteredOsmBuildingPartCentroids,
-    filteredOsmLanduseAreasCentroids: osmLanduseAreasData,
+    filteredOsmLanduseAreasCentroids,
     landRegistryInspireData,
     polygonCentroids,
     bidirectionalLinks,
@@ -3739,7 +3787,13 @@ console.log(newData);
                   </span>
                 </label>
 
-                <label className="flex items-center">
+                <label
+                  htmlFor="show-osm-landuse-areas"
+                  className={`flex items-center w-full text-left px-4 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer ${
+                    dataType.osmLanduseAreas
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 border'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                  }`}>
                   <input
                     type="checkbox"
                     id="show-osm-landuse-areas"
@@ -3889,6 +3943,8 @@ console.log(newData);
                       <option value="buildingpart">Building Part</option>
                       <option value="site">Site</option>
                       <option value="uprn">UPRN</option>
+                      <option value="osmBuildingPart">OSM Building Part</option>
+                      <option value="osmLanduseArea">OSM Landuse Area</option>
                     </select>
                   ) : (
                     <div className="flex gap-2">
@@ -3939,6 +3995,9 @@ console.log(newData);
                                 result.type === 'Building Part' ? 'bg-orange-100 text-orange-800' :
                                 result.type === 'Site' ? 'bg-green-100 text-green-800' :
                                 result.type === 'UPRN' ? 'bg-cyan-100 text-cyan-800' :
+                                result.type === 'OSM Building Part' ? 
+                                  (result.data.building_part === 'yes' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800') :
+                                result.type === 'OSM Landuse Area' ? 'bg-green-100 text-green-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
                                 {result.type}

@@ -63,6 +63,13 @@ export const searchableFields = {
   ],
   photo: [
     'id', 'path', 'file_name', 'user_name', 'user_id', 'photo_heading'
+  ],
+  osmBuildingPart: [
+    'id', 'source', 'osm_id', 'name', 'ref_gb_uprn', 'base_shape', 'base_orientation', 
+    'building', 'building_part', 'building_levels', 'roof_shape', 'height_m', 'roof_shape'
+  ],
+  osmLanduseArea: [
+    'id', 'source', 'osm_id', 'name', 'landuse', 'operator', 'ref'
   ]
 };
 

@@ -8,7 +8,7 @@ interface LegendProps {
     groupByMapping: { [key: string]: string };
     onItemClick: (value: any) => void;
     selectedItem: any | null;
-    dataType?: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean };
+    dataType?: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean; osmBuildingParts: boolean; osmLanduseAreas: boolean };
 }
 
 const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemClick, selectedItem, dataType }) => {
@@ -35,7 +35,10 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
             sites: [0, 255, 0], // Green
             nhle: [255, 0, 0], // Red
             photos: [255, 20, 147], // Pink
-            uprn: [0, 188, 212] // UPRN: #00BCD4
+            uprn: [0, 188, 212], // UPRN: #00BCD4
+            osmBuildingParts: [255, 165, 0], // OSM Building Parts: Orange
+            osmBuildings: [0, 0, 255], // OSM Buildings: Blue
+            osmLanduseAreas: [0, 255, 0] // OSM Landuse Areas: Green
         };
 
         const dataTypeLabels = {
@@ -44,14 +47,17 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
             sites: 'Sites',
             nhle: 'NHLE',
             photos: 'Photos',
-            uprn: 'UPRN'
+            uprn: 'UPRN',
+            osmBuildingParts: 'Building Parts',
+            osmBuildings: 'Buildings',
+            osmLanduseAreas: 'Sites'
         };
 
         // Check if any data types are selected in the filter
-        const hasAnyDataTypeSelected = dataType && (dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn);
+        const hasAnyDataTypeSelected = dataType && (dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas);
         
         // Always show all data types that have data in the current dataset
-        const allPossibleTypes = ['buildings', 'buildingParts', 'sites', 'nhle', 'photos', 'uprn'];
+        const allPossibleTypes = ['buildings', 'buildingParts', 'sites', 'nhle', 'photos', 'uprn', 'osmBuildings', 'osmBuildingParts', 'osmLanduseAreas'];
         
         // Count data by type to debug what's actually available
         const dataTypeCounts = allPossibleTypes.reduce((counts, type) => {
@@ -104,6 +110,30 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
                             d.properties.type === 'uprn' ||
                             d.properties.feature_type === 'uprn'
                         );
+                    case 'osmBuildingParts':
+                        return d.properties && (
+                            d.properties.building_part ||
+                            d.properties.id?.toString().includes('buildingpart') ||
+                            d.dataType === 'buildingpart' ||
+                            d.properties.type === 'buildingpart' ||
+                            d.properties.feature_type === 'buildingpart'
+                        );
+                    case 'osmBuildings':
+                        return d.properties && (
+                            d.properties.building ||
+                            d.properties.id?.toString().includes('osmbuilding') ||
+                            d.dataType === 'osmbuilding' ||
+                            d.properties.type === 'osmbuilding' ||
+                            d.properties.feature_type === 'osmbuilding'
+                        );
+                    case 'osmLanduseAreas':
+                        return d.properties && (
+                            d.properties.landuse ||
+                            d.properties.id?.toString().includes('osmlandusearea') ||
+                            d.dataType === 'osmlandusearea' ||
+                            d.properties.type === 'osmlandusearea' ||
+                            d.properties.feature_type === 'osmlandusearea'
+                        );
                     default:
                         return false;
                 }
@@ -124,13 +154,57 @@ const Legend: React.FC<LegendProps> = ({ data, category, groupByMapping, onItemC
                     case 'nhle': return dataType.nhle;
                     case 'photos': return dataType.photos;
                     case 'uprn': return dataType.uprn;
+                    case 'osmBuildingParts': 
+                        // Show OSM building parts when:
+                        // 1. osmBuildingParts is active AND no regular building types active (show both osm legends)
+                        // 2. osmBuildingParts + buildings active (show buildings + osmBuildingParts)
+                        // DON'T show when buildingParts is active (regular buildingParts takes priority)
+                        if (!dataType.osmBuildingParts) return false;
+                        
+                        // If regular buildingParts is active, don't show OSM building parts
+                        if (dataType.buildingParts) return false;
+                        
+                        // If both regular buildings and buildingParts are active, don't show OSM
+                        if (dataType.buildings && dataType.buildingParts) return false;
+                        
+                        return true;
+                    case 'osmBuildings': 
+                        // Show OSM buildings only when:
+                        // 1. osmBuildingParts is active AND no regular building types active
+                        // 2. osmBuildingParts + buildingParts active (show buildingParts + osmBuildings)
+                        if (!dataType.osmBuildingParts) return false;
+                        
+                        // Don't show if regular buildings is active
+                        if (dataType.buildings) return false;
+                        
+                        // Don't show if both regular buildings and buildingParts are active
+                        if (dataType.buildings && dataType.buildingParts) return false;
+                        
+                        return true;
+                    case 'osmLanduseAreas':
+                        // return dataType.osmLanduseAreas;
+                        if (!dataType.osmLanduseAreas) return false;
+                        
+                        // If regular buildingParts is active, don't show OSM building parts
+                        if (dataType.sites) return false;
+                        
+                        return true;
                     default: return false;
                 }
             });
         } else {
             // Otherwise, show types that have data; if none detected, show all
-            const typesWithData = allPossibleTypes.filter(type => dataTypeCounts[type] > 0);
-            availableDataTypes = typesWithData.length > 0 ? typesWithData : allPossibleTypes;
+            // But exclude OSM-specific types when not explicitly selected
+            const typesWithData = allPossibleTypes.filter(type => {
+                // Don't show OSM types unless explicitly selected
+                if (type === 'osmBuildingParts' || type === 'osmBuildings' || type === 'osmLanduseAreas') {
+                    return false;
+                }
+                return dataTypeCounts[type] > 0;
+            });
+            availableDataTypes = typesWithData.length > 0 ? typesWithData : allPossibleTypes.filter(type => 
+                type !== 'osmBuildingParts' && type !== 'osmBuildings' && type !== 'osmLanduseAreas'
+            );
         }
 
         return (
