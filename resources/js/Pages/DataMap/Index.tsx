@@ -675,6 +675,7 @@ export function Index({ auth }: PageProps) {
                 building_levels: feature.properties.building_levels,
                 roof_shape: feature.properties.roof_shape,
                 height_m: feature.properties.height_m,
+                hyperlink: 'https://www.openstreetmap.org/way/'.concat(feature.properties.osm_id),
               }
             });
           } catch (error) {
@@ -1067,6 +1068,7 @@ console.log(newData);
                     building_levels: feature.properties.building_levels,
                     roof_shape: feature.properties.roof_shape,
                     height_m: feature.properties.height_m,
+                    hyperlink: 'https://www.openstreetmap.org/way/'.concat(feature.properties.osm_id),
                   }
                 };
               } catch (error) {
@@ -2542,10 +2544,73 @@ console.log(newData);
           });
         }
       };
+
+      const addOsmBuildingPartCandidate = (part: any) => {
+          const partCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
+          const photoPoint = turf.point(selectedCoords);
+          const partPoint = turf.point(partCoords);
+          const distance = turf.distance(photoPoint, partPoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(photoPoint, partPoint);
+          
+          let shouldInclude = false;
+          let connectionType = 'photo_bearing_match';
+          
+          // Check 1: Traditional bearing match (centroid within bearing)
+          const traditionalMatch = distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, partCoords);
+          if (traditionalMatch) {
+            shouldInclude = true;
+          }
+          
+          // Check 2: Photo point inside building part polygon OR polygon intersection with bearing sector
+          if (!shouldInclude && osmBuildingPartCentroidsData) {
+            const partPolygon = osmBuildingPartCentroidsData.find((feature: any) => 
+              feature.properties.osm_id === part.properties.osm_id
+            );
+            
+            if (partPolygon) {
+              try {                
+                // Check if photo point is inside polygon
+                const photoInsidePolygon = booleanPointInPolygon(photoPoint, partPolygon);
+                
+                // Check if bearing sector intersects with polygon
+                const intersects = booleanIntersects(bearingSector, partPolygon);
+                
+                if (photoInsidePolygon) {
+                  shouldInclude = true;
+                  connectionType = 'photo_inside_polygon';
+                } else if (intersects) {
+                  shouldInclude = true;
+                  connectionType = 'bearing_polygon_intersection';
+                }
+              } catch (error) {
+                // Fallback to centroid check
+                const fallbackMatch = bearingMatch(selectedCoords, photoHeading, partCoords);
+                shouldInclude = fallbackMatch;
+                if (fallbackMatch) {
+                  connectionType = 'fallback_bearing_match';
+                }
+              }
+            }
+          }
+          
+          if (shouldInclude) {
+            const candidateId = part.properties.osm_id || part.properties.id || 'unknown';
+            const uniqueId = `osmBuildingPart-${candidateId}-${partCoords[0].toFixed(6)}-${partCoords[1].toFixed(6)}`;
+            connections.push({
+              coordinates: partCoords,
+              type: 'osmBuildingPart',
+              properties: part.properties,
+              id: uniqueId,
+              distance: Math.round(distance),
+              bearing: Math.round(bearing)
+            });
+          }
+        };
       
       // Add all candidate types for photo
       filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
       filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
+      filteredOsmBuildingPartCentroids.forEach(part => addOsmBuildingPartCandidate(part));
       filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
       filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
 
@@ -2975,6 +3040,74 @@ console.log(newData);
             });
           }
         };
+
+        const addOsmBuildingPartCandidate = (part: any, cachedBearingPolygon: any) => {
+          const partCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
+          const photoPoint = turf.point(selectedCoords);
+          const partPoint = turf.point(partCoords);
+          const distance = turf.distance(photoPoint, partPoint, 'kilometers') * 1000;
+          const bearing = turf.bearing(photoPoint, partPoint);
+          
+          let shouldInclude = false;
+          let connectionType = 'photo_bearing_match';
+          
+          // Check 1: Traditional bearing match (centroid within bearing)
+          const traditionalMatch = distance <= maxDistance && bearingMatch(selectedCoords, photoHeading, partCoords);
+          if (traditionalMatch) {
+            shouldInclude = true;
+          }
+          
+          // Check 2: Photo point inside building part polygon OR polygon intersection with bearing sector
+          if (!shouldInclude && osmBuildingPartCentroidsData) {
+            const partPolygon = osmBuildingPartCentroidsData.find((feature: any) => 
+              feature.properties.osm_id === part.properties.osm_id
+            );
+            
+            if (partPolygon) {
+              try {
+                // Use cached bearing polygon instead of recreating
+                const bearingSector = cachedBearingPolygon;
+                
+                // Check if photo point is inside polygon
+                const photoInsidePolygon = booleanPointInPolygon(photoPoint, partPolygon);
+                
+                // Check if bearing sector intersects with polygon
+                const intersects = booleanIntersects(bearingSector, partPolygon);
+                
+                if (photoInsidePolygon) {
+                  shouldInclude = true;
+                  connectionType = 'photo_inside_polygon';
+                } else if (intersects) {
+                  shouldInclude = true;
+                  connectionType = 'bearing_polygon_intersection';
+                }
+              } catch (error) {
+                // Fallback to centroid check
+                const fallbackMatch = bearingMatch(selectedCoords, photoHeading, partCoords);
+                shouldInclude = fallbackMatch;
+                if (fallbackMatch) {
+                  connectionType = 'fallback_bearing_match';
+                }
+              }
+            }
+          }
+          
+          if (shouldInclude) {
+            const candidateId = part.properties.osm_id || part.properties.id || 'unknown';
+            const uniqueId = `osmBuildingPart-${candidateId}-${partCoords[0].toFixed(6)}-${partCoords[1].toFixed(6)}`;
+            result.push({ 
+              id: uniqueId,
+              coordinates: partCoords,
+              type: 'osmBuildingPart',
+              properties: {
+                ...part.properties,
+                distance: Math.round(distance),
+                bearing: Math.round(bearing),
+                connection_type: connectionType
+              }
+            });
+          }
+        };
         
         // Create cached bearing polygon once for reuse
         const cachedBearingPolygon = createBearingPolygon(selectedCoords, photoHeading);
@@ -2983,7 +3116,7 @@ console.log(newData);
         filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
-        filteredOsmBuildingPartCentroids.forEach(osm => addCandidate(osm, 'osmBuildingPart'));
+        filteredOsmBuildingPartCentroids.forEach(osm => addOsmBuildingPartCandidate(osm, cachedBearingPolygon));
 
         // Optimized NHLE Land Registry INSPIRE logic using pre-computed mapping
         if (nhleInspireMapping.length > 0) {
@@ -3148,7 +3281,8 @@ console.log(newData);
     setHoverInfo,
     setSelectedFeature,
     iconLayerData,
-    showPhotoBearingPolygon
+    showPhotoBearingPolygon,
+    osmBuildingParts
   });
 
   return (

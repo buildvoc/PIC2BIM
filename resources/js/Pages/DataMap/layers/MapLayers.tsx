@@ -60,6 +60,7 @@ interface MapLayersProps {
   setSelectedFeature: (feature: any) => void;
   iconLayerData: any[];
   showPhotoBearingPolygon: boolean;
+  osmBuildingParts?: any;
 }
 
 export function createMapLayers({
@@ -96,7 +97,8 @@ export function createMapLayers({
   setHoverInfo,
   setSelectedFeature,
   iconLayerData,
-  showPhotoBearingPolygon
+  showPhotoBearingPolygon,
+  osmBuildingParts
 }: MapLayersProps) {
   
   // Helper function to filter by selected shapes (same as in useDataFilters)
@@ -217,6 +219,86 @@ export function createMapLayers({
       },
       updateTriggers: {
         data: [buildingPartPolygons, selectedPoint, showPhotoBearingPolygon],
+      },
+    }),
+
+    // OSM Building Part Polygons Layer (2D) - mirror building part polygon flow for photos
+    filteredOsmBuildingPartCentroids &&
+    filteredOsmBuildingPartCentroids &&
+    filteredOsmBuildingPartCentroids.length > 0 &&
+    showPhotoBearingPolygon &&
+    selectedPoint &&
+    'file_name' in selectedPoint.properties &&
+    new GeoJsonLayer({
+      id: `osm-building-part-polygons-layer`,
+      data: {
+        type: 'FeatureCollection',
+        features: filteredOsmBuildingPartCentroids.filter((polygon: any) => {
+          if (!selectedPoint || !('file_name' in selectedPoint.properties)) return false;
+          try {
+            const photoCoords: [number, number] = [selectedPoint.coordinates[0], selectedPoint.coordinates[1]];
+            const photoHeading = typeof selectedPoint.properties.photo_heading === 'string'
+              ? parseFloat(selectedPoint.properties.photo_heading)
+              : (selectedPoint.properties.photo_heading || 0);
+
+            // Create photo bearing sector (same logic)
+            const [lng, lat] = photoCoords;
+            const headingRad = (photoHeading * Math.PI) / 180;
+            const radius = 0.0001; // ~10m in degrees
+            const sectorAngle = Math.PI / 3; // 60 deg
+            const startAngle = headingRad - sectorAngle / 2;
+            const endAngle = headingRad + sectorAngle / 2;
+            const latCos = Math.cos(lat * Math.PI / 180);
+            const adjustedRadius = radius / latCos;
+
+            const arcPoints = [] as [number, number][];
+            const numPoints = 30;
+            arcPoints.push([lng, lat]);
+            for (let i = 0; i <= numPoints; i++) {
+              const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+              const x = lng + Math.sin(angle) * adjustedRadius;
+              const y = lat + Math.cos(angle) * radius;
+              arcPoints.push([x, y]);
+            }
+            arcPoints.push([lng, lat]);
+            const bearingSector = turf.polygon([arcPoints]);
+
+            const photoPoint = turf.point(photoCoords);
+            const photoInsidePolygon = booleanPointInPolygon(photoPoint, polygon);
+            const intersects = booleanIntersects(bearingSector, polygon);
+            return photoInsidePolygon || intersects;
+          } catch (e) {
+            return false;
+          }
+        })
+      },
+      pickable: true,
+      stroked: true,
+      filled: true,
+      wireframe: false,
+      lineWidthMinPixels: 1,
+      lineWidthMaxPixels: 2,
+      getFillColor: () => [255, 165, 0, 70],
+      getLineColor: () => [255, 165, 0, 230],
+      getLineWidth: () => 1,
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          const osmId = String(info.object.properties?.osm_id ?? info.object.properties?.id ?? '');
+          const centroid = filteredOsmBuildingPartCentroids.find((c: any) => String(c.properties?.osm_id ?? c.properties?.id ?? '') === osmId);
+          if (centroid) {
+            setSelectedFeature(centroid);
+          }
+        }
+      },
+      updateTriggers: {
+        data: [filteredOsmBuildingPartCentroids, selectedPoint, showPhotoBearingPolygon]
       },
     }),
 
@@ -735,6 +817,7 @@ export function createMapLayers({
       onClick: info => {
         if (info.object && info.object.properties) {
           // Restore photo spidering to show candidate connections
+          console.log('photo clicked', info.object);
           onPointClick(info.object);
         }
       },
@@ -949,7 +1032,7 @@ export function createMapLayers({
           case 'nhle': return [231, 76, 60, 200]; // NHLE Red
           case 'photo': return [255, 0, 255, 200]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 200]; // UPRN Cyan (match uprn-layer)
-          case 'osmBuildingPart': return [156, 39, 176, 200]; // OSM Building Part Purple
+          case 'osmBuildingPart': return [255, 165, 0, 200]; // Building Part Orange
           case 'osmLanduseArea': return [0, 255, 0, 200]; // OSM Landuse Area Green (same as sites)
           default: return [128, 128, 128, 200]; // Default Gray
         }
@@ -1046,7 +1129,7 @@ export function createMapLayers({
           case 'nhle': return [231, 76, 60, 150]; // NHLE Red
           case 'photo': return [255, 0, 255, 150]; // Photo Magenta
           case 'uprn': return [0, 188, 212, 150]; // UPRN Cyan (match uprn-layer)
-          case 'osmBuildingPart': return [156, 39, 176, 150]; // OSM Building Part Purple
+          case 'osmBuildingPart': return [255, 165, 0, 150]; // Building Part Orange
           case 'osmLanduseArea': return [0, 255, 0, 150]; // OSM Landuse Area Green (same as sites)
           default: return [128, 128, 128, 150]; // Default Gray
         }
