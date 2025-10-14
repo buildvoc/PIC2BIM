@@ -42,6 +42,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const [loadingOsmData, setLoadingOsmData] = useState(false);
 
   const elevationCache = useRef(new Map<string, number>());
+  const terrainReadyRef = useRef(false);
 
   // Helper function to convert hex color to RGB array
   const hexToRgb = (hex: string): [number, number, number, number] => {
@@ -71,26 +72,44 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         
         const roofHeight = properties?.roof_height_m 
           ? parseFloat(properties.roof_height_m) 
-          : height;
+          : 0;
         
-        const base = properties?.min_height_m
+        const minHeight = properties?.min_height_m
           ? parseFloat(properties.min_height_m)
           : 0;
         
         return {
           type: 'Feature',
           properties: {
-            buildingId: building.id || building.osm_id,
-            osmId: building.osm_id,
+            building: properties?.building || 'yes',
             name: building.name,
+            'building:levels': properties?.building_levels,
+            'building:min_level': properties?.building_min_level,
             height: height,
-            roof_height: roofHeight,
-            base: base,
-            base_colour: properties?.base_colour,
-            building_levels: properties?.building_levels,
-            roof_shape: properties?.roof_shape,
+            min_height: minHeight,
+            'roof:shape': properties?.roof_shape,
+            'roof:height': roofHeight,
+            'roof:levels': properties?.roof_levels,
+            'roof:material': null,
+            'roof:colour': properties?.roof_colour || '#2196F3',
+            'building:material': properties?.base_material,
+            building_colour: properties?.base_colour || '#F9B42D',
+            'building:use': null,
+            'building:part': properties?.building_part,
+            source: 'osm',
+            extrude: true,
+            buildingId: building.id,
+            osmId: building.osm_id,
+            // Additional OSM fields
             base_shape: properties?.base_shape,
-            source: 'osm'
+            base_direction: properties?.base_direction,
+            base_orientation: properties?.base_orientation,
+            base_height_m: properties?.base_height_m,
+            base_levels: properties?.base_levels,
+            base_angle_deg: properties?.base_angle_deg,
+            building_levels_underground: properties?.building_levels_underground,
+            ref_gb_uprn: properties?.ref_gb_uprn,
+            building_reference_number: properties?.building_reference_number
           },
           geometry: {
             type: 'Polygon',
@@ -98,7 +117,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
           }
         };
       }).filter(feature => feature !== null);
-      
       return {
         type: 'FeatureCollection',
         features
@@ -115,7 +133,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
             photoId: parseInt(photoId),
             buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
             height: buildingData.height || 10,
-            base: buildingData.base || 0,
+            min_height: buildingData.base || 0,
             source: 'legacy'
           },
           geometry: {
@@ -155,24 +173,30 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
           ? parseFloat(properties.roof_height_m) 
           : 0;
         
-        const base = properties?.min_height_m
+        const minHeight = properties?.min_height_m
           ? parseFloat(properties.min_height_m)
           : 0;
         
         return {
           type: 'Feature',
           properties: {
-            buildingId: building.id || building.osm_id,
-            osmId: building.osm_id,
+            building: properties?.building || 'yes',
             name: building.name,
+            'building:levels': properties?.building_levels,
+            'building:min_level': properties?.building_min_level,
             height: height,
-            roof_height: roofHeight,
-            base: base,
-            base_colour: properties?.base_colour,
-            building_levels: properties?.building_levels,
-            roof_shape: properties?.roof_shape,
-            base_shape: properties?.base_shape,
-            source: 'osm'
+            min_height: minHeight,
+            'roof:shape': properties?.roof_shape,
+            'roof:height': roofHeight,
+            'roof:levels': properties?.roof_levels,
+            'building:material': properties?.base_material,
+            building_colour: properties?.base_colour,
+            'building:part': properties?.building_part,
+            source: 'osm',
+            extrude: true,
+            buildingId: building.id,
+            osmId: building.osm_id,
+            base_shape: properties?.base_shape
           },
           geometry: {
             type: 'Polygon',
@@ -197,7 +221,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
             photoId: parseInt(photoId),
             buildingId: nearestBuildings[parseInt(photoId)]?.buildingPartId || 'unknown',
             height: buildingData.height || 10,
-            base: buildingData.base || 0,
+            min_height: buildingData.base || 0,
             source: 'legacy'
           },
           geometry: {
@@ -284,7 +308,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       }
       
       const responseData = await response.json();
-      
+
       if (responseData.success && 
           responseData.data?.building_part?.length > 0 && 
           responseData.data.building_part[0]?.geojson?.features?.length > 0 &&
@@ -365,13 +389,6 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       }
     }
   }, [showOsmData, photos]);
-
-  // Initial load of legacy data when photos are available
-  useEffect(() => {
-    if (photos.length > 0 && !showOsmData) {
-      fetchAllNearestBuildings();
-    }
-  }, [photos]);
 
   useEffect(() => {
     const loadScripts = async () => {
@@ -543,16 +560,61 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         type: 'geojson',
         data: createRoofGeometriesGeoJSON()
       });
-      
 
+      map.current.addLayer({
+        id: 'buildings-layer',
+        type: 'fill-extrusion',
+        source: 'api-buildings-source',
+        paint: {
+          'fill-extrusion-color': [
+            'case',
+            ['has', 'building_colour'],
+            ['get', 'building_colour'],
+            '#F9B42D' // Default orange color
+          ],
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'min_height'],
+          'fill-extrusion-opacity': 0.95
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden, will be shown when OSM data is loaded
+        }
+      });
+
+      map.current.addLayer({
+        id: 'roofs-layer',
+        type: 'fill',
+        source: 'api-roofs-source',
+        paint: {
+          'fill-color': [
+            'case',
+            ['has', 'roof_colour'],
+            ['get', 'roof_colour'],
+            '#2196F3' // Default blue color
+          ],
+          'fill-opacity': 0.9
+        },
+        layout: {
+          'visibility': 'none' // Initially hidden, will be shown when OSM data is loaded
+        }
+      });
     });
 
     map.current.on('sourcedata', function waitForTerrain(e: any) {
       if (e.sourceId === 'terrainSource' && map.current.isSourceLoaded('terrainSource')) {
         map.current.off('sourcedata', waitForTerrain);
+        terrainReadyRef.current = true;
         setTerrainReady(true);
       }
     });
+
+    // Fallback: Set terrain ready after timeout if event doesn't fire
+    setTimeout(() => {
+      if (!terrainReadyRef.current) {
+        terrainReadyRef.current = true;
+        setTerrainReady(true);
+      }
+    }, 3000);
 
 
     map.current.on('style.load', () => {
@@ -570,11 +632,20 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     if (map.current && map.current.getSource('api-buildings-source')) {
       const buildingsGeoJSON = createBuildingGeometriesGeoJSON();
       map.current.getSource('api-buildings-source').setData(buildingsGeoJSON);
+      
+      // Show/hide MapLibre layers based on data source
+      if (map.current.getLayer('buildings-layer')) {
+        map.current.setLayoutProperty('buildings-layer', 'visibility', showOsmData ? 'visible' : 'none');
+      }
     }
     
     if (map.current && map.current.getSource('api-roofs-source')) {
       const roofsGeoJSON = createRoofGeometriesGeoJSON();
       map.current.getSource('api-roofs-source').setData(roofsGeoJSON);
+      
+      if (map.current.getLayer('roofs-layer')) {
+        map.current.setLayoutProperty('roofs-layer', 'visibility', showOsmData ? 'visible' : 'none');
+      }
     }
   }, [buildingGeometries, osmBuildingData, showOsmData]);
 
@@ -609,7 +680,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         ...f.properties,
         contour,
         height: f.properties.height || 0,
-        base: f.properties.base || 0
+        min_height: f.properties.min_height || 0
       };
     });
     
@@ -617,14 +688,18 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     const roofData = geoJSON.features.map(f => {
       const contour = f.geometry.coordinates[0].map(([lng, lat]: [number, number]) => {
         const elevation = terrainEnabled ? getCachedElevation(lng, lat) : 0;
-        const baseElevation = f.properties.base || 0;
-        return [lng, lat, elevation + baseElevation];
+        const minHeight = f.properties.min_height || 0;
+        return [lng, lat, elevation + minHeight];
       });
+      const roofHeight = (f.properties as any)['roof:height'] || 0;
+      const totalHeight = f.properties.height || 0;
+      const minHeightValue = f.properties.min_height || 0;
+      
       return {
         ...f.properties,
         contour,
-        height: ((f.properties as any).roof_height ? (f.properties as any).roof_height : (f.properties.height || 0) - (f.properties.base || 0)),
-        base: f.properties.base || 0
+        height: roofHeight > 0 ? roofHeight : (totalHeight - minHeightValue),
+        min_height: minHeightValue
       };
     });
     
@@ -653,6 +728,11 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   const createBuildingOverlay = useCallback(() => {
     if (!window.deck || !map.current || !terrainReady) return;
     
+    // Check if we have any building data to display
+    const hasData = showOsmData ? osmBuildingData.length > 0 : Object.keys(buildingGeometries).length > 0;
+    if (!hasData && Object.keys(buildingGeometries).length === 0 && osmBuildingData.length === 0) {
+      return;
+    }
 
     if (overlayBuilding) {
       try { map.current.removeControl(overlayBuilding); } catch {}
@@ -661,8 +741,8 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     const { groundData, buildingData, roofData } = processedBuildingData;
     const photoData = processedPhotoData;
     
-    // Always show building layers (data source determined by toggle)
-    const buildingLayers = [
+    // Use Deck.gl layers for legacy data, MapLibre GL handles OSM data
+    const buildingLayers = !showOsmData ? [
       new window.deck.GeoJsonLayer({
         id: 'deckgl-ground-layer',
         data: groundData,
@@ -701,7 +781,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
         opacity: 0.8,
         pickable: true
       })
-    ];
+    ] : [];
     
 
     // Create combined photo layers (camera and photo icon)
@@ -791,7 +871,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     });
     map.current.addControl(newOverlayBuilding);
     setOverlayBuilding(newOverlayBuilding);
-  }, [terrainReady, processedBuildingData, processedPhotoData, showOsmData]);
+  }, [terrainReady, processedBuildingData, processedPhotoData, showOsmData, osmBuildingData, buildingGeometries]);
   
 
   // Helper function to calculate offset position based on bearing
@@ -865,29 +945,18 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
   };
 
   const debouncedCreateOverlay = useMemo(
-    () => debounce(createBuildingOverlay, 300),
+    () => debounce(createBuildingOverlay, 100),
     [createBuildingOverlay, debounce]
   )
   
-
+  // Consolidated effect for overlay updates - triggers when data changes OR terrain becomes ready
   useEffect(() => {
-    if (terrainReady) {
-      debouncedCreateOverlay();
+    const hasData = Object.keys(buildingGeometries).length > 0 || osmBuildingData.length > 0;
+    
+    if (terrainReady && hasData) {
+      createBuildingOverlay();
     }
-  }, [terrainReady, debouncedCreateOverlay]);
-  
-  useEffect(() => {
-    if (terrainReady) {
-      debouncedCreateOverlay();
-    }
-  }, [terrainEnabled, terrainReady, debouncedCreateOverlay]);
-  
-  // Update overlay when OSM data toggle changes
-  useEffect(() => {
-    if (terrainReady) {
-      debouncedCreateOverlay();
-    }
-  }, [showOsmData, terrainReady, debouncedCreateOverlay]);
+  }, [terrainReady, terrainEnabled, showOsmData, buildingGeometries, osmBuildingData, createBuildingOverlay]);
   
 
   useEffect(() => {
