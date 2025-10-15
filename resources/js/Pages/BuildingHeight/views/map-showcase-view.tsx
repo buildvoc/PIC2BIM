@@ -224,7 +224,7 @@ export const MapShowcaseView = ({
               loaders: [LASLoader],
             })
           );
-          console.log("Second Laz---",view)
+          //console.log("Second Laz---",view)
           setDrawLazLayer([...drawLazLayer,...newLayers])
       };
       drawLaz();
@@ -248,7 +248,7 @@ export const MapShowcaseView = ({
         loaders: [LASLoader],
       });
     });
-    console.log("updatedLayers--",updatedLayers)
+    //console.log("updatedLayers--",updatedLayers)
     setDrawLazLayer(updatedLayers);
   }, [view]); 
 
@@ -265,7 +265,7 @@ export const MapShowcaseView = ({
         id: `gallery-images`,
         data: images,
         getIcon: (d) => {
-          // console.log("Photo data---", d);
+          //console.log("Photo data---", d);
           return {
             url: d.photo,
             height: 240,
@@ -288,14 +288,14 @@ export const MapShowcaseView = ({
     );
 
     //Here is the result which show image on map
-    //   console.log("Gallery Image ---",result)
-    // console.log()
+    //   //console.log("Gallery Image ---",result)
+    //console.log()
 
     return result;
   }, [galleryData]);
 
   useEffect(() => {
-    console.log("Layers show case---",drawLazLayer)
+    //console.log("Layers show case---",drawLazLayer)
      }, [drawLazLayer]);
 
   useEffect(() => {
@@ -329,7 +329,7 @@ export const MapShowcaseView = ({
             buildingData.cameraGPSData,
             image.filename ? image.filename:i.toString()
           );
-          // console.log("New layers Show case---",newLayers);
+          //console.log("New layers Show case---",newLayers);
           newLayers = newLayers.concat(currentLayers);
         }
       }
@@ -367,8 +367,8 @@ export const MapShowcaseView = ({
 
 
     const buildingLayers = createBuilding(geojson, geo.cameraGPSData);
-    // console.log("Geo json---",geojson)
-    // console.log("Building layer ---",buildingLayers)
+    //console.log("Geo json---",geojson)
+    //console.log("Building layer ---",buildingLayers)
     setGeoJsonlayer([...geoJsonlayer,...buildingLayers]);
     const polygonElevation =
       geojson.features?.[0]?.geometry?.coordinates?.[0]?.[0]?.[2] || 0;

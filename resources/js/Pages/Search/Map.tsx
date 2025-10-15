@@ -85,7 +85,7 @@ export function Map({ auth }: PageProps) {
   }, []);
 
   const showPolygons = async () => {
-    //console.log(shapes.data);
+    ////console.log(shapes.data);
     
     mapRef.current?.on("load", () => {
       mapRef.current?.addSource('shapes', {
