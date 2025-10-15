@@ -814,6 +814,12 @@ class DataMapController extends Controller
                     continue;
                 }
 
+                //set address to null
+                $data['address1'] = null;
+                $data['address2'] = null;
+                $data['address3'] = null;
+                $data['postcode'] = null;
+
                 // Validate required field
                 if (empty($data['lmk_key'])) {
                     $errors[] = "Row skipped: missing lmk_key";
