@@ -19,7 +19,7 @@ interface ValidationReportModalProps {
   results: ValidationResult[];
   geoJson: any; 
   onImportSuccess: () => void;
-  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | '';
+  schema: 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | 'epc_certificate' | '';
 }
 
 type Order = 'asc' | 'desc';
@@ -54,6 +54,33 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
   }, [featureActions]);
 
   const handleImport = () => {
+    if(schema === 'epc_certificate') {
+      if(!geoJson || !geoJson.rows) {
+        alert('Cannot import: EPC Certificate data is missing.');
+        return;
+      }
+      const rowsToProcess = Object.entries(featureActions).map(([indexStr, action]) => {
+        const rowIndex = parseInt(indexStr, 10);
+        return {
+          action,
+          data: results[rowIndex].properties,
+        };
+      });
+
+      const importUrl = route('data_map.importEpcCertificate');
+      axios.post(importUrl, { rows: rowsToProcess })
+        .then((response: { data: { message: string } }) => {
+          alert(response.data.message);
+          onImportSuccess();
+          onClose();
+        })
+        .catch((error: AxiosError) => {
+          const errorMessage = (error.response?.data as { error?: string })?.error || 'An unknown error occurred during import.';
+          alert(`Import failed: ${errorMessage}`);
+        });
+        return;
+    }
+
     if (!geoJson || !geoJson.features) {
       alert('Cannot import: GeoJSON data is missing.');
       return;
@@ -171,6 +198,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
           if (schema === 'osm_building_part') return properties.osm_id;
           if (schema === 'osm_address') return properties.osm_id;
           if (schema === 'osm_landuse_area') return properties.osm_id;
+          if (schema === 'epc_certificate') return properties.lmk_key;
           return properties.osid;
         };
         aValue = getIdValue(a.properties) || '';
@@ -220,6 +248,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                       if (schema === 'osm_building_part') return 'OSM ID';
                       if (schema === 'osm_address') return 'OSM ID';
                       if (schema === 'osm_landuse_area') return 'OSM ID';
+                      if (schema === 'epc_certificate') return 'LMK Key';
                       return 'OSID';
                     })()}
                   </TableSortLabel>
@@ -247,6 +276,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                       if (schema === 'osm_building_part') return result.properties.osm_id;
                       if (schema === 'osm_address') return result.properties.osm_id;
                       if (schema === 'osm_landuse_area') return result.properties.osm_id;
+                      if (schema === 'epc_certificate') return result.properties.lmk_key;
                       return result.properties.osid;
                     })() || 'N/A'}
                   </TableCell>
