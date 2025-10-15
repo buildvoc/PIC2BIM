@@ -110,6 +110,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/data_map_validate_osm_building_part', [DataMapController::class, 'validateOsmBuildingPart'])->name('data_map.validateOsmBuildingPart');
         Route::post('/data_map_validate_osm_address', [DataMapController::class, 'validateOsmAddress'])->name('data_map.validateOsmAddress');
         Route::post('/data_map_validate_osm_landuse_area', [DataMapController::class, 'validateOsmLanduseArea'])->name('data_map.validateOsmLanduseArea');
+        Route::post('/data_map_validate_epc_certificate', [DataMapController::class, 'validateEpcCertificate'])->name('data_map.validateEpcCertificate');
         Route::post('/data_map_import_building', [DataMapController::class, 'importBuilding'])->name('data_map.import_building');
         Route::post('/data_map_import_site', [DataMapController::class, 'importSite'])->name('data_map.import_site');
         Route::post('/data_map_import_nhle', [DataMapController::class, 'importNhle'])->name('data_map.import_nhle');
@@ -120,6 +121,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/data_map_import_osm_building_part', [DataMapController::class, 'importOsmBuildingPart'])->name('data_map.import_osm_building_part');
         Route::post('/data_map_import_osm_address', [DataMapController::class, 'importOsmAddress'])->name('data_map.import_osm_address');
         Route::post('/data_map_import_osm_landuse_area', [DataMapController::class, 'importOsmLanduseArea'])->name('data_map.import_osm_landuse_area');
+        Route::post('/data_map_import_epc_certificate', [DataMapController::class, 'importEpcCertificate'])->name('data_map.importEpcCertificate');
 
         // Entity links (web endpoints)
         Route::post('/entity-links', [EntityLinkController::class, 'upsert'])->name('entity_links.upsert');

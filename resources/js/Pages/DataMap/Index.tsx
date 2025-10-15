@@ -205,7 +205,7 @@ export function Index({ auth }: PageProps) {
 
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | ''>('');
+  const [selectedSchema, setSelectedSchema] = useState<'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | 'epc_certificate' | ''>('');
   // Fetch additional metadata when a feature is selected
   const fetchAdditionalData = useCallback(async (lat: number, lng: number, photoHeading?: number, altitude?: number) => {
     const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}_${photoHeading || 0}`;
@@ -1270,71 +1270,89 @@ console.log(newData);
         const text = e.target?.result as string;
         const content = JSON.parse(text);
 
-        validate(text).then((res) => {
-          if (!res.valid) {
-            setStatusMessage('GeoJSON has validation errors. See details below.');
-            setIsValidationSuccessful(false);
-          } else {
-            setStatusMessage('Local validation passed. Checking for duplicates on the server...');
-            let validationRoute;
-            console.log(selectedSchema);
-            switch (selectedSchema) {
-              case 'building':
-                validationRoute = route('data_map.validateBuilding');
-                break;
-              case 'site':
-                validationRoute = route('data_map.validateSite');
-                break;
-              case 'nhle':
-                validationRoute = route('data_map.validateNhle');
-                break;
-              case 'buildingpart':
-                validationRoute = route('data_map.validateBuildingPart');
-                break;
-              case 'uprn':
-                validationRoute = route('data_map.validateUprn');
-                break;
-              case 'land_registry_inspire':
-                validationRoute = route('data_map.validateLandRegistryInspire');
-                break;
-              case 'osm_building_part':
-                validationRoute = route('data_map.validateOsmBuildingPart');
-                break;
-              case 'osm_address':
-                validationRoute = route('data_map.validateOsmAddress');
-                break;
-              case 'osm_landuse_area':
-                validationRoute = route('data_map.validateOsmLanduseArea');
-                break;
-              default:
-                setStatusMessage('Invalid schema selected');
-                setIsValidationSuccessful(false);
-                return;
-            }
+        // Skip GeoJSON validation for non-GeoJSON schemas
+        const skipGeoJsonValidation = selectedSchema === 'epc_certificate';
 
-            axios.post(validationRoute, { geojson: content })
-              .then((response: { data: { results: any[]; }; }) => {
-                const results = response.data.results || [];
-                setValidationResults(results);
-                const readyCount = results.filter(r => r.status === 'ok').length;
-                const warningCount = results.length - readyCount;
-                setStatusMessage(`Validation complete: ${readyCount} features ready to import, ${warningCount} with warnings.`);
-                setIsValidationSuccessful(true); // Set validation as successful
-              })
-              .catch((error: any) => {
-                console.error('Duplicate check error:', error);
-                setStatusMessage('An error occurred while checking for duplicates on the server.');
-                setIsValidationSuccessful(false);
-              });
+        const performServerValidation = () => {
+          setStatusMessage('Validating on the server...');
+          let validationRoute;
+          console.log(selectedSchema);
+          switch (selectedSchema) {
+            case 'building':
+              validationRoute = route('data_map.validateBuilding');
+              break;
+            case 'site':
+              validationRoute = route('data_map.validateSite');
+              break;
+            case 'nhle':
+              validationRoute = route('data_map.validateNhle');
+              break;
+            case 'buildingpart':
+              validationRoute = route('data_map.validateBuildingPart');
+              break;
+            case 'uprn':
+              validationRoute = route('data_map.validateUprn');
+              break;
+            case 'land_registry_inspire':
+              validationRoute = route('data_map.validateLandRegistryInspire');
+              break;
+            case 'osm_building_part':
+              validationRoute = route('data_map.validateOsmBuildingPart');
+              break;
+            case 'osm_address':
+              validationRoute = route('data_map.validateOsmAddress');
+              break;
+            case 'osm_landuse_area':
+              validationRoute = route('data_map.validateOsmLanduseArea');
+              break;
+            case 'epc_certificate':
+              validationRoute = route('data_map.validateEpcCertificate');
+              break;
+            default:
+              setStatusMessage('Invalid schema selected');
+              setIsValidationSuccessful(false);
+              return;
           }
+
+          axios.post(validationRoute, { geojson: content })
+            .then((response: { data: { results: any[]; }; }) => {
+              const results = response.data.results || [];
+              setValidationResults(results);
+              const readyCount = results.filter(r => r.status === 'ok').length;
+              const warningCount = results.length - readyCount;
+              setStatusMessage(`Validation complete: ${readyCount} features ready to import, ${warningCount} with warnings.`);
+              setIsValidationSuccessful(true); // Set validation as successful
+            })
+            .catch((error: any) => {
+              console.error('Validation error:', error);
+              setStatusMessage('An error occurred while validating on the server.');
+              setIsValidationSuccessful(false);
+            });
+        };
+
+        if (skipGeoJsonValidation) {
+          // For non-GeoJSON schemas, skip local validation and go straight to server
           setFileContent(content);
-        }).catch((err: any) => {
-          setStatusMessage(`Validation error: ${err?.message || 'Unknown error'}`);
-          setFileContent(content);
-          setIsValidationSuccessful(false);
-        });
+          performServerValidation();
+        } else {
+          // For GeoJSON schemas, validate locally first
+          validate(text).then((res) => {
+            if (!res.valid) {
+              setStatusMessage('GeoJSON has validation errors. See details below.');
+              setIsValidationSuccessful(false);
+            } else {
+              setStatusMessage('Local validation passed. Checking for duplicates on the server...');
+              performServerValidation();
+            }
+            setFileContent(content);
+          }).catch((err: any) => {
+            setStatusMessage(`Validation error: ${err?.message || 'Unknown error'}`);
+            setFileContent(content);
+            setIsValidationSuccessful(false);
+          });
+        }
       } catch (err: any) {
-        setStatusMessage(`Error parsing GeoJSON: ${err.message}`);
+        setStatusMessage(`Error parsing JSON: ${err.message}`);
         setFileContent(null);
       }
     };
@@ -1399,6 +1417,9 @@ console.log(newData);
           break;
         case 'osm_landuse_area':
           validationRoute = route('data_map.validateOsmLanduseArea');
+          break;
+        case 'epc_certificate':
+          validationRoute = route('data_map.validateEpcCertificate');
           break;
         default:
           alert('Invalid schema selected');
@@ -2572,7 +2593,7 @@ console.log(newData);
         }
       };
 
-      const addOsmBuildingPartCandidate = (part: any) => {
+      const addOsmBuildingPartConnection = (part: any) => {
           const partCoords: [number, number] = [part.coordinates[0], part.coordinates[1]];
           const photoPoint = turf.point(selectedCoords);
           const partPoint = turf.point(partCoords);
@@ -2594,7 +2615,7 @@ console.log(newData);
               feature.properties.osm_id === part.properties.osm_id
             );
             
-            if (partPolygon) {
+            if (partPolygon && partPolygon.geometry && partPolygon.geometry.coordinates) {
               try {                
                 // Check if photo point is inside polygon
                 const photoInsidePolygon = booleanPointInPolygon(photoPoint, partPolygon);
@@ -2637,7 +2658,7 @@ console.log(newData);
       // Add all candidate types for photo
       filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
       filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
-      filteredOsmBuildingPartCentroids.forEach(part => addOsmBuildingPartCandidate(part));
+      filteredOsmBuildingPartCentroids.forEach(part => addOsmBuildingPartConnection(part));
       filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
       filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
 
@@ -3090,7 +3111,7 @@ console.log(newData);
               feature.properties.osm_id === part.properties.osm_id
             );
             
-            if (partPolygon) {
+            if (partPolygon && partPolygon.geometry && partPolygon.geometry.coordinates) {
               try {
                 // Use cached bearing polygon instead of recreating
                 const bearingSector = cachedBearingPolygon;
@@ -3594,7 +3615,7 @@ console.log(newData);
                 <select 
                   id="schema-select"
                   value={selectedSchema}
-                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | '')}
+                  onChange={(e) => setSelectedSchema(e.target.value as 'building' | 'site' | 'nhle' | 'buildingpart' | 'uprn' | 'land_registry_inspire' | 'osm_building_part' | 'osm_address' | 'osm_landuse_area' | 'epc_certificate' | '')}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="" disabled>Select a schema</option>
@@ -3609,9 +3630,10 @@ console.log(newData);
                     <option value="osm_address">OSM Address</option>
                     <option value="osm_landuse_area">OSM Landuse Area</option>
                   </optgroup>
+                  <option value="epc_certificate">EPC Certificate</option>
                 </select>
               </div>
-              <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
+              <input type='file' placeholder="Select files" onChange={handleFileChange} accept='.geojson, .json' className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" disabled={!selectedSchema}/>
               <div className="flex gap-2">
                 <Button size='small' variant="contained" onClick={handleValidation} disabled={!selectedFile}>Validate File</Button>
                 {isValidationSuccessful && (

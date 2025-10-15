@@ -25,6 +25,7 @@ use App\Models\Attr\BuildingSiteLink;
 use App\Models\Attr\Uprn;
 use App\Models\LandRegistryCadastral;
 use App\Models\LandRegistryInspire;
+use App\Models\EpcCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -602,6 +603,63 @@ class DataMapController extends Controller
         return $this->performValidation(BuildingPartV2::class, $request->input('geojson'));
     }
 
+    public function validateEpcCertificate(Request $request)
+    {
+        $data_json = $request->input('geojson');
+        $results = [];
+
+        // Validate JSON structure
+        if (!isset($data_json['column-names']) || !isset($data_json['rows'])) {
+            return response()->json([
+                'results' => [],
+                'error' => 'Invalid EPC Certificate format. Expected "column-names" and "rows" properties.'
+            ], 400);
+        }
+
+        $columnNames = $data_json['column-names'];
+        $rows = $data_json['rows'];
+
+        // Validate each row
+        foreach ($rows as $index => $row) {
+            // Normalize kebab-case keys to snake_case
+            $normalizedRow = [];
+            foreach ($row as $key => $value) {
+                $normalizedKey = str_replace('-', '_', $key);
+                $normalizedRow[$normalizedKey] = $value;
+            }
+            
+            $lmkKey = $normalizedRow['lmk_key'] ?? null;
+            $address = $normalizedRow['address'] ?? null;
+            
+            // Check if record already exists
+            $exists = EpcCertificate::where('lmk_key', $lmkKey)->exists();
+            
+            $status = 'ok';
+            $message = 'Ready to import';
+            
+            if ($exists) {
+                $status = 'warning';
+                $message = "EPC Certificate with lmk_key '{$lmkKey}' already exists";
+            }
+            
+            if (!$lmkKey) {
+                $status = 'error';
+                $message = 'Missing required field: lmk_key';
+            }
+            
+            $results[] = [
+                'feature_index' => $index,
+                'lmk_key' => $lmkKey,
+                'address' => $address,
+                'status' => $status,
+                'message' => $message,
+                'properties' => $normalizedRow // Use normalized keys
+            ];
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
     private function performValidation($modelClass, $geojson)
     {
         $results = [];
@@ -731,6 +789,77 @@ class DataMapController extends Controller
     public function importBuildingPart(Request $request)
     {
         return $this->performImport(BuildingPartV2::class, $request);
+    }
+
+    public function importEpcCertificate(Request $request)
+    {
+        $rows = $request->input('rows');
+        if (!$rows || !is_array($rows)) {
+            return response()->json(['error' => 'Invalid row data provided.'], 400);
+        }
+
+        $importedCount = 0;
+        $updatedCount = 0;
+        $skippedCount = 0;
+        $errors = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($rows as $item) {
+                $action = $item['action'] ?? 'skip';
+                $data = $item['data'] ?? [];
+
+                if ($action === 'skip') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Validate required field
+                if (empty($data['lmk_key'])) {
+                    $errors[] = "Row skipped: missing lmk_key";
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Prepare data for insert/update (remove non-fillable fields)
+                $fillableData = array_intersect_key($data, array_flip((new EpcCertificate())->getFillable()));
+                $fillableData['data_jsonb'] = json_encode($data);
+
+                if ($action === 'import') {
+                    // Insert new record
+                    EpcCertificate::create($fillableData);
+                    $importedCount++;
+                } elseif ($action === 'update') {
+                    // Update existing record
+                    $updated = EpcCertificate::where('lmk_key', $data['lmk_key'])
+                        ->update($fillableData);
+                    if ($updated) {
+                        $updatedCount++;
+                    } else {
+                        $errors[] = "Failed to update record with lmk_key: {$data['lmk_key']}";
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $message = "Import completed: {$importedCount} imported, {$updatedCount} updated, {$skippedCount} skipped.";
+            if (!empty($errors)) {
+                $message .= " Errors: " . implode('; ', $errors);
+            }
+
+            return response()->json([
+                'message' => $message,
+                'imported' => $importedCount,
+                'updated' => $updatedCount,
+                'skipped' => $skippedCount,
+                'errors' => $errors
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('EPC Certificate import failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
+        }
     }
 
     public function validateUprn(Request $request)
