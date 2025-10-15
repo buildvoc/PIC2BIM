@@ -91,6 +91,7 @@ export function Index({ auth }: PageProps) {
   const [landRegistryInspireData, setLandRegistryInspireData] = useState<any>(null);
   const [contextualInspireData, setContextualInspireData] = useState<any>(null); // For contextual data near selected feature
   const [osmBuildingPartCentroidsData, setOsmBuildingPartCentroidsData] = useState<any[]>([]);
+  const [osmBuildingPartPolygonsData, setOsmBuildingPartPolygonsData] = useState<any>(null); // Store OSM building part polygons for display
   const [osmLanduseAreasCentroidsData, setosmLanduseAreasCentroidsData] = useState<any[]>([]);
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
@@ -652,6 +653,10 @@ export function Index({ auth }: PageProps) {
   const { osmBuildingParts } = usePage().props as any;
   useEffect(() => {
     if (osmBuildingParts && osmBuildingParts.data && Array.isArray(osmBuildingParts.data.features)) {
+      // Store polygon data for rendering
+      setOsmBuildingPartPolygonsData(osmBuildingParts.data);
+      
+      // Calculate centroids for point display
       const centroids: any[] = [];
       for (const feature of osmBuildingParts.data.features) {
         if (feature.geometry) {
@@ -686,6 +691,7 @@ export function Index({ auth }: PageProps) {
       setOsmBuildingPartCentroidsData(centroids);
     } else {
       setOsmBuildingPartCentroidsData([]);
+      setOsmBuildingPartPolygonsData(null);
     }
   }, [osmBuildingParts]);
 
@@ -1042,6 +1048,26 @@ console.log(newData);
 
     // Merge OSM Building Parts data
     if (newData.osmBuildingParts?.data?.features) {
+      // Merge polygon data
+      setOsmBuildingPartPolygonsData((prev: any) => {
+        if (!prev?.features) {
+          console.log(`Setting ${newData.osmBuildingParts.data.features.length} OSM building part polygons`);
+          return newData.osmBuildingParts.data;
+        }
+        
+        const existingIds = new Set(prev.features.map((feature: any) => feature.properties?.osm_id));
+        const newPolygons = newData.osmBuildingParts.data.features.filter((feature: any) => !existingIds.has(feature.properties?.osm_id));
+        
+        const mergedFeatures = [...prev.features, ...newPolygons];
+        console.log(`Adding ${newPolygons.length} new OSM building part polygons to existing ${prev.features.length} polygons`);
+        
+        return {
+          type: 'FeatureCollection',
+          features: mergedFeatures
+        };
+      });
+      
+      // Merge centroid data
       setOsmBuildingPartCentroidsData(prev => {
         const existingIds = new Set(prev.map(item => item.id));
         const newOsmBuildingParts = newData.osmBuildingParts.data.features
@@ -1108,6 +1134,7 @@ console.log(newData);
                     landuse: feature.properties.landuse,
                     operator: feature.properties.operator,
                     ref: feature.properties.ref,
+                    hyperlink: 'https://www.openstreetmap.org/way/'.concat(feature.properties.osm_id),
                   },
                   geometry: feature.geometry // Keep full geometry for polygon display
                 };
@@ -3113,7 +3140,9 @@ console.log(newData);
         const cachedBearingPolygon = createBearingPolygon(selectedCoords, photoHeading);
         
         filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
-        filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
+        if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.buildingParts)){
+          filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
+        }
         filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
         filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
         filteredOsmBuildingPartCentroids.forEach(osm => addOsmBuildingPartCandidate(osm, cachedBearingPolygon));
@@ -3262,6 +3291,7 @@ console.log(newData);
     shapes,
     selectedShapeIds,
     buildingPartPolygons: buildingPartPolygonsData,
+    osmBuildingPartPolygons: osmBuildingPartPolygonsData,
     dataType,
     category1,
     category2,
