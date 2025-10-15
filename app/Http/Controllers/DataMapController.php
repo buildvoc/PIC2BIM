@@ -1775,7 +1775,16 @@ class DataMapController extends Controller
             ];
 
             // Check for duplicate OSM ID if provided
-            if (!empty($osmId) && is_numeric($osmId)) {
+            if (!empty($osmId)) {
+                // Validate OSM ID format (should only contain positive digits, no minus sign)
+                if (!ctype_digit(strval($osmId))) {
+                    $featureData['status'] = 'warning';
+                    $featureData['details'] = "Invalid OSM ID format: OSM ID '{$osmId}' contains non-numeric characters. OSM IDs should only contain positive digits (0-9).";
+                    $results[] = $featureData;
+                    continue;
+                }
+                
+                // Check for duplicate OSM ID
                 $existingItem = $modelClass::where('osm_id', $osmId)->first();
                 if ($existingItem) {
                     $featureData['status'] = 'duplicate';

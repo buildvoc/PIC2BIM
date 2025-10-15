@@ -34,6 +34,7 @@ interface MapLayersProps {
   
   // Polygon data for 2D display
   buildingPartPolygons?: any; // GeoJSON data for building part polygons
+  osmBuildingPartPolygons?: any; // GeoJSON data for OSM building part polygons
   
   // State variables
   dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean; osmBuildingParts: boolean; osmLanduseAreas: boolean };
@@ -78,6 +79,7 @@ export function createMapLayers({
   shapes,
   selectedShapeIds,
   buildingPartPolygons,
+  osmBuildingPartPolygons,
   dataType,
   category1,
   category2,
@@ -129,6 +131,7 @@ export function createMapLayers({
 
   const layers = [
     // Building Part Polygons Layer (2D) - Show only when photo spidering is active AND polygons intersect with photo bearing
+    (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.buildingParts) && 
     buildingPartPolygons && 
     buildingPartPolygons.features && 
     buildingPartPolygons.features.length > 0 &&
@@ -642,7 +645,115 @@ export function createMapLayers({
       },
     }),
 
-    // OSM Building Parts Layer
+    // OSM Building Part Polygons Layer (2D) - Show only when photo spidering is active AND polygons intersect with photo bearing
+    osmBuildingPartPolygons && 
+    osmBuildingPartPolygons.features && 
+    osmBuildingPartPolygons.features.length > 0 &&
+    showPhotoBearingPolygon &&
+    selectedPoint &&
+    dataType.osmBuildingParts &&
+    'file_name' in selectedPoint.properties && // Check if spidering point is a photo
+    new GeoJsonLayer({
+      id: `osm-building-part-polygons-display-layer`,
+      data: {
+        type: 'FeatureCollection',
+        features: osmBuildingPartPolygons.features.filter((polygon: any) => {
+          // Only show polygons that intersect with the spidering photo's bearing
+          if (!selectedPoint || !('file_name' in selectedPoint.properties)) {
+            return false;
+          }
+          
+          try {
+            // Get photo details from spidering point
+            const photoCoords: [number, number] = [selectedPoint.coordinates[0], selectedPoint.coordinates[1]];
+            const photoHeading = typeof selectedPoint.properties.photo_heading === 'string' 
+              ? parseFloat(selectedPoint.properties.photo_heading) 
+              : (selectedPoint.properties.photo_heading || 0);
+            
+            // Create photo bearing sector (same logic as in photo bearing layer)
+            const [lng, lat] = photoCoords;
+            const headingRad = (photoHeading * Math.PI) / 180;
+            const radius = 0.0001; // 10m radius in degrees
+            const sectorAngle = Math.PI / 3; // 60 degrees sector angle
+            const startAngle = headingRad - sectorAngle / 2;
+            const endAngle = headingRad + sectorAngle / 2;
+            
+            // Adjust for latitude distortion
+            const latCos = Math.cos(lat * Math.PI / 180);
+            const adjustedRadius = radius / latCos;
+            
+            // Create arc points for bearing sector
+            const arcPoints = [];
+            const numPoints = 30;
+            arcPoints.push([lng, lat]); // Start from center
+            
+            for (let i = 0; i <= numPoints; i++) {
+              const angle = startAngle + (endAngle - startAngle) * (i / numPoints);
+              const x = lng + Math.sin(angle) * adjustedRadius;
+              const y = lat + Math.cos(angle) * radius;
+              arcPoints.push([x, y]);
+            }
+            arcPoints.push([lng, lat]); // Close polygon
+            
+            const bearingSector = turf.polygon([arcPoints]);
+            
+            // Check if photo point is inside polygon OR bearing sector intersects with polygon
+            const photoPoint = turf.point(photoCoords);
+            const photoInsidePolygon = booleanPointInPolygon(photoPoint, polygon);
+            const intersects = booleanIntersects(bearingSector, polygon);
+            
+            return photoInsidePolygon || intersects;
+          } catch (error) {
+            console.warn('Error checking OSM polygon intersection with photo bearing:', error);
+            return false;
+          }
+        })
+      },
+      pickable: true,
+      stroked: true,
+      filled: true,
+      wireframe: false,
+      lineWidthMinPixels: 1,
+      lineWidthMaxPixels: 2,
+      getFillColor: (d: any) => {
+        // Check if building_part is "yes" to use orange color, otherwise use blue
+        const buildingPart = d.properties?.building_part;
+        if (buildingPart === 'yes') {
+          return [255, 165, 0, 80] as [number, number, number, number]; // Orange with transparency
+        }
+        return [0, 0, 255, 80] as [number, number, number, number]; // Blue with transparency
+      },
+      getLineColor: (d: any) => {
+        // Check if building_part is "yes" to use orange color, otherwise use blue
+        const buildingPart = d.properties?.building_part;
+        if (buildingPart === 'yes') {
+          return [255, 165, 0, 200] as [number, number, number, number]; // Orange border
+        }
+        return [0, 0, 255, 200] as [number, number, number, number]; // Blue border
+      },
+      getLineWidth: () => 1,
+      onHover: info => {
+        if (info.object && info.object.properties) {
+          setHoverInfo(info as any);
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      onClick: info => {
+        if (info.object && info.object.properties) {
+          const osmId = String(info.object.properties?.osm_id ?? info.object.properties?.id ?? '');
+          const centroid = filteredOsmBuildingPartCentroids.find((c: any) => String(c.properties?.osm_id ?? c.properties?.id ?? '') === osmId);
+          if (centroid) {
+            setSelectedFeature(centroid);
+          }
+        }
+      },
+      updateTriggers: {
+        data: [osmBuildingPartPolygons, selectedPoint, showPhotoBearingPolygon],
+      },
+    }),
+
+    // OSM Building Parts Layer (Centroids)
     (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.osmBuildingParts) && 
     filteredOsmBuildingPartCentroids.length > 0 &&
     new ScatterplotLayer({
