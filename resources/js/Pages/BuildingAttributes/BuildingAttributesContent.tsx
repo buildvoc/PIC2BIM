@@ -658,23 +658,31 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
 
     const groundData = {
       ...geoJSON,
-      features: geoJSON.features.map(f => ({
-        ...f,
-        geometry: {
-          ...f.geometry,
-          coordinates: [f.geometry.coordinates[0].map(([lng, lat]: [number, number]) => {
-            const elevation = terrainEnabled ? getCachedElevation(lng, lat) : 0;
-            return [lng, lat, elevation];
-          })]
-        }
-      }))
+      features: geoJSON.features.map(f => {
+        // Calculate single elevation value for the entire building (use first vertex or average)
+        const firstVertex = f.geometry.coordinates[0][0];
+        const singleElevation = terrainEnabled ? getCachedElevation(firstVertex[0], firstVertex[1]) : 0;
+        
+        return {
+          ...f,
+          geometry: {
+            ...f.geometry,
+            coordinates: [f.geometry.coordinates[0].map(([lng, lat]: [number, number]) => {
+              return [lng, lat, singleElevation];
+            })]
+          }
+        };
+      })
     };
     
 
     const buildingData = geoJSON.features.map(f => {
+      // Calculate single elevation value for the entire building
+      const firstVertex = f.geometry.coordinates[0][0];
+      const singleElevation = terrainEnabled ? getCachedElevation(firstVertex[0], firstVertex[1]) : 0;
+      
       const contour = f.geometry.coordinates[0].map(([lng, lat]: [number, number]) => {
-        const elevation = terrainEnabled ? getCachedElevation(lng, lat) : 0;
-        return [lng, lat, elevation];
+        return [lng, lat, singleElevation];
       });
       return {
         ...f.properties,
@@ -686,10 +694,13 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     
 
     const roofData = geoJSON.features.map(f => {
+      // Calculate single elevation value for the entire building
+      const firstVertex = f.geometry.coordinates[0][0];
+      const singleElevation = terrainEnabled ? getCachedElevation(firstVertex[0], firstVertex[1]) : 0;
+      const minHeight = f.properties.min_height || 0;
+      
       const contour = f.geometry.coordinates[0].map(([lng, lat]: [number, number]) => {
-        const elevation = terrainEnabled ? getCachedElevation(lng, lat) : 0;
-        const minHeight = f.properties.min_height || 0;
-        return [lng, lat, elevation + minHeight];
+        return [lng, lat, singleElevation + minHeight];
       });
       const roofHeight = (f.properties as any)['roof:height'] || 0;
       const totalHeight = f.properties.height || 0;
