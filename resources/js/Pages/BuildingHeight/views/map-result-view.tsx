@@ -179,7 +179,7 @@ export const MapResultView = ({
   }, [geo]);
 
   useEffect(() => {
-    console.log("Layers map results---",layers)
+    //console.log("Layers map results---",layers)
      }, [layers]);
 
   const handleFileRead = (
@@ -206,7 +206,7 @@ export const MapResultView = ({
 
     const buildingLayers = createBuilding(geojson, geo.cameraGPSData);
     //TODO: Concat building layer with showcase layer to show building.
-    console.log("LOAD GEOJSON ---",buildingLayers);
+    //console.log("LOAD GEOJSON ---",buildingLayers);
 
     setLayers(buildingLayers);
     const polygonElevation =

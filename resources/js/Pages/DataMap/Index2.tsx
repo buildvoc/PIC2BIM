@@ -276,7 +276,7 @@ export function Index({ auth }: PageProps) {
     }
 
     try {
-      console.log("Processing GeoJSON:", fileContent);
+      //console.log("Processing GeoJSON:", fileContent);
       // Validate again before processing with string input
       // If invalid, check() will throw with `issues`
       checkGeoJson.check(JSON.stringify(fileContent));
@@ -284,7 +284,7 @@ export function Index({ auth }: PageProps) {
       setGeoJson(fileContent as MGeoJson);
       setError(null); // Clear any previous errors
     } catch (e: any) {
-      console.log(e.issues || e.message);
+      //console.log(e.issues || e.message);
       const issues = e?.issues || [e?.message || 'Processing failed'];
       setError('GeoJSON invalid. Fix issues before drawing.');
       // Keep validation result in hook state; UI will reflect issues
@@ -331,7 +331,7 @@ export function Index({ auth }: PageProps) {
 
   useEffect(() => {
     if (geoJson && geoJson.features) {
-      console.log("geoJson", geoJson);
+      //console.log("geoJson", geoJson);
 
       // Extract centroids from polygon features for ScatterplotLayer visualization
       const centroidData = geoJson.features
@@ -465,7 +465,7 @@ export function Index({ auth }: PageProps) {
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          console.log('Clicked building:', info.object);
+          //console.log('Clicked building:', info.object);
           setHoverInfo(info as any);
         }
       },
@@ -500,7 +500,7 @@ export function Index({ auth }: PageProps) {
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          console.log('Clicked polygon centroid:', info.object);
+          //console.log('Clicked polygon centroid:', info.object);
           setHoverInfo(info as any);
         }
       },
@@ -517,7 +517,7 @@ export function Index({ auth }: PageProps) {
       getSize: 40,
       onClick: (info) => {
         if (info.object && info.object.properties) {
-          console.log('Clicked:', info.object);
+          //console.log('Clicked:', info.object);
           setHoverInfo(info as any);
         }
       },

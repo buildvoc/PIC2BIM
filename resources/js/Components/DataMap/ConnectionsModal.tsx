@@ -181,7 +181,7 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
   };
 
   const handleAction = (connectionId: string, action: 'verify' | 'reject' | 'undo') => {
-    console.log('[ConnectionsModal] handleAction invoked', { connectionId, action, sourcePhotoId });
+    //console.log('[ConnectionsModal] handleAction invoked', { connectionId, action, sourcePhotoId });
     let newStatus: 'proposed' | 'verified' | 'rejected';
     
     switch (action) {
@@ -232,7 +232,7 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
 
     // Persist via web endpoint for verify/reject only
     if ((newStatus === 'verified' || newStatus === 'rejected') && target && sourcePhotoId) {
-      console.log('[ConnectionsModal] Single action start', { connectionId, newStatus, sourcePhotoId, target });
+      //console.log('[ConnectionsModal] Single action start', { connectionId, newStatus, sourcesPhotoId, target });
       const dst_type = mapDstType(target.type);
       const dst_id = getDstId(dst_type, target.properties);
 
@@ -278,7 +278,7 @@ const ConnectionsModal: React.FC<ConnectionsModalProps> = ({
       .map((c) => c.id);
 
     if (targetIds.length > 0 && sourcePhotoId) {
-      console.log('[ConnectionsModal] Bulk action start', { action, targetStatus, selectedCount, targetIds, sourcePhotoId });
+      //console.log('[ConnectionsModal] Bulk action start', { action, targetStatus, selectedCount, targetIds, sourcePhotoId });
       const items = connections
         .filter(c => targetIds.includes(c.id))
         .map(c => {

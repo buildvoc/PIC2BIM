@@ -22,7 +22,7 @@ import BackButton from "@/Components/BackButton";
 import Filter from "@/Components/PhotoGallery/Filter";
 
 export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
-    console.log(paginatedPhotos,"paginatedPhotos")
+    //console.log(paginatedPhotos,"paginatedPhotos")
     const [isMapVisible, setIsMapVisible] = useState(true);
     const [selectedTask, setSelectedTask] = useState("");     
     const [photosIds, setPhotosIds] = useState("");    
@@ -47,7 +47,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
     }, []);
 
     useEffect(() => {
-        console.log("Photo: " , isMapVisible)
+        //console.log("Photo: " , isMapVisible)
     }, [isMapVisible]);
 
     // Check if we're returning from photo detail
@@ -56,7 +56,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
             const returningFromDetail = localStorage.getItem("returning_from_photo_detail");
             
             if (returningFromDetail === 'true') {
-                console.log("Returning from photo detail, map state should be preserved");
+                //console.log("Returning from photo detail, map state should be preserved");
                 // Map.tsx will handle restoring the map state
             }
         } catch (error) {

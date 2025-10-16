@@ -31,7 +31,7 @@ const ButtonMap  = ({
       }
     };
 
-    console.log("isMapVisible is", typeof isMapVisible !== "undefined" ? isMapVisible : "NOT PASSED");
+    //console.log("isMapVisible is", typeof isMapVisible !== "undefined" ? isMapVisible : "NOT PASSED");
     return (
         <>
             <div

@@ -12,7 +12,6 @@ export default function Dashboard({ auth }: PageProps) {
   const { agencies } = usePage<{
     agencies: PaginatedDataExtended<Agency>;
   }>().props;
-  console.log(agencies);
   const {
     data
   } = agencies;

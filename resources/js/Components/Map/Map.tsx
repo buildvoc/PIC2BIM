@@ -60,7 +60,7 @@ function Map({
                 if (zoom && center && center.lng && center.lat) {
                     localStorage.setItem(MAP_ZOOM_KEY, zoom.toString());
                     localStorage.setItem(MAP_CENTER_KEY, JSON.stringify([center.lng, center.lat]));
-                    console.log("Saved map position:", [center.lng, center.lat], zoom);
+                    //console.log("Saved map position:", [center.lng, center.lat], zoom);
                 }
             } catch (e) {
                 console.error("Error saving map position", e);
@@ -84,7 +84,7 @@ function Map({
         const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
         
         if (fromPhotoDetail) {
-            console.log("Returning from photo detail, will use saved position");
+            //console.log("Returning from photo detail, will use saved position");
         }
         
         let initialCenter: [number, number] = [0.166022, 51.288998];
@@ -99,7 +99,7 @@ function Map({
             }
         }
         
-        console.log("Map init:", initialCenter, initialZoom, "fromPhotoDetail:", fromPhotoDetail);
+        //console.log("Map init:", initialCenter, initialZoom, "fromPhotoDetail:", fromPhotoDetail);
         
         mapRef.current = new mapboxgl.Map({
             container: mapContainerRef.current!,
@@ -114,7 +114,7 @@ function Map({
         
         if (fromPhotoDetail) {
             setTimeout(() => {
-                console.log("Resetting photo detail flag");
+                //console.log("Resetting photo detail flag");
                 localStorage.setItem(MAP_FROM_PHOTO_DETAIL, "false");
             }, 500);
         }
@@ -821,7 +821,7 @@ function Map({
                         // Apply center and zoom directly
                         if (mapState.center && Array.isArray(mapState.center) && mapState.center.length === 2 && 
                             typeof mapState.zoom === 'number') {
-                            console.log('Directly restoring map view to:', mapState.center, mapState.zoom);
+                            //console.log('Directly restoring map view to:', mapState.center, mapState.zoom);
                             
                             // Use flyTo for smoother transition
                             mapRef.current.jumpTo({

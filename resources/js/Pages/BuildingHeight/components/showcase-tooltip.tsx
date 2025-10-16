@@ -40,7 +40,7 @@ export const ShowcaseTooltip: FC<ShowcaseTooltipProps> = ({
   const numberLatitude = useMemo(() => parseFloat(latitude), [latitude]);
   const numberLongitude = useMemo(() => parseFloat(longitude), [longitude]);
   useEffect(()=>{
-    console.log("Image url---",imageUrl)
+    //console.log("Image url---",imageUrl)
   },[])
 
 

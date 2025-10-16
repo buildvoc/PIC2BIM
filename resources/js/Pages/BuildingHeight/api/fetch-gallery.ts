@@ -32,7 +32,7 @@ export const get_photo = async (photo_id: number, bearerToken:string) => {
 
 export const get_unassigned_photos = async (user_id: number,bearerToken:string) => {
   "use server";
-  console.log("Bearer token applied ---",bearerToken)
+  //console.log("Bearer token applied ---",bearerToken)
   try {
     const response = await fetch(
       `/comm_unassigned?user_id=${user_id}`,

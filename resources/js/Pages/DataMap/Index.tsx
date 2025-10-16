@@ -189,7 +189,7 @@ export function Index({ auth }: PageProps) {
     
     // Debug: Log first building properties to see available fields
     if (buildingCentroidsData.length > 0) {
-      console.log('Building properties sample:', buildingCentroidsData[0].properties);
+      //console.log('Building properties sample:', buildingCentroidsData[0].properties);
     }
     
     const max = Math.max(...buildingCentroidsData.map(d => {
@@ -771,7 +771,7 @@ export function Index({ auth }: PageProps) {
         ...prev,
         [cacheKey]: newData
       }));
-console.log(newData);
+//console.log(newData);
       return newData;
     } catch (error) {
       console.error('Error fetching area data:', error);
@@ -810,8 +810,8 @@ console.log(newData);
             return null;
           })
           .filter(Boolean);
-        console.log(newBuildings);
-        console.log(`Adding ${newBuildings.length} new buildings to existing ${prev.length} buildings`);
+        //console.log(newBuildings);
+        //console.log(`Adding ${newBuildings.length} new buildings to existing ${prev.length} buildings`);
         return [...prev, ...newBuildings];
       });
     }
@@ -858,7 +858,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newBuildingParts.length} new building parts to existing ${prev.length} building parts`);
+        //console.log(`Adding ${newBuildingParts.length} new building parts to existing ${prev.length} building parts`);
         return [...prev, ...newBuildingParts];
       });
     }
@@ -894,7 +894,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newSites.length} new sites to existing ${prev.length} sites`);
+        //console.log(`Adding ${newSites.length} new sites to existing ${prev.length} sites`);
         return [...prev, ...newSites];
       });
     }
@@ -931,7 +931,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
+        //console.log(`Adding ${newNhle.length} new NHLE features to existing ${prev.length} NHLE features`);
         return [...prev, ...newNhle];
       });
     }
@@ -986,7 +986,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
+        //console.log(`Adding ${newPhotos.length} new photos to existing ${prev.length} photos`);
         return [...prev, ...newPhotos];
       });
     }
@@ -1028,7 +1028,7 @@ console.log(newData);
       setLandRegistryInspireData((prev: any) => {
         if (!prev?.features) {
           // If no existing INSPIRE data, set the new data directly
-          console.log(`Setting ${newData.landRegistryInspire.data.features.length} INSPIRE features`);
+          //console.log(`Setting ${newData.landRegistryInspire.data.features.length} INSPIRE features`);
           return newData.landRegistryInspire.data;
         }
         
@@ -1037,7 +1037,7 @@ console.log(newData);
         const newInspire = newData.landRegistryInspire.data.features.filter((feature: any) => !existingIds.has(feature.properties?.gml_id));
         
         const mergedFeatures = [...prev.features, ...newInspire];
-        console.log(`Adding ${newInspire.length} new INSPIRE features to existing ${prev.features.length} features`);
+        //console.log(`Adding ${newInspire.length} new INSPIRE features to existing ${prev.features.length} features`);
         
         return {
           type: 'FeatureCollection',
@@ -1051,7 +1051,7 @@ console.log(newData);
       // Merge polygon data
       setOsmBuildingPartPolygonsData((prev: any) => {
         if (!prev?.features) {
-          console.log(`Setting ${newData.osmBuildingParts.data.features.length} OSM building part polygons`);
+          //console.log(`Setting ${newData.osmBuildingParts.data.features.length} OSM building part polygons`);
           return newData.osmBuildingParts.data;
         }
         
@@ -1059,7 +1059,7 @@ console.log(newData);
         const newPolygons = newData.osmBuildingParts.data.features.filter((feature: any) => !existingIds.has(feature.properties?.osm_id));
         
         const mergedFeatures = [...prev.features, ...newPolygons];
-        console.log(`Adding ${newPolygons.length} new OSM building part polygons to existing ${prev.features.length} polygons`);
+        //console.log(`Adding ${newPolygons.length} new OSM building part polygons to existing ${prev.features.length} polygons`);
         
         return {
           type: 'FeatureCollection',
@@ -1106,7 +1106,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newOsmBuildingParts.length} new OSM building parts to existing ${prev.length} OSM building parts`);
+        //console.log(`Adding ${newOsmBuildingParts.length} new OSM building parts to existing ${prev.length} OSM building parts`);
         return [...prev, ...newOsmBuildingParts];
       });
     }
@@ -1147,7 +1147,7 @@ console.log(newData);
           })
           .filter(Boolean);
         
-        console.log(`Adding ${newOsmLanduseAreas.length} new OSM landuse areas to existing ${prev.length} OSM landuse areas`);
+        //console.log(`Adding ${newOsmLanduseAreas.length} new OSM landuse areas to existing ${prev.length} OSM landuse areas`);
         return [...prev, ...newOsmLanduseAreas];
       });
     }
@@ -1157,7 +1157,7 @@ console.log(newData);
       setShapes(prev => {
         if (!prev?.data?.features) {
           // If no existing shapes, set the new data directly
-          console.log(`Setting ${newData.shapes.features.length} shapes features`);
+          //console.log(`Setting ${newData.shapes.features.length} shapes features`);
           return { data: newData.shapes };
         }
         
@@ -1166,7 +1166,7 @@ console.log(newData);
         const newShapes = newData.shapes.features.filter((feature: any) => !existingIds.has(feature.id));
         
         const mergedFeatures = [...prev.data.features, ...newShapes];
-        console.log(`Adding ${newShapes.length} new shapes to existing ${prev.data.features.length} shapes`);
+        //console.log(`Adding ${newShapes.length} new shapes to existing ${prev.data.features.length} shapes`);
         
         return {
           data: {
@@ -1276,7 +1276,7 @@ console.log(newData);
         const performServerValidation = () => {
           setStatusMessage('Validating on the server...');
           let validationRoute;
-          console.log(selectedSchema);
+          //console.log(selectedSchema);
           switch (selectedSchema) {
             case 'building':
               validationRoute = route('data_map.validateBuilding');

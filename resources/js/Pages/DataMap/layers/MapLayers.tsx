@@ -928,7 +928,7 @@ export function createMapLayers({
       onClick: info => {
         if (info.object && info.object.properties) {
           // Restore photo spidering to show candidate connections
-          console.log('photo clicked', info.object);
+          //console.log('photo clicked', info.object);
           onPointClick(info.object);
         }
       },
@@ -1031,7 +1031,7 @@ export function createMapLayers({
       },
       onClick: info => {
         if (info.object && info.object.properties) {
-          console.log('Clicked polygon centroid:', info.object);
+          //console.log('Clicked polygon centroid:', info.object);
           setHoverInfo(info as any);
         }
       },

@@ -28,7 +28,7 @@ const BuildingDataGrid: React.FC<BuildingDataGridProps> = ({ selectedPhoto, osid
         setCodepointData(nearestCodepoint?.properties ?? null);
         setUprnData(nearestUprn?.properties ?? null);
         setBuildingAttributes(response?.attributes?.data?.features?.[0]?.properties ?? null);
-        console.log(uprnData);
+        //console.log(uprnData);
 
       } catch (error) {
         console.error('Failed to fetch building attributes', error);
