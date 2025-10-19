@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Attr\Uprn;
 
 class EpcCertificate extends Model
 {
@@ -148,4 +149,42 @@ class EpcCertificate extends Model
         // JSON
         'data_jsonb' => 'array',
     ];
+
+    /**
+     * Relationship to UPRN
+     */
+    public function uprnRecord()
+    {
+        return $this->belongsTo(Uprn::class, 'uprn', 'uprn');
+    }
+
+    /**
+     * Scope to get EPC certificates with geometry from linked UPRN
+     */
+    public function scopeWithGeometry($query)
+    {
+        return $query->select('epc_certificate.*')
+            ->selectRaw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geometry')
+            ->leftJoin('osopenuprn_address', function($join) {
+                $join->on(\DB::raw('epc_certificate.uprn::bigint'), '=', 'osopenuprn_address.uprn');
+            })
+            ->whereNotNull('osopenuprn_address.geom');
+    }
+
+    /**
+     * Scope to filter by built-up area geometries
+     */
+    public function scopeWithinBuiltupAreas($query, $builtupAreaGeometriesQuery)
+    {
+        // Convert the query builder to SQL string
+        $geometriesSubquery = $builtupAreaGeometriesQuery->toSql();
+        $bindings = $builtupAreaGeometriesQuery->getBindings();
+        
+        return $query->whereExists(function ($subQuery) use ($geometriesSubquery, $bindings) {
+            $subQuery->select(\DB::raw(1))
+                ->from('osopenuprn_address')
+                ->whereRaw('osopenuprn_address.uprn = epc_certificate.uprn::bigint')
+                ->whereRaw("ST_Within(osopenuprn_address.geom, (SELECT ST_Union(geometry) FROM ({$geometriesSubquery}) as bua))", $bindings);
+        });
+    }
 }

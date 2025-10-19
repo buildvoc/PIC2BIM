@@ -54,7 +54,7 @@ import { connect } from 'node:tls';
 
 
 export function Index({ auth }: PageProps) {
-  const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center, uprn } = usePage<{
+  const { shapes: mShapes, buildings, buildingParts, sites, nhle, photos, center, uprn, epcCertificates } = usePage<{
     shapes: {data: BuiltupAreaGeoJson} | null;
     buildings: { data: BuildingGeoJson };
     buildingParts: { data: BuildingPartGeoJson };
@@ -65,6 +65,7 @@ export function Index({ auth }: PageProps) {
     uprn?: { data: any };
     landRegistryInspire?: { data: any };
     osmBuildingParts?: { data: any };
+    epcCertificates?: { data: any };
   }>().props;
 
 
@@ -93,9 +94,12 @@ export function Index({ auth }: PageProps) {
   const [osmBuildingPartCentroidsData, setOsmBuildingPartCentroidsData] = useState<any[]>([]);
   const [osmBuildingPartPolygonsData, setOsmBuildingPartPolygonsData] = useState<any>(null); // Store OSM building part polygons for display
   const [osmLanduseAreasCentroidsData, setosmLanduseAreasCentroidsData] = useState<any[]>([]);
+  const [epcCertificateCentroidsData, setEpcCertificateCentroidsData] = useState<any[]>([]);
   // Collapsed UPRN groups (30m proximity): show balanced representatives based on FILTERED UPRN
   const UPRN_GROUP_RADIUS_M = 30; // meters
   const MAX_PER_REP = 8; // max members per representative group for balance
+  const FLOOR_HEIGHT_METERS = 3; // Height per floor level for vertical spidering
+  const ELEVATION_SCALE = 1; // Scale factor for elevation visualization
 
   const [hoverInfo, setHoverInfo] = useState<{ x: number, y: number; layer: any, object: any } | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<BuildingCentroidState | BuildingPartCentroidState | SiteCentroidState | NhleFeatureState | PhotoCentroidState | null>(null);
@@ -103,7 +107,7 @@ export function Index({ auth }: PageProps) {
   const [category1, setCategory1] = useState<string>('Fixed Size');
   const [category2, setCategory2] = useState<string>('Building');
   const [floorRange, setFloorRange] = useState({ min: 0, max: 50 });
-  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false });
+  const [dataType, setDataType] = useState({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false, epcCertificates: false });
   const [showPhotoBearingPolygon, setShowPhotoBearingPolygon] = useState(false);
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
@@ -695,6 +699,29 @@ export function Index({ auth }: PageProps) {
     }
   }, [osmBuildingParts]);
 
+  // Process EPC Certificate data from props
+  useEffect(() => {
+    if (epcCertificates?.data?.features) {
+      const centroids: any[] = [];
+      for (const feature of epcCertificates.data.features) {
+        if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
+          try {
+            centroids.push({
+              id: feature.properties.id?.toString() || `epc-${centroids.length}`,
+              coordinates: feature.geometry.coordinates as [number, number],
+              properties: feature.properties
+            });
+          } catch (error) {
+            console.error('Error processing EPC certificate feature:', feature.properties.id, error);
+          }
+        }
+      }
+      setEpcCertificateCentroidsData(centroids);
+    } else {
+      setEpcCertificateCentroidsData([]);
+    }
+  }, [epcCertificates]);
+
   const getCursor = useCallback<any>((info: {
     objects: any; isPicking: any; 
   }) => {
@@ -1152,6 +1179,29 @@ console.log(newData);
       });
     }
 
+    // Merge EPC Certificate data
+    if (newData.epcCertificates?.data?.features) {
+      setEpcCertificateCentroidsData(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const newEpcCertificates = newData.epcCertificates.data.features
+          .filter((feature: any) => !existingIds.has(feature.properties?.id?.toString()))
+          .map((feature: any) => {
+            if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
+              return {
+                id: feature.properties.id?.toString() || '',
+                coordinates: feature.geometry.coordinates as [number, number],
+                properties: feature.properties
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        console.log(`Adding ${newEpcCertificates.length} new EPC certificates to existing ${prev.length} EPC certificates`);
+        return [...prev, ...newEpcCertificates];
+      });
+    }
+
     // Merge shapes data
     if (newData.shapes?.features) {
       setShapes(prev => {
@@ -1559,6 +1609,7 @@ console.log(newData);
     filteredUprnCentroids,
     filteredOsmBuildingPartCentroids,
     filteredOsmLanduseAreasCentroids,
+    filteredEpcCertificateCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData
@@ -1571,6 +1622,7 @@ console.log(newData);
     uprnCentroidsData,
     osmBuildingPartCentroidsData,
     osmLanduseAreasCentroidsData,
+    epcCertificateCentroidsData,
     shapes,
     selectedShapeIds,
     floorRange,
@@ -1732,7 +1784,8 @@ console.log(newData);
       uprn: uprnCentroidsData,
       photo: filteredPhotoCentroids,
       osmBuildingPart: filteredOsmBuildingPartCentroids,
-      osmLanduseArea: filteredOsmLanduseAreasCentroids
+      osmLanduseArea: filteredOsmLanduseAreasCentroids,
+      epcCertificate: filteredEpcCertificateCentroids
     };
 
     // Search NHLE data (only within selected shapes)
@@ -1929,8 +1982,30 @@ console.log(newData);
       }
     });
 
+    // Search EPC Certificate data (only within selected shapes)
+    dataToSearch.epcCertificate.forEach((item: any) => {
+      const props = item.properties;
+      if (field === 'all' || searchableFields.epcCertificate.includes(field)) {
+        const fieldsToSearch = field === 'all' ? searchableFields.epcCertificate : [field];
+        const matches = fieldsToSearch.some(f => {
+          const value = props[f as keyof typeof props];
+          return value && String(value).toLowerCase().includes(searchTerm);
+        });
+
+        if (matches) {
+          results.push({
+            type: 'EPC Certificate',
+            id: item.id,
+            coordinates: item.coordinates,
+            data: props,
+            displayText: props.address || props.address1 || props.postcode || props.lmk_key || 'EPC Certificate'
+          });
+        }
+      }
+    });
+
     setSearchResults(results.slice(0, 50)); // Limit to 50 results
-  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredUprnCentroids, uprnCentroidsData, filteredPhotoCentroids, filteredOsmBuildingPartCentroids, filteredOsmLanduseAreasCentroids]);
+  }, [filteredNhleCentroids, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredUprnCentroids, uprnCentroidsData, filteredPhotoCentroids, filteredOsmBuildingPartCentroids, filteredOsmLanduseAreasCentroids, filteredEpcCertificateCentroids]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -2610,8 +2685,8 @@ console.log(newData);
           }
           
           // Check 2: Photo point inside building part polygon OR polygon intersection with bearing sector
-          if (!shouldInclude && osmBuildingPartCentroidsData) {
-            const partPolygon = osmBuildingPartCentroidsData.find((feature: any) => 
+          if (!shouldInclude && osmBuildingPartPolygonsData?.features) {
+            const partPolygon = osmBuildingPartPolygonsData.features.find((feature: any) => 
               feature.properties.osm_id === part.properties.osm_id
             );
             
@@ -2656,14 +2731,24 @@ console.log(newData);
         };
       
       // Add all candidate types for photo
-      filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
-      filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
-      filteredOsmBuildingPartCentroids.forEach(part => addOsmBuildingPartConnection(part));
-      filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
-      filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+      if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.buildings)){
+        filteredBuildingCentroids.forEach(building => addConnection(building, 'building'));
+      }
+      if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.buildingParts)){
+        filteredBuildingPartCentroids.forEach(part => addBuildingPartConnection(part)); // Use enhanced function
+      }
+      if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.osmBuildingParts)){
+        filteredOsmBuildingPartCentroids.forEach(part => addOsmBuildingPartConnection(part));
+      }
+      if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.sites)){
+        filteredSiteCentroids.forEach(site => addConnection(site, 'site'));
+      }
+      if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.nhle)){
+        filteredNhleCentroids.forEach(nhle => addConnection(nhle, 'nhle'));
+      }
 
       // Add NHLE points from Land Registry INSPIRE polygons intersected by photo bearing
-      if (landRegistryInspireData?.features && filteredNhleCentroids?.length > 0) {
+      if (landRegistryInspireData?.features && filteredNhleCentroids?.length > 0 && (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.nhle)) {
         // Create the photo bearing polygon (same logic as in MapLayers.tsx)
         const [lng, lat] = selectedCoords;
         const headingRad = (photoHeading * Math.PI) / 180;
@@ -2938,6 +3023,13 @@ console.log(newData);
       setSelectedPoint(null);
       setSpideredConnections([]);
       
+      // Reset camera pitch to default 2D view
+      setViewState(prev => ({
+        ...prev,
+        pitch: 0,
+        transitionDuration: 500
+      }));
+      
     } else {
       // Compute connections based on point type; spider only if there are any
       const isPhotoSelected = 'file_name' in point.properties;
@@ -2970,7 +3062,7 @@ console.log(newData);
       let result: Array<{ id: string; coordinates: [number, number]; type: string; properties: any }> = [];
 
       if (isUprnSelected) {
-        // UPRN neighbours (within 30m)
+        // UPRN neighbours (within 30m) - grouped vertically by floor_level
         const centerPt = turf.point(selectedCoords);
         // Prefer precomputed group members on the representative; otherwise, search in RAW uprnCentroidsData
         let members: UprnCentroidState[] = (point as any).__uprnGroupMembers || uprnCentroidsData.filter((u: UprnCentroidState) => {
@@ -2978,7 +3070,32 @@ console.log(newData);
           return d <= UPRN_GROUP_RADIUS_M;
         });
         members = members.filter(m => !(m.coordinates[0] === point.coordinates[0] && m.coordinates[1] === point.coordinates[1]));
-        result = members.map(m => ({ id: m.id, coordinates: m.coordinates, type: 'uprn', properties: m.properties }));
+        
+        // Group by floor_level for vertical spidering
+        const floorGroups = new Map<number, UprnCentroidState[]>();
+        members.forEach(m => {
+          const floorLevel = (m.properties as any)?.floor_level ?? 0; // Default to ground floor if no floor_level
+          if (!floorGroups.has(floorLevel)) {
+            floorGroups.set(floorLevel, []);
+          }
+          floorGroups.get(floorLevel)!.push(m);
+        });
+        
+        // Create spidered result with floor_level metadata
+        result = [];
+        floorGroups.forEach((floorMembers, floorLevel) => {
+          floorMembers.forEach(m => {
+            result.push({
+              id: m.id,
+              coordinates: m.coordinates, // Keep original coordinates from database
+              type: 'uprn',
+              properties: {
+                ...m.properties,
+                __floorLevel: floorLevel // Store floor level for positioning
+              }
+            });
+          });
+        });
       } else if (isPhotoSelected) {
         // Photo → candidates within 10m and bearing match (with connection data)
         const maxDistance = 10; // meters
@@ -3106,8 +3223,8 @@ console.log(newData);
           }
           
           // Check 2: Photo point inside building part polygon OR polygon intersection with bearing sector
-          if (!shouldInclude && osmBuildingPartCentroidsData) {
-            const partPolygon = osmBuildingPartCentroidsData.find((feature: any) => 
+          if (!shouldInclude && osmBuildingPartPolygonsData?.features) {
+            const partPolygon = osmBuildingPartPolygonsData.features.find((feature: any) => 
               feature.properties.osm_id === part.properties.osm_id
             );
             
@@ -3160,16 +3277,24 @@ console.log(newData);
         // Create cached bearing polygon once for reuse
         const cachedBearingPolygon = createBearingPolygon(selectedCoords, photoHeading);
         
-        filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
+        if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.buildings)){
+          filteredBuildingCentroids.forEach(b => addCandidate(b, 'building'));
+        }
         if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.buildingParts)){
           filteredBuildingPartCentroids.forEach(p => addBuildingPartCandidate(p, cachedBearingPolygon)); // Pass cached polygon
         }
-        filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
-        filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
-        filteredOsmBuildingPartCentroids.forEach(osm => addOsmBuildingPartCandidate(osm, cachedBearingPolygon));
+        if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.sites)){
+          filteredSiteCentroids.forEach(s => addCandidate(s, 'site'));
+        }
+        if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.nhle)){
+          filteredNhleCentroids.forEach(n => addCandidate(n, 'nhle'));
+        }
+        if((!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.osmBuildingParts)){
+          filteredOsmBuildingPartCentroids.forEach(osm => addOsmBuildingPartCandidate(osm, cachedBearingPolygon));
+        }
 
         // Optimized NHLE Land Registry INSPIRE logic using pre-computed mapping
-        if (nhleInspireMapping.length > 0) {
+        if (nhleInspireMapping.length > 0 && (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) ||dataType.nhle)) {
           // Use cached bearing polygon for intersection checks
           const bearingPolygon = cachedBearingPolygon;
           
@@ -3260,8 +3385,24 @@ console.log(newData);
       if (result.length >= 1) {
         setSelectedPoint(point);
         setSpideredConnections(result);
-        // Maintain UPRN group size updates when applicable
+        
+        // Auto-adjust camera pitch for 3D view when UPRN with floor levels is spidered
         if (isUprnSelected) {
+          const hasFloorLevels = result.some((conn: any) => 
+            (conn.properties as any)?.__floorLevel !== undefined && 
+            (conn.properties as any)?.__floorLevel !== 0
+          );
+          
+          if (hasFloorLevels) {
+            // Tilt camera to see vertical distribution
+            setViewState(prev => ({
+              ...prev,
+              pitch: 45, // Tilt 45 degrees to see 3D structure
+              bearing: prev.bearing || 0,
+              transitionDuration: 500
+            }));
+          }
+          
           const updatedSelected = {
             ...point,
             properties: {
@@ -3293,8 +3434,53 @@ console.log(newData);
         }
       }
     }
-  }, [selectedPoint, selectedFeature, uprnCentroidsData, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, nhleInspireMapping, buildingPartPolygonsData, createBearingPolygon, bearingMatch]);
+  }, [selectedPoint, selectedFeature, uprnCentroidsData, filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, nhleInspireMapping, buildingPartPolygonsData, createBearingPolygon, bearingMatch, dataType]);
 
+  // Clear spidered connections when dataType filter changes to prevent delay
+  useEffect(() => {
+    if (selectedPoint && spideredConnections.length > 0) {
+      // Re-filter spidered connections based on current dataType
+      const filteredConnections = spideredConnections.filter(conn => {
+        if (conn.type === 'buildingPart') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.buildingParts);
+        }
+        if (conn.type === 'building') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.buildings);
+        }
+        if (conn.type === 'site') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.sites);
+        }
+        if (conn.type === 'nhle') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.nhle);
+        }
+        if (conn.type === 'photo') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.photos);
+        }
+        if (conn.type === 'uprn') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.uprn);
+        }
+        if (conn.type === 'osmBuildingPart') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.osmBuildingParts);
+        }
+        if (conn.type === 'osmLanduseArea') {
+          return (!(dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas) || dataType.osmLanduseAreas);
+        }
+        return true;
+      });
+      
+      // If filtered connections are different, update state
+      if (filteredConnections.length !== spideredConnections.length) {
+        if (filteredConnections.length === 0) {
+          // Clear spidering completely if no connections remain
+          setSelectedPoint(null);
+          setSpideredConnections([]);
+        } else {
+          // Update with filtered connections
+          setSpideredConnections(filteredConnections);
+        }
+      }
+    }
+  }, [dataType, selectedPoint, spideredConnections]);
 
   const layers = createMapLayers({
     filteredBuildingCentroids,
@@ -3803,7 +3989,7 @@ console.log(newData);
                 <button
                   onClick={() => {
                     // Show all data types
-                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false });
+                    setDataType({ buildings: false, buildingParts: false, sites: false, nhle: false, photos: false, uprn: false, osmBuildingParts: false, osmLanduseAreas: false, epcCertificates: false });
                     setSelectedGrades([]);
                     setSelectedShapeIds([]);
                     setFloorRange({ min: 0, max: maxFloors });
@@ -4131,6 +4317,7 @@ console.log(newData);
                       <option value="uprn">UPRN</option>
                       <option value="osmBuildingPart">OSM Building Part</option>
                       <option value="osmLanduseArea">OSM Landuse Area</option>
+                      <option value="epcCertificate">EPC Certificate</option>
                     </select>
                   ) : (
                     <div className="flex gap-2">
@@ -4184,6 +4371,7 @@ console.log(newData);
                                 result.type === 'OSM Building Part' ? 
                                   (result.data.building_part === 'yes' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800') :
                                 result.type === 'OSM Landuse Area' ? 'bg-green-100 text-green-800' :
+                                result.type === 'EPC Certificate' ? 'bg-purple-100 text-purple-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
                                 {result.type}

@@ -21,13 +21,14 @@ interface UseDataFiltersProps {
   uprnCentroidsData: UprnCentroidState[];
   osmBuildingPartCentroidsData: any[];
   osmLanduseAreasCentroidsData: any[];
+  epcCertificateCentroidsData: any[];
   
   // Filter parameters
   shapes: {data: BuiltupAreaGeoJson} | null;
   selectedShapeIds: string[];
   floorRange: { min: number; max: number };
   selectedGrades: string[];
-  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean; osmBuildingParts: boolean; osmLanduseAreas: boolean };
+  dataType: { buildings: boolean; buildingParts: boolean; sites: boolean; nhle: boolean; photos: boolean; uprn: boolean; osmBuildingParts: boolean; osmLanduseAreas: boolean; epcCertificates: boolean };
   
   // Shape filtering
   boundarySearch: string;
@@ -43,6 +44,7 @@ export function useDataFilters({
   uprnCentroidsData,
   osmBuildingPartCentroidsData,
   osmLanduseAreasCentroidsData,
+  epcCertificateCentroidsData,
   shapes,
   selectedShapeIds,
   floorRange,
@@ -146,6 +148,14 @@ export function useDataFilters({
     });
   }, [osmLanduseAreasCentroidsData, filterBySelectedShapes]);
 
+  // Filtered EPC Certificates
+  const filteredEpcCertificateCentroids = useMemo(() => {
+    return epcCertificateCentroidsData.filter(d => {
+      // Shape filter
+      return filterBySelectedShapes(d.coordinates);
+    });
+  }, [epcCertificateCentroidsData, filterBySelectedShapes]);
+
   // Filtered Sites
   const filteredSiteCentroids = useMemo(() => {
     return siteCentroidsData.filter(d => {
@@ -191,7 +201,7 @@ export function useDataFilters({
 
   // Combined filtered data based on data type selection
   const allFilteredData = useMemo(() => {
-    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas;
+    const isAnyTypeSelected = dataType.buildings || dataType.buildingParts || dataType.sites || dataType.nhle || dataType.photos || dataType.uprn || dataType.osmBuildingParts || dataType.osmLanduseAreas || dataType.epcCertificates;
     
     if (!isAnyTypeSelected) {
       return [
@@ -204,6 +214,7 @@ export function useDataFilters({
         ...filteredOsmBuildingPartCentroids.filter(item => item.properties?.building_part).map(item => ({ ...item, dataType: 'osmBuildingParts' })),
         ...filteredOsmBuildingPartCentroids.filter(item => item.properties?.building && !item.properties?.building_part).map(item => ({ ...item, dataType: 'osmBuildings' })),
         ...filteredOsmLanduseAreasCentroids.map(item => ({ ...item, dataType: 'osmLanduseAreas' })),
+        ...filteredEpcCertificateCentroids.map(item => ({ ...item, dataType: 'epcCertificates' })),
       ];
     }
     
@@ -222,9 +233,12 @@ export function useDataFilters({
     if (dataType.osmLanduseAreas) {
       data.push(...filteredOsmLanduseAreasCentroids.map(item => ({ ...item, dataType: 'osmLanduseAreas' })));
     }
+    if (dataType.epcCertificates) {
+      data.push(...filteredEpcCertificateCentroids.map(item => ({ ...item, dataType: 'epcCertificates' })));
+    }
     
     return data;
-  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, filteredUprnCentroids, filteredOsmBuildingPartCentroids, filteredOsmLanduseAreasCentroids, dataType]);
+  }, [filteredBuildingCentroids, filteredBuildingPartCentroids, filteredSiteCentroids, filteredNhleCentroids, filteredPhotoCentroids, filteredUprnCentroids, filteredOsmBuildingPartCentroids, filteredOsmLanduseAreasCentroids, filteredEpcCertificateCentroids, dataType]);
 
   return {
     filteredBuildingCentroids,
@@ -235,6 +249,7 @@ export function useDataFilters({
     filteredUprnCentroids,
     filteredOsmBuildingPartCentroids,
     filteredOsmLanduseAreasCentroids,
+    filteredEpcCertificateCentroids,
     availableGrades,
     filteredShapes,
     allFilteredData

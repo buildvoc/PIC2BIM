@@ -88,9 +88,19 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
 
     const featuresToProcess = Object.entries(featureActions).map(([indexStr, action]) => {
       const featureIndex = parseInt(indexStr, 10);
+      const feature = geoJson.features[featureIndex];
+      
+      // For NHLE, ensure gid is present in properties
+      if (schema === 'nhle' && feature.properties) {
+        const gid = feature.properties.gid || feature.properties.ListEntry || feature.properties.listentry;
+        if (gid && !feature.properties.gid) {
+          feature.properties.gid = gid;
+        }
+      }
+      
       return {
         action,
-        feature: geoJson.features[featureIndex],
+        feature: feature,
       };
     });
 
@@ -154,7 +164,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
     };
     
     const getIdValue = (properties: any) => {
-      if (schema === 'nhle') return properties.listentry;
+      if (schema === 'nhle') return properties.listentry || properties.ListEntry || properties.gid;
       if (schema === 'uprn') return properties.uprn;
       if (schema === 'land_registry_inspire') return properties.gml_id;
       if (schema === 'osm_building_part') return properties.osm_id;
@@ -192,7 +202,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
 
       if (key === 'properties') {
         const getIdValue = (properties: any) => {
-          if (schema === 'nhle') return properties.listentry;
+          if (schema === 'nhle') return properties.listentry || properties.ListEntry || properties.gid;
           if (schema === 'uprn') return properties.uprn;
           if (schema === 'land_registry_inspire') return properties.gml_id;
           if (schema === 'osm_building_part') return properties.osm_id;
@@ -270,7 +280,7 @@ const ValidationReportModal = ({ open, onClose, results, geoJson, onImportSucces
                   <TableCell>{result.feature_index + 1}</TableCell>
                   <TableCell>
                     {(() => {
-                      if (schema === 'nhle') return result.properties.listentry;
+                      if (schema === 'nhle') return result.properties.listentry || result.properties.ListEntry || result.properties.gid;
                       if (schema === 'uprn') return result.properties.uprn;
                       if (schema === 'land_registry_inspire') return result.properties.gml_id;
                       if (schema === 'osm_building_part') return result.properties.osm_id;
