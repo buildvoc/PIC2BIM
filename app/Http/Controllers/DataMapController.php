@@ -61,87 +61,406 @@ class DataMapController extends Controller
 
     public function getArea(Request $request)
     {
-        set_time_limit(300); // 5 minutes
+        set_time_limit(300);
         ini_set('memory_limit', '1024M');
 
         $areaIds = $request->input('area_ids', []);
-        $includeBuaFilter = $request->input('include_bua_filter', true); // Default to true for backward compatibility
-        
-        if (empty($areaIds)) {
-            return response()->json([
-                'buildings' => new BuildingCollectionV4(collect()),
-                'buildingParts' => new BuildingPartCollectionV2(collect()),
-                'sites' => new SiteCollection(collect()),
-                'nhle' => collect(),
-                'center' => null
-            ]);
+
+        if (!is_array($areaIds)) {
+            if (is_string($areaIds) && str_starts_with($areaIds, '[')) {
+                $areaIds = json_decode($areaIds, true);
+            } else {
+                $areaIds = [$areaIds];
+            }
         }
 
-        // Get the geometries of selected built-up areas
-        $builtupAreaGeometriesQuery = BuiltupArea::query()
-            ->whereIn('fid', $areaIds)
-            ->select('geometry');
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
 
-        // Fetch buildings within selected areas
+        // Fetch buildings
         $buildings = collect();
-        Building::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+        $buildingQuery = Building::query();
+
+        if (!empty($areaIds)) {
+            $builtupAreaGeometriesQuery = BuiltupArea::query()
+                ->whereIn('fid', $areaIds)
+                ->select('geometry');
+
+            $buildingQuery->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
-            })
+            });
+        }
+
+        $buildingQuery
             ->with('sites', 'buildingAddresses')
             ->chunk(2000, function ($chunk) use (&$buildings) {
                 $buildings = $buildings->merge($chunk);
             });
 
-        // Fetch building parts within selected areas
+        // Calculate center point
+        $center = null;
+        if (!empty($areaIds)) {
+            $centerData = DB::table('ons_bua')
+                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
+                ->whereIn('fid', $areaIds)
+                ->first();
+
+            if ($centerData && $centerData->center) {
+                $center = json_decode($centerData->center);
+            }
+        }
+
+        // Prepare response
+        $responseData = [
+            'buildings' => new BuildingCollectionV4($buildings),
+            'center' => $center,
+        ];
+
+        Log::info('getArea response prepared', [
+            'buildings_count' => $buildings->count(),
+            'has_center' => !is_null($center)
+        ]);
+
+        return response()->json($responseData);
+    }
+
+    /**
+     * Get specific data type for selected areas (Lazy Loading)
+     * Supports: building_parts, sites, nhle, land_registry, uprn, photos, 
+     *           osm_building_parts, osm_addresses, osm_landuse, epc_certificates
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAreaData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+
+        $areaIds = $request->input('area_ids', []);
+        
+        // Ensure $areaIds is always an array of integers
+        if (!is_array($areaIds)) {
+            // If it's a JSON string, decode it
+            if (is_string($areaIds) && str_starts_with($areaIds, '[')) {
+                $areaIds = json_decode($areaIds, true);
+            } else {
+                $areaIds = [$areaIds];
+            }
+        }
+        
+        // Convert all values to integers
+        $areaIds = array_map('intval', array_filter($areaIds));
+        
+        $dataType = $request->input('data_type');
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+
+        // Validation - only data_type is required, area_ids is optional
+        if (empty($dataType)) {
+            return response()->json(['error' => 'data_type is required'], 400);
+        }
+
+        Log::info("=== GET AREA DATA: {$dataType} ===", [
+            'area_ids' => $areaIds ?: 'all',
+            'include_bua_filter' => $includeBuaFilter
+        ]);
+
+        $startTime = microtime(true);
+
+        // Build BUA geometries query for spatial filtering (only if area_ids provided)
+        $builtupAreaGeometriesQuery = null;
+        if (!empty($areaIds)) {
+            $builtupAreaGeometriesQuery = DB::table('ons_bua')
+                ->select('geometry')
+                ->whereIn('fid', $areaIds);
+        }
+
+        try {
+            $responseData = null;
+
+            switch ($dataType) {
+                case 'building_parts':
+                    $responseData = $this->getBuildingPartsData($builtupAreaGeometriesQuery);
+                    break;
+
+                case 'sites':
+                    $responseData = $this->getSitesData($builtupAreaGeometriesQuery);
+                    break;
+
+                case 'nhle':
+                    $responseData = $this->getNHLEData($areaIds);
+                    break;
+
+                case 'land_registry':
+                    $responseData = $this->getLandRegistryData($areaIds);
+                    break;
+
+                case 'uprn':
+                    $responseData = $this->getUPRNData($builtupAreaGeometriesQuery);
+                    break;
+
+                case 'photos':
+                    $responseData = $this->getPhotosData($builtupAreaGeometriesQuery, $includeBuaFilter);
+                    break;
+
+                case 'osm_building_parts':
+                    $responseData = $this->getOSMBuildingPartsData();
+                    break;
+
+                case 'osm_addresses':
+                    $responseData = $this->getOSMAddressesData();
+                    break;
+
+                case 'osm_landuse':
+                    $responseData = $this->getOSMLanduseData();
+                    break;
+
+                case 'epc_certificates':
+                    $responseData = $this->getEPCCertificatesData($builtupAreaGeometriesQuery);
+                    break;
+
+                default:
+                    return response()->json([
+                        'error' => 'Invalid data_type',
+                        'valid_types' => [
+                            'building_parts', 'sites', 'nhle', 'land_registry', 'uprn',
+                            'photos', 'osm_building_parts', 'osm_addresses', 'osm_landuse', 'epc_certificates'
+                        ]
+                    ], 400);
+            }
+
+            $executionTime = round(microtime(true) - $startTime, 2);
+            
+            Log::info("Data type '{$dataType}' loaded successfully", [
+                'execution_time' => $executionTime . 's',
+                'memory_used' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB'
+            ]);
+
+            return response()->json($responseData);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to load data type '{$dataType}'", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load data',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function validateBuilding(Request $request)
+    {
+        return $this->performValidation(Building::class, $request->input('geojson'));
+    }
+
+    /**
+     * Helper Methods for getAreaData()
+     */
+
+    private function getBuildingPartsData($builtupAreaGeometriesQuery)
+    {
         $buildingParts = collect();
-        BuildingPartV2::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+        $query = BuildingPartV2::query();
+        
+        if ($builtupAreaGeometriesQuery !== null) {
+            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-            })
-            ->with('buildingPartSiteRefs')
+            });
+        }
+        
+        $query->with('buildingPartSiteRefs')
             ->chunk(2000, function ($chunk) use (&$buildingParts) {
                 $buildingParts = $buildingParts->merge($chunk);
             });
 
-        // Fetch sites within selected areas
+        return [
+            'buildingParts' => new BuildingPartCollectionV2($buildingParts)
+        ];
+    }
+
+    private function getSitesData($builtupAreaGeometriesQuery)
+    {
         $sites = collect();
-        Site::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+        $query = Site::query();
+        
+        if ($builtupAreaGeometriesQuery !== null) {
+            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
                     ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
-            })
-            ->with('buildings', 'buildingPartSiteRefs')
+            });
+        }
+        
+        $query->with('buildings', 'buildingPartSiteRefs')
             ->chunk(2000, function ($chunk) use (&$sites) {
                 $sites = $sites->merge($chunk);
             });
 
-        // Fetch NHLE data within selected areas
-        $nhle = collect();
-        NHLE::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(nhle_.geom, s.geometry)');
-            })
-            ->chunk(2000, function ($chunk) use (&$nhle) {
-                $nhle = $nhle->merge($chunk);
-            });
+        return [
+            'sites' => new SiteCollection($sites)
+        ];
+    }
 
-        // Fetch UPRN points within selected areas
+    private function getNHLEData($areaIds)
+    {
+        $nhle = collect();
+        $areaIdsString = implode(',', $areaIds);
+        
+        DB::statement('SET statement_timeout = 120000');
+        
+        $nhleResults = DB::select("
+            SELECT 
+                n.gid,
+                n.objectid,
+                n.listentry,
+                n.name,
+                n.grade,
+                n.listdate,
+                n.amenddate,
+                n.capturesca,
+                n.hyperlink,
+                n.ngr,
+                n.easting,
+                n.northing,
+                n.latitude,
+                n.longitude,
+                ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
+            FROM nhle_ n
+            WHERE EXISTS (
+                SELECT 1 FROM ons_bua b
+                WHERE b.fid IN ({$areaIdsString})
+                AND ST_INTERSECTS(n.geom, b.geometry)
+            )
+        ");
+
+        foreach ($nhleResults as $row) {
+            if (!empty($row->geometry)) {
+                $nhleModel = new NHLE();
+                $nhleModel->gid = $row->gid;
+                $nhleModel->objectid = $row->objectid;
+                $nhleModel->listentry = $row->listentry;
+                $nhleModel->name = $row->name;
+                $nhleModel->grade = $row->grade;
+                $nhleModel->listdate = $row->listdate;
+                $nhleModel->amenddate = $row->amenddate;
+                $nhleModel->capturesca = $row->capturesca;
+                $nhleModel->hyperlink = $row->hyperlink;
+                $nhleModel->ngr = $row->ngr;
+                $nhleModel->easting = $row->easting;
+                $nhleModel->northing = $row->northing;
+                $nhleModel->latitude = $row->latitude;
+                $nhleModel->longitude = $row->longitude;
+                $nhleModel->geom = json_decode($row->geometry);
+                $nhle->push($nhleModel);
+            }
+        }
+
+        return [
+            'nhle' => $nhle
+        ];
+    }
+
+    private function getLandRegistryData($areaIds)
+    {
+        $landRegistryFeatures = collect();
+        $areaIdsString = implode(',', $areaIds);
+        
+        // Get bounding box
+        $bbox = DB::table('ons_bua')
+            ->selectRaw('
+                ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
+                ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
+                ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
+                ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
+            ')
+            ->whereIn('fid', $areaIds)
+            ->first();
+
+        if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
+            $expandedBbox = [
+                'min_lng' => $bbox->min_lng - 0.01,
+                'min_lat' => $bbox->min_lat - 0.01,
+                'max_lng' => $bbox->max_lng + 0.01,
+                'max_lat' => $bbox->max_lat + 0.01
+            ];
+
+            DB::statement('SET statement_timeout = 120000');
+            
+            $lrResults = DB::select("
+                SELECT 
+                    lri.gml_id,
+                    lri.\"INSPIREID\" as inspireid,
+                    lri.\"LABEL\" as label,
+                    lri.\"NATIONALCADASTRALREFERENCE\" as nationalcadastralreference,
+                    lri.\"VALIDFROM\" as validfrom,
+                    lri.\"BEGINLIFESPANVERSION\" as beginlifespanversion,
+                    ST_AsGeoJSON(lri.geom) as geometry,
+                    GeometryType(lri.geom) as geom_type
+                FROM land_registry_inspire lri
+                WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                AND EXISTS (
+                    SELECT 1 FROM nhle_ n, ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(n.geom, b.geometry)
+                    AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
+                )
+            ", [
+                $expandedBbox['min_lng'], $expandedBbox['min_lat'],
+                $expandedBbox['max_lng'], $expandedBbox['max_lat']
+            ]);
+
+            $seenGmlIds = [];
+            foreach ($lrResults as $row) {
+                if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
+                    $seenGmlIds[] = $row->gml_id;
+                    $geometry = json_decode($row->geometry, true);
+                    $landRegistryFeatures->push([
+                        'type' => 'Feature',
+                        'geometry' => $geometry,
+                        'properties' => [
+                            'gml_id' => $row->gml_id,
+                            'INSPIREID' => $row->inspireid,
+                            'LABEL' => $row->label,
+                            'NATIONALCADASTRALREFERENCE' => $row->nationalcadastralreference,
+                            'VALIDFROM' => $row->validfrom,
+                            'BEGINLIFESPANVERSION' => $row->beginlifespanversion,
+                        ]
+                    ]);
+                }
+            }
+        }
+
+        return [
+            'landRegistryInspire' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $landRegistryFeatures->values()
+                ]
+            ]
+        ];
+    }
+
+    private function getUPRNData($builtupAreaGeometriesQuery)
+    {
         $uprnFeatures = collect();
-        Uprn::query()
-            ->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+        $query = Uprn::query();
+        
+        if ($builtupAreaGeometriesQuery !== null) {
+            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
-                    // ->whereRaw('ST_INTERSECTS(osopenuprn_address.geom, s.geometry)');
                     ->whereRaw('ST_DWithin(osopenuprn_address.geom, s.geometry, 50)');
-            })
+            });
+        }
+        
+        $query
             ->select([
                 'uprn',
                 DB::raw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geom')
@@ -159,7 +478,6 @@ class DataMapController extends Controller
                             'uprn' => (int)$uprn->uprn,
                         ];
 
-                        // Add EPC data if available
                         if ($latestEpc) {
                             $properties = array_merge($properties, [
                                 'floor_level' => $latestEpc->floor_level,
@@ -186,239 +504,18 @@ class DataMapController extends Controller
                 }
             });
 
-        $uprnGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $uprnFeatures->values()
+        return [
+            'uprn' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $uprnFeatures->values()
+                ]
+            ]
         ];
+    }
 
-        // Fetch Land Registry INSPIRE data within selected areas (with BUA filtering)
-        $landRegistryFeatures = collect();
-        
-        // Only proceed if we have selected areas
-        if (!empty($areaIds)) {
-            Log::info('Processing Land Registry INSPIRE query for BUA areas', ['area_ids' => $areaIds]);
-            
-            // First, let's check what columns actually exist in the table
-            try {
-                $columns = DB::select("
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'land_registry_inspire'
-                    ORDER BY ordinal_position
-                ");
-                Log::info('Land Registry INSPIRE table columns', ['columns' => array_map(fn($col) => $col->column_name, $columns)]);
-            } catch (\Exception $e) {
-                Log::error('Failed to check table structure', ['error' => $e->getMessage()]);
-            }
-            
-            // First get bounding box of selected BUA areas for efficient pre-filtering
-            // Fix SRID issue by setting it to 27700 (BNG) first, then transform to 4326 (WGS84)
-            try {
-                $bbox = DB::table('ons_bua')
-                    ->selectRaw('
-                        ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
-                        ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
-                        ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
-                        ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
-                    ')
-                    ->whereIn('fid', $areaIds)
-                    ->first();
-            } catch (\Exception $e) {
-                Log::error('BUA bounding box calculation failed', ['error' => $e->getMessage()]);
-                $bbox = null;
-            }
-                
-            Log::info('BUA Bounding box calculated', ['bbox' => $bbox]);
-
-            if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
-                try {
-                    // Set longer timeout for large queries
-                    DB::statement('SET statement_timeout = 120000'); // 2 minutes
-                    // Get more data with expanded bounding box and higher limit
-                    $expandedBbox = [
-                        'min_lng' => $bbox->min_lng - 0.01, // Expand by ~1km
-                        'min_lat' => $bbox->min_lat - 0.01,
-                        'max_lng' => $bbox->max_lng + 0.01,
-                        'max_lat' => $bbox->max_lat + 0.01
-                    ];
-                    
-                    Log::info('Using expanded bounding box', ['original' => $bbox, 'expanded' => $expandedBbox]);
-                    
-                    // First, get NHLE data in the bounding box and transform to WGS84
-                    $nhleInBbox = DB::select("
-                        SELECT ST_Transform(geom, 4326) as geom_wgs84
-                        FROM nhle_ 
-                        WHERE geom && ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), 27700)
-                    ", [
-                        $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
-                        $expandedBbox['max_lng'], $expandedBbox['max_lat']
-                    ]);
-                    
-                    if (empty($nhleInBbox)) {
-                        Log::info('No NHLE data found in bounding box, skipping Land Registry INSPIRE query');
-                        $landRegistryData = [];
-                    } else {
-                        // Create a union of all NHLE geometries for efficient intersection
-                        $landRegistryData = DB::select("
-                            WITH nhle_union AS (
-                                SELECT ST_Union(ST_Transform(geom, 4326)) as union_geom
-                                FROM nhle_ 
-                                WHERE geom && ST_Transform(ST_MakeEnvelope(?, ?, ?, ?, 4326), 27700)
-                            )
-                            SELECT DISTINCT ON (lri.gml_id)
-                                lri.gml_id,
-                                lri.\"INSPIREID\",
-                                lri.\"LABEL\",
-                                lri.\"NATIONALCADASTRALREFERENCE\",
-                                lri.\"VALIDFROM\",
-                                lri.\"BEGINLIFESPANVERSION\",
-                                ST_AsGeoJSON(lri.geom) as geometry,
-                                GeometryType(lri.geom) as geom_type
-                            FROM land_registry_inspire lri, nhle_union nu
-                            WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
-                            AND ST_INTERSECTS(nu.union_geom, lri.geom)
-                            ORDER BY lri.gml_id
-                        ", [
-                            $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
-                            $expandedBbox['max_lng'], $expandedBbox['max_lat'],
-                            $expandedBbox['min_lng'], $expandedBbox['min_lat'], 
-                            $expandedBbox['max_lng'], $expandedBbox['max_lat']
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Land Registry INSPIRE query failed', ['error' => $e->getMessage()]);
-                    $landRegistryData = [];
-                }
-                
-                // Check for duplicates by gml_id
-                $gmlIds = array_map(fn($row) => $row->gml_id, $landRegistryData);
-                $uniqueGmlIds = array_unique($gmlIds);
-                $duplicateCount = count($gmlIds) - count($uniqueGmlIds);
-                
-                Log::info('Land Registry INSPIRE query executed (NO LIMIT)', [
-                    'result_count' => count($landRegistryData),
-                    'unique_gml_ids' => count($uniqueGmlIds),
-                    'duplicate_count' => $duplicateCount,
-                    'geometry_types' => array_count_values(array_map(fn($row) => $row->geom_type ?? 'unknown', $landRegistryData)),
-                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB',
-                    'sample_gml_ids' => array_slice($gmlIds, 0, 5)
-                ]);
-
-                // Deduplicate by gml_id to prevent double rendering
-                $seenGmlIds = [];
-                foreach ($landRegistryData as $row) {
-                    if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
-                        $seenGmlIds[] = $row->gml_id;
-                        $geometry = json_decode($row->geometry, true);
-                        $landRegistryFeatures->push([
-                            'type' => 'Feature',
-                            'geometry' => $geometry,
-                            'properties' => [
-                                'gml_id' => $row->gml_id,
-                                'INSPIREID' => $row->INSPIREID ?? null,
-                                'LABEL' => $row->LABEL ?? null,
-                                'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
-                                'VALIDFROM' => $row->VALIDFROM ?? null,
-                                'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
-                            ]
-                        ]);
-                    }
-                }
-                
-                Log::info('After deduplication (primary query)', [
-                    'original_count' => count($landRegistryData),
-                    'final_features' => $landRegistryFeatures->count(),
-                    'duplicates_removed' => count($landRegistryData) - $landRegistryFeatures->count()
-                ]);
-            } else {
-                Log::warning('No valid bounding box calculated for BUA areas, trying NHLE-filtered fallback');
-                
-                // Fallback: Get INSPIRE data that intersects with NHLE (with LIMIT for safety)
-                try {
-                    // First check if there's any NHLE data at all
-                    $nhleExists = DB::select("SELECT 1 FROM nhle_ LIMIT 1");
-                    
-                    if (empty($nhleExists)) {
-                        Log::info('No NHLE data exists, skipping Land Registry INSPIRE fallback query');
-                        $landRegistryData = [];
-                    } else {
-                        // Get Land Registry data that intersects with ANY NHLE
-                        $landRegistryData = DB::select("
-                            WITH nhle_union AS (
-                                SELECT ST_Union(ST_Transform(geom, 4326)) as union_geom
-                                FROM nhle_
-                                LIMIT 5000
-                            )
-                            SELECT DISTINCT ON (lri.gml_id)
-                                lri.gml_id,
-                                lri.\"INSPIREID\",
-                                lri.\"LABEL\",
-                                lri.\"NATIONALCADASTRALREFERENCE\",
-                                lri.\"VALIDFROM\",
-                                lri.\"BEGINLIFESPANVERSION\",
-                                ST_AsGeoJSON(lri.geom) as geometry,
-                                GeometryType(lri.geom) as geom_type
-                            FROM land_registry_inspire lri, nhle_union nu
-                            WHERE ST_INTERSECTS(nu.union_geom, lri.geom)
-                            ORDER BY lri.gml_id
-                            LIMIT 10000
-                        ");
-                        
-                        Log::info('Fallback Land Registry INSPIRE query executed (WITH NHLE FILTER & LIMIT)', [
-                            'result_count' => count($landRegistryData),
-                            'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
-                        ]);
-                    }
-                    
-                    foreach ($landRegistryData as $row) {
-                        if (!empty($row->geometry)) {
-                            $geometry = json_decode($row->geometry, true);
-                            $landRegistryFeatures->push([
-                                'type' => 'Feature',
-                                'geometry' => $geometry,
-                                'properties' => [
-                                    'gml_id' => $row->gml_id,
-                                    'INSPIREID' => $row->INSPIREID ?? null,
-                                    'LABEL' => $row->LABEL ?? null,
-                                    'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
-                                    'VALIDFROM' => $row->VALIDFROM ?? null,
-                                    'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
-                                ]
-                            ]);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Fallback Land Registry INSPIRE query also failed', ['error' => $e->getMessage()]);
-                    $landRegistryData = [];
-                }
-            }
-        } else {
-            Log::info('No area IDs provided, returning empty Land Registry INSPIRE data to prevent timeout');
-            
-            // When clear filter (no areas selected), return empty to prevent timeout
-            // User should select at least one BUA area to view Land Registry data
-            try {
-                // Option: Return empty for better performance
-                $landRegistryData = [];
-                
-                Log::info('Land Registry INSPIRE query skipped (no area IDs)', [
-                    'result_count' => 0,
-                    'reason' => 'No BUA areas selected - Land Registry requires area selection'
-                ]);
-
-                // No data to process when areaIds is empty
-            } catch (\Exception $e) {
-                Log::error('Land Registry INSPIRE empty query failed', ['error' => $e->getMessage()]);
-            }
-        }
-
-        $landRegistryGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $landRegistryFeatures->values()
-        ];
-
-        // Calculate center point of selected areas
-
+    private function getPhotosData($builtupAreaGeometriesQuery, $includeBuaFilter)
+    {
         $users = collect();
         User::query()
             ->join('user_role as ur', 'user.id', '=', 'ur.user_id')
@@ -429,8 +526,7 @@ class DataMapController extends Controller
             ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery, $includeBuaFilter) {
                 $query->where('flg_deleted', 0);
                 
-                // Only apply BUA spatial filter if includeBuaFilter is true
-                if ($includeBuaFilter) {
+                if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
                     $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
                         $subQuery->select(DB::raw(1))
                             ->fromSub($builtupAreaGeometriesQuery, 's')
@@ -442,35 +538,28 @@ class DataMapController extends Controller
                 $users = $users->merge($chunk);
             });
 
-            $users = $users->filter(function ($user) {
-                return $user->photos->isNotEmpty();
-            });
-    
-            // Extract all photos from filtered users for easier access
-            $photos = collect();
-            foreach ($users as $user) {
-                foreach ($user->photos as $photo) {
-                    $photo->user_name = $user->name;
-                    $photo->link = $photo->link;
-                    $photos->push($photo);
-                }
-            }
+        $users = $users->filter(function ($user) {
+            return $user->photos->isNotEmpty();
+        });
 
-        $center = null;
-        if (!empty($areaIds)) {
-            $centerData = DB::table('ons_bua')
-                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
-                ->whereIn('fid', $areaIds)
-                ->first();
-
-            if ($centerData && $centerData->center) {
-                $center = json_decode($centerData->center);
+        $photos = collect();
+        foreach ($users as $user) {
+            foreach ($user->photos as $photo) {
+                $photo->user_name = $user->name;
+                $photo->link = $photo->link;
+                $photos->push($photo);
             }
         }
 
-        // osm data        
-        // Fetch OSM Building Parts within selected areas
+        return [
+            'photos' => new DataMapPhotoCollection($photos)
+        ];
+    }
+
+    private function getOSMBuildingPartsData()
+    {
         $osmBuildingParts = collect();
+        
         $rawResults = DB::select("
             SELECT 
                 id, source, osm_id, name, ref_gb_uprn,
@@ -505,8 +594,20 @@ class DataMapController extends Controller
             }
         }
 
-        // Fetch OSM Addresses within selected areas
+        return [
+            'osmBuildingParts' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $osmBuildingParts->values()
+                ]
+            ]
+        ];
+    }
+
+    private function getOSMAddressesData()
+    {
         $osmAddresses = collect();
+        
         $addressResults = DB::select("
             SELECT 
                 id, building_part_id, osm_id, uprn, source,
@@ -539,8 +640,20 @@ class DataMapController extends Controller
             }
         }
 
-        // Fetch OSM Landuse Areas within selected areas
+        return [
+            'osmAddresses' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $osmAddresses->values()
+                ]
+            ]
+        ];
+    }
+
+    private function getOSMLanduseData()
+    {
         $osmLanduseAreas = collect();
+        
         $landuseResults = DB::select("
             SELECT 
                 id, source, osm_id, name, landuse, operator, ref,
@@ -568,27 +681,26 @@ class DataMapController extends Controller
             }
         }
 
-        // Format OSM data as GeoJSON FeatureCollections
-        $osmBuildingPartsGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $osmBuildingParts->values()
+        return [
+            'osmLanduseAreas' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $osmLanduseAreas->values()
+                ]
+            ]
         ];
-        
-        $osmAddressesGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $osmAddresses->values()
-        ];
-        
-        $osmLanduseAreasGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $osmLanduseAreas->values()
-        ];
+    }
 
-        // Fetch EPC Certificate data within selected areas (linked via UPRN)
+    private function getEPCCertificatesData($builtupAreaGeometriesQuery)
+    {
         $epcCertificates = collect();
-        EpcCertificate::query()
-            ->withGeometry()
-            ->withinBuiltupAreas($builtupAreaGeometriesQuery)
+        $query = EpcCertificate::query()->withGeometry();
+        
+        if ($builtupAreaGeometriesQuery !== null) {
+            $query->withinBuiltupAreas($builtupAreaGeometriesQuery);
+        }
+        
+        $query
             ->chunk(5000, function ($chunk) use (&$epcCertificates) {
                 foreach ($chunk as $epc) {
                     if (!empty($epc->geometry)) {
@@ -686,32 +798,14 @@ class DataMapController extends Controller
                 }
             });
 
-        $epcCertificatesGeoJson = [
-            'type' => 'FeatureCollection',
-            'features' => $epcCertificates->values()
+        return [
+            'epcCertificates' => [
+                'data' => [
+                    'type' => 'FeatureCollection',
+                    'features' => $epcCertificates->values()
+                ]
+            ]
         ];
-
-        $responseData = [
-            'buildings' => new BuildingCollectionV4($buildings),
-            'buildingParts' => new BuildingPartCollectionV2($buildingParts),
-            'sites' => new SiteCollection($sites),
-            'nhle' => $nhle,
-            'center' => $center,
-            'photos' => new DataMapPhotoCollection($photos),
-            'uprn' => ['data' => $uprnGeoJson],
-            'landRegistryInspire' => ['data' => $landRegistryGeoJson],
-            'osmBuildingParts' => ['data' => $osmBuildingPartsGeoJson],
-            'osmAddresses' => ['data' => $osmAddressesGeoJson],
-            'osmLanduseAreas' => ['data' => $osmLanduseAreasGeoJson],
-            'epcCertificates' => ['data' => $epcCertificatesGeoJson]
-        ];
-
-        return response()->json($responseData);
-    }
-
-    public function validateBuilding(Request $request)
-    {
-        return $this->performValidation(Building::class, $request->input('geojson'));
     }
 
     public function validateSite(Request $request)

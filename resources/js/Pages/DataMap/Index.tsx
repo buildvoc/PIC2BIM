@@ -29,6 +29,7 @@ import { searchableFields } from '@/Constants/searchableFields';
 import MetadataGrid from '@/Components/DataMap/MetadataGrid';
 import PhotoPanel from '@/Components/DataMap/PhotoPanel';
 import { fetchAllBuildingData, findNearestFeature } from '@/Pages/BuildingHeight/api/fetch-building';
+import { loadAllDataBatched } from './api/lazyLoadData';
 
 import type { Feature, Geometry, Position } from 'geojson';
 import type { ShapeProperties } from '@/types/shape';
@@ -798,7 +799,7 @@ export function Index({ auth }: PageProps) {
         ...prev,
         [cacheKey]: newData
       }));
-//console.log(newData);
+
       return newData;
     } catch (error) {
       console.error('Error fetching area data:', error);
@@ -1244,9 +1245,27 @@ export function Index({ auth }: PageProps) {
       });
       
       if (missingAreaIds.length > 0) {
+        // Load buildings first (essential data)
         fetchAreaData(missingAreaIds, true).then(newData => {
           if (newData) {
             mergeAreaData(newData);
+            
+            // Then lazy load other data types in batches
+            console.log('Buildings loaded, starting lazy load for other data types...');
+            setIsLoadingAreaData(true);
+            loadAllDataBatched(
+              { areaIds: missingAreaIds, includeBuaFilter: true },
+              (dataType, data) => {
+                // Merge each data type as it loads
+                console.log(`Lazy loaded ${dataType}`);
+                mergeAreaData({ [dataType]: data });
+              }
+            ).catch(error => {
+              setIsLoadingAreaData(false);
+              console.error('Error in lazy loading:', error);
+            }).finally(() => {
+              setIsLoadingAreaData(false);
+            });
           }
         });
       }
@@ -2023,6 +2042,14 @@ export function Index({ auth }: PageProps) {
   const userInteractedWithMap = useRef(false);
   const lastSelectedShapeIds = useRef<string[]>([]);
   const lastDataType = useRef(dataType);
+  const lastDataLengths = useRef({
+    buildings: 0,
+    sites: 0,
+    nhle: 0,
+    photos: 0,
+    buildingParts: 0,
+    uprn: 0
+  });
 
   // Track user interaction with map (excluding UI interactions)
   const handleViewStateChange = useCallback((params: any) => {
@@ -2088,11 +2115,30 @@ export function Index({ auth }: PageProps) {
     const shapeIdsChanged = JSON.stringify(selectedShapeIds) !== JSON.stringify(lastSelectedShapeIds.current);
     const dataTypeChanged = JSON.stringify(dataType) !== JSON.stringify(lastDataType.current);
     
-    const shouldAutoZoom = !userInteractedWithMap.current || shapeIdsChanged || dataTypeChanged;
+    // Allow auto zoom if: no user interaction, OR shape/dataType changed, OR data length changed (lazy loading)
+    const dataLengthChanged = 
+      buildingCentroidsData.length !== lastDataLengths.current.buildings ||
+      siteCentroidsData.length !== lastDataLengths.current.sites ||
+      nhleCentroidsData.length !== lastDataLengths.current.nhle ||
+      photoCentroidsData.length !== lastDataLengths.current.photos ||
+      buildingPartCentroidsData.length !== lastDataLengths.current.buildingParts ||
+      uprnCentroidsData.length !== lastDataLengths.current.uprn;
+    
+    const shouldAutoZoom = !userInteractedWithMap.current || shapeIdsChanged || dataTypeChanged || dataLengthChanged;
     
     if (!shouldAutoZoom) {
         return;
     }
+    
+    // Update last data lengths
+    lastDataLengths.current = {
+      buildings: buildingCentroidsData.length,
+      sites: siteCentroidsData.length,
+      nhle: nhleCentroidsData.length,
+      photos: photoCentroidsData.length,
+      buildingParts: buildingPartCentroidsData.length,
+      uprn: uprnCentroidsData.length
+    };
 
     lastSelectedShapeIds.current = [...selectedShapeIds];
     lastDataType.current = { ...dataType };
@@ -2153,7 +2199,22 @@ export function Index({ auth }: PageProps) {
     }, 100); // Small delay to ensure state updates are complete
 
     return () => clearTimeout(timeoutId);
-  }, [allFilteredData, selectedShapeIds, shapes?.data?.features, floorRange, dataType]);
+  }, [
+    allFilteredData, 
+    selectedShapeIds, 
+    shapes?.data?.features, 
+    floorRange, 
+    dataType,
+    // Add all data states to trigger auto zoom when lazy loaded data arrives
+    buildingCentroidsData.length,
+    buildingPartCentroidsData.length,
+    siteCentroidsData.length,
+    nhleCentroidsData.length,
+    photoCentroidsData.length,
+    uprnCentroidsData.length,
+    osmBuildingPartCentroidsData.length,
+    epcCertificateCentroidsData.length
+  ]);
 
   const zoomBasedRadius = useMemo(() => {
     return Math.max(1, Math.pow(2, 14 - viewState.zoom));
@@ -4002,9 +4063,23 @@ export function Index({ auth }: PageProps) {
                           !Object.keys(areaDataCache).some(key => key.includes(id))
                         );
                         if (missingAreaIds.length > 0) {
+                          // Load buildings first
                           fetchAreaData(missingAreaIds, false).then(newData => {
                             if (newData) {
                               mergeAreaData(newData);
+                              setIsLoadingAreaData(true);
+                              // Then lazy load other data types
+                              loadAllDataBatched(
+                                { areaIds: missingAreaIds, includeBuaFilter: false },
+                                (dataType, data) => {
+                                  mergeAreaData({ [dataType]: data });
+                                }
+                              ).catch(error => {
+                                setIsLoadingAreaData(false);
+                                console.error('Error in lazy loading:', error);
+                              }).finally(() => {
+                                setIsLoadingAreaData(false);
+                              });
                             }
                           });
                         }
