@@ -1127,11 +1127,35 @@ export function createMapLayers({
       radiusMaxPixels: 20,
       lineWidthMinPixels: 2,
       getPosition: (d: any, { index }: { index: number }) => {
-        const angle = (index / spideredConnections.length) * Math.PI * 2;
-        return [
-          spideringRadius * Math.cos(angle),
-          spideringRadius * Math.sin(angle)
-        ];
+        // Check if this is UPRN with floor_level
+        const floorLevel = (d.properties as any)?.__floorLevel;
+        const isUprn = d.type === 'uprn';
+        
+        if (isUprn) {
+          // UPRN: Use actual coordinates from database
+          const [actualLng, actualLat] = d.coordinates;
+          const [centerLng, centerLat] = selectedPoint.coordinates;
+          
+          // Convert lat/lng difference to meters (Web Mercator projection)
+          const yOffset = (actualLat - centerLat) * 111320;
+          const xOffset = (actualLng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180);
+          
+          // Add vertical elevation for UPRN with floor levels
+          if (floorLevel !== undefined) {
+            const FLOOR_HEIGHT_METERS = 3;
+            const elevation = floorLevel * FLOOR_HEIGHT_METERS;
+            return [xOffset, yOffset, elevation];
+          }
+          return [xOffset, yOffset, 0];
+        } else {
+          // Non-UPRN: Use circular spidering pattern
+          const angle = (index / spideredConnections.length) * Math.PI * 2;
+          return [
+            spideringRadius * Math.cos(angle),
+            spideringRadius * Math.sin(angle),
+            0 // Ground level
+          ];
+        }
       },
       getRadius: 8,
       getFillColor: (d: any) => {
@@ -1210,16 +1234,43 @@ export function createMapLayers({
     selectedPoint && spideredConnections.length > 0 && new PathLayer({
       id: `spidered-connection-lines-${selectedPoint.id}`,
       data: spideredConnections.map((conn, index) => {
-        const angle = (index / spideredConnections.length) * Math.PI * 2;
-        const spideredPosition = [
-          spideringRadius * Math.cos(angle),
-          spideringRadius * Math.sin(angle)
-        ];
+        // Check if this is UPRN
+        const floorLevel = (conn.properties as any)?.__floorLevel;
+        const isUprn = conn.type === 'uprn';
+        
+        let spideredPosition;
+        
+        if (isUprn) {
+          // UPRN: Use actual coordinates from database
+          const [actualLng, actualLat] = conn.coordinates;
+          const [centerLng, centerLat] = selectedPoint.coordinates;
+          
+          // Convert lat/lng difference to meters (Web Mercator projection)
+          const yOffset = (actualLat - centerLat) * 111320;
+          const xOffset = (actualLng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180);
+          
+          // Add vertical elevation for UPRN with floor levels
+          if (floorLevel !== undefined) {
+            const FLOOR_HEIGHT_METERS = 3;
+            const elevation = floorLevel * FLOOR_HEIGHT_METERS;
+            spideredPosition = [xOffset, yOffset, elevation];
+          } else {
+            spideredPosition = [xOffset, yOffset, 0];
+          }
+        } else {
+          // Non-UPRN: Use circular spidering pattern
+          const angle = (index / spideredConnections.length) * Math.PI * 2;
+          spideredPosition = [
+            spideringRadius * Math.cos(angle),
+            spideringRadius * Math.sin(angle),
+            0 // Ground level
+          ];
+        }
         
         return {
           path: [
-            [0, 0], // Center point (selectedPoint coordinates as origin)
-            spideredPosition // Spidered position
+            [0, 0, 0], // Center point (selectedPoint coordinates as origin)
+            spideredPosition // Connection point at calculated position
           ],
           type: conn.type,
           properties: conn.properties

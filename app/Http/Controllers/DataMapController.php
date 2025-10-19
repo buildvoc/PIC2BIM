@@ -144,18 +144,43 @@ class DataMapController extends Controller
             })
             ->select([
                 'uprn',
-                DB::raw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geometry')
+                DB::raw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geom')
             ])
+            ->with(['epcCertificates' => function ($query) {
+                $query->orderBy('lodgement_date', 'desc')->limit(1);
+            }])
             ->chunk(5000, function ($chunk) use (&$uprnFeatures) {
-                foreach ($chunk as $row) {
-                    if (!empty($row->geometry)) {
+                foreach ($chunk as $uprn) {
+                    if (!empty($uprn->geom)) {
+                        $latestEpc = $uprn->epcCertificates->first();
+                        
+                        $properties = [
+                            'id' => (int)$uprn->uprn,
+                            'uprn' => (int)$uprn->uprn,
+                        ];
+
+                        // Add EPC data if available
+                        if ($latestEpc) {
+                            $properties = array_merge($properties, [
+                                'floor_level' => $latestEpc->floor_level,
+                                'property_type' => $latestEpc->property_type,
+                                'built_form' => $latestEpc->built_form,
+                                'current_energy_rating' => $latestEpc->current_energy_rating,
+                                'potential_energy_rating' => $latestEpc->potential_energy_rating,
+                                'current_energy_efficiency' => $latestEpc->current_energy_efficiency,
+                                'potential_energy_efficiency' => $latestEpc->potential_energy_efficiency,
+                                'total_floor_area' => $latestEpc->total_floor_area,
+                                'construction_age_band' => $latestEpc->construction_age_band,
+                                'lodgement_date' => $latestEpc->lodgement_date?->format('Y-m-d'),
+                                'transaction_type' => $latestEpc->transaction_type,
+                                'tenure' => $latestEpc->tenure,
+                            ]);
+                        }
+
                         $uprnFeatures->push([
                             'type' => 'Feature',
-                            'geometry' => json_decode($row->geometry, true),
-                            'properties' => [
-                                'id' => (int)$row->uprn,
-                                'uprn' => (int)$row->uprn,
-                            ]
+                            'geometry' => is_string($uprn->geom) ? json_decode($uprn->geom, true) : $uprn->geom,
+                            'properties' => $properties
                         ]);
                     }
                 }
@@ -306,27 +331,44 @@ class DataMapController extends Controller
                     'duplicates_removed' => count($landRegistryData) - $landRegistryFeatures->count()
                 ]);
             } else {
-                Log::warning('No valid bounding box calculated for BUA areas, trying simple fallback');
+                Log::warning('No valid bounding box calculated for BUA areas, trying NHLE-filtered fallback');
                 
-                // Fallback: Get larger sample of INSPIRE data without spatial filtering
+                // Fallback: Get INSPIRE data that intersects with NHLE (with LIMIT for safety)
                 try {
-                    $landRegistryData = DB::select("
-                        SELECT 
-                            gml_id,
-                            \"INSPIREID\",
-                            \"LABEL\",
-                            \"NATIONALCADASTRALREFERENCE\",
-                            \"VALIDFROM\",
-                            \"BEGINLIFESPANVERSION\",
-                            ST_AsGeoJSON(geom) as geometry,
-                            GeometryType(geom) as geom_type
-                        FROM land_registry_inspire
-                    ");
+                    // First check if there's any NHLE data at all
+                    $nhleExists = DB::select("SELECT 1 FROM nhle_ LIMIT 1");
                     
-                    Log::info('Fallback Land Registry INSPIRE query executed (NO LIMIT)', [
-                        'result_count' => count($landRegistryData),
-                        'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
-                    ]);
+                    if (empty($nhleExists)) {
+                        Log::info('No NHLE data exists, skipping Land Registry INSPIRE fallback query');
+                        $landRegistryData = [];
+                    } else {
+                        // Get Land Registry data that intersects with ANY NHLE
+                        $landRegistryData = DB::select("
+                            WITH nhle_union AS (
+                                SELECT ST_Union(ST_Transform(geom, 4326)) as union_geom
+                                FROM nhle_
+                                LIMIT 5000
+                            )
+                            SELECT DISTINCT ON (lri.gml_id)
+                                lri.gml_id,
+                                lri.\"INSPIREID\",
+                                lri.\"LABEL\",
+                                lri.\"NATIONALCADASTRALREFERENCE\",
+                                lri.\"VALIDFROM\",
+                                lri.\"BEGINLIFESPANVERSION\",
+                                ST_AsGeoJSON(lri.geom) as geometry,
+                                GeometryType(lri.geom) as geom_type
+                            FROM land_registry_inspire lri, nhle_union nu
+                            WHERE ST_INTERSECTS(nu.union_geom, lri.geom)
+                            ORDER BY lri.gml_id
+                            LIMIT 10000
+                        ");
+                        
+                        Log::info('Fallback Land Registry INSPIRE query executed (WITH NHLE FILTER & LIMIT)', [
+                            'result_count' => count($landRegistryData),
+                            'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+                        ]);
+                    }
                     
                     foreach ($landRegistryData as $row) {
                         if (!empty($row->geometry)) {
@@ -347,50 +389,26 @@ class DataMapController extends Controller
                     }
                 } catch (\Exception $e) {
                     Log::error('Fallback Land Registry INSPIRE query also failed', ['error' => $e->getMessage()]);
+                    $landRegistryData = [];
                 }
             }
         } else {
-            Log::info('No area IDs provided, getting sample Land Registry INSPIRE data');
+            Log::info('No area IDs provided, returning empty Land Registry INSPIRE data to prevent timeout');
             
-            // If no areas selected, get sample data for debugging
+            // When clear filter (no areas selected), return empty to prevent timeout
+            // User should select at least one BUA area to view Land Registry data
             try {
-                $landRegistryData = DB::select("
-                    SELECT 
-                        gml_id,
-                        \"INSPIREID\",
-                        \"LABEL\",
-                        \"NATIONALCADASTRALREFERENCE\",
-                        \"VALIDFROM\",
-                        \"BEGINLIFESPANVERSION\",
-                        ST_AsGeoJSON(geom) as geometry,
-                        GeometryType(geom) as geom_type
-                    FROM land_registry_inspire
-                ");
+                // Option: Return empty for better performance
+                $landRegistryData = [];
                 
-                Log::info('Sample Land Registry INSPIRE query executed (NO LIMIT)', [
-                    'result_count' => count($landRegistryData),
-                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . ' MB'
+                Log::info('Land Registry INSPIRE query skipped (no area IDs)', [
+                    'result_count' => 0,
+                    'reason' => 'No BUA areas selected - Land Registry requires area selection'
                 ]);
-                
-                foreach ($landRegistryData as $row) {
-                    if (!empty($row->geometry)) {
-                        $geometry = json_decode($row->geometry, true);
-                        $landRegistryFeatures->push([
-                            'type' => 'Feature',
-                            'geometry' => $geometry,
-                            'properties' => [
-                                'gml_id' => $row->gml_id,
-                                'INSPIREID' => $row->INSPIREID ?? null,
-                                'LABEL' => $row->LABEL ?? null,
-                                'NATIONALCADASTRALREFERENCE' => $row->NATIONALCADASTRALREFERENCE ?? null,
-                                'VALIDFROM' => $row->VALIDFROM ?? null,
-                                'BEGINLIFESPANVERSION' => $row->BEGINLIFESPANVERSION ?? null,
-                            ]
-                        ]);
-                    }
-                }
+
+                // No data to process when areaIds is empty
             } catch (\Exception $e) {
-                Log::error('Sample Land Registry INSPIRE query failed', ['error' => $e->getMessage()]);
+                Log::error('Land Registry INSPIRE empty query failed', ['error' => $e->getMessage()]);
             }
         }
 
@@ -566,6 +584,113 @@ class DataMapController extends Controller
             'features' => $osmLanduseAreas->values()
         ];
 
+        // Fetch EPC Certificate data within selected areas (linked via UPRN)
+        $epcCertificates = collect();
+        EpcCertificate::query()
+            ->withGeometry()
+            ->withinBuiltupAreas($builtupAreaGeometriesQuery)
+            ->chunk(5000, function ($chunk) use (&$epcCertificates) {
+                foreach ($chunk as $epc) {
+                    if (!empty($epc->geometry)) {
+                        $epcCertificates->push([
+                            'type' => 'Feature',
+                            'geometry' => json_decode($epc->geometry, true),
+                            'properties' => [
+                                'id' => $epc->id,
+                                'lmk_key' => $epc->lmk_key,
+                                'address' => $epc->address,
+                                'address1' => $epc->address1,
+                                'address2' => $epc->address2,
+                                'address3' => $epc->address3,
+                                'postcode' => $epc->postcode,
+                                'building_reference_number' => $epc->building_reference_number,
+                                'current_energy_rating' => $epc->current_energy_rating,
+                                'potential_energy_rating' => $epc->potential_energy_rating,
+                                'current_energy_efficiency' => $epc->current_energy_efficiency,
+                                'potential_energy_efficiency' => $epc->potential_energy_efficiency,
+                                'property_type' => $epc->property_type,
+                                'built_form' => $epc->built_form,
+                                'inspection_date' => $epc->inspection_date,
+                                'local_authority' => $epc->local_authority,
+                                'constituency' => $epc->constituency,
+                                'county' => $epc->county,
+                                'lodgement_date' => $epc->lodgement_date,
+                                'transaction_type' => $epc->transaction_type,
+                                'environment_impact_current' => $epc->environment_impact_current,
+                                'environment_impact_potential' => $epc->environment_impact_potential,
+                                'energy_consumption_current' => $epc->energy_consumption_current,
+                                'energy_consumption_potential' => $epc->energy_consumption_potential,
+                                'co2_emissions_current' => $epc->co2_emissions_current,
+                                'co2_emissions_potential' => $epc->co2_emissions_potential,
+                                'co2_emiss_curr_per_floor_area' => $epc->co2_emiss_curr_per_floor_area,
+                                'lighting_cost_current' => $epc->lighting_cost_current,
+                                'heating_cost_current' => $epc->heating_cost_current,
+                                'hot_water_cost_current' => $epc->hot_water_cost_current,
+                                'total_floor_area' => $epc->total_floor_area,
+                                'energy_tariff' => $epc->energy_tariff,
+                                'mains_gas_flag' => $epc->mains_gas_flag,
+                                'floor_level' => $epc->floor_level,
+                                'flat_top_storey' => $epc->flat_top_storey,
+                                'flat_storey_count' => $epc->flat_storey_count,
+                                'main_heating_controls' => $epc->main_heating_controls,
+                                'multi_glaze_proportion' => $epc->multi_glaze_proportion,
+                                'glazed_type' => $epc->glazed_type,
+                                'glazed_area' => $epc->glazed_area,
+                                'extension_count' => $epc->extension_count,
+                                'number_habitable_rooms' => $epc->number_habitable_rooms,
+                                'number_heated_rooms' => $epc->number_heated_rooms,
+                                'low_energy_lighting' => $epc->low_energy_lighting,
+                                'number_open_fireplaces' => $epc->number_open_fireplaces,
+                                'hotwater_description' => $epc->hotwater_description,
+                                'hot_water_energy_eff' => $epc->hot_water_energy_eff,
+                                'hot_water_env_eff' => $epc->hot_water_env_eff,
+                                'floor_description' => $epc->floor_description,
+                                'floor_energy_eff' => $epc->floor_energy_eff,
+                                'floor_env_eff' => $epc->floor_env_eff,
+                                'windows_description' => $epc->windows_description,
+                                'windows_energy_eff' => $epc->windows_energy_eff,
+                                'windows_env_eff' => $epc->windows_env_eff,
+                                'walls_description' => $epc->walls_description,
+                                'walls_energy_eff' => $epc->walls_energy_eff,
+                                'walls_env_eff' => $epc->walls_env_eff,
+                                'secondheat_description' => $epc->secondheat_description,
+                                'sheating_energy_eff' => $epc->sheating_energy_eff,
+                                'sheating_env_eff' => $epc->sheating_env_eff,
+                                'roof_description' => $epc->roof_description,
+                                'roof_energy_eff' => $epc->roof_energy_eff,
+                                'roof_env_eff' => $epc->roof_env_eff,
+                                'mainheat_description' => $epc->mainheat_description,
+                                'mainheat_energy_eff' => $epc->mainheat_energy_eff,
+                                'mainheat_env_eff' => $epc->mainheat_env_eff,
+                                'mainheatcont_description' => $epc->mainheatcont_description,
+                                'mainheatc_energy_eff' => $epc->mainheatc_energy_eff,
+                                'mainheatc_env_eff' => $epc->mainheatc_env_eff,
+                                'lighting_description' => $epc->lighting_description,
+                                'lighting_energy_eff' => $epc->lighting_energy_eff,
+                                'lighting_env_eff' => $epc->lighting_env_eff,
+                                'main_fuel' => $epc->main_fuel,
+                                'wind_turbine_count' => $epc->wind_turbine_count,
+                                'heat_loss_corridor' => $epc->heat_loss_corridor,
+                                'unheated_corridor_length' => $epc->unheated_corridor_length,
+                                'floor_height' => $epc->floor_height,
+                                'photo_supply' => $epc->photo_supply,
+                                'solar_water_heating_flag' => $epc->solar_water_heating_flag,
+                                'mechanical_ventilation' => $epc->mechanical_ventilation,
+                                'local_authority_label' => $epc->local_authority_label,
+                                'constituency_label' => $epc->constituency_label,
+                                'uprn' => $epc->uprn,
+                                'uprn_source' => $epc->uprn_source,
+                            ]
+                        ]);
+                    }
+                }
+            });
+
+        $epcCertificatesGeoJson = [
+            'type' => 'FeatureCollection',
+            'features' => $epcCertificates->values()
+        ];
+
         $responseData = [
             'buildings' => new BuildingCollectionV4($buildings),
             'buildingParts' => new BuildingPartCollectionV2($buildingParts),
@@ -577,7 +702,8 @@ class DataMapController extends Controller
             'landRegistryInspire' => ['data' => $landRegistryGeoJson],
             'osmBuildingParts' => ['data' => $osmBuildingPartsGeoJson],
             'osmAddresses' => ['data' => $osmAddressesGeoJson],
-            'osmLanduseAreas' => ['data' => $osmLanduseAreasGeoJson]
+            'osmLanduseAreas' => ['data' => $osmLanduseAreasGeoJson],
+            'epcCertificates' => ['data' => $epcCertificatesGeoJson]
         ];
 
         return response()->json($responseData);
@@ -674,7 +800,7 @@ class DataMapController extends Controller
             }
 
             $osid = $feature['properties']['osid'] ?? null;
-            $gid = $feature['properties']['gid'] ?? null;
+            $gid = $feature['properties']['gid'] ?? $feature['properties']['ListEntry'] ?? null;
             $geometry = json_encode($feature['geometry']);
             $srid = $geojson['crs']['properties']['name'] ?? 'EPSG:4326';
             $sridNumber = (int) filter_var($srid, FILTER_SANITIZE_NUMBER_INT);
@@ -1413,7 +1539,8 @@ class DataMapController extends Controller
         try {
             foreach ($features as $featureAction) {
                 $action = $featureAction['action'] ?? 'skip';
-                $data = $featureAction['data'] ?? null;
+                // Support both 'feature' (from frontend) and 'data' (legacy)
+                $data = $featureAction['feature'] ?? $featureAction['data'] ?? null;
 
                 if (!$data || $action === 'skip') {
                     continue;
@@ -1421,7 +1548,13 @@ class DataMapController extends Controller
 
                 if ($action === 'import' || $action === 'update') {
                     $osid = $data['properties']['osid'] ?? null;
-                    $gid = $data['properties']['gid'] ?? null;
+                    
+                    // For NHLE, try to get gid from multiple possible field names
+                    $gid = null;
+                    if ($modelClass == NHLE::class) {
+                        $gid = $data['properties']['gid'] ?? $data['properties']['ListEntry'] ?? $data['properties']['listentry'] ?? null;
+                    }
+                    
                     if (!$osid && $modelClass != NHLE::class) {
                         continue;  
                     } else if (!$gid && $modelClass == NHLE::class) {
@@ -1582,19 +1715,48 @@ class DataMapController extends Controller
                             }
                         }
 
+                        // Helper function to get property value case-insensitively
+                        $getProperty = function($key) use ($properties) {
+                            // Try exact match first
+                            if (isset($properties[$key])) {
+                                return $properties[$key];
+                            }
+                            // Try case-insensitive match
+                            foreach ($properties as $propKey => $propValue) {
+                                if (strtolower($propKey) === strtolower($key)) {
+                                    return $propValue;
+                                }
+                            }
+                            return null;
+                        };
+
+                        // Get listentry from either 'listentry', 'ListEntry', or 'gid'
+                        $listentry = $getProperty('listentry') ?? $getProperty('ListEntry') ?? $properties['gid'] ?? null;
+                        
+                        // Parse dates - handle both string dates and formatted dates
+                        $parseDate = function($dateValue) {
+                            if (!$dateValue) return null;
+                            try {
+                                return Carbon::parse($dateValue)->toDateString();
+                            } catch (\Exception $e) {
+                                return null;
+                            }
+                        };
+
                         $nhle = NHLE::updateOrCreate([
                             'gid' => $properties['gid']
                         ], [
-                            'objectid' => $properties['objectid'] ?? null,
-                            'name' => $properties['name'] ?? null,
-                            'grade' => $properties['grade'] ?? null,
-                            'listdate' => isset($properties['listdate']) ? Carbon::parse($properties['listdate'])->toDateString() : null,
-                            'amenddate' => isset($properties['amenddate']) ? Carbon::parse($properties['amenddate'])->toDateString() : null,
-                            'capturesca' => $properties['capturescale'] ?? null,
-                            'hyperlink' => $properties['hyperlink'] ?? null,
-                            'ngr' => $properties['ngr'] ?? null,
-                            'easting' => $properties['easting'] ?? null,
-                            'northing' => $properties['northing'] ?? null,
+                            'objectid' => $getProperty('objectid') ?? $getProperty('OBJECTID'),
+                            'listentry' => $listentry,
+                            'name' => $getProperty('name') ?? $getProperty('Name'),
+                            'grade' => $getProperty('grade') ?? $getProperty('Grade'),
+                            'listdate' => $parseDate($getProperty('listdate') ?? $getProperty('ListDate')),
+                            'amenddate' => $parseDate($getProperty('amenddate') ?? $getProperty('AmendDate')),
+                            'capturesca' => $getProperty('capturescale') ?? $getProperty('CaptureScale'),
+                            'hyperlink' => $getProperty('hyperlink'),
+                            'ngr' => $getProperty('ngr') ?? $getProperty('NGR'),
+                            'easting' => $getProperty('easting') ?? $getProperty('Easting'),
+                            'northing' => $getProperty('northing') ?? $getProperty('Northing'),
                             'longitude' => $longitude,
                             'latitude' => $latitude,
                         ]);
