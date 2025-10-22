@@ -24,30 +24,19 @@ export interface LoadingState {
 const processDataWithWorker = async (dataType: string, data: any, useWorker?: boolean): Promise<any> => {
   // Default to false for now to debug
   const shouldUseWorker = useWorker ?? false;
-  
-  // Debug logging
-  console.log(`[Worker] Processing ${dataType}:`, {
-    useWorker: shouldUseWorker,
-    dataType: typeof data,
-    isArray: Array.isArray(data),
-    hasData: !!data?.data,
-    keys: data ? Object.keys(data) : []
-  });
+
 
   if (!shouldUseWorker) {
     // Fallback: return data as-is
-    console.log(`[Worker] Disabled for ${dataType}, returning raw data`);
     return data;
   }
 
   try {
     const workerManager = getWorkerManager();
     const result = await workerManager.processData(dataType, data);
-    console.log(`[Worker] Processed ${dataType}:`, result);
     
     // If worker returns null/undefined, use original data
     if (result === null || result === undefined) {
-      console.warn(`[Worker] Returned null/undefined for ${dataType}, using original data`);
       return data;
     }
     
@@ -243,6 +232,53 @@ export const loadEPCCertificates = async (options: LazyLoadOptions) => {
  */
 export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: (dataType: string, data: any) => void) => {
   const results: any = {};
+
+  /**
+   * Throttle requests to limit concurrent API calls
+   * Uses a simple queue-based approach with max concurrent limit
+   * @param tasks Array of task objects with name and function
+   * @param limit Maximum number of concurrent requests (default: 2)
+   */
+  async function throttleRequests<T>(
+    tasks: Array<{ name: string; task: () => Promise<T> }>, 
+    limit = 2
+  ): Promise<Array<{ name: string; data: T | null; error?: any }>> {
+    const results: Array<{ name: string; data: T | null; error?: any }> = [];
+    let activeCount = 0;
+    let taskIndex = 0;
+
+    return new Promise((resolve) => {
+      const runNext = () => {
+        // If all tasks are done, resolve
+        if (taskIndex >= tasks.length && activeCount === 0) {
+          resolve(results);
+          return;
+        }
+
+        // Start new tasks up to the limit
+        while (activeCount < limit && taskIndex < tasks.length) {
+          const { name, task } = tasks[taskIndex++];
+          activeCount++;
+
+          task()
+            .then(data => {
+              results.push({ name, data });
+            })
+            .catch(error => {
+              console.error(`[Throttle] ✗ Failed: ${name}`, error);
+              results.push({ name, data: null, error });
+            })
+            .finally(() => {
+              activeCount--;
+              runNext();
+            });
+        }
+      };
+
+      runNext();
+    });
+  }
+
   
   try {
     // Batch 1: Important data (load first)
@@ -282,36 +318,27 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
       onProgress?.('landRegistryInspire', batch2[1].value);
     }
     
-    // Batch 3: Optional data
-    console.log('Loading batch 3: Optional data...');
-    const batch3 = await Promise.allSettled([
-      loadUPRN(options),
-      loadEPCCertificates(options),
-      loadOSMBuildingParts(options),
-      loadOSMAddresses(options),
-      loadOSMLanduse(options)
-    ]);
+    // Batch 3: Optional data (throttled to 2 concurrent requests)
+    console.log('Loading batch 3: Optional data with throttling (max 2 concurrent)...');
+    const batch3Tasks = [
+      { name: 'uprn', task: () => loadUPRN(options) },
+      { name: 'epcCertificates', task: () => loadEPCCertificates(options) },
+      { name: 'osmBuildingParts', task: () => loadOSMBuildingParts(options) },
+      { name: 'osmAddresses', task: () => loadOSMAddresses(options) },
+      { name: 'osmLanduseAreas', task: () => loadOSMLanduse(options) }
+    ];
+
+    const batch3Results = await throttleRequests(batch3Tasks, 2);
     
-    if (batch3[0].status === 'fulfilled') {
-      results.uprn = batch3[0].value;
-      onProgress?.('uprn', batch3[0].value);
-    }
-    if (batch3[1].status === 'fulfilled') {
-      results.epcCertificates = batch3[1].value;
-      onProgress?.('epcCertificates', batch3[1].value);
-    }
-    if (batch3[2].status === 'fulfilled') {
-      results.osmBuildingParts = batch3[2].value;
-      onProgress?.('osmBuildingParts', batch3[2].value);
-    }
-    if (batch3[3].status === 'fulfilled') {
-      results.osmAddresses = batch3[3].value;
-      onProgress?.('osmAddresses', batch3[3].value);
-    }
-    if (batch3[4].status === 'fulfilled') {
-      results.osmLanduseAreas = batch3[4].value;
-      onProgress?.('osmLanduseAreas', batch3[4].value);
-    }
+    // Process results and trigger progress callbacks
+    batch3Results.forEach(({ name, data, error }) => {
+      if (data && !error) {
+        results[name] = data;
+        onProgress?.(name, data);
+      } else {
+        console.warn(`Skipping ${name} due to error:`, error);
+      }
+    });
     
     console.log('All data loaded successfully');
     return results;
