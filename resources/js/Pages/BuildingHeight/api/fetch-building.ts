@@ -140,11 +140,15 @@ export const fetchAllBuildingData = async (
 
   const boundsParams = `min_lat=${min_lat}&max_lat=${max_lat}&min_lng=${min_lng}&max_lng=${max_lng}`;
 
+  const codepointParams = `lng=${longitude}&lat=${latitude}`;
+
+  const uprnParams = `lng=${longitude}&lat=${latitude}`;
+
   const fetches = panel
   ? [
-      fetch(`/comm_codepoint?${boundsParams}`).then(res => res.json()),
+      fetch(`/comm_codepoint?${codepointParams}`).then(res => res.json()),
       fetch(`/comm_get_building_attributes?osid=${osid}`).then(res => res.json()),
-      fetch(`/comm_uprn?${boundsParams}`).then(res => res.json()),
+      fetch(`/comm_uprn?${uprnParams}`).then(res => res.json()),
     ]
   : [
       fetch(`/comm_building_part_nearest?${pointParams}`).then(res => res.json()),
@@ -153,8 +157,8 @@ export const fetchAllBuildingData = async (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shapeParams)
       }).then(res => res.json()),
-      fetch(`/comm_codepoint?${boundsParams}`).then(res => res.json()),
-      fetch(`/comm_uprn?${boundsParams}`).then(res => res.json()),
+      fetch(`/comm_codepoint?${codepointParams}`).then(res => res.json()),
+      fetch(`/comm_uprn?${uprnParams}`).then(res => res.json()),
       fetch(`/comm_get_lpis?${bboxParams}`).then(res => res.json()),
       fetch(`/comm_nhle?${pointParams}`).then(res => res.json()),
       fetch(`/comm_land_registry_inspire?${boundsParams}`).then(res => res.json())

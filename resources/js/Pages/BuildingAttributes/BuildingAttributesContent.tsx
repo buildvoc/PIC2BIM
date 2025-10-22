@@ -240,6 +240,48 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
       
       const results = await Promise.all(promises);
       
+      // Map each photo to its nearest OSM building
+      const nearestBuildingsMap: Record<number, NearestBuildingData | null> = {};
+      photos.forEach((photo, index) => {
+        const photoOsmData = results[index];
+        if (photoOsmData && photoOsmData.length > 0) {
+          const nearestBuilding = photoOsmData[0]; // First building is the nearest
+          nearestBuildingsMap[photo.id] = {
+            ...nearestBuilding,
+            id: photo.id,
+            buildingPartId: nearestBuilding.id || nearestBuilding.osm_id || 'unknown'
+          };
+          
+          // Also populate building geometries for 3D visualization
+          if (nearestBuilding.geojson?.features?.length > 0 &&
+              nearestBuilding.geojson.features[0]?.geometry?.coordinates?.length > 0) {
+            const coordinates = nearestBuilding.geojson.features[0].geometry.coordinates[0];
+            const properties = nearestBuilding.geojson.features[0].properties;
+            
+            const height = properties?.height_m 
+              ? parseFloat(properties.height_m) 
+              : 10;
+            
+            const roofHeight = properties?.roof_height_m 
+              ? parseFloat(properties.roof_height_m) 
+              : 0;
+            
+            setBuildingGeometries(prev => ({
+              ...prev,
+              [photo.id]: {
+                coordinates,
+                height,
+                base: roofHeight
+              }
+            }));
+          }
+        } else {
+          nearestBuildingsMap[photo.id] = null;
+        }
+      });
+      
+      setNearestBuildings(nearestBuildingsMap);
+      
       // Flatten all results and remove duplicates based on osm_id
       const allOsmData = results.flat();
       const uniqueOsmData = allOsmData.filter((building, index, self) => 

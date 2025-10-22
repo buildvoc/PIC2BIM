@@ -20,9 +20,11 @@ use App\Models\OsmBuildingPart;
 use Illuminate\Support\Facades\Log;
 use App\Http\Resources\NhleCollection;
 use App\Http\Resources\UprnCollection;
+use App\Http\Resources\UprnFeatureResource;
 use App\Http\Resources\ShapeCollection;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Resources\CodepointCollection;
+use App\Http\Resources\CodepointFeatureResource;
 use App\Http\Resources\LandRegistryInspireCollection;
 use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPartLink;
@@ -822,6 +824,25 @@ class ApiController extends Controller
         $lng = $request->query('lng');
         $lat = $request->query('lat');
 
+        // If lng and lat are provided, return only the nearest codepoint (optimized)
+        if ($lng && $lat) {
+            // Transform input point to match database SRID (27700)
+            $nearest = Codepoint::query()
+                ->selectRaw('*, ST_Distance(ST_Transform(geometry, 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as distance', [$lng, $lat])
+                ->orderByRaw('ST_Transform(geometry, 4326) <-> ST_SetSRID(ST_MakePoint(?, ?), 4326)', [$lng, $lat])
+                ->limit(1)
+                ->first();
+            
+            if ($nearest) {
+                return response()->json([
+                    'data' => new CodepointFeatureResource($nearest)
+                ]);
+            }
+            
+            return response()->json(['data' => null]);
+        }
+
+        // Original behavior for postcode search or bounding box
         $query = Codepoint::query();
         
         if ($postcode) {
@@ -878,7 +899,27 @@ class ApiController extends Controller
         $min_lat = $request->query('min_lat');
         $max_lng = $request->query('max_lng');
         $max_lat = $request->query('max_lat');
+        $lng = $request->query('lng');
+        $lat = $request->query('lat');
         
+        // If lng and lat are provided, return only the nearest UPRN (optimized)
+        if ($lng && $lat) {
+            $nearest = Uprn::query()
+                ->selectRaw('*, ST_Distance(ST_Transform(geom, 4326)::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) as distance', [$lng, $lat])
+                ->orderByRaw('ST_Transform(geom, 4326) <-> ST_SetSRID(ST_MakePoint(?, ?), 4326)', [$lng, $lat])
+                ->limit(1)
+                ->first();
+            
+            if ($nearest) {
+                return response()->json([
+                    'data' => new UprnFeatureResource($nearest)
+                ]);
+            }
+            
+            return response()->json(['data' => null]);
+        }
+        
+        // Original behavior for uprn search or bounding box
         $query = Uprn::query();
         
         if ($uprn) {
@@ -999,20 +1040,17 @@ class ApiController extends Controller
     public function comm_get_building_attributes(Request $request){
         $osid = $request->osid;
 
-        $buildingPartLink = BuildingPartLink::where('buildingpartid', $osid)->first();
+        // Single optimized query with join and eager loading
+        $building = Building::whereHas('buildingPartLinks', function($query) use ($osid) {
+                $query->where('buildingpartid', $osid);
+            })
+            ->with('buildingAddresses.uprn')
+            ->get();
         
-        if (!$buildingPartLink) {
+        if ($building->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'BuildingPartLink not found'
-            ], 404);
-        }
-    
-        $building = Building::where('osid', $buildingPartLink->buildingid)->with('buildingAddresses.uprn')->get();
-        if (!$building) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Building not found'
+                'message' => 'Building not found for the given buildingpartid'
             ], 404);
         }
     

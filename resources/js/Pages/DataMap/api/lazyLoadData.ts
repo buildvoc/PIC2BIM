@@ -58,7 +58,8 @@ export const loadNHLE = async (options: LazyLoadOptions) => {
   try {
     const response = await axios.post('/get-area-data', {
       area_ids: options.areaIds,
-      data_type: 'nhle'
+      data_type: 'nhle',
+      include_bua_filter: options.includeBuaFilter ?? true
     });
     
     return response.data.nhle;
@@ -75,7 +76,8 @@ export const loadLandRegistry = async (options: LazyLoadOptions) => {
   try {
     const response = await axios.post('/get-area-data', {
       area_ids: options.areaIds,
-      data_type: 'land_registry'
+      data_type: 'land_registry',
+      include_bua_filter: options.includeBuaFilter ?? true
     });
     
     return response.data.landRegistryInspire;
@@ -128,7 +130,8 @@ export const loadOSMBuildingParts = async (options: LazyLoadOptions) => {
   try {
     const response = await axios.post('/get-area-data', {
       area_ids: options.areaIds,
-      data_type: 'osm_building_parts'
+      data_type: 'osm_building_parts',
+      include_bua_filter: options.includeBuaFilter ?? true
     });
     
     return response.data.osmBuildingParts;
@@ -145,7 +148,8 @@ export const loadOSMAddresses = async (options: LazyLoadOptions) => {
   try {
     const response = await axios.post('/get-area-data', {
       area_ids: options.areaIds,
-      data_type: 'osm_addresses'
+      data_type: 'osm_addresses',
+      include_bua_filter: options.includeBuaFilter ?? true
     });
     
     return response.data.osmAddresses;
@@ -162,7 +166,8 @@ export const loadOSMLanduse = async (options: LazyLoadOptions) => {
   try {
     const response = await axios.post('/get-area-data', {
       area_ids: options.areaIds,
-      data_type: 'osm_landuse'
+      data_type: 'osm_landuse',
+      include_bua_filter: options.includeBuaFilter ?? true
     });
     
     return response.data.osmLanduseAreas;
