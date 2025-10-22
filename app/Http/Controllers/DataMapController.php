@@ -495,68 +495,70 @@ class DataMapController extends Controller
     {
         $uprnFeatures = collect();
         
+        DB::statement('SET statement_timeout = 180000'); // 3 minutes
+        
         if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
             // Get area IDs from the query
             $areaIds = $builtupAreaGeometriesQuery->pluck('fid')->toArray();
             $areaIdsString = implode(',', $areaIds);
             
+            // Use CTE with window function for better performance
             $uprnResults = DB::select("
-                SELECT DISTINCT ON (u.uprn)
+                WITH filtered_uprn AS (
+                    SELECT u.uprn, u.geom
+                    FROM osopenuprn_address u
+                    WHERE u.geom IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_Intersects(u.geom, b.geometry)
+                    )
+                ),
+                latest_epc AS (
+                    SELECT DISTINCT ON (uprn)
+                        uprn::bigint,
+                        floor_level, property_type, built_form, current_energy_rating,
+                        potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
+                        total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
+                    FROM epc_certificate
+                    WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
+                    ORDER BY uprn, lodgement_date DESC NULLS LAST
+                )
+                SELECT 
                     u.uprn,
                     ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
-                    e.floor_level,
-                    e.property_type,
-                    e.built_form,
-                    e.current_energy_rating,
-                    e.potential_energy_rating,
-                    e.current_energy_efficiency,
-                    e.potential_energy_efficiency,
-                    e.total_floor_area,
-                    e.construction_age_band,
-                    e.lodgement_date,
-                    e.transaction_type,
-                    e.tenure
-                FROM osopenuprn_address u
-                LEFT JOIN LATERAL (
-                    SELECT * FROM epc_certificate
-                    WHERE epc_certificate.uprn::bigint = u.uprn
-                    ORDER BY lodgement_date DESC
-                    LIMIT 1
-                ) e ON true
-                WHERE u.geom IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_DWithin(u.geom, b.geometry, 50)
-                )
-                ORDER BY u.uprn
+                    e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
+                    e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
+                    e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
+                FROM filtered_uprn u
+                LEFT JOIN latest_epc e ON e.uprn = u.uprn
             ");
         } else {
             $uprnResults = DB::select("
-                SELECT DISTINCT ON (u.uprn)
+                WITH filtered_uprn AS (
+                    SELECT u.uprn, u.geom
+                    FROM osopenuprn_address u
+                    WHERE u.geom IS NOT NULL
+                    LIMIT 5000
+                ),
+                latest_epc AS (
+                    SELECT DISTINCT ON (uprn)
+                        uprn::bigint,
+                        floor_level, property_type, built_form, current_energy_rating,
+                        potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
+                        total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
+                    FROM epc_certificate
+                    WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
+                    ORDER BY uprn, lodgement_date DESC NULLS LAST
+                )
+                SELECT 
                     u.uprn,
                     ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
-                    e.floor_level,
-                    e.property_type,
-                    e.built_form,
-                    e.current_energy_rating,
-                    e.potential_energy_rating,
-                    e.current_energy_efficiency,
-                    e.potential_energy_efficiency,
-                    e.total_floor_area,
-                    e.construction_age_band,
-                    e.lodgement_date,
-                    e.transaction_type,
-                    e.tenure
-                FROM osopenuprn_address u
-                LEFT JOIN LATERAL (
-                    SELECT * FROM epc_certificate
-                    WHERE epc_certificate.uprn::bigint = u.uprn
-                    ORDER BY lodgement_date DESC
-                    LIMIT 1
-                ) e ON true
-                WHERE u.geom IS NOT NULL
-                ORDER BY u.uprn
+                    e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
+                    e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
+                    e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
+                FROM filtered_uprn u
+                LEFT JOIN latest_epc e ON e.uprn = u.uprn
             ");
         }
         
