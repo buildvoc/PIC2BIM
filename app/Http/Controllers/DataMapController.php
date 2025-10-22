@@ -173,7 +173,7 @@ class DataMapController extends Controller
         $builtupAreaGeometriesQuery = null;
         if (!empty($areaIds)) {
             $builtupAreaGeometriesQuery = DB::table('ons_bua')
-                ->select('geometry')
+                ->select('geometry', 'fid')
                 ->whereIn('fid', $areaIds);
         }
 
