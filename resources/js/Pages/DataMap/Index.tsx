@@ -238,11 +238,9 @@ export function Index({ auth }: PageProps) {
         false
       );
       
-      const codepointFeatures = data?.codepoint?.data?.features || [];
-      const nearestCodepoint = findNearestFeature(codepointFeatures, lat, lng);
-      
-      const uprnFeatures = data?.uprn?.data?.features || [];
-      const nearestUprn = findNearestFeature(uprnFeatures, lat, lng);
+      // Backend now returns nearest codepoint and UPRN directly (not arrays)
+      const nearestCodepoint = data?.codepoint?.data || null;
+      const nearestUprn = data?.uprn?.data || null;
       
       const inspireFeatures = data?.inspire?.data?.features || [];
       const nearestInspire = findNearestFeature(inspireFeatures, lat, lng);
@@ -2017,7 +2015,7 @@ export function Index({ auth }: PageProps) {
             id: item.id,
             coordinates: item.coordinates,
             data: props,
-            displayText: props.address || props.address1 || props.postcode || props.lmk_key || 'EPC Certificate'
+            displayText: props.building_reference_number || props.lmk_key || 'EPC Certificate'
           });
         }
       }

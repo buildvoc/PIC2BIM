@@ -72,29 +72,10 @@ export const searchableFields = {
     'id', 'source', 'osm_id', 'name', 'landuse', 'operator', 'ref'
   ],
   epcCertificate: [
-    'lmk_key', 'address1', 'address2', 'address3', 'postcode', 'building_reference_number',
-    'current_energy_rating', 'potential_energy_rating', 'current_energy_efficiency',
-    'potential_energy_efficiency', 'property_type', 'built_form', 'inspection_date',
-    'local_authority', 'constituency', 'county', 'lodgement_date', 'transaction_type',
-    'environment_impact_current', 'environment_impact_potential', 'energy_consumption_current',
-    'energy_consumption_potential', 'co2_emissions_current', 'co2_emissions_potential',
-    'co2_emiss_curr_per_floor_area', 'lighting_cost_current', 'heating_cost_current',
-    'hot_water_cost_current', 'total_floor_area', 'energy_tariff', 'mains_gas_flag',
-    'floor_level', 'flat_top_storey', 'flat_storey_count', 'main_heating_controls',
-    'multi_glaze_proportion', 'glazed_type', 'glazed_area', 'extension_count',
-    'number_habitable_rooms', 'number_heated_rooms', 'low_energy_lighting',
-    'number_open_fireplaces', 'hotwater_description', 'hot_water_energy_eff',
-    'hot_water_env_eff', 'floor_description', 'floor_energy_eff', 'floor_env_eff',
-    'windows_description', 'windows_energy_eff', 'windows_env_eff', 'walls_description',
-    'walls_energy_eff', 'walls_env_eff', 'secondheat_description', 'sheating_energy_eff',
-    'sheating_env_eff', 'roof_description', 'roof_energy_eff', 'roof_env_eff',
-    'mainheat_description', 'mainheat_energy_eff', 'mainheat_env_eff',
-    'mainheatcont_description', 'mainheatc_energy_eff', 'mainheatc_env_eff',
-    'lighting_description', 'lighting_energy_eff', 'lighting_env_eff',
-    'main_fuel', 'wind_turbine_count', 'heat_loss_corridor', 'unheated_corridor_length',
-    'floor_height', 'photo_supply', 'solar_water_heating_flag', 'mechanical_ventilation',
-    'address', 'local_authority_label', 'constituency_label', 'certificate_hash',
-    'uprn', 'uprn_source'
+    'lmk_key', 'building_reference_number', 'current_energy_rating', 'potential_energy_rating',
+    'property_type', 'built_form', 'inspection_date', 'local_authority', 'lodgement_date',
+    'transaction_type', 'total_floor_area', 'co2_emissions_current', 'energy_consumption_current',
+    'uprn'
   ]
 };
 

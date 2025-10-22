@@ -182,23 +182,23 @@ class DataMapController extends Controller
 
             switch ($dataType) {
                 case 'building_parts':
-                    $responseData = $this->getBuildingPartsData($builtupAreaGeometriesQuery);
+                    $responseData = $this->getBuildingPartsData($builtupAreaGeometriesQuery, $includeBuaFilter);
                     break;
 
                 case 'sites':
-                    $responseData = $this->getSitesData($builtupAreaGeometriesQuery);
+                    $responseData = $this->getSitesData($builtupAreaGeometriesQuery, $includeBuaFilter);
                     break;
 
                 case 'nhle':
-                    $responseData = $this->getNHLEData($areaIds);
+                    $responseData = $this->getNHLEData($areaIds, $includeBuaFilter);
                     break;
 
                 case 'land_registry':
-                    $responseData = $this->getLandRegistryData($areaIds);
+                    $responseData = $this->getLandRegistryData($areaIds, $includeBuaFilter);
                     break;
 
                 case 'uprn':
-                    $responseData = $this->getUPRNData($builtupAreaGeometriesQuery);
+                    $responseData = $this->getUPRNData($builtupAreaGeometriesQuery, $includeBuaFilter);
                     break;
 
                 case 'photos':
@@ -206,19 +206,19 @@ class DataMapController extends Controller
                     break;
 
                 case 'osm_building_parts':
-                    $responseData = $this->getOSMBuildingPartsData();
+                    $responseData = $this->getOSMBuildingPartsData($areaIds, $includeBuaFilter);
                     break;
 
                 case 'osm_addresses':
-                    $responseData = $this->getOSMAddressesData();
+                    $responseData = $this->getOSMAddressesData($areaIds, $includeBuaFilter);
                     break;
 
                 case 'osm_landuse':
-                    $responseData = $this->getOSMLanduseData();
+                    $responseData = $this->getOSMLanduseData($areaIds, $includeBuaFilter);
                     break;
 
                 case 'epc_certificates':
-                    $responseData = $this->getEPCCertificatesData($builtupAreaGeometriesQuery);
+                    $responseData = $this->getEPCCertificatesData($builtupAreaGeometriesQuery, $includeBuaFilter);
                     break;
 
                 default:
@@ -262,12 +262,12 @@ class DataMapController extends Controller
      * Helper Methods for getAreaData()
      */
 
-    private function getBuildingPartsData($builtupAreaGeometriesQuery)
+    private function getBuildingPartsData($builtupAreaGeometriesQuery, $includeBuaFilter)
     {
         $buildingParts = collect();
         $query = BuildingPartV2::query();
         
-        if ($builtupAreaGeometriesQuery !== null) {
+        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
             $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
@@ -285,12 +285,12 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getSitesData($builtupAreaGeometriesQuery)
+    private function getSitesData($builtupAreaGeometriesQuery, $includeBuaFilter)
     {
         $sites = collect();
         $query = Site::query();
         
-        if ($builtupAreaGeometriesQuery !== null) {
+        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
             $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
@@ -308,37 +308,60 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getNHLEData($areaIds)
+    private function getNHLEData($areaIds, $includeBuaFilter)
     {
         $nhle = collect();
-        $areaIdsString = implode(',', $areaIds);
         
         DB::statement('SET statement_timeout = 120000');
         
-        $nhleResults = DB::select("
-            SELECT 
-                n.gid,
-                n.objectid,
-                n.listentry,
-                n.name,
-                n.grade,
-                n.listdate,
-                n.amenddate,
-                n.capturesca,
-                n.hyperlink,
-                n.ngr,
-                n.easting,
-                n.northing,
-                n.latitude,
-                n.longitude,
-                ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
-            FROM nhle_ n
-            WHERE EXISTS (
-                SELECT 1 FROM ons_bua b
-                WHERE b.fid IN ({$areaIdsString})
-                AND ST_INTERSECTS(n.geom, b.geometry)
-            )
-        ");
+        if ($includeBuaFilter && !empty($areaIds)) {
+            $areaIdsString = implode(',', $areaIds);
+            
+            $nhleResults = DB::select("
+                SELECT 
+                    n.gid,
+                    n.objectid,
+                    n.listentry,
+                    n.name,
+                    n.grade,
+                    n.listdate,
+                    n.amenddate,
+                    n.capturesca,
+                    n.hyperlink,
+                    n.ngr,
+                    n.easting,
+                    n.northing,
+                    n.latitude,
+                    n.longitude,
+                    ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
+                FROM nhle_ n
+                WHERE EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(n.geom, b.geometry)
+                )
+            ");
+        } else {
+            $nhleResults = DB::select("
+                SELECT 
+                    n.gid,
+                    n.objectid,
+                    n.listentry,
+                    n.name,
+                    n.grade,
+                    n.listdate,
+                    n.amenddate,
+                    n.capturesca,
+                    n.hyperlink,
+                    n.ngr,
+                    n.easting,
+                    n.northing,
+                    n.latitude,
+                    n.longitude,
+                    ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
+                FROM nhle_ n
+            ");
+        }
 
         foreach ($nhleResults as $row) {
             if (!empty($row->geometry)) {
@@ -367,32 +390,60 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getLandRegistryData($areaIds)
+    private function getLandRegistryData($areaIds, $includeBuaFilter)
     {
         $landRegistryFeatures = collect();
-        $areaIdsString = implode(',', $areaIds);
         
-        // Get bounding box
-        $bbox = DB::table('ons_bua')
-            ->selectRaw('
-                ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
-                ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
-                ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
-                ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
-            ')
-            ->whereIn('fid', $areaIds)
-            ->first();
-
-        if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
-            $expandedBbox = [
-                'min_lng' => $bbox->min_lng - 0.01,
-                'min_lat' => $bbox->min_lat - 0.01,
-                'max_lng' => $bbox->max_lng + 0.01,
-                'max_lat' => $bbox->max_lat + 0.01
-            ];
-
-            DB::statement('SET statement_timeout = 120000');
+        DB::statement('SET statement_timeout = 120000');
+        
+        if ($includeBuaFilter && !empty($areaIds)) {
+            $areaIdsString = implode(',', $areaIds);
             
+            // Get bounding box
+            $bbox = DB::table('ons_bua')
+                ->selectRaw('
+                    ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
+                    ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
+                    ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
+                    ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
+                ')
+                ->whereIn('fid', $areaIds)
+                ->first();
+
+            if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
+                $expandedBbox = [
+                    'min_lng' => $bbox->min_lng - 0.01,
+                    'min_lat' => $bbox->min_lat - 0.01,
+                    'max_lng' => $bbox->max_lng + 0.01,
+                    'max_lat' => $bbox->max_lat + 0.01
+                ];
+                
+                $lrResults = DB::select("
+                    SELECT 
+                        lri.gml_id,
+                        lri.\"INSPIREID\" as inspireid,
+                        lri.\"LABEL\" as label,
+                        lri.\"NATIONALCADASTRALREFERENCE\" as nationalcadastralreference,
+                        lri.\"VALIDFROM\" as validfrom,
+                        lri.\"BEGINLIFESPANVERSION\" as beginlifespanversion,
+                        ST_AsGeoJSON(lri.geom) as geometry,
+                        GeometryType(lri.geom) as geom_type
+                    FROM land_registry_inspire lri
+                    WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                    AND EXISTS (
+                        SELECT 1 FROM nhle_ n, ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(n.geom, b.geometry)
+                        AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
+                    )
+                ", [
+                    $expandedBbox['min_lng'], $expandedBbox['min_lat'],
+                    $expandedBbox['max_lng'], $expandedBbox['max_lat']
+                ]);
+            } else {
+                $lrResults = [];
+            }
+        } else {
             $lrResults = DB::select("
                 SELECT 
                     lri.gml_id,
@@ -404,19 +455,12 @@ class DataMapController extends Controller
                     ST_AsGeoJSON(lri.geom) as geometry,
                     GeometryType(lri.geom) as geom_type
                 FROM land_registry_inspire lri
-                WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
-                AND EXISTS (
-                    SELECT 1 FROM nhle_ n, ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(n.geom, b.geometry)
-                    AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
-                )
-            ", [
-                $expandedBbox['min_lng'], $expandedBbox['min_lat'],
-                $expandedBbox['max_lng'], $expandedBbox['max_lat']
-            ]);
+            ");
 
-            $seenGmlIds = [];
+        }
+        
+        $seenGmlIds = [];
+        if (!empty($lrResults)) {
             foreach ($lrResults as $row) {
                 if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
                     $seenGmlIds[] = $row->gml_id;
@@ -447,12 +491,12 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getUPRNData($builtupAreaGeometriesQuery)
+    private function getUPRNData($builtupAreaGeometriesQuery, $includeBuaFilter)
     {
         $uprnFeatures = collect();
         $query = Uprn::query();
         
-        if ($builtupAreaGeometriesQuery !== null) {
+        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
             $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                 $query->select(DB::raw(1))
                     ->fromSub($builtupAreaGeometriesQuery, 's')
@@ -556,19 +600,37 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getOSMBuildingPartsData()
+    private function getOSMBuildingPartsData($areaIds, $includeBuaFilter)
     {
         $osmBuildingParts = collect();
         
-        $rawResults = DB::select("
-            SELECT 
-                id, source, osm_id, name, ref_gb_uprn,
-                base_shape, base_orientation, building, building_part,
-                building_levels, roof_shape, height_m,
-                ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-            FROM osm_building_part
-            WHERE geom IS NOT NULL
-        ");
+        if ($includeBuaFilter && !empty($areaIds)) {
+            $areaIdsString = implode(',', $areaIds);
+            $rawResults = DB::select("
+                SELECT 
+                    id, source, osm_id, name, ref_gb_uprn,
+                    base_shape, base_orientation, building, building_part,
+                    building_levels, roof_shape, height_m,
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                FROM osm_building_part
+                WHERE geom IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(ST_Transform(osm_building_part.geom, 27700), b.geometry)
+                )
+            ");
+        } else {
+            $rawResults = DB::select("
+                SELECT 
+                    id, source, osm_id, name, ref_gb_uprn,
+                    base_shape, base_orientation, building, building_part,
+                    building_levels, roof_shape, height_m,
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                FROM osm_building_part
+                WHERE geom IS NOT NULL
+            ");
+        }
         
         foreach ($rawResults as $row) {
             if (!empty($row->geometry)) {
@@ -604,18 +666,35 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getOSMAddressesData()
+    private function getOSMAddressesData($areaIds, $includeBuaFilter)
     {
         $osmAddresses = collect();
         
-        $addressResults = DB::select("
-            SELECT 
-                id, building_part_id, osm_id, uprn, source,
-                housenumber, unit, street, suburb, city, postcode,
-                ST_AsGeoJSON(point_wgs84) as geometry
-            FROM osm_address
-            WHERE point_wgs84 IS NOT NULL
-        ");
+        if ($includeBuaFilter && !empty($areaIds)) {
+            $areaIdsString = implode(',', $areaIds);
+            $addressResults = DB::select("
+                SELECT 
+                    id, building_part_id, osm_id, uprn, source,
+                    housenumber, unit, street, suburb, city, postcode,
+                    ST_AsGeoJSON(point_wgs84) as geometry
+                FROM osm_address
+                WHERE point_wgs84 IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(ST_Transform(osm_address.point_wgs84, 27700), b.geometry)
+                )
+            ");
+        } else {
+            $addressResults = DB::select("
+                SELECT 
+                    id, building_part_id, osm_id, uprn, source,
+                    housenumber, unit, street, suburb, city, postcode,
+                    ST_AsGeoJSON(point_wgs84) as geometry
+                FROM osm_address
+                WHERE point_wgs84 IS NOT NULL
+            ");
+        }
         
         foreach ($addressResults as $row) {
             if (!empty($row->geometry)) {
@@ -650,17 +729,33 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getOSMLanduseData()
+    private function getOSMLanduseData($areaIds, $includeBuaFilter)
     {
         $osmLanduseAreas = collect();
         
-        $landuseResults = DB::select("
-            SELECT 
-                id, source, osm_id, name, landuse, operator, ref,
-                ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-            FROM osm_landuse_area
-            WHERE geom IS NOT NULL
-        ");
+        if ($includeBuaFilter && !empty($areaIds)) {
+            $areaIdsString = implode(',', $areaIds);
+            $landuseResults = DB::select("
+                SELECT 
+                    id, source, osm_id, name, landuse, operator, ref,
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                FROM osm_landuse_area
+                WHERE geom IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(osm_landuse_area.geom, b.geometry)
+                )
+            ");
+        } else {
+            $landuseResults = DB::select("
+                SELECT 
+                    id, source, osm_id, name, landuse, operator, ref,
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                FROM osm_landuse_area
+                WHERE geom IS NOT NULL
+            ");
+        }
         
         foreach ($landuseResults as $row) {
             if (!empty($row->geometry)) {
@@ -691,112 +786,70 @@ class DataMapController extends Controller
         ];
     }
 
-    private function getEPCCertificatesData($builtupAreaGeometriesQuery)
+    private function getEPCCertificatesData($builtupAreaGeometriesQuery, $includeBuaFilter)
     {
         $epcCertificates = collect();
-        $query = EpcCertificate::query()->withGeometry();
         
-        if ($builtupAreaGeometriesQuery !== null) {
-            $query->withinBuiltupAreas($builtupAreaGeometriesQuery);
+        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
+            // Get area IDs from the query
+            $areaIds = $builtupAreaGeometriesQuery->pluck('fid')->toArray();
+            $areaIdsString = implode(',', $areaIds);
+            
+            $epcResults = DB::select("
+                SELECT 
+                    e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
+                    e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
+                    e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
+                    e.co2_emissions_current, e.energy_consumption_current, e.uprn,
+                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
+                FROM epc_certificate e
+                INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
+                WHERE u.geom IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_INTERSECTS(u.geom, b.geometry)
+                )
+            ");
+        } else {
+            $epcResults = DB::select("
+                SELECT 
+                    e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
+                    e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
+                    e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
+                    e.co2_emissions_current, e.energy_consumption_current, e.uprn,
+                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
+                FROM epc_certificate e
+                INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
+                WHERE u.geom IS NOT NULL
+            ");
         }
         
-        $query
-            ->chunk(5000, function ($chunk) use (&$epcCertificates) {
-                foreach ($chunk as $epc) {
-                    if (!empty($epc->geometry)) {
-                        $epcCertificates->push([
-                            'type' => 'Feature',
-                            'geometry' => json_decode($epc->geometry, true),
-                            'properties' => [
-                                'id' => $epc->id,
-                                'lmk_key' => $epc->lmk_key,
-                                'address' => $epc->address,
-                                'address1' => $epc->address1,
-                                'address2' => $epc->address2,
-                                'address3' => $epc->address3,
-                                'postcode' => $epc->postcode,
-                                'building_reference_number' => $epc->building_reference_number,
-                                'current_energy_rating' => $epc->current_energy_rating,
-                                'potential_energy_rating' => $epc->potential_energy_rating,
-                                'current_energy_efficiency' => $epc->current_energy_efficiency,
-                                'potential_energy_efficiency' => $epc->potential_energy_efficiency,
-                                'property_type' => $epc->property_type,
-                                'built_form' => $epc->built_form,
-                                'inspection_date' => $epc->inspection_date,
-                                'local_authority' => $epc->local_authority,
-                                'constituency' => $epc->constituency,
-                                'county' => $epc->county,
-                                'lodgement_date' => $epc->lodgement_date,
-                                'transaction_type' => $epc->transaction_type,
-                                'environment_impact_current' => $epc->environment_impact_current,
-                                'environment_impact_potential' => $epc->environment_impact_potential,
-                                'energy_consumption_current' => $epc->energy_consumption_current,
-                                'energy_consumption_potential' => $epc->energy_consumption_potential,
-                                'co2_emissions_current' => $epc->co2_emissions_current,
-                                'co2_emissions_potential' => $epc->co2_emissions_potential,
-                                'co2_emiss_curr_per_floor_area' => $epc->co2_emiss_curr_per_floor_area,
-                                'lighting_cost_current' => $epc->lighting_cost_current,
-                                'heating_cost_current' => $epc->heating_cost_current,
-                                'hot_water_cost_current' => $epc->hot_water_cost_current,
-                                'total_floor_area' => $epc->total_floor_area,
-                                'energy_tariff' => $epc->energy_tariff,
-                                'mains_gas_flag' => $epc->mains_gas_flag,
-                                'floor_level' => $epc->floor_level,
-                                'flat_top_storey' => $epc->flat_top_storey,
-                                'flat_storey_count' => $epc->flat_storey_count,
-                                'main_heating_controls' => $epc->main_heating_controls,
-                                'multi_glaze_proportion' => $epc->multi_glaze_proportion,
-                                'glazed_type' => $epc->glazed_type,
-                                'glazed_area' => $epc->glazed_area,
-                                'extension_count' => $epc->extension_count,
-                                'number_habitable_rooms' => $epc->number_habitable_rooms,
-                                'number_heated_rooms' => $epc->number_heated_rooms,
-                                'low_energy_lighting' => $epc->low_energy_lighting,
-                                'number_open_fireplaces' => $epc->number_open_fireplaces,
-                                'hotwater_description' => $epc->hotwater_description,
-                                'hot_water_energy_eff' => $epc->hot_water_energy_eff,
-                                'hot_water_env_eff' => $epc->hot_water_env_eff,
-                                'floor_description' => $epc->floor_description,
-                                'floor_energy_eff' => $epc->floor_energy_eff,
-                                'floor_env_eff' => $epc->floor_env_eff,
-                                'windows_description' => $epc->windows_description,
-                                'windows_energy_eff' => $epc->windows_energy_eff,
-                                'windows_env_eff' => $epc->windows_env_eff,
-                                'walls_description' => $epc->walls_description,
-                                'walls_energy_eff' => $epc->walls_energy_eff,
-                                'walls_env_eff' => $epc->walls_env_eff,
-                                'secondheat_description' => $epc->secondheat_description,
-                                'sheating_energy_eff' => $epc->sheating_energy_eff,
-                                'sheating_env_eff' => $epc->sheating_env_eff,
-                                'roof_description' => $epc->roof_description,
-                                'roof_energy_eff' => $epc->roof_energy_eff,
-                                'roof_env_eff' => $epc->roof_env_eff,
-                                'mainheat_description' => $epc->mainheat_description,
-                                'mainheat_energy_eff' => $epc->mainheat_energy_eff,
-                                'mainheat_env_eff' => $epc->mainheat_env_eff,
-                                'mainheatcont_description' => $epc->mainheatcont_description,
-                                'mainheatc_energy_eff' => $epc->mainheatc_energy_eff,
-                                'mainheatc_env_eff' => $epc->mainheatc_env_eff,
-                                'lighting_description' => $epc->lighting_description,
-                                'lighting_energy_eff' => $epc->lighting_energy_eff,
-                                'lighting_env_eff' => $epc->lighting_env_eff,
-                                'main_fuel' => $epc->main_fuel,
-                                'wind_turbine_count' => $epc->wind_turbine_count,
-                                'heat_loss_corridor' => $epc->heat_loss_corridor,
-                                'unheated_corridor_length' => $epc->unheated_corridor_length,
-                                'floor_height' => $epc->floor_height,
-                                'photo_supply' => $epc->photo_supply,
-                                'solar_water_heating_flag' => $epc->solar_water_heating_flag,
-                                'mechanical_ventilation' => $epc->mechanical_ventilation,
-                                'local_authority_label' => $epc->local_authority_label,
-                                'constituency_label' => $epc->constituency_label,
-                                'uprn' => $epc->uprn,
-                                'uprn_source' => $epc->uprn_source,
-                            ]
-                        ]);
-                    }
-                }
-            });
+        foreach ($epcResults as $row) {
+            if (!empty($row->geometry)) {
+                $epcCertificates->push([
+                    'type' => 'Feature',
+                    'geometry' => json_decode($row->geometry, true),
+                    'properties' => [
+                        'id' => $row->id,
+                        'lmk_key' => $row->lmk_key,
+                        'building_reference_number' => $row->building_reference_number,
+                        'current_energy_rating' => $row->current_energy_rating,
+                        'potential_energy_rating' => $row->potential_energy_rating,
+                        'property_type' => $row->property_type,
+                        'built_form' => $row->built_form,
+                        'inspection_date' => $row->inspection_date,
+                        'local_authority' => $row->local_authority,
+                        'lodgement_date' => $row->lodgement_date,
+                        'transaction_type' => $row->transaction_type,
+                        'total_floor_area' => $row->total_floor_area,
+                        'co2_emissions_current' => $row->co2_emissions_current,
+                        'energy_consumption_current' => $row->energy_consumption_current,
+                        'uprn' => $row->uprn,
+                    ]
+                ]);
+            }
+        }
 
         return [
             'epcCertificates' => [
@@ -1035,6 +1088,7 @@ class DataMapController extends Controller
                 }
 
                 //set address to null
+                $data['address'] = null;
                 $data['address1'] = null;
                 $data['address2'] = null;
                 $data['address3'] = null;
