@@ -1,18 +1,61 @@
 import axios from 'axios';
+import { getWorkerManager } from '../workers/WorkerManager';
 
 /**
  * Lazy loading helper functions for DataMap
  * Each function loads a specific data type from the backend
+ * Uses Web Workers for parallel data processing
  */
 
 export interface LazyLoadOptions {
   areaIds: string[];
   includeBuaFilter?: boolean;
+  useWorker?: boolean; // Option to enable/disable worker processing
 }
 
 export interface LoadingState {
   isLoading: boolean;
   error: string | null;
+}
+
+/**
+ * Process data using worker or fallback to main thread
+ */
+const processDataWithWorker = async (dataType: string, data: any, useWorker?: boolean): Promise<any> => {
+  // Default to false for now to debug
+  const shouldUseWorker = useWorker ?? false;
+  
+  // Debug logging
+  console.log(`[Worker] Processing ${dataType}:`, {
+    useWorker: shouldUseWorker,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    hasData: !!data?.data,
+    keys: data ? Object.keys(data) : []
+  });
+
+  if (!shouldUseWorker) {
+    // Fallback: return data as-is
+    console.log(`[Worker] Disabled for ${dataType}, returning raw data`);
+    return data;
+  }
+
+  try {
+    const workerManager = getWorkerManager();
+    const result = await workerManager.processData(dataType, data);
+    console.log(`[Worker] Processed ${dataType}:`, result);
+    
+    // If worker returns null/undefined, use original data
+    if (result === null || result === undefined) {
+      console.warn(`[Worker] Returned null/undefined for ${dataType}, using original data`);
+      return data;
+    }
+    
+    return result;
+  } catch (error) {
+    console.warn(`Worker processing failed for ${dataType}, using fallback:`, error);
+    return data; // Fallback to original data
+  }
 }
 
 /**
@@ -26,7 +69,7 @@ export const loadBuildingParts = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.buildingParts;
+    return await processDataWithWorker('buildingParts', response.data.buildingParts, options.useWorker);
   } catch (error) {
     console.error('Failed to load building parts:', error);
     throw error;
@@ -44,7 +87,7 @@ export const loadSites = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.sites;
+    return await processDataWithWorker('sites', response.data.sites, options.useWorker);
   } catch (error) {
     console.error('Failed to load sites:', error);
     throw error;
@@ -62,7 +105,7 @@ export const loadNHLE = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.nhle;
+    return await processDataWithWorker('nhle', response.data.nhle, options.useWorker);
   } catch (error) {
     console.error('Failed to load NHLE:', error);
     throw error;
@@ -80,7 +123,7 @@ export const loadLandRegistry = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.landRegistryInspire;
+    return await processDataWithWorker('landRegistryInspire', response.data.landRegistryInspire, options.useWorker);
   } catch (error) {
     console.error('Failed to load Land Registry:', error);
     throw error;
@@ -98,7 +141,7 @@ export const loadUPRN = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.uprn;
+    return await processDataWithWorker('uprn', response.data.uprn, options.useWorker);
   } catch (error) {
     console.error('Failed to load UPRN:', error);
     throw error;
@@ -116,7 +159,7 @@ export const loadPhotos = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.photos;
+    return await processDataWithWorker('photos', response.data.photos, options.useWorker);
   } catch (error) {
     console.error('Failed to load photos:', error);
     throw error;
@@ -134,7 +177,7 @@ export const loadOSMBuildingParts = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.osmBuildingParts;
+    return await processDataWithWorker('osmBuildingParts', response.data.osmBuildingParts, options.useWorker);
   } catch (error) {
     console.error('Failed to load OSM Building Parts:', error);
     throw error;
@@ -152,7 +195,7 @@ export const loadOSMAddresses = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.osmAddresses;
+    return await processDataWithWorker('osmAddresses', response.data.osmAddresses, options.useWorker);
   } catch (error) {
     console.error('Failed to load OSM Addresses:', error);
     throw error;
@@ -170,7 +213,7 @@ export const loadOSMLanduse = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.osmLanduseAreas;
+    return await processDataWithWorker('osmLanduseAreas', response.data.osmLanduseAreas, options.useWorker);
   } catch (error) {
     console.error('Failed to load OSM Landuse:', error);
     throw error;
@@ -188,7 +231,7 @@ export const loadEPCCertificates = async (options: LazyLoadOptions) => {
       include_bua_filter: options.includeBuaFilter ?? true
     });
     
-    return response.data.epcCertificates;
+    return await processDataWithWorker('epcCertificates', response.data.epcCertificates, options.useWorker);
   } catch (error) {
     console.error('Failed to load EPC Certificates:', error);
     throw error;
@@ -277,4 +320,18 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
     console.error('Error loading batched data:', error);
     throw error;
   }
+};
+
+/**
+ * Cleanup function to terminate workers when component unmounts
+ * Call this when the DataMap component is unmounted
+ */
+export { terminateWorkerManager } from '../workers/WorkerManager';
+
+/**
+ * Get worker status for debugging
+ */
+export const getWorkerStatus = () => {
+  const workerManager = getWorkerManager();
+  return workerManager.getStatus();
 };
