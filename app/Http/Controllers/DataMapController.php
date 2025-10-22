@@ -494,59 +494,104 @@ class DataMapController extends Controller
     private function getUPRNData($builtupAreaGeometriesQuery, $includeBuaFilter)
     {
         $uprnFeatures = collect();
-        $query = Uprn::query();
         
         if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_DWithin(osopenuprn_address.geom, s.geometry, 50)');
-            });
+            // Get area IDs from the query
+            $areaIds = $builtupAreaGeometriesQuery->pluck('fid')->toArray();
+            $areaIdsString = implode(',', $areaIds);
+            
+            $uprnResults = DB::select("
+                SELECT DISTINCT ON (u.uprn)
+                    u.uprn,
+                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
+                    e.floor_level,
+                    e.property_type,
+                    e.built_form,
+                    e.current_energy_rating,
+                    e.potential_energy_rating,
+                    e.current_energy_efficiency,
+                    e.potential_energy_efficiency,
+                    e.total_floor_area,
+                    e.construction_age_band,
+                    e.lodgement_date,
+                    e.transaction_type,
+                    e.tenure
+                FROM osopenuprn_address u
+                LEFT JOIN LATERAL (
+                    SELECT * FROM epc_certificate
+                    WHERE epc_certificate.uprn::bigint = u.uprn
+                    ORDER BY lodgement_date DESC
+                    LIMIT 1
+                ) e ON true
+                WHERE u.geom IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM ons_bua b
+                    WHERE b.fid IN ({$areaIdsString})
+                    AND ST_DWithin(u.geom, b.geometry, 50)
+                )
+                ORDER BY u.uprn
+            ");
+        } else {
+            $uprnResults = DB::select("
+                SELECT DISTINCT ON (u.uprn)
+                    u.uprn,
+                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
+                    e.floor_level,
+                    e.property_type,
+                    e.built_form,
+                    e.current_energy_rating,
+                    e.potential_energy_rating,
+                    e.current_energy_efficiency,
+                    e.potential_energy_efficiency,
+                    e.total_floor_area,
+                    e.construction_age_band,
+                    e.lodgement_date,
+                    e.transaction_type,
+                    e.tenure
+                FROM osopenuprn_address u
+                LEFT JOIN LATERAL (
+                    SELECT * FROM epc_certificate
+                    WHERE epc_certificate.uprn::bigint = u.uprn
+                    ORDER BY lodgement_date DESC
+                    LIMIT 1
+                ) e ON true
+                WHERE u.geom IS NOT NULL
+                ORDER BY u.uprn
+            ");
         }
         
-        $query
-            ->select([
-                'uprn',
-                DB::raw('ST_AsGeoJSON(ST_Transform(osopenuprn_address.geom, 4326)) as geom')
-            ])
-            ->with(['epcCertificates' => function ($query) {
-                $query->orderBy('lodgement_date', 'desc')->limit(1);
-            }])
-            ->chunk(5000, function ($chunk) use (&$uprnFeatures) {
-                foreach ($chunk as $uprn) {
-                    if (!empty($uprn->geom)) {
-                        $latestEpc = $uprn->epcCertificates->first();
-                        
-                        $properties = [
-                            'id' => (int)$uprn->uprn,
-                            'uprn' => (int)$uprn->uprn,
-                        ];
+        foreach ($uprnResults as $row) {
+            if (!empty($row->geom)) {
+                $properties = [
+                    'id' => (int)$row->uprn,
+                    'uprn' => (int)$row->uprn,
+                ];
 
-                        if ($latestEpc) {
-                            $properties = array_merge($properties, [
-                                'floor_level' => $latestEpc->floor_level,
-                                'property_type' => $latestEpc->property_type,
-                                'built_form' => $latestEpc->built_form,
-                                'current_energy_rating' => $latestEpc->current_energy_rating,
-                                'potential_energy_rating' => $latestEpc->potential_energy_rating,
-                                'current_energy_efficiency' => $latestEpc->current_energy_efficiency,
-                                'potential_energy_efficiency' => $latestEpc->potential_energy_efficiency,
-                                'total_floor_area' => $latestEpc->total_floor_area,
-                                'construction_age_band' => $latestEpc->construction_age_band,
-                                'lodgement_date' => $latestEpc->lodgement_date?->format('Y-m-d'),
-                                'transaction_type' => $latestEpc->transaction_type,
-                                'tenure' => $latestEpc->tenure,
-                            ]);
-                        }
-
-                        $uprnFeatures->push([
-                            'type' => 'Feature',
-                            'geometry' => is_string($uprn->geom) ? json_decode($uprn->geom, true) : $uprn->geom,
-                            'properties' => $properties
-                        ]);
-                    }
+                // Add EPC data if exists
+                if ($row->property_type !== null) {
+                    $properties = array_merge($properties, [
+                        'floor_level' => $row->floor_level,
+                        'property_type' => $row->property_type,
+                        'built_form' => $row->built_form,
+                        'current_energy_rating' => $row->current_energy_rating,
+                        'potential_energy_rating' => $row->potential_energy_rating,
+                        'current_energy_efficiency' => $row->current_energy_efficiency,
+                        'potential_energy_efficiency' => $row->potential_energy_efficiency,
+                        'total_floor_area' => $row->total_floor_area,
+                        'construction_age_band' => $row->construction_age_band,
+                        'lodgement_date' => $row->lodgement_date,
+                        'transaction_type' => $row->transaction_type,
+                        'tenure' => $row->tenure,
+                    ]);
                 }
-            });
+
+                $uprnFeatures->push([
+                    'type' => 'Feature',
+                    'geometry' => json_decode($row->geom, true),
+                    'properties' => $properties
+                ]);
+            }
+        }
 
         return [
             'uprn' => [
