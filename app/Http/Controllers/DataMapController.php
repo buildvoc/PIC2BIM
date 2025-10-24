@@ -127,23 +127,16 @@ class DataMapController extends Controller
     }
 
     /**
-     * Get specific data type for selected areas (Lazy Loading)
-     * Supports: building_parts, sites, nhle, land_registry, uprn, photos, 
-     *           osm_building_parts, osm_addresses, osm_landuse, epc_certificates
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Stream NHLE data in chunks
      */
-    public function getAreaData(Request $request)
+    public function streamNHLEData(Request $request)
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-
+        
         $areaIds = $request->input('area_ids', []);
         
-        // Ensure $areaIds is always an array of integers
         if (!is_array($areaIds)) {
-            // If it's a JSON string, decode it
             if (is_string($areaIds) && str_starts_with($areaIds, '[')) {
                 $areaIds = json_decode($areaIds, true);
             } else {
@@ -151,761 +144,1171 @@ class DataMapController extends Controller
             }
         }
         
-        // Convert all values to integers
         $areaIds = array_map('intval', array_filter($areaIds));
-        
-        $dataType = $request->input('data_type');
         $includeBuaFilter = $request->input('include_bua_filter', true);
-
-        // Validation - only data_type is required, area_ids is optional
-        if (empty($dataType)) {
-            return response()->json(['error' => 'data_type is required'], 400);
-        }
-
-        Log::info("=== GET AREA DATA: {$dataType} ===", [
-            'area_ids' => $areaIds ?: 'all',
-            'include_bua_filter' => $includeBuaFilter
-        ]);
-
-        $startTime = microtime(true);
-
-        // Build BUA geometries query for spatial filtering (only if area_ids provided)
-        $builtupAreaGeometriesQuery = null;
-        if (!empty($areaIds)) {
-            $builtupAreaGeometriesQuery = DB::table('ons_bua')
-                ->select('geometry', 'fid')
-                ->whereIn('fid', $areaIds);
-        }
-
-        try {
-            $responseData = null;
-
-            switch ($dataType) {
-                case 'building_parts':
-                    $responseData = $this->getBuildingPartsData($builtupAreaGeometriesQuery, $includeBuaFilter);
-                    break;
-
-                case 'sites':
-                    $responseData = $this->getSitesData($builtupAreaGeometriesQuery, $includeBuaFilter);
-                    break;
-
-                case 'nhle':
-                    $responseData = $this->getNHLEData($areaIds, $includeBuaFilter);
-                    break;
-
-                case 'land_registry':
-                    $responseData = $this->getLandRegistryData($areaIds, $includeBuaFilter);
-                    break;
-
-                case 'uprn':
-                    $responseData = $this->getUPRNData($builtupAreaGeometriesQuery, $includeBuaFilter);
-                    break;
-
-                case 'photos':
-                    $responseData = $this->getPhotosData($builtupAreaGeometriesQuery, $includeBuaFilter);
-                    break;
-
-                case 'osm_building_parts':
-                    $responseData = $this->getOSMBuildingPartsData($areaIds, $includeBuaFilter);
-                    break;
-
-                case 'osm_addresses':
-                    $responseData = $this->getOSMAddressesData($areaIds, $includeBuaFilter);
-                    break;
-
-                case 'osm_landuse':
-                    $responseData = $this->getOSMLanduseData($areaIds, $includeBuaFilter);
-                    break;
-
-                case 'epc_certificates':
-                    $responseData = $this->getEPCCertificatesData($builtupAreaGeometriesQuery, $includeBuaFilter);
-                    break;
-
-                default:
-                    return response()->json([
-                        'error' => 'Invalid data_type',
-                        'valid_types' => [
-                            'building_parts', 'sites', 'nhle', 'land_registry', 'uprn',
-                            'photos', 'osm_building_parts', 'osm_addresses', 'osm_landuse', 'epc_certificates'
-                        ]
-                    ], 400);
-            }
-
-            $executionTime = round(microtime(true) - $startTime, 2);
+        $chunkSize = $request->input('chunk_size', 50);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 120000');
             
-            Log::info("Data type '{$dataType}' loaded successfully", [
-                'execution_time' => $executionTime . 's',
-                'memory_used' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB'
-            ]);
+            // Build query
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                $query = "
+                    SELECT 
+                        n.gid,
+                        n.objectid,
+                        n.listentry,
+                        n.name,
+                        n.grade,
+                        n.listdate,
+                        n.amenddate,
+                        n.capturesca,
+                        n.hyperlink,
+                        n.ngr,
+                        n.easting,
+                        n.northing,
+                        n.latitude,
+                        n.longitude,
+                        ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
+                    FROM nhle_ n
+                    WHERE EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(n.geom, b.geometry)
+                    )
+                ";
+            } else {
+                $query = "
+                    SELECT 
+                        n.gid,
+                        n.objectid,
+                        n.listentry,
+                        n.name,
+                        n.grade,
+                        n.listdate,
+                        n.amenddate,
+                        n.capturesca,
+                        n.hyperlink,
+                        n.ngr,
+                        n.easting,
+                        n.northing,
+                        n.latitude,
+                        n.longitude,
+                        ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
+                    FROM nhle_ n
+                ";
+            }
+            
+            $results = DB::select($query);
+            $totalCount = count($results);
+            $chunks = array_chunk($results, $chunkSize);
+            $totalChunks = count($chunks);
+            
+            // Send metadata
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            // Stream chunks
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $nhleChunk = [];
+                
+                foreach ($chunk as $row) {
+                    if (!empty($row->geometry)) {
+                        $nhleModel = new NHLE();
+                        $nhleModel->gid = $row->gid;
+                        $nhleModel->objectid = $row->objectid;
+                        $nhleModel->listentry = $row->listentry;
+                        $nhleModel->name = $row->name;
+                        $nhleModel->grade = $row->grade;
+                        $nhleModel->listdate = $row->listdate;
+                        $nhleModel->amenddate = $row->amenddate;
+                        $nhleModel->capturesca = $row->capturesca;
+                        $nhleModel->hyperlink = $row->hyperlink;
+                        $nhleModel->ngr = $row->ngr;
+                        $nhleModel->easting = $row->easting;
+                        $nhleModel->northing = $row->northing;
+                        $nhleModel->latitude = $row->latitude;
+                        $nhleModel->longitude = $row->longitude;
+                        $nhleModel->geom = json_decode($row->geometry);
+                        $nhleChunk[] = $nhleModel;
+                    }
+                }
+                
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $nhleChunk,
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                usleep(10000); // 10ms
+            }
+            
+            // Send complete
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
 
-            return response()->json($responseData);
-
-        } catch (\Exception $e) {
-            Log::error("Failed to load data type '{$dataType}'", [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Failed to load data',
-                'message' => $e->getMessage()
-            ], 500);
+    /**
+     * Stream Building Parts data in chunks
+     */
+    public function streamBuildingPartsData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
         }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            $query = BuildingPartV2::query();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $builtupAreaGeometriesQuery = BuiltupArea::query()
+                    ->whereIn('fid', $areaIds)
+                    ->select('geometry');
+                    
+                $query->whereExists(function ($q) use ($builtupAreaGeometriesQuery) {
+                    $q->select(DB::raw(1))
+                        ->fromSub($builtupAreaGeometriesQuery, 's')
+                        ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
+                });
+            }
+            
+            $totalCount = $query->count();
+            $totalChunks = ceil($totalCount / $chunkSize);
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            $query->with('buildingPartSiteRefs')
+                ->chunk($chunkSize, function ($buildingParts) use (&$chunkIndex, $totalChunks) {
+                    $collection = new BuildingPartCollectionV2($buildingParts);
+                    $data = $collection->toArray(request());
+                    
+                    echo "data: " . json_encode([
+                        'type' => 'chunk',
+                        'chunkIndex' => $chunkIndex,
+                        'data' => $data,
+                        'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                    ]) . "\n\n";
+                    
+                    ob_flush();
+                    flush();
+                    $chunkIndex++;
+                    usleep(10000);
+                });
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream Land Registry data in chunks
+     */
+    public function streamLandRegistryData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 120000');
+            
+            $landRegistryFeatures = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                
+                $bbox = DB::table('ons_bua')
+                    ->selectRaw('
+                        ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
+                        ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
+                        ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
+                        ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
+                    ')
+                    ->whereIn('fid', $areaIds)
+                    ->first();
+                
+                if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
+                    $expandedBbox = [
+                        'min_lng' => $bbox->min_lng - 0.01,
+                        'min_lat' => $bbox->min_lat - 0.01,
+                        'max_lng' => $bbox->max_lng + 0.01,
+                        'max_lat' => $bbox->max_lat + 0.01
+                    ];
+                    
+                    $results = DB::select("
+                        SELECT 
+                            lri.gml_id,
+                            lri.\"INSPIREID\" as inspireid,
+                            lri.\"LABEL\" as label,
+                            lri.\"NATIONALCADASTRALREFERENCE\" as nationalcadastralreference,
+                            lri.\"VALIDFROM\" as validfrom,
+                            lri.\"BEGINLIFESPANVERSION\" as beginlifespanversion,
+                            ST_AsGeoJSON(lri.geom) as geometry,
+                            GeometryType(lri.geom) as geom_type
+                        FROM land_registry_inspire lri
+                        WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                        AND EXISTS (
+                            SELECT 1 FROM nhle_ n, ons_bua b
+                            WHERE b.fid IN ({$areaIdsString})
+                            AND ST_INTERSECTS(n.geom, b.geometry)
+                            AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
+                        )
+                    ", [
+                        $expandedBbox['min_lng'], $expandedBbox['min_lat'],
+                        $expandedBbox['max_lng'], $expandedBbox['max_lat']
+                    ]);
+                    
+                    $seenGmlIds = [];
+                    foreach ($results as $row) {
+                        if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
+                            $seenGmlIds[] = $row->gml_id;
+                            $geometry = json_decode($row->geometry, true);
+                            $landRegistryFeatures->push([
+                                'type' => 'Feature',
+                                'geometry' => $geometry,
+                                'properties' => [
+                                    'gml_id' => $row->gml_id,
+                                    'INSPIREID' => $row->inspireid,
+                                    'LABEL' => $row->label,
+                                    'NATIONALCADASTRALREFERENCE' => $row->nationalcadastralreference,
+                                    'VALIDFROM' => $row->validfrom,
+                                    'BEGINLIFESPANVERSION' => $row->beginlifespanversion,
+                                ]
+                            ]);
+                        }
+                    }
+                }
+            }
+            
+            $totalCount = $landRegistryFeatures->count();
+            $chunks = $landRegistryFeatures->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream Sites data in chunks
+     */
+    public function streamSitesData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 120000');
+            
+            $sites = collect();
+            
+            // Build the builtup area geometries query if needed
+            $builtupAreaGeometriesQuery = null;
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $builtupAreaGeometriesQuery = DB::table('ons_bua')
+                    ->select('geometry')
+                    ->whereIn('fid', $areaIds);
+            }
+            
+            $query = Site::query();
+            
+            if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
+                $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                    $query->select(DB::raw(1))
+                        ->fromSub($builtupAreaGeometriesQuery, 's')
+                        ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
+                });
+            }
+            
+            $query->with(['buildings', 'buildingPartSiteRefs'])
+                ->chunk(2000, function ($chunk) use (&$sites) {
+                    $sites = $sites->merge($chunk);
+                });
+            
+            // Convert to resource collection
+            $siteCollection = new SiteCollection($sites);
+            $sitesArray = $siteCollection->toArray(request());
+            $sitesData = collect($sitesArray['features'] ?? []);
+            
+            $totalCount = $sitesData->count();
+            $chunks = $sitesData->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream Photos data in chunks
+     */
+    public function streamPhotosData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 20); // Smaller default for photos (they have more data per item)
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 120000');
+            
+            // Build the builtup area geometries query if needed
+            $builtupAreaGeometriesQuery = null;
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $builtupAreaGeometriesQuery = DB::table('ons_bua')
+                    ->select('geometry')
+                    ->whereIn('fid', $areaIds);
+            }
+            
+            $users = collect();
+            User::query()
+                ->join('user_role as ur', 'user.id', '=', 'ur.user_id')
+                ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
+                ->where('ur.role_id', '=', User::FARMER_ROLE)
+                ->where('user.active', '=', 1)
+                ->where('user.pa_id', '=', Auth::user()->pa_id)
+                ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery, $includeBuaFilter) {
+                    $query->where('flg_deleted', 0);
+                    
+                    if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
+                        $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
+                            $subQuery->select(DB::raw(1))
+                                ->fromSub($builtupAreaGeometriesQuery, 's')
+                                ->whereRaw('ST_INTERSECTS(ST_Transform(ST_SetSRID(ST_MakePoint(photo.lng, photo.lat), 4326), 27700), s.geometry)');
+                        });
+                    }
+                }])
+                ->chunk(2000, function ($chunk) use (&$users) {
+                    $users = $users->merge($chunk);
+                });
+
+            $users = $users->filter(function ($user) {
+                return $user->photos->isNotEmpty();
+            });
+
+            $photos = collect();
+            foreach ($users as $user) {
+                foreach ($user->photos as $photo) {
+                    $photo->user_name = $user->name;
+                    $photo->link = $photo->link;
+                    $photos->push($photo);
+                }
+            }
+            
+            // Convert to resource collection
+            $photoCollection = new DataMapPhotoCollection($photos);
+            $photosArray = $photoCollection->toArray(request());
+            $photosData = collect($photosArray['features'] ?? []);
+            
+            $totalCount = $photosData->count();
+            $chunks = $photosData->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream UPRN data in chunks
+     */
+    public function streamUPRNData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 180000'); // 3 minutes
+            
+            $uprnFeatures = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                
+                // Use CTE with window function for better performance
+                $uprnResults = DB::select("
+                    WITH filtered_uprn AS (
+                        SELECT u.uprn, u.geom
+                        FROM osopenuprn_address u
+                        WHERE u.geom IS NOT NULL
+                        AND EXISTS (
+                            SELECT 1 FROM ons_bua b
+                            WHERE b.fid IN ({$areaIdsString})
+                            AND ST_Intersects(u.geom, b.geometry)
+                        )
+                    ),
+                    latest_epc AS (
+                        SELECT DISTINCT ON (uprn)
+                            uprn::bigint,
+                            floor_level, property_type, built_form, current_energy_rating,
+                            potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
+                            total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
+                        FROM epc_certificate
+                        WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
+                        ORDER BY uprn, lodgement_date DESC NULLS LAST
+                    )
+                    SELECT 
+                        u.uprn,
+                        ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
+                        e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
+                        e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
+                        e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
+                    FROM filtered_uprn u
+                    LEFT JOIN latest_epc e ON e.uprn = u.uprn
+                ");
+            } else {
+                $uprnResults = DB::select("
+                    WITH filtered_uprn AS (
+                        SELECT u.uprn, u.geom
+                        FROM osopenuprn_address u
+                        WHERE u.geom IS NOT NULL
+                        LIMIT 5000
+                    ),
+                    latest_epc AS (
+                        SELECT DISTINCT ON (uprn)
+                            uprn::bigint,
+                            floor_level, property_type, built_form, current_energy_rating,
+                            potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
+                            total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
+                        FROM epc_certificate
+                        WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
+                        ORDER BY uprn, lodgement_date DESC NULLS LAST
+                    )
+                    SELECT 
+                        u.uprn,
+                        ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
+                        e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
+                        e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
+                        e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
+                    FROM filtered_uprn u
+                    LEFT JOIN latest_epc e ON e.uprn = u.uprn
+                ");
+            }
+            
+            foreach ($uprnResults as $row) {
+                if (!empty($row->geom)) {
+                    $properties = [
+                        'id' => (int)$row->uprn,
+                        'uprn' => (int)$row->uprn,
+                    ];
+
+                    // Add EPC data if exists
+                    if ($row->property_type !== null) {
+                        $properties = array_merge($properties, [
+                            'floor_level' => $row->floor_level,
+                            'property_type' => $row->property_type,
+                            'built_form' => $row->built_form,
+                            'current_energy_rating' => $row->current_energy_rating,
+                            'potential_energy_rating' => $row->potential_energy_rating,
+                            'current_energy_efficiency' => $row->current_energy_efficiency,
+                            'potential_energy_efficiency' => $row->potential_energy_efficiency,
+                            'total_floor_area' => $row->total_floor_area,
+                            'construction_age_band' => $row->construction_age_band,
+                            'lodgement_date' => $row->lodgement_date,
+                            'transaction_type' => $row->transaction_type,
+                            'tenure' => $row->tenure,
+                        ]);
+                    }
+
+                    $uprnFeatures->push([
+                        'type' => 'Feature',
+                        'geometry' => json_decode($row->geom, true),
+                        'properties' => $properties
+                    ]);
+                }
+            }
+            
+            $totalCount = $uprnFeatures->count();
+            $chunks = $uprnFeatures->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream EPC Certificates data in chunks
+     */
+    public function streamEPCCertificatesData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 180000'); // 3 minutes
+            
+            $epcCertificates = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                
+                $epcResults = DB::select("
+                    SELECT 
+                        e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
+                        e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
+                        e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
+                        e.co2_emissions_current, e.energy_consumption_current, e.uprn,
+                        ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
+                    FROM epc_certificate e
+                    INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
+                    WHERE u.geom IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(u.geom, b.geometry)
+                    )
+                ");
+            } else {
+                $epcResults = DB::select("
+                    SELECT 
+                        e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
+                        e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
+                        e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
+                        e.co2_emissions_current, e.energy_consumption_current, e.uprn,
+                        ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
+                    FROM epc_certificate e
+                    INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
+                    WHERE u.geom IS NOT NULL
+                ");
+            }
+            
+            foreach ($epcResults as $row) {
+                if (!empty($row->geometry)) {
+                    $epcCertificates->push([
+                        'type' => 'Feature',
+                        'geometry' => json_decode($row->geometry, true),
+                        'properties' => [
+                            'id' => $row->id,
+                            'lmk_key' => $row->lmk_key,
+                            'building_reference_number' => $row->building_reference_number,
+                            'current_energy_rating' => $row->current_energy_rating,
+                            'potential_energy_rating' => $row->potential_energy_rating,
+                            'property_type' => $row->property_type,
+                            'built_form' => $row->built_form,
+                            'inspection_date' => $row->inspection_date,
+                            'local_authority' => $row->local_authority,
+                            'lodgement_date' => $row->lodgement_date,
+                            'transaction_type' => $row->transaction_type,
+                            'total_floor_area' => $row->total_floor_area,
+                            'co2_emissions_current' => $row->co2_emissions_current,
+                            'energy_consumption_current' => $row->energy_consumption_current,
+                            'uprn' => $row->uprn,
+                        ]
+                    ]);
+                }
+            }
+            
+            $totalCount = $epcCertificates->count();
+            $chunks = $epcCertificates->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream OSM Building Parts data in chunks
+     */
+    public function streamOSMBuildingPartsData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 180000'); // 3 minutes
+            
+            $osmBuildingParts = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                $rawResults = DB::select("
+                    SELECT 
+                        id, source, osm_id, name, ref_gb_uprn,
+                        base_shape, base_orientation, building, building_part,
+                        building_levels, roof_shape, height_m,
+                        ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                    FROM osm_building_part
+                    WHERE geom IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(ST_Transform(osm_building_part.geom, 27700), b.geometry)
+                    )
+                ");
+            } else {
+                $rawResults = DB::select("
+                    SELECT 
+                        id, source, osm_id, name, ref_gb_uprn,
+                        base_shape, base_orientation, building, building_part,
+                        building_levels, roof_shape, height_m,
+                        ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                    FROM osm_building_part
+                    WHERE geom IS NOT NULL
+                ");
+            }
+            
+            foreach ($rawResults as $row) {
+                if (!empty($row->geometry)) {
+                    $geometry = json_decode($row->geometry, true);
+                    $osmBuildingParts->push([
+                        'type' => 'Feature',
+                        'geometry' => $geometry,
+                        'properties' => [
+                            'id' => $row->id,
+                            'source' => $row->source,
+                            'osm_id' => $row->osm_id,
+                            'name' => $row->name,
+                            'ref_gb_uprn' => $row->ref_gb_uprn,
+                            'base_shape' => $row->base_shape,
+                            'base_orientation' => $row->base_orientation,
+                            'building' => $row->building,
+                            'building_part' => $row->building_part,
+                            'building_levels' => $row->building_levels,
+                            'roof_shape' => $row->roof_shape,
+                            'height_m' => $row->height_m,
+                        ]
+                    ]);
+                }
+            }
+            
+            $totalCount = $osmBuildingParts->count();
+            $chunks = $osmBuildingParts->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream OSM Addresses data in chunks
+     */
+    public function streamOSMAddressesData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 180000'); // 3 minutes
+            
+            $osmAddresses = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                $addressResults = DB::select("
+                    SELECT 
+                        id, building_part_id, osm_id, uprn, source,
+                        housenumber, unit, street, suburb, city, postcode,
+                        ST_AsGeoJSON(point_wgs84) as geometry
+                    FROM osm_address
+                    WHERE point_wgs84 IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(ST_Transform(osm_address.point_wgs84, 27700), b.geometry)
+                    )
+                ");
+            } else {
+                $addressResults = DB::select("
+                    SELECT 
+                        id, building_part_id, osm_id, uprn, source,
+                        housenumber, unit, street, suburb, city, postcode,
+                        ST_AsGeoJSON(point_wgs84) as geometry
+                    FROM osm_address
+                    WHERE point_wgs84 IS NOT NULL
+                ");
+            }
+            
+            foreach ($addressResults as $row) {
+                if (!empty($row->geometry)) {
+                    $geometry = json_decode($row->geometry, true);
+                    $osmAddresses->push([
+                        'type' => 'Feature',
+                        'geometry' => $geometry,
+                        'properties' => [
+                            'id' => $row->id,
+                            'building_part_id' => $row->building_part_id,
+                            'osm_id' => $row->osm_id,
+                            'uprn' => $row->uprn,
+                            'source' => $row->source,
+                            'housenumber' => $row->housenumber,
+                            'unit' => $row->unit,
+                            'street' => $row->street,
+                            'suburb' => $row->suburb,
+                            'city' => $row->city,
+                            'postcode' => $row->postcode,
+                        ]
+                    ]);
+                }
+            }
+            
+            $totalCount = $osmAddresses->count();
+            $chunks = $osmAddresses->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Stream OSM Landuse data in chunks
+     */
+    public function streamOSMLanduseData(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+        
+        $areaIds = $request->input('area_ids', []);
+        if (!is_array($areaIds)) {
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
+                ? json_decode($areaIds, true) 
+                : [$areaIds];
+        }
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+        $chunkSize = $request->input('chunk_size', 100);
+        
+        return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
+            DB::statement('SET statement_timeout = 180000'); // 3 minutes
+            
+            $osmLanduseAreas = collect();
+            
+            if ($includeBuaFilter && !empty($areaIds)) {
+                $areaIdsString = implode(',', $areaIds);
+                $landuseResults = DB::select("
+                    SELECT 
+                        id, source, osm_id, name, landuse, operator, ref,
+                        ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                    FROM osm_landuse_area
+                    WHERE geom IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM ons_bua b
+                        WHERE b.fid IN ({$areaIdsString})
+                        AND ST_INTERSECTS(osm_landuse_area.geom, b.geometry)
+                    )
+                ");
+            } else {
+                $landuseResults = DB::select("
+                    SELECT 
+                        id, source, osm_id, name, landuse, operator, ref,
+                        ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
+                    FROM osm_landuse_area
+                    WHERE geom IS NOT NULL
+                ");
+            }
+            
+            foreach ($landuseResults as $row) {
+                if (!empty($row->geometry)) {
+                    $geometry = json_decode($row->geometry, true);
+                    $osmLanduseAreas->push([
+                        'type' => 'Feature',
+                        'geometry' => $geometry,
+                        'properties' => [
+                            'id' => $row->id,
+                            'source' => $row->source,
+                            'osm_id' => $row->osm_id,
+                            'name' => $row->name,
+                            'landuse' => $row->landuse,
+                            'operator' => $row->operator,
+                            'ref' => $row->ref,
+                        ]
+                    ]);
+                }
+            }
+            
+            $totalCount = $osmLanduseAreas->count();
+            $chunks = $osmLanduseAreas->chunk($chunkSize);
+            $totalChunks = $chunks->count();
+            
+            echo "data: " . json_encode([
+                'type' => 'metadata',
+                'total' => $totalCount,
+                'chunkSize' => $chunkSize,
+                'totalChunks' => $totalChunks
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            $chunkIndex = 0;
+            foreach ($chunks as $chunk) {
+                echo "data: " . json_encode([
+                    'type' => 'chunk',
+                    'chunkIndex' => $chunkIndex,
+                    'data' => $chunk->values()->all(),
+                    'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
+                ]) . "\n\n";
+                
+                ob_flush();
+                flush();
+                $chunkIndex++;
+                usleep(10000);
+            }
+            
+            echo "data: " . json_encode([
+                'type' => 'complete',
+                'total' => $totalCount
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+            
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 
     public function validateBuilding(Request $request)
     {
         return $this->performValidation(Building::class, $request->input('geojson'));
-    }
-
-    /**
-     * Helper Methods for getAreaData()
-     */
-
-    private function getBuildingPartsData($builtupAreaGeometriesQuery, $includeBuaFilter)
-    {
-        $buildingParts = collect();
-        $query = BuildingPartV2::query();
-        
-        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
-            });
-        }
-        
-        $query->with('buildingPartSiteRefs')
-            ->chunk(2000, function ($chunk) use (&$buildingParts) {
-                $buildingParts = $buildingParts->merge($chunk);
-            });
-
-        return [
-            'buildingParts' => new BuildingPartCollectionV2($buildingParts)
-        ];
-    }
-
-    private function getSitesData($builtupAreaGeometriesQuery, $includeBuaFilter)
-    {
-        $sites = collect();
-        $query = Site::query();
-        
-        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-            $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
-                $query->select(DB::raw(1))
-                    ->fromSub($builtupAreaGeometriesQuery, 's')
-                    ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
-            });
-        }
-        
-        $query->with('buildings', 'buildingPartSiteRefs')
-            ->chunk(2000, function ($chunk) use (&$sites) {
-                $sites = $sites->merge($chunk);
-            });
-
-        return [
-            'sites' => new SiteCollection($sites)
-        ];
-    }
-
-    private function getNHLEData($areaIds, $includeBuaFilter)
-    {
-        $nhle = collect();
-        
-        DB::statement('SET statement_timeout = 120000');
-        
-        if ($includeBuaFilter && !empty($areaIds)) {
-            $areaIdsString = implode(',', $areaIds);
-            
-            $nhleResults = DB::select("
-                SELECT 
-                    n.gid,
-                    n.objectid,
-                    n.listentry,
-                    n.name,
-                    n.grade,
-                    n.listdate,
-                    n.amenddate,
-                    n.capturesca,
-                    n.hyperlink,
-                    n.ngr,
-                    n.easting,
-                    n.northing,
-                    n.latitude,
-                    n.longitude,
-                    ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
-                FROM nhle_ n
-                WHERE EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(n.geom, b.geometry)
-                )
-            ");
-        } else {
-            $nhleResults = DB::select("
-                SELECT 
-                    n.gid,
-                    n.objectid,
-                    n.listentry,
-                    n.name,
-                    n.grade,
-                    n.listdate,
-                    n.amenddate,
-                    n.capturesca,
-                    n.hyperlink,
-                    n.ngr,
-                    n.easting,
-                    n.northing,
-                    n.latitude,
-                    n.longitude,
-                    ST_AsGeoJSON(ST_Transform(n.geom, 4326)) as geometry
-                FROM nhle_ n
-            ");
-        }
-
-        foreach ($nhleResults as $row) {
-            if (!empty($row->geometry)) {
-                $nhleModel = new NHLE();
-                $nhleModel->gid = $row->gid;
-                $nhleModel->objectid = $row->objectid;
-                $nhleModel->listentry = $row->listentry;
-                $nhleModel->name = $row->name;
-                $nhleModel->grade = $row->grade;
-                $nhleModel->listdate = $row->listdate;
-                $nhleModel->amenddate = $row->amenddate;
-                $nhleModel->capturesca = $row->capturesca;
-                $nhleModel->hyperlink = $row->hyperlink;
-                $nhleModel->ngr = $row->ngr;
-                $nhleModel->easting = $row->easting;
-                $nhleModel->northing = $row->northing;
-                $nhleModel->latitude = $row->latitude;
-                $nhleModel->longitude = $row->longitude;
-                $nhleModel->geom = json_decode($row->geometry);
-                $nhle->push($nhleModel);
-            }
-        }
-
-        return [
-            'nhle' => $nhle
-        ];
-    }
-
-    private function getLandRegistryData($areaIds, $includeBuaFilter)
-    {
-        $landRegistryFeatures = collect();
-        
-        DB::statement('SET statement_timeout = 120000');
-        
-        if ($includeBuaFilter && !empty($areaIds)) {
-            $areaIdsString = implode(',', $areaIds);
-            
-            // Get bounding box
-            $bbox = DB::table('ons_bua')
-                ->selectRaw('
-                    ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
-                    ST_YMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lat,
-                    ST_XMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lng,
-                    ST_YMax(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as max_lat
-                ')
-                ->whereIn('fid', $areaIds)
-                ->first();
-
-            if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
-                $expandedBbox = [
-                    'min_lng' => $bbox->min_lng - 0.01,
-                    'min_lat' => $bbox->min_lat - 0.01,
-                    'max_lng' => $bbox->max_lng + 0.01,
-                    'max_lat' => $bbox->max_lat + 0.01
-                ];
-                
-                $lrResults = DB::select("
-                    SELECT 
-                        lri.gml_id,
-                        lri.\"INSPIREID\" as inspireid,
-                        lri.\"LABEL\" as label,
-                        lri.\"NATIONALCADASTRALREFERENCE\" as nationalcadastralreference,
-                        lri.\"VALIDFROM\" as validfrom,
-                        lri.\"BEGINLIFESPANVERSION\" as beginlifespanversion,
-                        ST_AsGeoJSON(lri.geom) as geometry,
-                        GeometryType(lri.geom) as geom_type
-                    FROM land_registry_inspire lri
-                    WHERE lri.geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
-                    AND EXISTS (
-                        SELECT 1 FROM nhle_ n, ons_bua b
-                        WHERE b.fid IN ({$areaIdsString})
-                        AND ST_INTERSECTS(n.geom, b.geometry)
-                        AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
-                    )
-                ", [
-                    $expandedBbox['min_lng'], $expandedBbox['min_lat'],
-                    $expandedBbox['max_lng'], $expandedBbox['max_lat']
-                ]);
-            } else {
-                $lrResults = [];
-            }
-        } else {
-            $lrResults = DB::select("
-                SELECT 
-                    lri.gml_id,
-                    lri.\"INSPIREID\" as inspireid,
-                    lri.\"LABEL\" as label,
-                    lri.\"NATIONALCADASTRALREFERENCE\" as nationalcadastralreference,
-                    lri.\"VALIDFROM\" as validfrom,
-                    lri.\"BEGINLIFESPANVERSION\" as beginlifespanversion,
-                    ST_AsGeoJSON(lri.geom) as geometry,
-                    GeometryType(lri.geom) as geom_type
-                FROM land_registry_inspire lri
-            ");
-
-        }
-        
-        $seenGmlIds = [];
-        if (!empty($lrResults)) {
-            foreach ($lrResults as $row) {
-                if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
-                    $seenGmlIds[] = $row->gml_id;
-                    $geometry = json_decode($row->geometry, true);
-                    $landRegistryFeatures->push([
-                        'type' => 'Feature',
-                        'geometry' => $geometry,
-                        'properties' => [
-                            'gml_id' => $row->gml_id,
-                            'INSPIREID' => $row->inspireid,
-                            'LABEL' => $row->label,
-                            'NATIONALCADASTRALREFERENCE' => $row->nationalcadastralreference,
-                            'VALIDFROM' => $row->validfrom,
-                            'BEGINLIFESPANVERSION' => $row->beginlifespanversion,
-                        ]
-                    ]);
-                }
-            }
-        }
-
-        return [
-            'landRegistryInspire' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $landRegistryFeatures->values()
-                ]
-            ]
-        ];
-    }
-
-    private function getUPRNData($builtupAreaGeometriesQuery, $includeBuaFilter)
-    {
-        $uprnFeatures = collect();
-        
-        DB::statement('SET statement_timeout = 180000'); // 3 minutes
-        
-        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-            // Get area IDs from the query
-            $areaIds = $builtupAreaGeometriesQuery->pluck('fid')->toArray();
-            $areaIdsString = implode(',', $areaIds);
-            
-            // Use CTE with window function for better performance
-            $uprnResults = DB::select("
-                WITH filtered_uprn AS (
-                    SELECT u.uprn, u.geom
-                    FROM osopenuprn_address u
-                    WHERE u.geom IS NOT NULL
-                    AND EXISTS (
-                        SELECT 1 FROM ons_bua b
-                        WHERE b.fid IN ({$areaIdsString})
-                        AND ST_Intersects(u.geom, b.geometry)
-                    )
-                ),
-                latest_epc AS (
-                    SELECT DISTINCT ON (uprn)
-                        uprn::bigint,
-                        floor_level, property_type, built_form, current_energy_rating,
-                        potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
-                        total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
-                    FROM epc_certificate
-                    WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
-                    ORDER BY uprn, lodgement_date DESC NULLS LAST
-                )
-                SELECT 
-                    u.uprn,
-                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
-                    e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
-                    e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
-                    e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
-                FROM filtered_uprn u
-                LEFT JOIN latest_epc e ON e.uprn = u.uprn
-            ");
-        } else {
-            $uprnResults = DB::select("
-                WITH filtered_uprn AS (
-                    SELECT u.uprn, u.geom
-                    FROM osopenuprn_address u
-                    WHERE u.geom IS NOT NULL
-                    LIMIT 5000
-                ),
-                latest_epc AS (
-                    SELECT DISTINCT ON (uprn)
-                        uprn::bigint,
-                        floor_level, property_type, built_form, current_energy_rating,
-                        potential_energy_rating, current_energy_efficiency, potential_energy_efficiency,
-                        total_floor_area, construction_age_band, lodgement_date, transaction_type, tenure
-                    FROM epc_certificate
-                    WHERE uprn::bigint IN (SELECT uprn FROM filtered_uprn)
-                    ORDER BY uprn, lodgement_date DESC NULLS LAST
-                )
-                SELECT 
-                    u.uprn,
-                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geom,
-                    e.floor_level, e.property_type, e.built_form, e.current_energy_rating,
-                    e.potential_energy_rating, e.current_energy_efficiency, e.potential_energy_efficiency,
-                    e.total_floor_area, e.construction_age_band, e.lodgement_date, e.transaction_type, e.tenure
-                FROM filtered_uprn u
-                LEFT JOIN latest_epc e ON e.uprn = u.uprn
-            ");
-        }
-        
-        foreach ($uprnResults as $row) {
-            if (!empty($row->geom)) {
-                $properties = [
-                    'id' => (int)$row->uprn,
-                    'uprn' => (int)$row->uprn,
-                ];
-
-                // Add EPC data if exists
-                if ($row->property_type !== null) {
-                    $properties = array_merge($properties, [
-                        'floor_level' => $row->floor_level,
-                        'property_type' => $row->property_type,
-                        'built_form' => $row->built_form,
-                        'current_energy_rating' => $row->current_energy_rating,
-                        'potential_energy_rating' => $row->potential_energy_rating,
-                        'current_energy_efficiency' => $row->current_energy_efficiency,
-                        'potential_energy_efficiency' => $row->potential_energy_efficiency,
-                        'total_floor_area' => $row->total_floor_area,
-                        'construction_age_band' => $row->construction_age_band,
-                        'lodgement_date' => $row->lodgement_date,
-                        'transaction_type' => $row->transaction_type,
-                        'tenure' => $row->tenure,
-                    ]);
-                }
-
-                $uprnFeatures->push([
-                    'type' => 'Feature',
-                    'geometry' => json_decode($row->geom, true),
-                    'properties' => $properties
-                ]);
-            }
-        }
-
-        return [
-            'uprn' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $uprnFeatures->values()
-                ]
-            ]
-        ];
-    }
-
-    private function getPhotosData($builtupAreaGeometriesQuery, $includeBuaFilter)
-    {
-        $users = collect();
-        User::query()
-            ->join('user_role as ur', 'user.id', '=', 'ur.user_id')
-            ->select('user.id', 'user.login', 'user.name', 'user.surname', 'user.identification_number', 'user.vat', 'user.email')
-            ->where('ur.role_id', '=', User::FARMER_ROLE)
-            ->where('user.active', '=', 1)
-            ->where('user.pa_id', '=', Auth::user()->pa_id)
-            ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery, $includeBuaFilter) {
-                $query->where('flg_deleted', 0);
-                
-                if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-                    $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
-                        $subQuery->select(DB::raw(1))
-                            ->fromSub($builtupAreaGeometriesQuery, 's')
-                            ->whereRaw('ST_INTERSECTS(ST_Transform(ST_SetSRID(ST_MakePoint(photo.lng, photo.lat), 4326), 27700), s.geometry)');
-                    });
-                }
-            }])
-            ->chunk(2000, function ($chunk) use (&$users) {
-                $users = $users->merge($chunk);
-            });
-
-        $users = $users->filter(function ($user) {
-            return $user->photos->isNotEmpty();
-        });
-
-        $photos = collect();
-        foreach ($users as $user) {
-            foreach ($user->photos as $photo) {
-                $photo->user_name = $user->name;
-                $photo->link = $photo->link;
-                $photos->push($photo);
-            }
-        }
-
-        return [
-            'photos' => new DataMapPhotoCollection($photos)
-        ];
-    }
-
-    private function getOSMBuildingPartsData($areaIds, $includeBuaFilter)
-    {
-        $osmBuildingParts = collect();
-        
-        if ($includeBuaFilter && !empty($areaIds)) {
-            $areaIdsString = implode(',', $areaIds);
-            $rawResults = DB::select("
-                SELECT 
-                    id, source, osm_id, name, ref_gb_uprn,
-                    base_shape, base_orientation, building, building_part,
-                    building_levels, roof_shape, height_m,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-                FROM osm_building_part
-                WHERE geom IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(ST_Transform(osm_building_part.geom, 27700), b.geometry)
-                )
-            ");
-        } else {
-            $rawResults = DB::select("
-                SELECT 
-                    id, source, osm_id, name, ref_gb_uprn,
-                    base_shape, base_orientation, building, building_part,
-                    building_levels, roof_shape, height_m,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-                FROM osm_building_part
-                WHERE geom IS NOT NULL
-            ");
-        }
-        
-        foreach ($rawResults as $row) {
-            if (!empty($row->geometry)) {
-                $geometry = json_decode($row->geometry, true);
-                $osmBuildingParts->push([
-                    'type' => 'Feature',
-                    'geometry' => $geometry,
-                    'properties' => [
-                        'id' => $row->id,
-                        'source' => $row->source,
-                        'osm_id' => $row->osm_id,
-                        'name' => $row->name,
-                        'ref_gb_uprn' => $row->ref_gb_uprn,
-                        'base_shape' => $row->base_shape,
-                        'base_orientation' => $row->base_orientation,
-                        'building' => $row->building,
-                        'building_part' => $row->building_part,
-                        'building_levels' => $row->building_levels,
-                        'roof_shape' => $row->roof_shape,
-                        'height_m' => $row->height_m,
-                    ]
-                ]);
-            }
-        }
-
-        return [
-            'osmBuildingParts' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $osmBuildingParts->values()
-                ]
-            ]
-        ];
-    }
-
-    private function getOSMAddressesData($areaIds, $includeBuaFilter)
-    {
-        $osmAddresses = collect();
-        
-        if ($includeBuaFilter && !empty($areaIds)) {
-            $areaIdsString = implode(',', $areaIds);
-            $addressResults = DB::select("
-                SELECT 
-                    id, building_part_id, osm_id, uprn, source,
-                    housenumber, unit, street, suburb, city, postcode,
-                    ST_AsGeoJSON(point_wgs84) as geometry
-                FROM osm_address
-                WHERE point_wgs84 IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(ST_Transform(osm_address.point_wgs84, 27700), b.geometry)
-                )
-            ");
-        } else {
-            $addressResults = DB::select("
-                SELECT 
-                    id, building_part_id, osm_id, uprn, source,
-                    housenumber, unit, street, suburb, city, postcode,
-                    ST_AsGeoJSON(point_wgs84) as geometry
-                FROM osm_address
-                WHERE point_wgs84 IS NOT NULL
-            ");
-        }
-        
-        foreach ($addressResults as $row) {
-            if (!empty($row->geometry)) {
-                $geometry = json_decode($row->geometry, true);
-                $osmAddresses->push([
-                    'type' => 'Feature',
-                    'geometry' => $geometry,
-                    'properties' => [
-                        'id' => $row->id,
-                        'building_part_id' => $row->building_part_id,
-                        'osm_id' => $row->osm_id,
-                        'uprn' => $row->uprn,
-                        'source' => $row->source,
-                        'housenumber' => $row->housenumber,
-                        'unit' => $row->unit,
-                        'street' => $row->street,
-                        'suburb' => $row->suburb,
-                        'city' => $row->city,
-                        'postcode' => $row->postcode,
-                    ]
-                ]);
-            }
-        }
-
-        return [
-            'osmAddresses' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $osmAddresses->values()
-                ]
-            ]
-        ];
-    }
-
-    private function getOSMLanduseData($areaIds, $includeBuaFilter)
-    {
-        $osmLanduseAreas = collect();
-        
-        if ($includeBuaFilter && !empty($areaIds)) {
-            $areaIdsString = implode(',', $areaIds);
-            $landuseResults = DB::select("
-                SELECT 
-                    id, source, osm_id, name, landuse, operator, ref,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-                FROM osm_landuse_area
-                WHERE geom IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(osm_landuse_area.geom, b.geometry)
-                )
-            ");
-        } else {
-            $landuseResults = DB::select("
-                SELECT 
-                    id, source, osm_id, name, landuse, operator, ref,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) as geometry
-                FROM osm_landuse_area
-                WHERE geom IS NOT NULL
-            ");
-        }
-        
-        foreach ($landuseResults as $row) {
-            if (!empty($row->geometry)) {
-                $geometry = json_decode($row->geometry, true);
-                $osmLanduseAreas->push([
-                    'type' => 'Feature',
-                    'geometry' => $geometry,
-                    'properties' => [
-                        'id' => $row->id,
-                        'source' => $row->source,
-                        'osm_id' => $row->osm_id,
-                        'name' => $row->name,
-                        'landuse' => $row->landuse,
-                        'operator' => $row->operator,
-                        'ref' => $row->ref,
-                    ]
-                ]);
-            }
-        }
-
-        return [
-            'osmLanduseAreas' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $osmLanduseAreas->values()
-                ]
-            ]
-        ];
-    }
-
-    private function getEPCCertificatesData($builtupAreaGeometriesQuery, $includeBuaFilter)
-    {
-        $epcCertificates = collect();
-        
-        if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
-            // Get area IDs from the query
-            $areaIds = $builtupAreaGeometriesQuery->pluck('fid')->toArray();
-            $areaIdsString = implode(',', $areaIds);
-            
-            $epcResults = DB::select("
-                SELECT 
-                    e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
-                    e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
-                    e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
-                    e.co2_emissions_current, e.energy_consumption_current, e.uprn,
-                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
-                FROM epc_certificate e
-                INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
-                WHERE u.geom IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM ons_bua b
-                    WHERE b.fid IN ({$areaIdsString})
-                    AND ST_INTERSECTS(u.geom, b.geometry)
-                )
-            ");
-        } else {
-            $epcResults = DB::select("
-                SELECT 
-                    e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
-                    e.potential_energy_rating, e.property_type, e.built_form, e.inspection_date,
-                    e.local_authority, e.lodgement_date, e.transaction_type, e.total_floor_area,
-                    e.co2_emissions_current, e.energy_consumption_current, e.uprn,
-                    ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
-                FROM epc_certificate e
-                INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
-                WHERE u.geom IS NOT NULL
-            ");
-        }
-        
-        foreach ($epcResults as $row) {
-            if (!empty($row->geometry)) {
-                $epcCertificates->push([
-                    'type' => 'Feature',
-                    'geometry' => json_decode($row->geometry, true),
-                    'properties' => [
-                        'id' => $row->id,
-                        'lmk_key' => $row->lmk_key,
-                        'building_reference_number' => $row->building_reference_number,
-                        'current_energy_rating' => $row->current_energy_rating,
-                        'potential_energy_rating' => $row->potential_energy_rating,
-                        'property_type' => $row->property_type,
-                        'built_form' => $row->built_form,
-                        'inspection_date' => $row->inspection_date,
-                        'local_authority' => $row->local_authority,
-                        'lodgement_date' => $row->lodgement_date,
-                        'transaction_type' => $row->transaction_type,
-                        'total_floor_area' => $row->total_floor_area,
-                        'co2_emissions_current' => $row->co2_emissions_current,
-                        'energy_consumption_current' => $row->energy_consumption_current,
-                        'uprn' => $row->uprn,
-                    ]
-                ]);
-            }
-        }
-
-        return [
-            'epcCertificates' => [
-                'data' => [
-                    'type' => 'FeatureCollection',
-                    'features' => $epcCertificates->values()
-                ]
-            ]
-        ];
     }
 
     public function validateSite(Request $request)
