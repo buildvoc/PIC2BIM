@@ -48,183 +48,1123 @@ const processDataWithWorker = async (dataType: string, data: any, useWorker?: bo
 }
 
 /**
- * Load building parts data
+ * Load Building Parts data using streaming
  */
-export const loadBuildingParts = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'building_parts',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
-    
-    return await processDataWithWorker('buildingParts', response.data.buildingParts, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load building parts:', error);
-    throw error;
-  }
+export const loadBuildingParts = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any }) => void;
+}) => {
+  return await loadBuildingPartsStream(options);
 };
 
 /**
- * Load sites data
+ * Stream Building Parts data progressively
  */
-export const loadSites = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'sites',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
+export const loadBuildingPartsStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any }) => void;
+}): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    let allData: any = null;
     
-    return await processDataWithWorker('sites', response.data.sites, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load sites:', error);
-    throw error;
-  }
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch('/stream-building-parts-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('Response body is not readable');
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve(allData);
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({ type: 'metadata', total: data.total });
+                } 
+                else if (data.type === 'chunk') {
+                  allData = data.data;
+                  
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: data.chunkIndex + 1,
+                    total: data.total,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({ type: 'complete', total: data.total });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e);
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start BuildingParts stream:', error);
+      reject(error);
+    });
+  });
 };
 
 /**
- * Load NHLE data
+ * Load sites data using streaming
  */
-export const loadNHLE = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'nhle',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
-    
-    return await processDataWithWorker('nhle', response.data.nhle, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load NHLE:', error);
-    throw error;
-  }
+export const loadSites = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadSitesStream(options);
 };
 
 /**
- * Load Land Registry data
+ * Stream Sites data progressively
  */
-export const loadLandRegistry = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'land_registry',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
+export const loadSitesStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const allData: any[] = [];
     
-    return await processDataWithWorker('landRegistryInspire', response.data.landRegistryInspire, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load Land Registry:', error);
-    throw error;
-  }
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch('/stream-sites-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 50
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve(allData);
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allData.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allData.length,
+                    total: allData.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e);
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start Sites stream:', error);
+      reject(error);
+    });
+  });
 };
 
 /**
- * Load UPRN data
+ * Load NHLE data using streaming
  */
-export const loadUPRN = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'uprn',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
-    
-    return await processDataWithWorker('uprn', response.data.uprn, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load UPRN:', error);
-    throw error;
-  }
+export const loadNHLE = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadNHLEStream(options);
 };
 
 /**
- * Load photos data
+ * Stream NHLE data progressively
  */
-export const loadPhotos = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'photos',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
+export const loadNHLEStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const allData: any[] = [];
     
-    return await processDataWithWorker('photos', response.data.photos, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load photos:', error);
-    throw error;
-  }
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch('/stream-nhle-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 50
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve(allData);
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allData.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allData.length,
+                    total: allData.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e);
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start NHLE stream:', error);
+      reject(error);
+    });
+  });
 };
 
 /**
- * Load OSM Building Parts data
+ * Load Land Registry data using streaming
  */
-export const loadOSMBuildingParts = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'osm_building_parts',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
-    
-    return await processDataWithWorker('osmBuildingParts', response.data.osmBuildingParts, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load OSM Building Parts:', error);
-    throw error;
-  }
+export const loadLandRegistry = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadLandRegistryStream(options);
 };
 
 /**
- * Load OSM Addresses data
+ * Stream Land Registry data progressively
  */
-export const loadOSMAddresses = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'osm_addresses',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
+export const loadLandRegistryStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
     
-    return await processDataWithWorker('osmAddresses', response.data.osmAddresses, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load OSM Addresses:', error);
-    throw error;
-  }
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch('/stream-land-registry-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('Response body is not readable');
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({ type: 'metadata', total: data.total });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({ type: 'complete', total: data.total });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e);
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start LandRegistry stream:', error);
+      reject(error);
+    });
+  });
 };
 
 /**
- * Load OSM Landuse data
+ * Load UPRN data using streaming
  */
-export const loadOSMLanduse = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'osm_landuse',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
-    
-    return await processDataWithWorker('osmLanduseAreas', response.data.osmLanduseAreas, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load OSM Landuse:', error);
-    throw error;
-  }
+export const loadUPRN = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadUPRNStream(options);
 };
 
 /**
- * Load EPC Certificates data
+ * Stream UPRN data progressively
  */
-export const loadEPCCertificates = async (options: LazyLoadOptions) => {
-  try {
-    const response = await axios.post('/get-area-data', {
-      area_ids: options.areaIds,
-      data_type: 'epc_certificates',
-      include_bua_filter: options.includeBuaFilter ?? true
-    });
+export const loadUPRNStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
     
-    return await processDataWithWorker('epcCertificates', response.data.epcCertificates, options.useWorker);
-  } catch (error) {
-    console.error('Failed to load EPC Certificates:', error);
-    throw error;
-  }
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    
+    fetch('/stream-uprn-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start UPRN stream:', error);
+      reject(error);
+    });
+  });
+};
+
+/**
+ * Load photos data with streaming support
+ */
+export const loadPhotos = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadPhotosStream(options);
+};
+
+/**
+ * Stream Photos data progressively
+ */
+export const loadPhotosStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ type: string; features: any[] }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch('/stream-photos-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 20  // Smaller chunk size for photos (they have more data per item)
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ type: 'FeatureCollection', features: allFeatures });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start Photos stream:', error);
+      reject(error);
+    });
+  });
+};
+
+/**
+ * Load OSM Building Parts data using streaming
+ */
+export const loadOSMBuildingParts = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadOSMBuildingPartsStream(options);
+};
+
+/**
+ * Stream OSM Building Parts data progressively
+ */
+export const loadOSMBuildingPartsStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    
+    fetch('/stream-osm-building-parts-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start OSM BuildingParts stream:', error);
+      reject(error);
+    });
+  });
+};
+
+/**
+ * Load OSM Addresses data using streaming
+ */
+export const loadOSMAddresses = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadOSMAddressesStream(options);
+};
+
+/**
+ * Stream OSM Addresses data progressively
+ */
+export const loadOSMAddressesStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    
+    fetch('/stream-osm-addresses-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start OSM Addresses stream:', error);
+      reject(error);
+    });
+  });
+};
+
+/**
+ * Load OSM Landuse data using streaming
+ */
+export const loadOSMLanduse = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadOSMLanduseStream(options);
+};
+
+/**
+ * Stream OSM Landuse data progressively
+ */
+export const loadOSMLanduseStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    
+    fetch('/stream-osm-landuse-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start OSM Landuse stream:', error);
+      reject(error);
+    });
+  });
+};
+
+/**
+ * Load EPC Certificates data using streaming
+ */
+export const loadEPCCertificates = async (options: LazyLoadOptions & { 
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}) => {
+  return await loadEPCCertificatesStream(options);
+};
+
+/**
+ * Stream EPC Certificates data progressively
+ */
+export const loadEPCCertificatesStream = async (options: LazyLoadOptions & {
+  onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any[] }) => void;
+}): Promise<{ data: { type: string; features: any[] } }> => {
+  return new Promise((resolve, reject) => {
+    const allFeatures: any[] = [];
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    
+    fetch('/stream-epc-certificates-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        area_ids: options.areaIds,
+        include_bua_filter: options.includeBuaFilter ?? true,
+        chunk_size: 100
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+      
+      let buffer = '';
+      
+      const readStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            resolve({ data: { type: 'FeatureCollection', features: allFeatures } });
+            return;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'metadata') {
+                  options.onProgress?.({
+                    type: 'metadata',
+                    total: data.total
+                  });
+                } 
+                else if (data.type === 'chunk') {
+                  allFeatures.push(...data.data);
+                  
+                  // ✅ Send chunk data to callback for immediate rendering
+                  options.onProgress?.({
+                    type: 'chunk',
+                    progress: data.progress,
+                    loaded: allFeatures.length,
+                    total: allFeatures.length,
+                    chunkData: data.data
+                  });
+                } 
+                else if (data.type === 'complete') {
+                  options.onProgress?.({
+                    type: 'complete',
+                    total: data.total
+                  });
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
+              }
+            }
+          }
+          
+          readStream();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          reject(error);
+        });
+      };
+      
+      readStream();
+    })
+    .catch(error => {
+      console.error('Failed to start EPC stream:', error);
+      reject(error);
+    });
+  });
 };
 
 /**
@@ -283,49 +1223,152 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
   try {
     // Batch 1: Important data (load first)
     console.log('Loading batch 1: Important data...');
+    
+    // Load NHLE with streaming and incremental rendering
+    const nhlePromise = loadNHLE({
+      ...options,
+      onProgress: (progress) => {
+        if (progress.type === 'chunk' && progress.chunkData) {
+          onProgress?.('nhle', progress.chunkData);
+        }
+      }
+    });
+    
+    // Load Sites with streaming and incremental rendering
+    const sitesPromise = loadSites({
+      ...options,
+      onProgress: (progress) => {
+        if (progress.type === 'chunk' && progress.chunkData) {
+          onProgress?.('sites', progress.chunkData);
+        }
+      }
+    });
+    
+    // Load Photos with streaming and incremental rendering
+    const photosPromise = loadPhotos({
+      ...options,
+      onProgress: (progress) => {
+        if (progress.type === 'chunk' && progress.chunkData) {
+          onProgress?.('photos', { type: 'FeatureCollection', features: progress.chunkData });
+        }
+      }
+    });
+    
     const batch1 = await Promise.allSettled([
-      loadNHLE(options),
-      loadSites(options),
-      loadPhotos(options)
+      nhlePromise,
+      sitesPromise,
+      photosPromise
     ]);
     
     if (batch1[0].status === 'fulfilled') {
       results.nhle = batch1[0].value;
-      onProgress?.('nhle', batch1[0].value);
+      // Note: onProgress already called for each chunk above
+      console.log(`[Batch] NHLE final: ${batch1[0].value.length} total items`);
     }
     if (batch1[1].status === 'fulfilled') {
       results.sites = batch1[1].value;
-      onProgress?.('sites', batch1[1].value);
+      // Note: onProgress already called for each chunk above
+      console.log(`[Batch] Sites final: ${batch1[1].value.length} total items`);
     }
     if (batch1[2].status === 'fulfilled') {
       results.photos = batch1[2].value;
-      onProgress?.('photos', batch1[2].value);
+      // Note: onProgress already called for each chunk above
+      console.log(`[Batch] Photos final: ${batch1[2].value?.features?.length || 0} total items`);
     }
     
-    // Batch 2: Heavy data
-    console.log('Loading batch 2: Heavy data...');
+    // Batch 2: Heavy data with streaming
+    console.log('Loading batch 2: Heavy data with streaming...');
+    
+    // Load Building Parts with streaming
+    const buildingPartsPromise = loadBuildingParts({
+      ...options,
+      onProgress: (progress) => {
+        if (progress.type === 'chunk' && progress.chunkData) {
+          onProgress?.('buildingParts', progress.chunkData);
+        }
+      }
+    });
+    
+    // Load Land Registry with streaming
+    const landRegistryPromise = loadLandRegistry({
+      ...options,
+      onProgress: (progress) => {
+        if (progress.type === 'chunk' && progress.chunkData) {
+          onProgress?.('landRegistryInspire', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+        }
+      }
+    });
+    
     const batch2 = await Promise.allSettled([
-      loadBuildingParts(options),
-      loadLandRegistry(options)
+      buildingPartsPromise,
+      landRegistryPromise
     ]);
     
     if (batch2[0].status === 'fulfilled') {
       results.buildingParts = batch2[0].value;
-      onProgress?.('buildingParts', batch2[0].value);
     }
     if (batch2[1].status === 'fulfilled') {
       results.landRegistryInspire = batch2[1].value;
-      onProgress?.('landRegistryInspire', batch2[1].value);
     }
     
     // Batch 3: Optional data (throttled to 2 concurrent requests)
     console.log('Loading batch 3: Optional data with throttling (max 2 concurrent)...');
     const batch3Tasks = [
-      { name: 'uprn', task: () => loadUPRN(options) },
-      { name: 'epcCertificates', task: () => loadEPCCertificates(options) },
-      { name: 'osmBuildingParts', task: () => loadOSMBuildingParts(options) },
-      { name: 'osmAddresses', task: () => loadOSMAddresses(options) },
-      { name: 'osmLanduseAreas', task: () => loadOSMLanduse(options) }
+      { 
+        name: 'uprn', 
+        task: () => loadUPRN({
+          ...options,
+          onProgress: (progress) => {
+            if (progress.type === 'chunk' && progress.chunkData) {
+              onProgress?.('uprn', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+            }
+          }
+        })
+      },
+      { 
+        name: 'epcCertificates', 
+        task: () => loadEPCCertificates({
+          ...options,
+          onProgress: (progress) => {
+            if (progress.type === 'chunk' && progress.chunkData) {
+              onProgress?.('epcCertificates', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+            }
+          }
+        })
+      },
+      { 
+        name: 'osmBuildingParts', 
+        task: () => loadOSMBuildingParts({
+          ...options,
+          onProgress: (progress) => {
+            if (progress.type === 'chunk' && progress.chunkData) {
+              onProgress?.('osmBuildingParts', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+            }
+          }
+        })
+      },
+      { 
+        name: 'osmAddresses', 
+        task: () => loadOSMAddresses({
+          ...options,
+          onProgress: (progress) => {
+            if (progress.type === 'chunk' && progress.chunkData) {
+              onProgress?.('osmAddresses', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+            }
+          }
+        })
+      },
+      { 
+        name: 'osmLanduseAreas', 
+        task: () => loadOSMLanduse({
+          ...options,
+          onProgress: (progress) => {
+            if (progress.type === 'chunk' && progress.chunkData) {
+              onProgress?.('osmLanduseAreas', { data: { type: 'FeatureCollection', features: progress.chunkData } });
+            }
+          }
+        })
+      }
     ];
 
     const batch3Results = await throttleRequests(batch3Tasks, 2);

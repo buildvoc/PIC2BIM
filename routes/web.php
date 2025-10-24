@@ -99,6 +99,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/data_map', [DataMapController::class, 'index'])->name('data_map.index');
         Route::post('/get-area', [DataMapController::class, 'getArea'])->name('data_map.get-area');
         Route::post('/get-area-data', [DataMapController::class, 'getAreaData'])->name('data_map.get-area-data');
+        Route::post('/stream-nhle-data', [DataMapController::class, 'streamNHLEData'])->name('data_map.stream-nhle-data');
+        Route::post('/stream-building-parts-data', [DataMapController::class, 'streamBuildingPartsData'])->name('data_map.stream-building-parts-data');
+        Route::post('/stream-land-registry-data', [DataMapController::class, 'streamLandRegistryData'])->name('data_map.stream-land-registry-data');
+        Route::post('/stream-sites-data', [DataMapController::class, 'streamSitesData'])->name('data_map.stream-sites-data');
+        Route::post('/stream-photos-data', [DataMapController::class, 'streamPhotosData'])->name('data_map.stream-photos-data');
+        Route::post('/stream-uprn-data', [DataMapController::class, 'streamUPRNData'])->name('data_map.stream-uprn-data');
+        Route::post('/stream-epc-certificates-data', [DataMapController::class, 'streamEPCCertificatesData'])->name('data_map.stream-epc-certificates-data');
+        Route::post('/stream-osm-building-parts-data', [DataMapController::class, 'streamOSMBuildingPartsData'])->name('data_map.stream-osm-building-parts-data');
+        Route::post('/stream-osm-addresses-data', [DataMapController::class, 'streamOSMAddressesData'])->name('data_map.stream-osm-addresses-data');
+        Route::post('/stream-osm-landuse-data', [DataMapController::class, 'streamOSMLanduseData'])->name('data_map.stream-osm-landuse-data');
         Route::post('/builtup-area', [DataMapController::class, 'getBuiltupArea'])->name('data_map.builtup-area');
         Route::get('/nhle2', [DataMapController::class, 'index2'])->name('data_map.index2');
         Route::post('/data_map_validate_building', [DataMapController::class, 'validateBuilding'])->name('data_map.validateBuilding');
