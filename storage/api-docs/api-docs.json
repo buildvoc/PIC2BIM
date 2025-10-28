@@ -1183,6 +1183,105 @@
                 ]
             }
         },
+        "/builtup-area": {
+            "post": {
+                "tags": [
+                    "BuiltupArea"
+                ],
+                "summary": "Get all built-up areas",
+                "description": "Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
+                "operationId": "c44f5f7200f1968d97e805f91875d2ab",
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "shapes": {
+                                            "description": "GeoJSON FeatureCollection containing built-up area data",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/get-area": {
+            "post": {
+                "tags": [
+                    "Area"
+                ],
+                "summary": "Get buildings and center point for specified areas",
+                "description": "Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
+                "operationId": "5daeeefea38fc5059f38354335a145c9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "area_ids": {
+                                        "description": "Array of built-up area IDs to filter buildings",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    },
+                                    "include_bua_filter": {
+                                        "description": "Whether to include built-up area filtering",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "buildings": {
+                                            "description": "GeoJSON FeatureCollection containing building data",
+                                            "type": "object"
+                                        },
+                                        "center": {
+                                            "description": "Center point coordinates of the specified areas",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/comm_login": {
             "post": {
                 "tags": [
@@ -1282,6 +1381,14 @@
         {
             "name": "Photos",
             "description": "Photo management endpoints"
+        },
+        {
+            "name": "BuiltupArea",
+            "description": "Built-up area data endpoints"
+        },
+        {
+            "name": "Area",
+            "description": "Area and building data endpoints"
         },
         {
             "name": "Tasks",

@@ -25,6 +25,14 @@ namespace App\Http\Controllers;
  *     description="Photo management endpoints"
  * )
  * @OA\Tag(
+ *     name="BuiltupArea",
+ *     description="Built-up area data endpoints"
+ * )
+ * @OA\Tag(
+ *     name="Area",
+ *     description="Area and building data endpoints"
+ * )
+ * @OA\Tag(
  *     name="Tasks",
  *     description="Task management endpoints"
  * )
