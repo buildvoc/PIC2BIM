@@ -50,6 +50,26 @@ class DataMapController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/builtup-area",
+     *     security={{"bearerAuth":{}}},
+     *     tags={"BuiltupArea"},
+     *     summary="Get all built-up areas",
+     *     description="Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="shapes",
+     *                 type="object",
+     *                 description="GeoJSON FeatureCollection containing built-up area data"
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function getBuiltupArea(Request $request)
     {
         $BuiltupAreas = BuiltupArea::query()->get();
@@ -59,6 +79,52 @@ class DataMapController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/get-area",
+     *     security={{"bearerAuth":{}}},
+     *     tags={"Area"},
+     *     summary="Get buildings and center point for specified areas",
+     *     description="Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="application/json",
+     *             @OA\Schema(
+     *                 @OA\Property(
+     *                     property="area_ids",
+     *                     type="array",
+     *                     @OA\Items(type="integer"),
+     *                     example={1, 2, 3},
+     *                     description="Array of built-up area IDs to filter buildings"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="include_bua_filter",
+     *                     type="boolean",
+     *                     example=true,
+     *                     description="Whether to include built-up area filtering"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="buildings",
+     *                 type="object",
+     *                 description="GeoJSON FeatureCollection containing building data"
+     *             ),
+     *             @OA\Property(
+     *                 property="center",
+     *                 type="object",
+     *                 description="Center point coordinates of the specified areas"
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function getArea(Request $request)
     {
         set_time_limit(300);
@@ -133,9 +199,9 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
-        
+
         if (!is_array($areaIds)) {
             if (is_string($areaIds) && str_starts_with($areaIds, '[')) {
                 $areaIds = json_decode($areaIds, true);
@@ -143,14 +209,14 @@ class DataMapController extends Controller
                 $areaIds = [$areaIds];
             }
         }
-        
+
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 50);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 120000');
-            
+
             // Build query
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
@@ -199,12 +265,12 @@ class DataMapController extends Controller
                     FROM nhle_ n
                 ";
             }
-            
+
             $results = DB::select($query);
             $totalCount = count($results);
             $chunks = array_chunk($results, $chunkSize);
             $totalChunks = count($chunks);
-            
+
             // Send metadata
             echo "data: " . json_encode([
                 'type' => 'metadata',
@@ -214,11 +280,11 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             // Stream chunks
             foreach ($chunks as $chunkIndex => $chunk) {
                 $nhleChunk = [];
-                
+
                 foreach ($chunk as $row) {
                     if (!empty($row->geometry)) {
                         $nhleModel = new NHLE();
@@ -240,28 +306,27 @@ class DataMapController extends Controller
                         $nhleChunk[] = $nhleModel;
                     }
                 }
-                
+
                 echo "data: " . json_encode([
                     'type' => 'chunk',
                     'chunkIndex' => $chunkIndex,
                     'data' => $nhleChunk,
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 usleep(10000); // 10ms
             }
-            
+
             // Send complete
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
-            
+
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -276,35 +341,35 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             $query = BuildingPartV2::query();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $builtupAreaGeometriesQuery = BuiltupArea::query()
                     ->whereIn('fid', $areaIds)
                     ->select('geometry');
-                    
+
                 $query->whereExists(function ($q) use ($builtupAreaGeometriesQuery) {
                     $q->select(DB::raw(1))
                         ->fromSub($builtupAreaGeometriesQuery, 's')
                         ->whereRaw('ST_INTERSECTS(bld_fts_buildingpart_v2.geometry, s.geometry)');
                 });
             }
-            
+
             $totalCount = $query->count();
             $totalChunks = ceil($totalCount / $chunkSize);
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -313,33 +378,32 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             $query->with('buildingPartSiteRefs')
                 ->chunk($chunkSize, function ($buildingParts) use (&$chunkIndex, $totalChunks) {
                     $collection = new BuildingPartCollectionV2($buildingParts);
                     $data = $collection->toArray(request());
-                    
+
                     echo "data: " . json_encode([
                         'type' => 'chunk',
                         'chunkIndex' => $chunkIndex,
                         'data' => $data,
                         'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                     ]) . "\n\n";
-                    
+
                     ob_flush();
                     flush();
                     $chunkIndex++;
                     usleep(10000);
                 });
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -354,25 +418,25 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 120000');
-            
+
             $landRegistryFeatures = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
-                
+
                 $bbox = DB::table('ons_bua')
                     ->selectRaw('
                         ST_XMin(ST_Transform(ST_SetSRID(ST_Extent(geometry), 27700), 4326)) as min_lng,
@@ -382,7 +446,7 @@ class DataMapController extends Controller
                     ')
                     ->whereIn('fid', $areaIds)
                     ->first();
-                
+
                 if ($bbox && $bbox->min_lng && $bbox->min_lat && $bbox->max_lng && $bbox->max_lat) {
                     $expandedBbox = [
                         'min_lng' => $bbox->min_lng - 0.01,
@@ -390,7 +454,7 @@ class DataMapController extends Controller
                         'max_lng' => $bbox->max_lng + 0.01,
                         'max_lat' => $bbox->max_lat + 0.01
                     ];
-                    
+
                     $results = DB::select("
                         SELECT 
                             lri.gml_id,
@@ -410,10 +474,12 @@ class DataMapController extends Controller
                             AND ST_INTERSECTS(ST_Transform(n.geom, 4326), lri.geom)
                         )
                     ", [
-                        $expandedBbox['min_lng'], $expandedBbox['min_lat'],
-                        $expandedBbox['max_lng'], $expandedBbox['max_lat']
+                        $expandedBbox['min_lng'],
+                        $expandedBbox['min_lat'],
+                        $expandedBbox['max_lng'],
+                        $expandedBbox['max_lat']
                     ]);
-                    
+
                     $seenGmlIds = [];
                     foreach ($results as $row) {
                         if (!empty($row->geometry) && !in_array($row->gml_id, $seenGmlIds)) {
@@ -435,11 +501,11 @@ class DataMapController extends Controller
                     }
                 }
             }
-            
+
             $totalCount = $landRegistryFeatures->count();
             $chunks = $landRegistryFeatures->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -448,7 +514,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -457,20 +523,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -485,22 +550,22 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 120000');
-            
+
             $sites = collect();
-            
+
             // Build the builtup area geometries query if needed
             $builtupAreaGeometriesQuery = null;
             if ($includeBuaFilter && !empty($areaIds)) {
@@ -508,9 +573,9 @@ class DataMapController extends Controller
                     ->select('geometry')
                     ->whereIn('fid', $areaIds);
             }
-            
+
             $query = Site::query();
-            
+
             if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
                 $query->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
                     $query->select(DB::raw(1))
@@ -518,21 +583,21 @@ class DataMapController extends Controller
                         ->whereRaw('ST_INTERSECTS(lus_fts_site.geometry, s.geometry)');
                 });
             }
-            
+
             $query->with(['buildings', 'buildingPartSiteRefs'])
                 ->chunk(2000, function ($chunk) use (&$sites) {
                     $sites = $sites->merge($chunk);
                 });
-            
+
             // Convert to resource collection
             $siteCollection = new SiteCollection($sites);
             $sitesArray = $siteCollection->toArray(request());
             $sitesData = collect($sitesArray['features'] ?? []);
-            
+
             $totalCount = $sitesData->count();
             $chunks = $sitesData->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -541,7 +606,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -550,20 +615,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -578,20 +642,20 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 20); // Smaller default for photos (they have more data per item)
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 120000');
-            
+
             // Build the builtup area geometries query if needed
             $builtupAreaGeometriesQuery = null;
             if ($includeBuaFilter && !empty($areaIds)) {
@@ -599,7 +663,7 @@ class DataMapController extends Controller
                     ->select('geometry')
                     ->whereIn('fid', $areaIds);
             }
-            
+
             $users = collect();
             User::query()
                 ->join('user_role as ur', 'user.id', '=', 'ur.user_id')
@@ -609,7 +673,7 @@ class DataMapController extends Controller
                 ->where('user.pa_id', '=', Auth::user()->pa_id)
                 ->with(['photos' => function ($query) use ($builtupAreaGeometriesQuery, $includeBuaFilter) {
                     $query->where('flg_deleted', 0);
-                    
+
                     if ($includeBuaFilter && $builtupAreaGeometriesQuery !== null) {
                         $query->whereExists(function ($subQuery) use ($builtupAreaGeometriesQuery) {
                             $subQuery->select(DB::raw(1))
@@ -634,16 +698,16 @@ class DataMapController extends Controller
                     $photos->push($photo);
                 }
             }
-            
+
             // Convert to resource collection
             $photoCollection = new DataMapPhotoCollection($photos);
             $photosArray = $photoCollection->toArray(request());
             $photosData = collect($photosArray['features'] ?? []);
-            
+
             $totalCount = $photosData->count();
             $chunks = $photosData->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -652,7 +716,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -661,20 +725,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -689,25 +752,25 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 180000'); // 3 minutes
-            
+
             $uprnFeatures = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
-                
+
                 // Use CTE with window function for better performance
                 $uprnResults = DB::select("
                     WITH filtered_uprn AS (
@@ -767,7 +830,7 @@ class DataMapController extends Controller
                     LEFT JOIN latest_epc e ON e.uprn = u.uprn
                 ");
             }
-            
+
             foreach ($uprnResults as $row) {
                 if (!empty($row->geom)) {
                     $properties = [
@@ -800,11 +863,11 @@ class DataMapController extends Controller
                     ]);
                 }
             }
-            
+
             $totalCount = $uprnFeatures->count();
             $chunks = $uprnFeatures->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -813,7 +876,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -822,20 +885,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -850,25 +912,25 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 180000'); // 3 minutes
-            
+
             $epcCertificates = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
-                
+
                 $epcResults = DB::select("
                     SELECT 
                         e.id, e.lmk_key, e.building_reference_number, e.current_energy_rating,
@@ -898,7 +960,7 @@ class DataMapController extends Controller
                     WHERE u.geom IS NOT NULL
                 ");
             }
-            
+
             foreach ($epcResults as $row) {
                 if (!empty($row->geometry)) {
                     $epcCertificates->push([
@@ -924,11 +986,11 @@ class DataMapController extends Controller
                     ]);
                 }
             }
-            
+
             $totalCount = $epcCertificates->count();
             $chunks = $epcCertificates->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -937,7 +999,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -946,20 +1008,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -974,22 +1035,22 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 180000'); // 3 minutes
-            
+
             $osmBuildingParts = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
                 $rawResults = DB::select("
@@ -1017,7 +1078,7 @@ class DataMapController extends Controller
                     WHERE geom IS NOT NULL
                 ");
             }
-            
+
             foreach ($rawResults as $row) {
                 if (!empty($row->geometry)) {
                     $geometry = json_decode($row->geometry, true);
@@ -1041,11 +1102,11 @@ class DataMapController extends Controller
                     ]);
                 }
             }
-            
+
             $totalCount = $osmBuildingParts->count();
             $chunks = $osmBuildingParts->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -1054,7 +1115,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -1063,20 +1124,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -1091,22 +1151,22 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 180000'); // 3 minutes
-            
+
             $osmAddresses = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
                 $addressResults = DB::select("
@@ -1132,7 +1192,7 @@ class DataMapController extends Controller
                     WHERE point_wgs84 IS NOT NULL
                 ");
             }
-            
+
             foreach ($addressResults as $row) {
                 if (!empty($row->geometry)) {
                     $geometry = json_decode($row->geometry, true);
@@ -1155,11 +1215,11 @@ class DataMapController extends Controller
                     ]);
                 }
             }
-            
+
             $totalCount = $osmAddresses->count();
             $chunks = $osmAddresses->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -1168,7 +1228,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -1177,20 +1237,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -1205,22 +1264,22 @@ class DataMapController extends Controller
     {
         set_time_limit(300);
         ini_set('memory_limit', '1024M');
-        
+
         $areaIds = $request->input('area_ids', []);
         if (!is_array($areaIds)) {
-            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[') 
-                ? json_decode($areaIds, true) 
+            $areaIds = is_string($areaIds) && str_starts_with($areaIds, '[')
+                ? json_decode($areaIds, true)
                 : [$areaIds];
         }
         $areaIds = array_map('intval', array_filter($areaIds));
         $includeBuaFilter = $request->input('include_bua_filter', true);
         $chunkSize = $request->input('chunk_size', 100);
-        
+
         return response()->stream(function () use ($areaIds, $includeBuaFilter, $chunkSize) {
             DB::statement('SET statement_timeout = 180000'); // 3 minutes
-            
+
             $osmLanduseAreas = collect();
-            
+
             if ($includeBuaFilter && !empty($areaIds)) {
                 $areaIdsString = implode(',', $areaIds);
                 $landuseResults = DB::select("
@@ -1244,7 +1303,7 @@ class DataMapController extends Controller
                     WHERE geom IS NOT NULL
                 ");
             }
-            
+
             foreach ($landuseResults as $row) {
                 if (!empty($row->geometry)) {
                     $geometry = json_decode($row->geometry, true);
@@ -1263,11 +1322,11 @@ class DataMapController extends Controller
                     ]);
                 }
             }
-            
+
             $totalCount = $osmLanduseAreas->count();
             $chunks = $osmLanduseAreas->chunk($chunkSize);
             $totalChunks = $chunks->count();
-            
+
             echo "data: " . json_encode([
                 'type' => 'metadata',
                 'total' => $totalCount,
@@ -1276,7 +1335,7 @@ class DataMapController extends Controller
             ]) . "\n\n";
             ob_flush();
             flush();
-            
+
             $chunkIndex = 0;
             foreach ($chunks as $chunk) {
                 echo "data: " . json_encode([
@@ -1285,20 +1344,19 @@ class DataMapController extends Controller
                     'data' => $chunk->values()->all(),
                     'progress' => round(($chunkIndex + 1) / $totalChunks * 100, 2)
                 ]) . "\n\n";
-                
+
                 ob_flush();
                 flush();
                 $chunkIndex++;
                 usleep(10000);
             }
-            
+
             echo "data: " . json_encode([
                 'type' => 'complete',
                 'total' => $totalCount
             ]) . "\n\n";
             ob_flush();
             flush();
-            
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
@@ -1350,26 +1408,26 @@ class DataMapController extends Controller
                 $normalizedKey = str_replace('-', '_', $key);
                 $normalizedRow[$normalizedKey] = $value;
             }
-            
+
             $lmkKey = $normalizedRow['lmk_key'] ?? null;
             $address = $normalizedRow['address'] ?? null;
-            
+
             // Check if record already exists
             $exists = EpcCertificate::where('lmk_key', $lmkKey)->exists();
-            
+
             $status = 'ok';
             $message = 'Ready to import';
-            
+
             if ($exists) {
                 $status = 'warning';
                 $message = "EPC Certificate with lmk_key '{$lmkKey}' already exists";
             }
-            
+
             if (!$lmkKey) {
                 $status = 'error';
                 $message = 'Missing required field: lmk_key';
             }
-            
+
             $results[] = [
                 'feature_index' => $index,
                 'lmk_key' => $lmkKey,
@@ -1413,7 +1471,7 @@ class DataMapController extends Controller
             // --- Validation Checks ---
 
             // 1. OSID Check
-            if (!$osid && $modelClass != NHLE::class ) {
+            if (!$osid && $modelClass != NHLE::class) {
                 $featureData['status'] = 'missing_osid';
                 $featureData['details'] = 'Missing OSID or List Entry. Import will be skipped.';
                 $results[] = $featureData;
@@ -1425,7 +1483,7 @@ class DataMapController extends Controller
                 continue;
             }
 
-            if($modelClass == NHLE::class){
+            if ($modelClass == NHLE::class) {
                 $existingItemBygid = $modelClass::where('gid', $gid)->first();
                 if ($existingItemBygid) {
                     $featureData['status'] = 'duplicate';
@@ -1434,7 +1492,7 @@ class DataMapController extends Controller
                     $results[] = $featureData;
                     continue;
                 }
-            }else if ($modelClass == BuildingPartV2::class){
+            } else if ($modelClass == BuildingPartV2::class) {
                 $existingItemBygid = $modelClass::where('osid', $osid)->first();
                 if ($existingItemBygid) {
                     $featureData['status'] = 'duplicate';
@@ -1449,14 +1507,14 @@ class DataMapController extends Controller
                     $featureData['status'] = 'duplicate';
                     $featureData['details'] = "Duplicate OSID: Matches existing item with OSID '{$osid}'.";
                     $featureData['existing_osid'] = $existingItemByOsid->osid;
-                $results[] = $featureData;
-                continue;
+                    $results[] = $featureData;
+                    continue;
                 }
             }
 
 
             // 2. Exact Geometry Check
-            if($modelClass != NHLE::class){
+            if ($modelClass != NHLE::class) {
                 $geomSql = "ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), ?), 27700)";
                 $exactMatch = $modelClass::whereRaw("ST_Equals(geometry, {$geomSql})", [$geometry, $sridNumber])->first();
                 if ($exactMatch) {
@@ -1468,7 +1526,7 @@ class DataMapController extends Controller
             }
 
             // 3. Spatial Overlap Check with Tolerance
-            if($modelClass != NHLE::class){
+            if ($modelClass != NHLE::class) {
                 $overlapTolerance = 0.1; // meters squared
                 $overlappingItem = $modelClass::select('osid')
                     ->selectRaw("ST_Area(ST_Intersection(geometry, {$geomSql})) as overlap_area", [$geometry, $sridNumber])
@@ -1597,8 +1655,12 @@ class DataMapController extends Controller
         $results = [];
         $geojson = $request->input('geojson');
         $maxJoinRadiusMeters = (int)($request->input('join_radius_m', 30));
-        if ($maxJoinRadiusMeters < 10) { $maxJoinRadiusMeters = 10; }
-        if ($maxJoinRadiusMeters > 30) { $maxJoinRadiusMeters = 30; }
+        if ($maxJoinRadiusMeters < 10) {
+            $maxJoinRadiusMeters = 10;
+        }
+        if ($maxJoinRadiusMeters > 30) {
+            $maxJoinRadiusMeters = 30;
+        }
 
         if (!$geojson || !isset($geojson['features']) || !is_array($geojson['features'])) {
             return response()->json(['results' => []]);
@@ -1730,8 +1792,12 @@ class DataMapController extends Controller
 
                 $featureData['audit']['link_method'] = 'nearest_neighbour_within_radius';
                 $minDist = null;
-                if ($nearestSite) { $minDist = is_null($minDist) ? (float)$nearestSite->dist : min($minDist, (float)$nearestSite->dist); }
-                if ($nearestBld) { $minDist = is_null($minDist) ? (float)$nearestBld->dist : min($minDist, (float)$nearestBld->dist); }
+                if ($nearestSite) {
+                    $minDist = is_null($minDist) ? (float)$nearestSite->dist : min($minDist, (float)$nearestSite->dist);
+                }
+                if ($nearestBld) {
+                    $minDist = is_null($minDist) ? (float)$nearestBld->dist : min($minDist, (float)$nearestBld->dist);
+                }
                 if (!is_null($minDist)) {
                     if ($minDist <= 10) $featureData['audit']['confidence'] = 'high';
                     elseif ($minDist <= 20) $featureData['audit']['confidence'] = 'medium';
@@ -1763,8 +1829,12 @@ class DataMapController extends Controller
         $features = $request->input('features');
         $sridNumber = $request->input('srid', 4326) ?? 4326;
         $maxJoinRadiusMeters = (int)($request->input('join_radius_m', 30));
-        if ($maxJoinRadiusMeters < 1) { $maxJoinRadiusMeters = 10; }
-        if ($maxJoinRadiusMeters > 30) { $maxJoinRadiusMeters = 30; }
+        if ($maxJoinRadiusMeters < 1) {
+            $maxJoinRadiusMeters = 10;
+        }
+        if ($maxJoinRadiusMeters > 30) {
+            $maxJoinRadiusMeters = 30;
+        }
 
         if (!$features || !is_array($features)) {
             return response()->json(['error' => 'Invalid feature data provided.'], 400);
@@ -1833,8 +1903,10 @@ class DataMapController extends Controller
                             $point = DB::selectOne(
                                 "SELECT ST_X(ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), 27700)) AS x, ST_Y(ST_Transform(ST_SetSRID(ST_MakePoint(?, ?), 4326), 27700)) AS y",
                                 [
-                                    (float)$attributes['longitude'], (float)$attributes['latitude'],
-                                    (float)$attributes['longitude'], (float)$attributes['latitude']
+                                    (float)$attributes['longitude'],
+                                    (float)$attributes['latitude'],
+                                    (float)$attributes['longitude'],
+                                    (float)$attributes['latitude']
                                 ]
                             );
                             if ($point) {
@@ -1862,7 +1934,7 @@ class DataMapController extends Controller
                 $existing = Uprn::where('uprn', (int)$uprnVal)->first();
                 if ($existing) {
                     $update = [];
-                    foreach (['x_coordinate','y_coordinate','latitude','longitude'] as $field) {
+                    foreach (['x_coordinate', 'y_coordinate', 'latitude', 'longitude'] as $field) {
                         if (!is_null($attributes[$field]) && (is_null($existing->{$field}) || $existing->{$field} === 0.0)) {
                             $update[$field] = $attributes[$field];
                         }
@@ -1919,12 +1991,12 @@ class DataMapController extends Controller
 
     public function validateLandRegistryCadastral(Request $request)
     {
-        @ini_set( 'upload_max_size' , '256M' );
-        @ini_set( 'post_max_size', '256M');
-        @ini_set( 'max_execution_time', '300' );
-        
+        @ini_set('upload_max_size', '256M');
+        @ini_set('post_max_size', '256M');
+        @ini_set('max_execution_time', '300');
+
         $geojson = $request->input('geojson');
-        
+
         if (!$geojson || !isset($geojson['features'])) {
             return response()->json(['error' => 'Invalid GeoJSON data provided.'], 400);
         }
@@ -1937,7 +2009,7 @@ class DataMapController extends Controller
 
             $properties = $feature['properties'];
             $globalId = $properties['GlobalID'] ?? $properties['global_id'] ?? null;
-            
+
             $status = 'ok';
             $details = 'Ready for import';
             $existingGlobalId = null;
@@ -1963,7 +2035,7 @@ class DataMapController extends Controller
 
                 // Check for exact geometry match
                 $exactMatch = LandRegistryCadastral::whereRaw(
-                    "ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))", 
+                    "ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))",
                     [$geometry, $sridNumber]
                 )->exists();
 
@@ -1973,7 +2045,7 @@ class DataMapController extends Controller
                 } else {
                     // Check for spatial overlap
                     $overlap = LandRegistryCadastral::whereRaw(
-                        "ST_Intersects(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?)) AND NOT ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))", 
+                        "ST_Intersects(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?)) AND NOT ST_Equals(geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), ?))",
                         [$geometry, $sridNumber, $geometry, $sridNumber]
                     )->exists();
 
@@ -1998,9 +2070,9 @@ class DataMapController extends Controller
 
     public function importLandRegistryCadastral(Request $request)
     {
-        @ini_set( 'upload_max_size' , '256M' );
-        @ini_set( 'post_max_size', '256M');
-        @ini_set( 'max_execution_time', '300' );
+        @ini_set('upload_max_size', '256M');
+        @ini_set('post_max_size', '256M');
+        @ini_set('max_execution_time', '300');
 
         $features = $request->input('features');
         $sridNumber = $request->input('srid', 4326) ?? 4326;
@@ -2026,7 +2098,7 @@ class DataMapController extends Controller
 
                 $properties = $data['properties'] ?? [];
                 $geometry = $data['geometry'] ?? null;
-                
+
                 $globalId = $properties['GlobalID'] ?? $properties['global_id'] ?? $properties['GLOBAL_ID'] ?? null;
 
                 // Skip if no global_id
@@ -2041,18 +2113,10 @@ class DataMapController extends Controller
                     'fid' => $properties['FID'] ?? $properties['fid'] ?? null,
                     'county_code' => $properties['CTY24CD'] ?? $properties['county_code'] ?? $properties['COUNTY_CODE'] ?? null,
                     'county_name' => $properties['CTY24NM'] ?? $properties['county_name'] ?? $properties['COUNTY_NAME'] ?? null,
-                    'bng_easting' => isset($properties['BNG_E']) ? (float)$properties['BNG_E'] : 
-                                   (isset($properties['bng_easting']) ? (float)$properties['bng_easting'] : 
-                                   (isset($properties['BNG_EASTING']) ? (float)$properties['BNG_EASTING'] : null)),
-                    'bng_northing' => isset($properties['BNG_N']) ? (float)$properties['BNG_N'] : 
-                                    (isset($properties['bng_northing']) ? (float)$properties['bng_northing'] : 
-                                    (isset($properties['BNG_NORTHING']) ? (float)$properties['BNG_NORTHING'] : null)),
-                    'longitude' => isset($properties['LONG']) ? (float)$properties['LONG'] : 
-                                 (isset($properties['longitude']) ? (float)$properties['longitude'] : 
-                                 (isset($properties['LONGITUDE']) ? (float)$properties['LONGITUDE'] : null)),
-                    'latitude' => isset($properties['LAT']) ? (float)$properties['LAT'] : 
-                                (isset($properties['latitude']) ? (float)$properties['latitude'] : 
-                                (isset($properties['LATITUDE']) ? (float)$properties['LATITUDE'] : null)),
+                    'bng_easting' => isset($properties['BNG_E']) ? (float)$properties['BNG_E'] : (isset($properties['bng_easting']) ? (float)$properties['bng_easting'] : (isset($properties['BNG_EASTING']) ? (float)$properties['BNG_EASTING'] : null)),
+                    'bng_northing' => isset($properties['BNG_N']) ? (float)$properties['BNG_N'] : (isset($properties['bng_northing']) ? (float)$properties['bng_northing'] : (isset($properties['BNG_NORTHING']) ? (float)$properties['BNG_NORTHING'] : null)),
+                    'longitude' => isset($properties['LONG']) ? (float)$properties['LONG'] : (isset($properties['longitude']) ? (float)$properties['longitude'] : (isset($properties['LONGITUDE']) ? (float)$properties['LONGITUDE'] : null)),
+                    'latitude' => isset($properties['LAT']) ? (float)$properties['LAT'] : (isset($properties['latitude']) ? (float)$properties['latitude'] : (isset($properties['LATITUDE']) ? (float)$properties['LATITUDE'] : null)),
                 ];
 
                 // Create/update record first without geometry
@@ -2079,13 +2143,13 @@ class DataMapController extends Controller
                 // Handle geometry separately using raw SQL
                 if ($geometry && !empty($geometry['coordinates']) && $geometry['type'] === 'MultiPolygon') {
                     $geometryJson = json_encode($geometry);
-                    
+
                     // Insert WGS84 geometry (EPSG:4326) - original coordinates from GeoJSON
                     DB::statement(
                         "UPDATE land_registry_cadastral SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) WHERE fid = ? AND county_code = ?",
                         [$geometryJson, $properties['FID'], $properties['CTY24CD']]
                     );
-                    
+
                     // Convert and store BNG geometry (EPSG:27700) if BNG coordinates are available
                     if ($properties['BNG_E'] && $properties['BNG_N']) {
                         // Transform WGS84 geometry to BNG
@@ -2095,7 +2159,6 @@ class DataMapController extends Controller
                         );
                     }
                 }
-                
             }
 
             DB::commit();
@@ -2146,15 +2209,15 @@ class DataMapController extends Controller
 
                 if ($action === 'import' || $action === 'update') {
                     $osid = $data['properties']['osid'] ?? null;
-                    
+
                     // For NHLE, try to get gid from multiple possible field names
                     $gid = null;
                     if ($modelClass == NHLE::class) {
                         $gid = $data['properties']['gid'] ?? $data['properties']['ListEntry'] ?? $data['properties']['listentry'] ?? null;
                     }
-                    
+
                     if (!$osid && $modelClass != NHLE::class) {
-                        continue;  
+                        continue;
                     } else if (!$gid && $modelClass == NHLE::class) {
                         continue;
                     }
@@ -2173,12 +2236,27 @@ class DataMapController extends Controller
 
                         if (is_null($value)) {
                             $nonNullableFields = [
-                                'versiondate', 'changetype', 'geometry_area_m2', 'geometry_updatedate',
-                                'geometry_capturemethod', 'theme', 'description', 'description_updatedate',
-                                'description_capturemethod', 'oslandcovertiera', 'oslandcovertierb',
-                                'oslandcover_updatedate', 'oslandcover_capturemethod', 'oslandusetiera',
-                                'oslanduse_updatedate', 'oslanduse_capturemethod', 'isobscured',
-                                'physicallevel', 'capturespecification', 'containingsitecount', 'lowertierlocalauthority_count'
+                                'versiondate',
+                                'changetype',
+                                'geometry_area_m2',
+                                'geometry_updatedate',
+                                'geometry_capturemethod',
+                                'theme',
+                                'description',
+                                'description_updatedate',
+                                'description_capturemethod',
+                                'oslandcovertiera',
+                                'oslandcovertierb',
+                                'oslandcover_updatedate',
+                                'oslandcover_capturemethod',
+                                'oslandusetiera',
+                                'oslanduse_updatedate',
+                                'oslanduse_capturemethod',
+                                'isobscured',
+                                'physicallevel',
+                                'capturespecification',
+                                'containingsitecount',
+                                'lowertierlocalauthority_count'
                             ];
 
                             if (in_array($field, $nonNullableFields)) {
@@ -2202,16 +2280,15 @@ class DataMapController extends Controller
                         } else {
                             $attributes[$field] = $value;
                         }
-
                     }
 
                     if (isset($data['geometry'])) {
                         $attributes['geometry'] = DB::raw("ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($data['geometry']) . "'), {$sridNumber}), 27700)");
                     }
 
-                    if($modelClass == NHLE::class){
+                    if ($modelClass == NHLE::class) {
                         $instance = $modelClass::updateOrCreate(['gid' => $gid], $attributes);
-                    }else{
+                    } else {
                         $instance = $modelClass::updateOrCreate(['osid' => $osid], $attributes);
                     }
 
@@ -2265,7 +2342,7 @@ class DataMapController extends Controller
                                 ]);
                             }
                         }
-                    } 
+                    }
                     if ($modelClass === BuildingPartV2::class) {
                         if (isset($data['properties']['sitereference']) && is_array($data['properties']['sitereference'])) {
                             BuildingPartSiteRefV2::where('buildingpartid', $instance->osid)->delete();
@@ -2280,7 +2357,7 @@ class DataMapController extends Controller
                                 ]);
                             }
                         }
-                    } 
+                    }
 
                     if ($modelClass === NHLE::class) {
                         $properties = $data['properties'];
@@ -2314,7 +2391,7 @@ class DataMapController extends Controller
                         }
 
                         // Helper function to get property value case-insensitively
-                        $getProperty = function($key) use ($properties) {
+                        $getProperty = function ($key) use ($properties) {
                             // Try exact match first
                             if (isset($properties[$key])) {
                                 return $properties[$key];
@@ -2330,9 +2407,9 @@ class DataMapController extends Controller
 
                         // Get listentry from either 'listentry', 'ListEntry', or 'gid'
                         $listentry = $getProperty('listentry') ?? $getProperty('ListEntry') ?? $properties['gid'] ?? null;
-                        
+
                         // Parse dates - handle both string dates and formatted dates
-                        $parseDate = function($dateValue) {
+                        $parseDate = function ($dateValue) {
                             if (!$dateValue) return null;
                             try {
                                 return Carbon::parse($dateValue)->toDateString();
@@ -2386,7 +2463,7 @@ class DataMapController extends Controller
             \Artisan::call('config:clear');
             \Artisan::call('route:clear');
             \Artisan::call('view:clear');
-            
+
             if (config('cache.default') === 'redis') {
                 \Cache::flush();
             }
@@ -2549,7 +2626,7 @@ class DataMapController extends Controller
 
         DB::beginTransaction();
         try {
-            
+
             if (!empty($insertBatch)) {
                 // DB::table('land_registry_inspire')->upsert($insertBatch, ['gml_id']);
                 DB::table('land_registry_inspire')->insertOrIgnore($insertBatch);
@@ -2557,13 +2634,18 @@ class DataMapController extends Controller
 
             if (!empty($updateBatch)) {
                 DB::table('land_registry_inspire')->upsert($updateBatch, ['gml_id'], [
-                    'INSPIREID', 'LABEL', 'NATIONALCADASTRALREFERENCE', 'VALIDFROM', 'BEGINLIFESPANVERSION'
+                    'INSPIREID',
+                    'LABEL',
+                    'NATIONALCADASTRALREFERENCE',
+                    'VALIDFROM',
+                    'BEGINLIFESPANVERSION'
                 ]);
             }
 
             foreach (array_chunk($geometryBatch, 500) as $chunk) {
                 $values = collect($chunk)
-                    ->map(fn($g) =>
+                    ->map(
+                        fn($g) =>
                         "(" . DB::getPdo()->quote($g['geometry']) . ", " . DB::getPdo()->quote($g['gml_id']) . ")"
                     )->implode(',');
 
@@ -2586,7 +2668,6 @@ class DataMapController extends Controller
 
             DB::commit();
             Cache::forget('land_registry_inspire_data');
-
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
@@ -2678,7 +2759,7 @@ class DataMapController extends Controller
                     $results[] = $featureData;
                     continue;
                 }
-                
+
                 // Check for duplicate OSM ID
                 $existingItem = $modelClass::where('osm_id', $osmId)->first();
                 if ($existingItem) {
@@ -2811,7 +2892,7 @@ class DataMapController extends Controller
     private function prepareOsmData($modelClass, $properties, $geometry, $srid)
     {
         $geometryJson = json_encode($geometry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        
+
         if ($modelClass === \App\Models\OsmBuildingPart::class) {
             // Transform geometry to BNG (EPSG:27700)
             $bngGeometry = DB::selectOne(
@@ -2824,7 +2905,7 @@ class DataMapController extends Controller
                 'osm_id' => $this->parseNumeric($properties['osm_id'] ?? null),
                 'name' => $this->parseText($properties['name'] ?? null),
                 'geom' => $bngGeometry,
-                
+
                 // UPRN
                 'ref_gb_uprn' => $this->parseText(
                     $properties['ref:GB:uprn'] ?? $properties['ref_gb_uprn'] ?? null
@@ -2833,14 +2914,26 @@ class DataMapController extends Controller
                 // Base properties (sesuai ENUM di schema)
                 'base_shape' => $this->parseEnum(
                     $properties['base_shape'] ?? null,
-                    ['flat','slope','pyramidal','inverted_pyramidal','dome','inverted_dome',
-                    'round','inverted_round','gabled','gambrel','segmental_arch',
-                    'inverted_segmental_arch','partial_arch']
+                    [
+                        'flat',
+                        'slope',
+                        'pyramidal',
+                        'inverted_pyramidal',
+                        'dome',
+                        'inverted_dome',
+                        'round',
+                        'inverted_round',
+                        'gabled',
+                        'gambrel',
+                        'segmental_arch',
+                        'inverted_segmental_arch',
+                        'partial_arch'
+                    ]
                 ),
                 'base_direction' => $this->parseNumeric($properties['base_direction'] ?? null),
                 'base_orientation' => $this->parseEnum(
                     $properties['base_orientation'] ?? null,
-                    ['along','across']
+                    ['along', 'across']
                 ),
                 'base_height_m' => $this->parseNumeric($properties['base_height_m'] ?? null),
                 'base_levels' => $this->parseInteger($properties['base_levels'] ?? null),
@@ -2947,7 +3040,15 @@ class DataMapController extends Controller
                 'opening_date' => $this->parseDate($properties['opening_date'] ?? null),
                 'end_date' => $this->parseDate($properties['end_date'] ?? null),
                 'tags' => $this->extractAdditionalTags($properties, [
-                    'source', 'osm_id', 'name', 'landuse', 'operator', 'ref', 'start_date', 'opening_date', 'end_date'
+                    'source',
+                    'osm_id',
+                    'name',
+                    'landuse',
+                    'operator',
+                    'ref',
+                    'start_date',
+                    'opening_date',
+                    'end_date'
                 ])
             ];
         }
@@ -2985,11 +3086,11 @@ class DataMapController extends Controller
         if (is_null($value) || $value === '' || $value === 'null') {
             return null;
         }
-        
+
         if (is_numeric($value)) {
             return (float) $value;
         }
-        
+
         return null;
     }
 
@@ -3001,11 +3102,11 @@ class DataMapController extends Controller
         if (is_null($value) || $value === '' || $value === 'null') {
             return null;
         }
-        
+
         if (is_numeric($value)) {
             return (int) $value;
         }
-        
+
         return null;
     }
 
@@ -3017,13 +3118,13 @@ class DataMapController extends Controller
         if (is_null($value) || $value === '' || $value === 'null') {
             return null;
         }
-        
+
         $value = strtolower(trim($value));
-        
+
         if (in_array($value, $allowedValues)) {
             return $value;
         }
-        
+
         return null;
     }
 
@@ -3125,7 +3226,7 @@ class DataMapController extends Controller
             }
 
             // Address specific validation
-            $addressKeys = array_filter(array_keys($feature['properties']), function($key) {
+            $addressKeys = array_filter(array_keys($feature['properties']), function ($key) {
                 return strpos($key, 'addr:') === 0;
             });
 
@@ -3194,7 +3295,7 @@ class DataMapController extends Controller
                     }
 
                     $coordinates = $geometry['coordinates'];
-                    
+
                     // Handle different geometry types - extract first coordinate pair
                     if ($geometry['type'] === 'Point') {
                         $longitude = $coordinates[0];
@@ -3255,7 +3356,6 @@ class DataMapController extends Controller
 
                     \App\Models\OsmAddress::create($addressData);
                     $importedCount++;
-
                 } catch (\Exception $e) {
                     Log::error("Error importing OSM Address feature", [
                         'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
