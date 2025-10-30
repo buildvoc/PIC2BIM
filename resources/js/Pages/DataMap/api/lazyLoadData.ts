@@ -221,6 +221,8 @@ export const loadSitesStream = async (options: LazyLoadOptions & {
         throw new Error('Response body is not readable');
       }
       
+      let buffer = '';
+      
       const readStream = () => {
         reader.read().then(({ done, value }) => {
           if (done) {
@@ -229,12 +231,18 @@ export const loadSitesStream = async (options: LazyLoadOptions & {
           }
           
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
           
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.substring(6));
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
                 
                 if (data.type === 'metadata') {
                   options.onProgress?.({
@@ -243,15 +251,36 @@ export const loadSitesStream = async (options: LazyLoadOptions & {
                   });
                 } 
                 else if (data.type === 'chunk') {
-                  allData.push(...data.data);
+                  // Handle different data formats from backend
+                  let chunkData;
                   
-                  // ✅ Send chunk data to callback for immediate rendering
+                  if (Array.isArray(data.data)) {
+                    // Direct array format (used by Sites, NHLE, etc.)
+                    console.log(`[Sites] Processing direct array with ${data.data.length} items`);
+                    chunkData = data.data;
+                    allData.push(...data.data);
+                  } else if (data.data && typeof data.data === 'object' && data.data.features && Array.isArray(data.data.features)) {
+                    // GeoJSON FeatureCollection format
+                    console.log(`[Sites] Processing FeatureCollection with ${data.data.features.length} features`);
+                    chunkData = data.data.features;
+                    allData.push(...data.data.features);
+                  } else if (data.data && typeof data.data === 'object') {
+                    // Single object - treat as single item
+                    console.warn('[Sites] Single object in chunk, treating as array:', data.data);
+                    chunkData = [data.data];
+                    allData.push(data.data);
+                  } else {
+                    // Null, undefined, or primitive - skip
+                    console.warn('[Sites] Unexpected data format in chunk, skipping:', data.data);
+                    chunkData = [];
+                  }
+                  
                   options.onProgress?.({
                     type: 'chunk',
                     progress: data.progress,
                     loaded: allData.length,
                     total: allData.length,
-                    chunkData: data.data
+                    chunkData: chunkData
                   });
                 } 
                 else if (data.type === 'complete') {
@@ -261,7 +290,7 @@ export const loadSitesStream = async (options: LazyLoadOptions & {
                   });
                 }
               } catch (e) {
-                console.warn('Failed to parse SSE data:', e);
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
               }
             }
           }
@@ -1269,7 +1298,11 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
       ...options,
       onProgress: (progress) => {
         if (progress.type === 'chunk' && progress.chunkData) {
-          onProgress?.('sites', progress.chunkData);
+          // Convert array to FeatureCollection format to match expected format in Index.tsx
+          onProgress?.('sites', { 
+            type: 'FeatureCollection', 
+            features: progress.chunkData 
+          });
         }
       }
     });
@@ -1296,9 +1329,13 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
       console.log(`[Batch] NHLE final: ${batch1[0].value.length} total items`);
     }
     if (batch1[1].status === 'fulfilled') {
-      results.sites = batch1[1].value;
-      // Note: onProgress already called for each chunk above
-      console.log(`[Batch] Sites final: ${batch1[1].value.length} total items`);
+      // Convert final result to FeatureCollection format
+      const sitesData = batch1[1].value;
+      results.sites = {
+        type: 'FeatureCollection',
+        features: Array.isArray(sitesData) ? sitesData : []
+      };
+      console.log(`[Batch] Sites final: ${Array.isArray(sitesData) ? sitesData.length : 0} total items`);
     }
     if (batch1[2].status === 'fulfilled') {
       results.photos = batch1[2].value;
