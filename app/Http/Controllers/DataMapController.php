@@ -49,27 +49,6 @@ class DataMapController extends Controller
             'uprn' => ['data' => ['type' => 'FeatureCollection', 'features' => []]]
         ]);
     }
-
-    /**
-     * @OA\Post(
-     *     path="/builtup-area",
-     *     security={{"bearerAuth":{}}},
-     *     tags={"BuiltupArea"},
-     *     summary="Get all built-up areas",
-     *     description="Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
-     *     @OA\Response(
-     *         response=200,
-     *         description="Successful response",
-     *         @OA\JsonContent(
-     *             @OA\Property(
-     *                 property="shapes",
-     *                 type="object",
-     *                 description="GeoJSON FeatureCollection containing built-up area data"
-     *             )
-     *         )
-     *     )
-     * )
-     */
     public function getBuiltupArea(Request $request)
     {
         $BuiltupAreas = BuiltupArea::query()->get();
