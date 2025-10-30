@@ -1848,7 +1848,7 @@ class DataMapController extends Controller
         try {
             foreach ($features as $featureAction) {
                 $action = $featureAction['action'] ?? 'skip';
-                $data = $featureAction['data'] ?? null;
+                $data = $featureAction['feature'] ?? $featureAction['data'] ?? null;
 
                 if (!$data || $action === 'skip') {
                     continue;

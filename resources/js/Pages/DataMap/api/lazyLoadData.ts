@@ -61,9 +61,9 @@ export const loadBuildingParts = async (options: LazyLoadOptions & {
  */
 export const loadBuildingPartsStream = async (options: LazyLoadOptions & {
   onProgress?: (progress: { type: string; progress?: number; loaded?: number; total?: number; chunkData?: any }) => void;
-}): Promise<any> => {
+}): Promise<any[]> => {
   return new Promise((resolve, reject) => {
-    let allData: any = null;
+    const allData: any[] = [];
     
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
@@ -89,6 +89,8 @@ export const loadBuildingPartsStream = async (options: LazyLoadOptions & {
       const decoder = new TextDecoder();
       if (!reader) throw new Error('Response body is not readable');
       
+      let buffer = '';
+      
       const readStream = () => {
         reader.read().then(({ done, value }) => {
           if (done) {
@@ -97,32 +99,60 @@ export const loadBuildingPartsStream = async (options: LazyLoadOptions & {
           }
           
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
           
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.substring(6));
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+                
+                const data = JSON.parse(jsonStr);
                 
                 if (data.type === 'metadata') {
                   options.onProgress?.({ type: 'metadata', total: data.total });
                 } 
                 else if (data.type === 'chunk') {
-                  allData = data.data;
+                  // Handle different data formats from backend
+                  let chunkData;
+                  
+                  if (Array.isArray(data.data)) {
+                    // Direct array format (used by Sites, NHLE, etc.)
+                    console.log(`[BuildingParts] Processing direct array with ${data.data.length} items`);
+                    chunkData = data.data;
+                    allData.push(...data.data);
+                  } else if (data.data && typeof data.data === 'object' && data.data.features && Array.isArray(data.data.features)) {
+                    // GeoJSON FeatureCollection format (used by Building Parts)
+                    console.log(`[BuildingParts] Processing FeatureCollection with ${data.data.features.length} features`);
+                    chunkData = data.data.features;
+                    allData.push(...data.data.features);
+                  } else if (data.data && typeof data.data === 'object') {
+                    // Single object - treat as single item
+                    console.warn('[BuildingParts] Single object in chunk, treating as array:', data.data);
+                    chunkData = [data.data];
+                    allData.push(data.data);
+                  } else {
+                    // Null, undefined, or primitive - skip
+                    console.warn('[BuildingParts] Unexpected data format in chunk, skipping:', data.data);
+                    chunkData = [];
+                  }
                   
                   options.onProgress?.({
                     type: 'chunk',
                     progress: data.progress,
-                    loaded: data.chunkIndex + 1,
-                    total: data.total,
-                    chunkData: data.data
+                    loaded: allData.length,
+                    total: allData.length,
+                    chunkData: chunkData
                   });
                 } 
                 else if (data.type === 'complete') {
                   options.onProgress?.({ type: 'complete', total: data.total });
                 }
               } catch (e) {
-                console.warn('Failed to parse SSE data:', e);
+                console.warn('Failed to parse SSE data:', e, 'Line:', line.substring(0, 100));
               }
             }
           }
@@ -484,7 +514,7 @@ export const loadUPRNStream = async (options: LazyLoadOptions & {
     const allFeatures: any[] = [];
     
     // Get CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     fetch('/stream-uprn-data', {
       method: 'POST',
@@ -718,7 +748,7 @@ export const loadOSMBuildingPartsStream = async (options: LazyLoadOptions & {
     const allFeatures: any[] = [];
     
     // Get CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     fetch('/stream-osm-building-parts-data', {
       method: 'POST',
@@ -835,7 +865,7 @@ export const loadOSMAddressesStream = async (options: LazyLoadOptions & {
     const allFeatures: any[] = [];
     
     // Get CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     fetch('/stream-osm-addresses-data', {
       method: 'POST',
@@ -952,7 +982,7 @@ export const loadOSMLanduseStream = async (options: LazyLoadOptions & {
     const allFeatures: any[] = [];
     
     // Get CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     fetch('/stream-osm-landuse-data', {
       method: 'POST',
@@ -1069,7 +1099,7 @@ export const loadEPCCertificatesStream = async (options: LazyLoadOptions & {
     const allFeatures: any[] = [];
     
     // Get CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"')?.getAttribute('content') || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     
     fetch('/stream-epc-certificates-data', {
       method: 'POST',
@@ -1284,7 +1314,11 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
       ...options,
       onProgress: (progress) => {
         if (progress.type === 'chunk' && progress.chunkData) {
-          onProgress?.('buildingParts', progress.chunkData);
+          // Convert array to FeatureCollection format to match expected format in Index.tsx
+          onProgress?.('buildingParts', { 
+            type: 'FeatureCollection', 
+            features: progress.chunkData 
+          });
         }
       }
     });
@@ -1305,7 +1339,12 @@ export const loadAllDataBatched = async (options: LazyLoadOptions, onProgress?: 
     ]);
     
     if (batch2[0].status === 'fulfilled') {
-      results.buildingParts = batch2[0].value;
+      // Convert final result to FeatureCollection format
+      const buildingPartsData = batch2[0].value;
+      results.buildingParts = {
+        type: 'FeatureCollection',
+        features: Array.isArray(buildingPartsData) ? buildingPartsData : []
+      };
     }
     if (batch2[1].status === 'fulfilled') {
       results.landRegistryInspire = batch2[1].value;
