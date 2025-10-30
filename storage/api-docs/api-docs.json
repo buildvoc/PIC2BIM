@@ -1183,14 +1183,14 @@
                 ]
             }
         },
-        "/builtup-area": {
+        "/comm_builtup_area": {
             "post": {
                 "tags": [
                     "BuiltupArea"
                 ],
                 "summary": "Get all built-up areas",
                 "description": "Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
-                "operationId": "c44f5f7200f1968d97e805f91875d2ab",
+                "operationId": "a549ce81d61c84d0e6b4e1b86c770222",
                 "responses": {
                     "200": {
                         "description": "Successful response",

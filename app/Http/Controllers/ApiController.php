@@ -30,6 +30,7 @@ use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingAddress;
 use App\Http\Resources\BuildingCollection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApiController extends Controller
 {
@@ -1742,5 +1743,59 @@ class ApiController extends Controller
         }
 
         return new BuildingCollection($building);
+    }
+    /**
+     * @OA\Post(
+     *     path="/comm_builtup_area",
+     *     security={{"bearerAuth":{}}},
+     *     tags={"BuiltupArea"},
+     *     summary="Get all built-up areas",
+     *     description="Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="shapes",
+     *                 type="object",
+     *                 description="GeoJSON FeatureCollection containing built-up area data"
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function comm_builtup_area(Request $request)
+    {
+        return new StreamedResponse(function () {
+            echo '{"shapes":['; // start JSON array
+            $first = true;
+
+            DB::table('ons_bua')
+                ->select(
+                    'fid',
+                    'objectid_1',
+                    'gsscode',
+                    'bua24cd',
+                    'bua24nm',
+                    'bua24nmw',
+                    'geometry_a',
+                    'areahectar',
+                    'globalid',
+                    DB::raw('public.ST_AsGeoJSON(st_transform(geometry, 4326)) as geometry')
+                )
+                ->orderBy('fid')
+                ->chunk(500, function ($rows) use (&$first) {
+                    foreach ($rows as $row) {
+                        if (!$first) echo ',';
+                        $first = false;
+                        echo json_encode($row);
+                        flush(); // push data immediately
+                    }
+                });
+
+            echo ']}'; // end JSON array
+        }, 200, [
+            'Content-Type' => 'application/json',
+        ]);
     }
 }
