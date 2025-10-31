@@ -2784,22 +2784,24 @@ class DataMapController extends Controller
         $updatedCount = 0;
         $skippedCount = 0;
 
-        DB::transaction(function () use ($features, $srid, $modelClass, &$importedCount, &$updatedCount, &$skippedCount) {
-            foreach ($features as $featureData) {
-                $action = $featureData['action'] ?? 'import';
-                $feature = $featureData['feature'] ?? $featureData;
+        // Process each feature individually to prevent one error from aborting all imports
+        foreach ($features as $featureData) {
+            $action = $featureData['action'] ?? 'import';
+            $feature = $featureData['feature'] ?? $featureData;
 
-                if ($action === 'skip') {
-                    Log::info("OSM feature skipped by user action", [
-                        'model' => $modelClass,
-                        'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
-                        'reason' => 'user_action_skip'
-                    ]);
-                    $skippedCount++;
-                    continue;
-                }
+            if ($action === 'skip') {
+                Log::info("OSM feature skipped by user action", [
+                    'model' => $modelClass,
+                    'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                    'reason' => 'user_action_skip'
+                ]);
+                $skippedCount++;
+                continue;
+            }
 
-                try {
+            // Use individual transaction for each record to isolate errors
+            try {
+                DB::transaction(function () use ($feature, $action, $srid, $modelClass, &$importedCount, &$updatedCount, &$skippedCount) {
                     $properties = $feature['properties'] ?? [];
                     $geometry = $feature['geometry'] ?? null;
 
@@ -2811,7 +2813,7 @@ class DataMapController extends Controller
                             'properties' => $properties
                         ]);
                         $skippedCount++;
-                        continue;
+                        return;
                     }
 
                     // Prepare data based on model type
@@ -2827,7 +2829,7 @@ class DataMapController extends Controller
                             'geometry_type' => $geometry['type'] ?? 'unknown'
                         ]);
                         $skippedCount++;
-                        continue;
+                        return;
                     }
 
                     if ($action === 'update' && !empty($properties['osm_id'])) {
@@ -2845,20 +2847,20 @@ class DataMapController extends Controller
                         $modelClass::create($data);
                         $importedCount++;
                     }
-                } catch (\Exception $e) {
-                    Log::error("OSM feature skipped - import error: " . $e->getMessage(), [
-                        'model' => $modelClass,
-                        'osm_id' => $properties['osm_id'] ?? 'unknown',
-                        'reason' => 'import_exception',
-                        'error_message' => $e->getMessage(),
-                        'error_file' => $e->getFile(),
-                        'error_line' => $e->getLine(),
-                        'feature' => $feature
-                    ]);
-                    $skippedCount++;
-                }
+                });
+            } catch (\Exception $e) {
+                Log::error("OSM feature skipped - import error: " . $e->getMessage(), [
+                    'model' => $modelClass,
+                    'osm_id' => $feature['properties']['osm_id'] ?? 'unknown',
+                    'reason' => 'import_exception',
+                    'error_message' => $e->getMessage(),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                    'feature' => $feature
+                ]);
+                $skippedCount++;
             }
-        });
+        }
 
         // Clear relevant cache
         Cache::flush();
@@ -2874,9 +2876,22 @@ class DataMapController extends Controller
 
         if ($modelClass === \App\Models\OsmBuildingPart::class) {
             // Transform geometry to BNG (EPSG:27700)
+            // Handle MultiPolygon by extracting the largest polygon
             $bngGeometry = DB::selectOne(
-                "SELECT ST_AsText(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)) as geom",
-                [$geometryJson]
+                "SELECT ST_AsText(
+                    CASE 
+                        WHEN ST_GeometryType(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)) = 'ST_MultiPolygon'
+                        THEN (
+                            SELECT geom FROM (
+                                SELECT (ST_Dump(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))).geom
+                            ) AS dumps
+                            ORDER BY ST_Area(geom) DESC
+                            LIMIT 1
+                        )
+                        ELSE ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)
+                    END
+                ) as geom",
+                [$geometryJson, $geometryJson, $geometryJson]
             )->geom;
 
             return [
@@ -3003,8 +3018,20 @@ class DataMapController extends Controller
         } elseif ($modelClass === \App\Models\OsmLanduseArea::class) {
             // Transform geometry to BNG (EPSG:27700)
             $bngGeometry = DB::selectOne(
-                "SELECT ST_Transform(ST_GeomFromGeoJSON(?), 27700) as geom",
-                [$geometryJson]
+                "SELECT ST_AsText(
+                    CASE 
+                        WHEN ST_GeometryType(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)) = 'ST_MultiPolygon'
+                        THEN (
+                            SELECT geom FROM (
+                                SELECT (ST_Dump(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700))).geom
+                            ) AS dumps
+                            ORDER BY ST_Area(geom) DESC
+                            LIMIT 1
+                        )
+                        ELSE ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 27700)
+                    END
+                ) as geom",
+                [$geometryJson, $geometryJson, $geometryJson]
             )->geom;
 
             return [
