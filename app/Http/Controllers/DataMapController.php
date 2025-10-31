@@ -58,52 +58,7 @@ class DataMapController extends Controller
         ]);
     }
 
-    /**
-     * @OA\Post(
-     *     path="/get-area",
-     *     security={{"bearerAuth":{}}},
-     *     tags={"Area"},
-     *     summary="Get buildings and center point for specified areas",
-     *     description="Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\MediaType(
-     *             mediaType="application/json",
-     *             @OA\Schema(
-     *                 @OA\Property(
-     *                     property="area_ids",
-     *                     type="array",
-     *                     @OA\Items(type="integer"),
-     *                     example={1, 2, 3},
-     *                     description="Array of built-up area IDs to filter buildings"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="include_bua_filter",
-     *                     type="boolean",
-     *                     example=true,
-     *                     description="Whether to include built-up area filtering"
-     *                 )
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Successful response",
-     *         @OA\JsonContent(
-     *             @OA\Property(
-     *                 property="buildings",
-     *                 type="object",
-     *                 description="GeoJSON FeatureCollection containing building data"
-     *             ),
-     *             @OA\Property(
-     *                 property="center",
-     *                 type="object",
-     *                 description="Center point coordinates of the specified areas"
-     *             )
-     *         )
-     *     )
-     * )
-     */
+
     public function getArea(Request $request)
     {
         set_time_limit(300);
