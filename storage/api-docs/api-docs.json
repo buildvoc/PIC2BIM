@@ -1216,14 +1216,14 @@
                 ]
             }
         },
-        "/get-area": {
+        "/comm_get_area": {
             "post": {
                 "tags": [
                     "Area"
                 ],
                 "summary": "Get buildings and center point for specified areas",
                 "description": "Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
-                "operationId": "5daeeefea38fc5059f38354335a145c9",
+                "operationId": "a013a9dc23e30e915dc2aac72f0a1262",
                 "requestBody": {
                     "required": true,
                     "content": {

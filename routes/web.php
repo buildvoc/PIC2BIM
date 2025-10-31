@@ -188,6 +188,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/comm_get_building_attributes', [ApiController::class, 'comm_get_building_attributes']);
     // buitUp Area API
     Route::post('/comm_builtup_area', [ApiController::class, 'comm_builtup_area']);
+    Route::post('/comm_get_area', [ApiController::class, 'comm_get_area']);
 });
 
 Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');

@@ -30,6 +30,8 @@ use App\Models\Attr\Building;
 use App\Models\Attr\BuildingPartLink;
 use App\Models\Attr\BuildingAddress;
 use App\Http\Resources\BuildingCollection;
+use App\Http\Resources\BuildingCollectionV4;
+use App\Models\BuiltupArea;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApiController extends Controller
@@ -1797,5 +1799,117 @@ class ApiController extends Controller
         }, 200, [
             'Content-Type' => 'application/json',
         ]);
+    }
+    /**
+     * @OA\Post(
+     *     path="/comm_get_area",
+     *     security={{"bearerAuth":{}}},
+     *     tags={"Area"},
+     *     summary="Get buildings and center point for specified areas",
+     *     description="Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="application/json",
+     *             @OA\Schema(
+     *                 @OA\Property(
+     *                     property="area_ids",
+     *                     type="array",
+     *                     @OA\Items(type="integer"),
+     *                     example={1, 2, 3},
+     *                     description="Array of built-up area IDs to filter buildings"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="include_bua_filter",
+     *                     type="boolean",
+     *                     example=true,
+     *                     description="Whether to include built-up area filtering"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful response",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="buildings",
+     *                 type="object",
+     *                 description="GeoJSON FeatureCollection containing building data"
+     *             ),
+     *             @OA\Property(
+     *                 property="center",
+     *                 type="object",
+     *                 description="Center point coordinates of the specified areas"
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function comm_get_area(Request $request)
+    {
+        set_time_limit(300);
+        ini_set('memory_limit', '1024M');
+
+        $areaIds = $request->input('area_ids', []);
+
+        if (!is_array($areaIds)) {
+            if (is_string($areaIds) && str_starts_with($areaIds, '[')) {
+                $areaIds = json_decode($areaIds, true);
+            } else {
+                $areaIds = [$areaIds];
+            }
+        }
+
+        $areaIds = array_map('intval', array_filter($areaIds));
+        $includeBuaFilter = $request->input('include_bua_filter', true);
+
+        // Fetch buildings
+        $buildings = collect();
+        $buildingQuery = Building::query();
+
+        if (!empty($areaIds)) {
+            $builtupAreaGeometriesQuery = BuiltupArea::query()
+                ->whereIn('fid', $areaIds)
+                ->select('geometry');
+
+            $buildingQuery->whereExists(function ($query) use ($builtupAreaGeometriesQuery) {
+                $query->select(DB::raw(1))
+                    ->fromSub($builtupAreaGeometriesQuery, 's')
+                    ->whereRaw('ST_INTERSECTS(bld_fts_building.geometry, s.geometry)');
+            });
+        }
+
+        $buildingQuery
+            ->with('sites', 'buildingAddresses')
+            ->chunk(2000, function ($chunk) use (&$buildings) {
+                $buildings = $buildings->merge($chunk);
+            });
+
+        // Calculate center point
+        $center = null;
+        if (!empty($areaIds)) {
+            $centerData = DB::table('ons_bua')
+                ->select(DB::raw('ST_AsGeoJSON(ST_Transform(ST_Centroid(ST_Collect(geometry)), 4326)) as center'))
+                ->whereIn('fid', $areaIds)
+                ->first();
+
+            if ($centerData && $centerData->center) {
+                $center = json_decode($centerData->center);
+            }
+        }
+
+        // Prepare response
+        $responseData = [
+            'buildings' => new BuildingCollectionV4($buildings),
+            'center' => $center,
+        ];
+
+        Log::info('getArea response prepared', [
+            'buildings_count' => $buildings->count(),
+            'has_center' => !is_null($center)
+        ]);
+
+        return response()->json($responseData);
     }
 }
