@@ -1419,7 +1419,7 @@ class DataMapController extends Controller
             $message = 'Ready to import';
 
             if ($exists) {
-                $status = 'warning';
+                $status = 'duplicate';
                 $message = "EPC Certificate with lmk_key '{$lmkKey}' already exists";
             }
 
