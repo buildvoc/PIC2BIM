@@ -1191,8 +1191,13 @@ export function Index({ auth }: PageProps) {
                 coordinates: feature.geometry.coordinates as [number, number],
                 properties: feature.properties
               };
+            } else {
+              return {
+                id: feature.properties.id?.toString() || '',
+                coordinates: [0, 0],
+                properties: feature.properties
+              };
             }
-            return null;
           })
           .filter(Boolean);
         
@@ -1283,22 +1288,24 @@ export function Index({ auth }: PageProps) {
     // Set the selected feature to open side panel
     setSelectedFeature(selectedFeatureData);
     
-    // Set search marker
-    setSearchMarker({
-      coordinates: result.coordinates,
-      data: result.data,
-      type: result.type
-    });
+    // Set search marker only if coordinates are not [0, 0]
+    if (!(result.coordinates[0] === 0 && result.coordinates[1] === 0)) {
+      setSearchMarker({
+        coordinates: result.coordinates,
+        data: result.data,
+        type: result.type
+      });
 
-    // Fly to the selected location
-    setViewState({
-      ...viewState,
-      longitude: result.coordinates[0],
-      latitude: result.coordinates[1],
-      zoom: 18,
-      transitionDuration: 1000,
-      transitionInterpolator: new FlyToInterpolator()
-    });
+      // Fly to the selected location
+      setViewState({
+        ...viewState,
+        longitude: result.coordinates[0],
+        latitude: result.coordinates[1],
+        zoom: 18,
+        transitionDuration: 1000,
+        transitionInterpolator: new FlyToInterpolator()
+      });
+    }
     
     setIsSearchModalOpen(false);
   }, [viewState]);

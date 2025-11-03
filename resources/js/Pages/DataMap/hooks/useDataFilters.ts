@@ -151,7 +151,10 @@ export function useDataFilters({
   // Filtered EPC Certificates
   const filteredEpcCertificateCentroids = useMemo(() => {
     return epcCertificateCentroidsData.filter(d => {
-      // Shape filter
+      // Shape filter - but include [0,0] coordinates for EPC data with null geometry
+      if (d.coordinates[0] === 0 && d.coordinates[1] === 0) {
+        return true; // Include EPC data with null geometry
+      }
       return filterBySelectedShapes(d.coordinates);
     });
   }, [epcCertificateCentroidsData, filterBySelectedShapes]);
