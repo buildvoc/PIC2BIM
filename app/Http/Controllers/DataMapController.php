@@ -873,8 +873,7 @@ class DataMapController extends Controller
                         e.co2_emissions_current, e.energy_consumption_current, e.uprn,
                         ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
                     FROM epc_certificate e
-                    INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
-                    WHERE u.geom IS NOT NULL
+                    LEFT JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
                     AND EXISTS (
                         SELECT 1 FROM ons_bua b
                         WHERE b.fid IN ({$areaIdsString})
@@ -890,16 +889,15 @@ class DataMapController extends Controller
                         e.co2_emissions_current, e.energy_consumption_current, e.uprn,
                         ST_AsGeoJSON(ST_Transform(u.geom, 4326)) as geometry
                     FROM epc_certificate e
-                    INNER JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
-                    WHERE u.geom IS NOT NULL
+                    LEFT JOIN osopenuprn_address u ON e.uprn::bigint = u.uprn
                 ");
             }
 
             foreach ($epcResults as $row) {
-                if (!empty($row->geometry)) {
+                // if (!empty($row->geometry)) {
                     $epcCertificates->push([
                         'type' => 'Feature',
-                        'geometry' => json_decode($row->geometry, true),
+                        'geometry' => (!empty($row->geometry) ? json_decode($row->geometry, true) : null),
                         'properties' => [
                             'id' => $row->id,
                             'lmk_key' => $row->lmk_key,
@@ -918,7 +916,7 @@ class DataMapController extends Controller
                             'uprn' => $row->uprn,
                         ]
                     ]);
-                }
+                // }
             }
 
             $totalCount = $epcCertificates->count();
