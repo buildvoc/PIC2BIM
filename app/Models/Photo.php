@@ -25,6 +25,10 @@ class Photo extends Model
         );
     }
 
+    public function user(){
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
     public function getLinkAttribute(){
         return asset(Storage::url($this->path.$this->file_name));
     }

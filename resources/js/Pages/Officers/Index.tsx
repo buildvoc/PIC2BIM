@@ -1,11 +1,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, Officer, PageProps, PaginatedData} from '@/types';
+import {Agency, Officer, PageProps, PaginatedDataExtended} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
+import Pagination from '@/Components/Pagination/Pagination';
 
 export default function Dashboard({ auth }: PageProps) {
   const { agency } = usePage<{
@@ -15,12 +16,11 @@ export default function Dashboard({ auth }: PageProps) {
   
   
   const { officers } = usePage<{
-    officers: PaginatedData<Officer>;
+    officers: PaginatedDataExtended<Officer>;
   }>().props;
 
   const {
     data,
-    links
   } = officers;
 
   function destroy(id : number | string) : void {
@@ -28,7 +28,6 @@ export default function Dashboard({ auth }: PageProps) {
       router.delete(route('dashboard.agencies.officers.destroy', id)+`?agencyId=${agency.id}`);
     }
   }
-
   return (
     <AuthenticatedLayout
       user={auth.user}
@@ -125,6 +124,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
+            <Pagination pagination={officers} />
           </div>
         </div>
       </div>

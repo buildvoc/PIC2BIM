@@ -7,6 +7,8 @@ import TextInput from '@/Components/Form/TextInput';
 import FieldGroup from '@/Components/Form/FieldGroup';
 import TrashedMessage from '@/Components/Messages/TrashedMessage';
 import { Agency, PageProps, TaskType } from '@/types';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { Description } from '@headlessui/react';
 
 export function Edit({ auth }: PageProps) {
@@ -38,8 +40,15 @@ export function Edit({ auth }: PageProps) {
         <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div
-              className="flex items-center justify-between mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
+              className="flex items-center justify-start mb-6 w-full border-gray-200 dark:border-gray-700 p-4 dark:text-white dark:text-gray-300 border-b text-lg font-medium"
             >
+              <Link
+                className="text-indigo-600 dark:text-indigo-400 mr-8"
+                href={route('types.index')}  title='Back'
+              >
+                <FontAwesomeIcon icon={faChevronLeft} className='mr-2' />
+                Back
+              </Link>
               <h1 className="text-3xl font-bold">Edit Purpose</h1>
             </div>
             <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 overflow-hidden rounded shadow">

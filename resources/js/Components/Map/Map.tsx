@@ -44,6 +44,7 @@ function Map({
         setMapStyle("mapbox://styles/mapbox/satellite-v9");
         localStorage.setItem(MAP_STYLE_KEY, "mapbox://styles/mapbox/satellite-v9");
     };
+
     const toggleControl = new ToggleControl({
         onMapViewClick: mapViewClickHandler,
         onSatelliteViewClick: satelliteViewClickHandler,
@@ -59,7 +60,7 @@ function Map({
                 if (zoom && center && center.lng && center.lat) {
                     localStorage.setItem(MAP_ZOOM_KEY, zoom.toString());
                     localStorage.setItem(MAP_CENTER_KEY, JSON.stringify([center.lng, center.lat]));
-                    console.log("Saved map position:", [center.lng, center.lat], zoom);
+                    //console.log("Saved map position:", [center.lng, center.lat], zoom);
                 }
             } catch (e) {
                 console.error("Error saving map position", e);
@@ -83,7 +84,7 @@ function Map({
         const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
         
         if (fromPhotoDetail) {
-            console.log("Returning from photo detail, will use saved position");
+            //console.log("Returning from photo detail, will use saved position");
         }
         
         let initialCenter: [number, number] = [0.166022, 51.288998];
@@ -98,7 +99,7 @@ function Map({
             }
         }
         
-        console.log("Map init:", initialCenter, initialZoom, "fromPhotoDetail:", fromPhotoDetail);
+        //console.log("Map init:", initialCenter, initialZoom, "fromPhotoDetail:", fromPhotoDetail);
         
         mapRef.current = new mapboxgl.Map({
             container: mapContainerRef.current!,
@@ -113,7 +114,7 @@ function Map({
         
         if (fromPhotoDetail) {
             setTimeout(() => {
-                console.log("Resetting photo detail flag");
+                //console.log("Resetting photo detail flag");
                 localStorage.setItem(MAP_FROM_PHOTO_DETAIL, "false");
             }, 500);
         }
@@ -121,6 +122,7 @@ function Map({
         mapRef.current.addControl(toggleControl, "top-left");
         mapRef.current.addControl(new mapboxgl.NavigationControl());
 
+        // Save position when map moves
         mapRef.current.on("moveend", () => {
             saveMapPosition();
         });
@@ -134,6 +136,7 @@ function Map({
                 return coordsArray;
             });
 
+            // Only fit bounds if not returning from photo detail
             if (!fromPhotoDetail) {
                 let bounds = calculateBoundingBox(coordintates.flat());
                 if(bounds)
@@ -148,11 +151,11 @@ function Map({
                 loadPaths(path);
             });
         } else {
-            data.length > 0 && loadClustersAndImage();
+            data.length > 0 && loadClustersAndImage(fromPhotoDetail);
         }
     };
 
-    const loadClustersAndImage = () => {
+    const loadClustersAndImage = (fromPhotoDetail = false) => {
         const coordintates = data.map((task: TaskPhotos) => task.location);
         let bounds = calculateBoundingBox(coordintates);
         onSuddenchange();
@@ -165,8 +168,7 @@ function Map({
                 insertMarkers();
             }
             
-            const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
-            
+            // Only adjust view if not returning from photo detail
             if (!fromPhotoDetail) {
                 if (data.length == 1 && bounds) {
                     mapRef.current?.fitBounds(bounds, {
@@ -378,12 +380,25 @@ function Map({
                 });
             });
         });
+
+        // Listen for map rotation and update marker bearings
+        mapRef.current?.on('rotate', () => {
+            const mapBearing = mapRef.current && typeof mapRef.current.getBearing === 'function' ? mapRef.current.getBearing() : 0;
+            markerRef.current.forEach((marker: any, idx: number) => {
+                const markerData = data[idx];
+                if (!marker || !marker.getElement()) return;
+                const el = marker.getElement();
+                const root = createRoot(el);
+                root.render(<TaskPhoto data={markerData} mapBearing={mapBearing} onClick={onClick} />);
+            });
+        });
     };
 
     const addMarkers = (data_: any) => {
         const el = document.createElement("div");
         const root = createRoot(el);
-        root.render(<TaskPhoto data={data_} onClick={onClick} />);
+        const mapBearing = mapRef.current && typeof mapRef.current.getBearing === 'function' ? mapRef.current.getBearing() : 0;
+        root.render(<TaskPhoto data={data_} mapBearing={mapBearing} onClick={onClick} />);
         const marker = new mapboxgl.Marker(el).setLngLat(data_?.location);
         markerRef.current.push(marker);
     };
@@ -444,11 +459,6 @@ function Map({
 
     const loadPaths = (path: Path) => {
         mapRef.current?.on("load", () => {
-            // Check if we're coming from photo detail
-            const fromPhotoDetail = localStorage.getItem(MAP_FROM_PHOTO_DETAIL) === "true";
-            
-            // We don't reset the flag here anymore - it's handled in loadMapBox
-            
             const coordinates = path?.points.map((point) => [
                 parseFloat(point.lng.toString()),
                 parseFloat(point.lat.toString()),
@@ -756,27 +766,6 @@ function Map({
                         'line-width': 2,
                     },
                 });
-
-                const label = document.createElement('div');
-                label.style.backgroundImage = `url(/land_name_generator?land=${encodeURIComponent(polygon.properties.wd24nm)}&zoom=${mapRef.current?.getZoom()})`;
-                // label.textContent = polygon.properties.wd24nm;
-                label.className = 'polygon-label';
-                label.style.backgroundColor = 'white';
-                label.style.border = '1px solid black';
-                label.style.padding = '2px';
-                label.style.borderRadius = '3px';
-                label.style.backgroundSize = 'contain';
-                label.style.backgroundPosition = 'center';
-                label.style.backgroundRepeat = 'no-repeat';
-                label.style.width= '100px';
-                label.style.height= '30px';
-                label.style.cursor= 'pointer';
-
-                const centroid = calculateCentroid(coordinates[0]);
-
-                new mapboxgl.Marker(label)
-                .setLngLat(centroid as LngLatLike)
-                .addTo(mapRef.current!);
             });
         } catch (error) {
             console.error('Error fetching polygons:', error);
@@ -810,6 +799,74 @@ function Map({
         });
         return [x / n, y / n];
     };
+
+    // Add a useEffect hook to directly restore map state when returning from photo detail
+    useEffect(() => {
+        // This will run after the component mounts but before the map is loaded
+        const checkForDirectRestore = () => {
+            if (!mapRef.current) return; // Map not yet initialized
+            
+            try {
+                const mapStateJson = localStorage.getItem('photo_gallery_map_state');
+                const returningFromDetail = localStorage.getItem('returning_from_photo_detail') === 'true';
+                
+                if (mapStateJson && returningFromDetail) {
+                    const mapState = JSON.parse(mapStateJson);
+                    
+                    // Only restore if state is not too old
+                    const now = new Date().getTime();
+                    const fiveMinutes = 5 * 60 * 1000;
+                    
+                    if (now - mapState.timestamp < fiveMinutes) {
+                        // Apply center and zoom directly
+                        if (mapState.center && Array.isArray(mapState.center) && mapState.center.length === 2 && 
+                            typeof mapState.zoom === 'number') {
+                            //console.log('Directly restoring map view to:', mapState.center, mapState.zoom);
+                            
+                            // Use flyTo for smoother transition
+                            mapRef.current.jumpTo({
+                                center: mapState.center as [number, number],
+                                zoom: mapState.zoom
+                            });
+                            
+                            // Trigger filtering if needed
+                            if (isUnassigned && zoomFilter) {
+                                setTimeout(() => {
+                                    try {
+                                        const clusters = mapRef.current?.queryRenderedFeatures({
+                                            layers: ["circles-layer"],
+                                        });
+                                        if (clusters && zoomFilter) {
+                                            zoomFilter(clusters.map((photo): String => photo.properties?.digest));
+                                        }
+                                    } catch (e) {
+                                        console.error('Error filtering after restore:', e);
+                                    }
+                                }, 500);
+                            }
+                        }
+                    }
+                    
+                    // Clear flags after use
+                    localStorage.removeItem('photo_gallery_map_state');
+                    localStorage.removeItem('returning_from_photo_detail');
+                }
+            } catch (error) {
+                console.error('Error in direct map state restoration:', error);
+            }
+        };
+        
+        // Check a few times after mounting to catch when map is ready
+        const timerId = setTimeout(checkForDirectRestore, 500);
+        const timerId2 = setTimeout(checkForDirectRestore, 1000);
+        const timerId3 = setTimeout(checkForDirectRestore, 2000);
+        
+        return () => {
+            clearTimeout(timerId);
+            clearTimeout(timerId2);
+            clearTimeout(timerId3);
+        };
+    }, []);
 
     return (
         <div

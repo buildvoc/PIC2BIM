@@ -162,7 +162,11 @@ function setPhoto($photo, $user_id, $task_id)
                 'nmea_location' => null,
                 'nmea_distance' => null,
                 'digest' => $photo['digest'],
-                'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+                'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
+                'provider' => $photo['provider'] ?? null,
+                'osnma_enabled' => $photo['osnmaEnabled'] ?? null,
+                'osnma_validated' => $photo['osnmaValidated'] ?? null,
+                'validated_sats' => $photo['validatedSats'] ?? null
             ]);
 
             $status['photo_id'] = $newPhoto->id;
@@ -257,7 +261,12 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'path',
             'file_name',
             'digest',
-            'rotation_correction as angle'
+            'rotation_correction as angle',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('flg_deleted', 0)
         ->where('id', $photo_id)
@@ -307,7 +316,12 @@ function getPhoto($photo_id, $wantsbase64Photo=false)
             'created' => $photo->created,
             'digest' => $photo->digest,
             'link' => $photo->link,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
 
         if($wantsbase64Photo){
@@ -354,7 +368,7 @@ function get_distance_from_coordinates($a_lat, $a_lng, $b_lat, $b_lng)
     $const_p = pi() / 180;
     $const_r = 12742;
 
-    $a = 0.5 - cos(($b_lat - $a_lat) * $const_p) / 2 + cos($a_lat * $const_p) * cos($b_lat * $const_p) * (1 - cos(($b_lng - $a_lng) * $const_p)) / 2;
+    $a = 0.5 - cos(($b_lat - $a_lat) * $const_p) / 2 + cos($a_lat * $const_p) * cos($b_lat * $const_p) * (1 - cos((null) * $const_p)) / 2;
 
     $distance = $const_r * sin(sqrt($a));
 
@@ -424,6 +438,10 @@ function setPhotos($photos, $user_id, $task_id)
                 $efkLngGpsIf = $photo['efkLngGpsIf'] ?? null;
                 $efkAltGpsIf = $photo['efkAltGpsIf'] ?? null;
                 $efkTimeGpsIf = isset($photo['efkTimeGpsIf']) ? gmdate('Y-m-d H:i:s', strtotime($photo['efkTimeGpsIf'])) : null;
+                $provider = isset($photo['provider']) ? $photo['provider'] : null;
+                $osnmaEnabled = isset($photo['osnmaEnabled']) ? $photo['osnmaEnabled'] : null;
+                $osnmaValidated = isset($photo['osnmaValidated']) ? $photo['osnmaValidated'] : null;
+                $validatedSats = isset($photo['validatedSats']) ? $photo['validatedSats'] : null;
 
                 $existing_photo = DB::table('photo')->where('digest', $digest)->first();
 
@@ -472,6 +490,10 @@ function setPhotos($photos, $user_id, $task_id)
                         'efkLngGpsIf' => $efkLngGpsIf,
                         'efkAltGpsIf' => $efkAltGpsIf,
                         'efkTimeGpsIf' => $efkTimeGpsIf,
+                        'provider' => $provider,
+                        'osnma_enabled' => $osnmaEnabled,
+                        'osnma_validated' => $osnmaValidated,
+                        'validated_sats' => $validatedSats
                     ]);
                     if (isset($photo['photo'])) {
                         $sql_path = DB::table('user')->select('pa_id')->where('id', $user_id)->first();
@@ -592,7 +614,14 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'file_name',
             'digest',
             'id',
-            'rotation_correction as angle'
+            'rotation_correction as angle',
+            'flg_checked_location',
+            'flg_original',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('flg_deleted', 0);
 
@@ -651,6 +680,11 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
             'id' => $photo->id,
             'angle' => $photo->angle,
             'link' => $photo->link,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
         if($wantsBase64Photo){
             $file = null;
@@ -662,11 +696,15 @@ function getTaskPhotos($task_id = null, $user_id = null, $wantsBase64Photo=false
         }else{
             $out['link'] = $photo->link;
         }
-        
+
+        $photoVerificationData = getPhotoVerifiedStatus($photo);
+        $out['return'] = $photoVerificationData['return'];
+        $out['verified'] = $photoVerificationData['verified'];
+
+
         $output[] = $out;
         
     }
-
     return $output;
 }
 
@@ -708,7 +746,7 @@ function deleteSelectedUnassignedPhoto(array $uids)
     return $affectedRows;
 }
 
-function getPhotosWithoutTask($user_id)
+function getPhotosWithoutTask($user_id, $paginate = false)
 {
     $photos = Photo
         ::select([
@@ -754,15 +792,22 @@ function getPhotosWithoutTask($user_id)
             'file_name',
             'digest',
             'id',
-            'rotation_correction as angle'
+            'rotation_correction as angle',
+            'flg_checked_location',
+            'flg_original',
+            'network_info',
+            'provider',
+            'osnma_enabled',
+            'osnma_validated',
+            'validated_sats'
         ])
         ->where('user_id', $user_id)
         ->where('flg_deleted', 0)
-        ->whereNull('task_id')
-        ->get();
+        ->whereNull('task_id');
 
+    if($paginate) $photos = $photos->paginate(10);
+    else $photos = $photos->get();
     $output = [];
-
     foreach ($photos as $photo) {
         $photoData = [
             'altitude' => $photo->altitude,
@@ -806,7 +851,12 @@ function getPhotosWithoutTask($user_id)
             'digest' => $photo->digest,
             'id' => $photo->id,
             'link' => $photo->link,
-            'angle' => $photo->angle
+            'angle' => $photo->angle,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
         ];
 
         $file = null;
@@ -815,10 +865,17 @@ function getPhotosWithoutTask($user_id)
             $file = file_get_contents($filePath);
         }
         $photoData['photo'] = $file ? base64_encode($file) : null;
+
+        $photoVerificationData = getPhotoVerifiedStatus($photo);
+        $photoData['return'] = $photoVerificationData['return'];
+        $photoData['verified'] = $photoVerificationData['verified'];
+
+
+        $photo = $photoData;
         $output[] = $photoData;
     }
-
-    return $output;
+    
+    return $photos;
 }
 
 
@@ -902,63 +959,106 @@ function getPhotoByIds(array $photoIds)
         'created',
         'path',
         'file_name',
-        'digest'
+        'digest',
+        'network_info',
+        'provider',
+        'osnma_enabled',
+        'osnma_validated',
+        'validated_sats'
     ])
     ->where('flg_deleted', 0)
     ->whereIn('id', $photoIds)
     ->get();
 
-$output = [];
+    $output = [];
 
-foreach ($photos as $photo) {
-    $currentPhoto = [
-        'altitude' => $photo->altitude,
-        'vertical_view_angle' => $photo->vertical_view_angle,
-        'accuracy' => $photo->accuracy,
-        'distance' => $photo->distance,
-        'nmea_distance' => $photo->nmea_distance,
-        'device_manufacture' => $photo->device_manufacture,
-        'device_model' => $photo->device_model,
-        'device_platform' => $photo->device_platform,
-        'device_version' => $photo->device_version,
-        'efkLatGpsL1' => $photo->efkLatGpsL1,
-        'efkLngGpsL1' => $photo->efkLngGpsL1,
-        'efkAltGpsL1' => $photo->efkAltGpsL1,
-        'efkTimeGpsL1' => $photo->efkTimeGpsL1,
-        'efkLatGpsL5' => $photo->efkLatGpsL5,
-        'efkLngGpsL5' => $photo->efkLngGpsL5,
-        'efkAltGpsL5' => $photo->efkAltGpsL5,
-        'efkTimeGpsL5' => $photo->efkTimeGpsL5,
-        'efkLatGpsIf' => $photo->efkLatGpsIf,
-        'efkLngGpsIf' => $photo->efkLngGpsIf,
-        'efkAltGpsIf' => $photo->efkAltGpsIf,
-        'efkTimeGpsIf' => $photo->efkTimeGpsIf,
-        'efkLatGalE1' => $photo->efkLatGalE1,
-        'efkLngGalE1' => $photo->efkLngGalE1,
-        'efkAltGalE1' => $photo->efkAltGalE1,
-        'efkTimeGalE1' => $photo->efkTimeGalE1,
-        'efkLatGalE5' => $photo->efkLatGalE5,
-        'efkLngGalE5' => $photo->efkLngGalE5,
-        'efkAltGalE5' => $photo->efkAltGalE5,
-        'efkTimeGalE5' => $photo->efkTimeGalE5,
-        'efkLatGalIf' => $photo->efkLatGalIf,
-        'efkLngGalIf' => $photo->efkLngGalIf,
-        'efkAltGalIf' => $photo->efkAltGalIf,
-        'efkTimeGalIf' => $photo->efkTimeGalIf,
-        'note' => $photo->note,
-        'lat' => $photo->lat,
-        'lng' => $photo->lng,
-        'photo_heading' => $photo->photo_heading,
-        'created' => $photo->created,
-        'digest' => $photo->digest,
-        'link' => $photo->link
-    ];
-    
+    foreach ($photos as $photo) {
+        $currentPhoto = [
+            'altitude' => $photo->altitude,
+            'vertical_view_angle' => $photo->vertical_view_angle,
+            'accuracy' => $photo->accuracy,
+            'distance' => $photo->distance,
+            'nmea_distance' => $photo->nmea_distance,
+            'device_manufacture' => $photo->device_manufacture,
+            'device_model' => $photo->device_model,
+            'device_platform' => $photo->device_platform,
+            'device_version' => $photo->device_version,
+            'efkLatGpsL1' => $photo->efkLatGpsL1,
+            'efkLngGpsL1' => $photo->efkLngGpsL1,
+            'efkAltGpsL1' => $photo->efkAltGpsL1,
+            'efkTimeGpsL1' => $photo->efkTimeGpsL1,
+            'efkLatGpsL5' => $photo->efkLatGpsL5,
+            'efkLngGpsL5' => $photo->efkLngGpsL5,
+            'efkAltGpsL5' => $photo->efkAltGpsL5,
+            'efkTimeGpsL5' => $photo->efkTimeGpsL5,
+            'efkLatGpsIf' => $photo->efkLatGpsIf,
+            'efkLngGpsIf' => $photo->efkLngGpsIf,
+            'efkAltGpsIf' => $photo->efkAltGpsIf,
+            'efkTimeGpsIf' => $photo->efkTimeGpsIf,
+            'efkLatGalE1' => $photo->efkLatGalE1,
+            'efkLngGalE1' => $photo->efkLngGalE1,
+            'efkAltGalE1' => $photo->efkAltGalE1,
+            'efkTimeGalE1' => $photo->efkTimeGalE1,
+            'efkLatGalE5' => $photo->efkLatGalE5,
+            'efkLngGalE5' => $photo->efkLngGalE5,
+            'efkAltGalE5' => $photo->efkAltGalE5,
+            'efkTimeGalE5' => $photo->efkTimeGalE5,
+            'efkLatGalIf' => $photo->efkLatGalIf,
+            'efkLngGalIf' => $photo->efkLngGalIf,
+            'efkAltGalIf' => $photo->efkAltGalIf,
+            'efkTimeGalIf' => $photo->efkTimeGalIf,
+            'note' => $photo->note,
+            'lat' => $photo->lat,
+            'lng' => $photo->lng,
+            'photo_heading' => $photo->photo_heading,
+            'created' => $photo->created,
+            'digest' => $photo->digest,
+            'link' => $photo->link,
+            'network_info' => $photo->network_info,
+            'provider' => $photo->provider,
+            'osnma_enabled' => $photo->osnma_enabled,
+            'osnma_validated' => $photo->osnma_validated,
+            'validated_sats' => $photo->validated_sats
+        ];
+        
 
-    // Add the photo data to the output array
-    $output[] = $currentPhoto;
+        // Add the photo data to the output array
+        $output[] = $currentPhoto;
+    }
+
+    return $output;
 }
 
-return $output;
+function getPhotoVerifiedStatus($photo){
+    $photoData = [];
+    $return = 'incomplete';
+    $verified = true;
+    if ($photo->flg_checked_location === 0) {
+        $return = 'not_verified';
+        $verified = false;
+    } elseif (empty($photo->flg_checked_location)) {
+        if ($return !== 'not_verified') {
+            $return = 'incomplete';
+        }
+        $verified = false;
+    } elseif ($verified) {
+        $return = 'verified';
+    }
+
+    if ($photo->flg_original === 0) {
+        $return = 'not_verified';
+        $verified = false;
+    } elseif (empty($photo->flg_original)) {
+        if ($return !== 'not_verified') {
+            $return = 'incomplete';
+        }
+        $verified = false;
+    } elseif ($verified) {
+        $return = 'verified';
+    }
+    $photoData['return'] = $return;
+    $photoData['verified'] = $verified;
+
+    return $photoData;
 }
 

@@ -12,6 +12,7 @@ class Shape extends Model
 
     protected $table = 'shape';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'ogc_fid';
     protected $fillable = [
         'ogc_fid',
         'wd24cd',

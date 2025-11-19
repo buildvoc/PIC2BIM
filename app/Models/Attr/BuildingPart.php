@@ -12,6 +12,11 @@ class BuildingPart extends Model
 
     protected $table = 'bld_fts_buildingpart';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'osid';
+    public $incrementing = false;
+    public $timestamps = false;
+
+    protected $keyType = 'string';
     protected $fillable = [
         'osid',
         'toid',
@@ -158,6 +163,11 @@ class BuildingPart extends Model
                 ];
             }
         );
+    }
+
+    public function buildingPartLinks()
+    {
+        return $this->hasMany(BuildingPartLink::class, 'buildingpartid', 'osid');
     }
 
 }

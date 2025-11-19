@@ -359,41 +359,34 @@ const PdfPage = ({
                                 {photo?.created}
                             </Text>
                         </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
+                        
+                        <View style={styles.photo_details_row}>
+                            <Text>Network status </Text>
                             <Text style={styles.photo_details_value}>
-                                Photo location has not been{" "}
+                                {photo?.network_info ? 'Online' : '-'}
                             </Text>
                         </View>
+
+                        <View style={styles.photo_details_row}>
+                            <Text>OSNMA validation </Text>
+                            {photo?.osnma_enabled == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Enabled</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Disabled</Text>}
+                        </View>
+
+                        {photo.osnma_enabled == "1" && 
+                        <View style={styles.photo_details_row}>
+                            <Text>Validated satellites </Text>
+                            <Text style={styles.photo_details_value}>{photo.validated_sats}</Text>
+                        </View>}
+
                         <View
                             style={[
                                 styles.photo_details_row,
                                 { justifyContent: "flex-end" },
                             ]}
                         >
-                            <Text style={styles.photo_details_value}>
-                                verified yet{" "}
-                            </Text>
+                            {photo?.osnma_validated == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Photo location is OSNMA validated</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Photo location is not validated</Text>}
                         </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.photo_details_value,
-                                    { color: "#31ba51" },
-                                ]}
-                            >
-                                Photo is original{" "}
-                            </Text>
-                        </View>
+
                     </View>
                 </View>
             </View>

@@ -1,21 +1,19 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, PageProps, PaginatedData} from '@/types';
+import {Agency, PageProps, PaginatedDataExtended} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
-import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faEye } from '@fortawesome/free-solid-svg-icons';
+import Pagination from '@/Components/Pagination/Pagination';
 
 export default function Dashboard({ auth }: PageProps) {
 
   const { agencies } = usePage<{
-    agencies: PaginatedData<Agency>;
+    agencies: PaginatedDataExtended<Agency>;
   }>().props;
-
   const {
-    data,
-    links
+    data
   } = agencies;
 
   function destroy(id : number | string) : void {
@@ -87,6 +85,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
+            <Pagination pagination={agencies} />
           </div>
         </div>
       </div>
