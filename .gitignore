@@ -17,6 +17,7 @@
 /storage/framework/views/.gitignore
 /storage/logs/.gitignore
 /vendor
+/volumes
 .env
 .env.backup
 .env.production

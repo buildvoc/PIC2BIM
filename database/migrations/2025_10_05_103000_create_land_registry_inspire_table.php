@@ -18,20 +18,20 @@ return new class extends Migration
             $table->bigInteger('INSPIREID')->nullable()->index();
             $table->bigInteger('LABEL')->nullable();
             $table->bigInteger('NATIONALCADASTRALREFERENCE')->nullable();
-            $table->timestamp('VALIDFROM')->nullable();
+            $table->timestamp('VALIDFROM')->nullable()->index();
             $table->timestamp('BEGINLIFESPANVERSION')->nullable();
             $table->timestamps();
         });
 
         // Add PostGIS geometry column for WGS84 coordinates (EPSG:4326)
         DB::statement('ALTER TABLE land_registry_inspire ADD COLUMN geom geometry(GEOMETRY, 4326)');
-        
+
         // Create spatial index for geometry column
         DB::statement('CREATE INDEX land_registry_inspire_geom_idx ON land_registry_inspire USING GIST (geom)');
-        
+
         // Create additional indexes for performance
-        DB::statement('CREATE INDEX land_registry_inspire_inspireid_idx ON land_registry_inspire (INSPIREID)');
-        DB::statement('CREATE INDEX land_registry_inspire_validfrom_idx ON land_registry_inspire (VALIDFROM)');
+        // DB::statement('CREATE INDEX land_registry_inspire_inspireid_idx ON land_registry_inspire (INSPIREID)');
+        // DB::statement('CREATE INDEX land_registry_inspire_validfrom_idx ON land_registry_inspire (VALIDFROM)');
     }
 
     /**

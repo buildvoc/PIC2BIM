@@ -10,4 +10,11 @@ export default defineConfig({
         }),
         react(),
     ],
+    server: {
+        host: 'localhost',       // browser-accessible host
+        port: 5173,              // dev server port
+        hmr: {
+            host: 'localhost',   // ensure hot reload works via correct host
+        },
+    },
 });

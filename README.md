@@ -115,3 +115,7 @@ This project is licensed under the MIT License.
 ## Contact
 For support or inquiries, please open an issue on GitHub or reach out to the maintainers.
 
+## Creating Certificate
+windows using gitbash terminal: openssl req -x509 -nodes -days 365 -newkey rsa:2048  -keyout dev.key  -out dev.crt -subj "//C=PK//ST=State//L=City//O=Company//OU=Dev//CN=localhost"
+
+Other Systems: openssl req -x509 -nodes -days 365 -newkey rsa:2048  -keyout dev.key  -out dev.crt -subj "/C=PK/ST=State/L=City/O=Company/OU=Dev/CN=localhost"
