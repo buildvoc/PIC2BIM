@@ -27,6 +27,7 @@ else
 fi
 # migrate database
 php artisan migrate || true
+php artisan db:seed || true
 
 # Clear caches (Laravel dev mode)
 php artisan config:clear || true
