@@ -34,31 +34,3 @@ php artisan cache:clear || true
 php artisan route:clear || true
 echo "✔ PHP container is ready."
 exec php-fpm
-# #!/bin/sh
-# set -e
-# cd /var/www
-
-# # Wait for Postgres
-# echo "⏳ Waiting for database..."
-# until pg_isready -h db -p 5432; do
-#   sleep 2
-# done
-# echo "🚀 Starting PHP container..."
-# mkdir -p \
-#   storage/app/public \
-#   storage/framework/cache \
-#   storage/framework/sessions \
-#   storage/framework/views \
-#   storage/logs \
-#   bootstrap/cache
-
-# # Set correct permissions
-# chown -R www-data:www-data storage bootstrap/cache
-# php artisan config:cache
-# php artisan route:cache
-# php artisan view:cache
-# # if [ ! -L public/storage ]; then
-# #     php artisan storage:link
-# # fi
-# php artisan migrate
-# php-fpm
