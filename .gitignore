@@ -33,5 +33,6 @@ yarn-error.log
 /.vscode
 /api
 /pic2bim
+/Docker/production
 .DS_STORE
 

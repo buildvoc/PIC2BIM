@@ -1,4 +1,60 @@
-vendor
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Docker/development
+compose.dev.yaml
+docker-compose.yml
+docker-compose.*.yml
+
+# Node
 node_modules
-storage
+npm-debug.log
+yarn-error.log
+# Note: package-lock.json is needed for npm ci, so don't exclude it
+
+# PHP
+vendor
+composer.lock
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Laravel
+.env
+.env.*
+!.env.example
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+
+# Testing
+.phpunit.result.cache
+tests
+phpunit.xml
+
+# Build artifacts (exclude specific files/dirs, but allow public directory itself)
+public/hot
+public/build/**
 public/storage
+
+# Documentation
+README.md
+*.md
+!Docker/production/README.md
+
+# Misc
+.editorconfig
+.pint.json
