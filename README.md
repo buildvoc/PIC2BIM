@@ -124,8 +124,14 @@ Other Systems: openssl req -x509 -nodes -days 365 -newkey rsa:2048  -keyout dev.
 ## Docker Image Test
 
 ### Pull Docker Image:
+```
 docker pull arsx9/pic2bim:latest
+```
 ### Run Container: 
+```
 docker run -d -p 8080:80 --name pic2bim arsx9/pic2bim:latest
+```
 ### Wait for 30s and run:
-http://localhost:8080/
+```
+http://localhost:8080
+```
