@@ -486,7 +486,7 @@ const BuildingAttributesContent: React.FC<{ photos: PhotoData[] }> = ({ photos }
     // Initialize the pmtiles protocol
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
-    const tilesURL = "https://pic2bim.co.uk/output.pmtiles";
+    const tilesURL = "/output.pmtiles";
 
     // Create the map
     map.current = new maplibregl.Map({
