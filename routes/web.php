@@ -1,25 +1,33 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\AgencyController;
-use App\Http\Controllers\ApiController;
-use App\Http\Controllers\OfficerController;
-use App\Http\Controllers\TasksController;
-use App\Http\Controllers\TaskTypeController;
-use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\TasksController;
+use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\FarmerController;
-use App\Http\Controllers\FarmerTaskController;
-use App\Http\Controllers\FarmerPathsController;
-use App\Http\Controllers\LandNameGeneratorController;
-use App\Http\Controllers\PhotoGalleryController;
-use App\Http\Controllers\PhotoDetailController;
-use App\Http\Controllers\PdfPreviewController;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Controllers\OfficerController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TaskTypeController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FarmerTaskController;
+use App\Http\Controllers\PdfPreviewController;
+use App\Http\Controllers\FarmerPathsController;
+use App\Http\Controllers\PhotoDetailController;
+use App\Http\Controllers\PhotoGalleryController;
+use App\Http\Controllers\BuildingHeightController;
+use App\Http\Controllers\LandNameGeneratorController;
+use App\Http\Controllers\BuildingAttributesController;
+use App\Http\Controllers\DataMapController;
+use App\Http\Controllers\EntityLinkController;
 
 Route::get('/api-docs', function () {
     return view('api-docs');
+});
+
+Route::get('/api-docs.json', function () {
+    return response()->file(storage_path('api-docs/api-docs.json'));
 });
 
 Route::get('/', function () {
@@ -29,9 +37,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    Route::middleware(EnsureUserHasRole::class.':FARMER')->group(function (){
+    Route::middleware(EnsureUserHasRole::class . ':FARMER')->group(function () {
         Route::get('/user_task', [FarmerController::class, 'index'])
-        ->name('user_task.index');
+            ->name('user_task.index');
         Route::get('/task/{task}', [FarmerTaskController::class, 'index'])
             ->name('task');
         Route::get('/photo_gallery', [PhotoGalleryController::class, 'index'])
@@ -42,13 +50,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('user_paths');
         Route::get('/photo_detail/{ids}', [PhotoDetailController::class, 'index'])
             ->name('photo_detail');
-        Route::post('/rotate-photo',[PhotoDetailController::class,'rotatePhoto'])->name('rotate-photo');
+        Route::post('/rotate-photo', [PhotoDetailController::class, 'rotatePhoto'])->name('rotate-photo');
         Route::get('/pdf_preview', [PdfPreviewController::class, 'index'])
-        ->name('pdf_preview');
-        Route::get('/get-unassigned-task',[TasksController::class,'getUnassignedTasks'])->name('get-unassigned-task');
-        Route::post('/assign-task',[TasksController::class,'assignTask'])->name('assign-task');
+            ->name('pdf_preview');
+        Route::get('/search', [SearchController::class, 'index'])
+            ->name('search.index');
+        Route::get('/search/{slug}', [SearchController::class, 'show'])
+            ->name('search.show');
+        Route::get('/building-height', [BuildingHeightController::class, 'index'])
+            ->name('building_height');
+        Route::get('/get-unassigned-task', [TasksController::class, 'getUnassignedTasks'])->name('get-unassigned-task');
+        Route::post('/assign-task', [TasksController::class, 'assignTask'])->name('assign-task');
+
+        Route::get('/building_attributes', [BuildingAttributesController::class, 'index'])
+            ->name('building_attributes');
+
+        Route::get('/building_attributes_2', [BuildingAttributesController::class, 'index_2'])
+            ->name('building_attributes_2');
     });
-    
+
 
     Route::prefix('/agencies')->name('dashboard.agencies.')->group(function () {
         Route::get('/', [AgencyController::class, 'index'])->name('index');
@@ -61,17 +81,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('/officers', OfficerController::class);
         Route::get('/invite/{id}/officer', [OfficerController::class, 'invite'])->name('officers.invite');
         Route::post('/invite/officer', [OfficerController::class, 'sendInvite'])->name('officer.invite');
-    })->middleware(EnsureUserHasRole::class.':SUPERADMIN');
-    
+    })->middleware(EnsureUserHasRole::class . ':SUPERADMIN');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::middleware(EnsureUserHasRole::class.':SUPERADMIN')->group(function (){
+    Route::middleware(EnsureUserHasRole::class . ':SUPERADMIN')->group(function () {
         Route::resource('/tasks/types', TaskTypeController::class);
     });
 
-    Route::middleware(EnsureUserHasRole::class.':OFFICER')->group(function (){
+    Route::middleware(EnsureUserHasRole::class . ':OFFICER')->group(function () {
         Route::resource('/users', UserController::class);
         Route::get('/unassigned_users', [UserController::class, 'unassignedUsers'])->name('users.unassigned');
         Route::get('/assign_user/{id?}', [UserController::class, 'assign_user'])->name('users.assign');
@@ -80,14 +100,57 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/decline', [TasksController::class, 'declineTaskPhotos'])->name('tasks.decline');
         Route::post('/tasks/return', [TasksController::class, 'returnTaskPhotos'])->name('tasks.return');
         Route::post('/tasks/move-from-open/{id?}', [TasksController::class, 'moveFromOpen'])->name('task.moveOpen');
-    });
-    
-    
-    
+        Route::get('/data_map', [DataMapController::class, 'index'])->name('data_map.index');
+        Route::post('/get-area', [DataMapController::class, 'getArea'])->name('data_map.get-area');
+        Route::post('/get-area-data', [DataMapController::class, 'getAreaData'])->name('data_map.get-area-data');
+        Route::post('/stream-nhle-data', [DataMapController::class, 'streamNHLEData'])->name('data_map.stream-nhle-data');
+        Route::post('/stream-building-parts-data', [DataMapController::class, 'streamBuildingPartsData'])->name('data_map.stream-building-parts-data');
+        Route::post('/stream-land-registry-data', [DataMapController::class, 'streamLandRegistryData'])->name('data_map.stream-land-registry-data');
+        Route::post('/stream-sites-data', [DataMapController::class, 'streamSitesData'])->name('data_map.stream-sites-data');
+        Route::post('/stream-photos-data', [DataMapController::class, 'streamPhotosData'])->name('data_map.stream-photos-data');
+        Route::post('/stream-uprn-data', [DataMapController::class, 'streamUPRNData'])->name('data_map.stream-uprn-data');
+        Route::post('/stream-epc-certificates-data', [DataMapController::class, 'streamEPCCertificatesData'])->name('data_map.stream-epc-certificates-data');
+        Route::post('/stream-osm-building-parts-data', [DataMapController::class, 'streamOSMBuildingPartsData'])->name('data_map.stream-osm-building-parts-data');
+        Route::post('/stream-osm-addresses-data', [DataMapController::class, 'streamOSMAddressesData'])->name('data_map.stream-osm-addresses-data');
+        Route::post('/stream-osm-landuse-data', [DataMapController::class, 'streamOSMLanduseData'])->name('data_map.stream-osm-landuse-data');
+        Route::post('/builtup-area', [DataMapController::class, 'getBuiltupArea'])->name('data_map.builtup-area');
+        Route::get('/nhle2', [DataMapController::class, 'index2'])->name('data_map.index2');
+        Route::post('/data_map_validate_building', [DataMapController::class, 'validateBuilding'])->name('data_map.validateBuilding');
+        Route::post('/data_map_validate_nhle', [DataMapController::class, 'validateNhle'])->name('data_map.validateNhle');
+        Route::post('/data_map_validate_building_part', [DataMapController::class, 'validateBuildingPart'])->name('data_map.validateBuildingPart');
+        Route::post('/data_map_validate_site', [DataMapController::class, 'validateSite'])->name('data_map.validateSite');
+        Route::post('/data_map_validate_uprn', [DataMapController::class, 'validateUprn'])->name('data_map.validateUprn');
+        Route::post('/data_map_validate_land_registry_cadastral', [DataMapController::class, 'validateLandRegistryCadastral'])->name('data_map.validateLandRegistryCadastral');
+        Route::post('/data_map_validate_land_registry_inspire', [DataMapController::class, 'validateLandRegistryInspire'])->name('data_map.validateLandRegistryInspire');
+        Route::post('/data_map_validate_osm_building_part', [DataMapController::class, 'validateOsmBuildingPart'])->name('data_map.validateOsmBuildingPart');
+        Route::post('/data_map_validate_osm_address', [DataMapController::class, 'validateOsmAddress'])->name('data_map.validateOsmAddress');
+        Route::post('/data_map_validate_osm_landuse_area', [DataMapController::class, 'validateOsmLanduseArea'])->name('data_map.validateOsmLanduseArea');
+        Route::post('/data_map_validate_epc_certificate', [DataMapController::class, 'validateEpcCertificate'])->name('data_map.validateEpcCertificate');
+        Route::post('/data_map_import_building', [DataMapController::class, 'importBuilding'])->name('data_map.import_building');
+        Route::post('/data_map_import_site', [DataMapController::class, 'importSite'])->name('data_map.import_site');
+        Route::post('/data_map_import_nhle', [DataMapController::class, 'importNhle'])->name('data_map.import_nhle');
+        Route::post('/data_map_import_building_part', [DataMapController::class, 'importBuildingPart'])->name('data_map.import_building_part');
+        Route::post('/data_map_import_uprn', [DataMapController::class, 'importUprn'])->name('data_map.import_uprn');
+        Route::post('/data_map_import_land_registry_cadastral', [DataMapController::class, 'importLandRegistryCadastral'])->name('data_map.import_land_registry_cadastral');
+        Route::post('/data_map_import_land_registry_inspire', [DataMapController::class, 'importLandRegistryInspire'])->name('data_map.import_land_registry_inspire');
+        Route::post('/data_map_import_osm_building_part', [DataMapController::class, 'importOsmBuildingPart'])->name('data_map.import_osm_building_part');
+        Route::post('/data_map_import_osm_address', [DataMapController::class, 'importOsmAddress'])->name('data_map.import_osm_address');
+        Route::post('/data_map_import_osm_landuse_area', [DataMapController::class, 'importOsmLanduseArea'])->name('data_map.import_osm_landuse_area');
+        Route::post('/data_map_import_epc_certificate', [DataMapController::class, 'importEpcCertificate'])->name('data_map.importEpcCertificate');
 
-    Route::post('/set-split-mode-in-session',[DashboardController::class,'setSplitModeInSession'])->name('set-split-mode-in-session');
-    Route::post('/set-dark-mode-in-session',[DashboardController::class,'setDarkModeInSession'])->name('set-dark-mode-in-session');
-    
+        // Entity links (web endpoints)
+        Route::post('/entity-links', [EntityLinkController::class, 'upsert'])->name('entity_links.upsert');
+        Route::post('/entity-links/bulk', [EntityLinkController::class, 'bulkUpsert'])->name('entity_links.bulk_upsert');
+        Route::post('/entity-links/statuses', [EntityLinkController::class, 'statuses'])->name('entity_links.statuses');
+        Route::delete('/entity-links', [EntityLinkController::class, 'delete'])->name('entity_links.delete');
+    });
+
+
+
+
+    Route::post('/set-split-mode-in-session', [DashboardController::class, 'setSplitModeInSession'])->name('set-split-mode-in-session');
+    Route::post('/set-dark-mode-in-session', [DashboardController::class, 'setDarkModeInSession'])->name('set-dark-mode-in-session');
+    Route::get('/laz-files-list', [BuildingHeightController::class, 'lazFiles']);
 });
 
 Route::post('/comm_login', [UserController::class, 'createToken']);
@@ -98,7 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_tasks', [ApiController::class, 'comm_tasks']);
     Route::post('/comm_status', [ApiController::class, 'comm_status']);
     Route::post('/comm_path', [ApiController::class, 'comm_path']);
-    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes']);
+    Route::post('/comm_shapes', [ApiController::class, 'comm_shapes'])->name('comm_shapes');
     Route::post('/comm_photo', [ApiController::class, 'comm_photo']);
     Route::post('/comm_get_photo', [ApiController::class, 'comm_get_photo']);
     Route::post('/comm_update', [ApiController::class, 'comm_update']);
@@ -110,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comm_get_lpis_record', [ApiController::class, 'comm_get_lpis_by_id']);
     Route::get('/comm_building_part', [ApiController::class, 'comm_building_part']);
     Route::get('/comm_building_part_nearest', [ApiController::class, 'comm_building_part_nearest']);
+    Route::get('/comm_osm_building_part_nearest', [ApiController::class, 'comm_osm_building_part_nearest']);
     Route::get('/comm_codepoint', [ApiController::class, 'comm_codepoint']);
 
     Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
@@ -119,6 +183,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Spatial Boundaries API
     Route::get('/comm_land_registry_inspire', [ApiController::class, 'comm_land_registry_inspire']);
+    //Route::get('/comm_uprn', [ApiController::class, 'comm_uprn']);
+
+    Route::get('/comm_get_building_attributes', [ApiController::class, 'comm_get_building_attributes']);
+    // buitUp Area API
+    Route::post('/comm_builtup_area', [ApiController::class, 'comm_builtup_area']);
+    Route::post('/comm_get_area', [ApiController::class, 'comm_get_area']);
 });
 
 Route::get('/land_name_generator', [LandNameGeneratorController::class, 'index'])->name('land_name_generator');

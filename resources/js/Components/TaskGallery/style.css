@@ -38,45 +38,1121 @@
     cursor: pointer;
   }
 
-/* Add styles for split view mode */
+/* Split view styling */
 .split-view-mode {
-    padding: 0.5rem;
+  height: 100%;
 }
 
-.split-view-mode .slider-container {
-    padding: 0 1rem;
+.vertical-carousel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
-.split-view-slider .slick-slide {
+.split-view-slider {
+  margin: auto 0;
+}
+
+@media (min-width: 768px) {
+  .split-view-item {
+    max-height: 300px;
+  }
+}
+
+/* Grid view styling */
+.grid-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+.grid-slider {
+  margin: 0 60px;
+  position: relative;
+  padding: 0 30px;
+}
+
+.grid-prev-arrow {
+  left: -50px !important;
+  z-index: 10;
+  width: 45px !important;
+  height: 45px !important;
+}
+
+.grid-next-arrow {
+  right: -50px !important;
+  z-index: 10;
+  width: 45px !important;
+  height: 45px !important;
+}
+
+.grid-slider .slick-list {
+  margin: 0 20px;
+  overflow: hidden;
+}
+
+.grid-slide {
+  padding: 10px 5px;
+}
+
+.photo-grid-item {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-grid-item img {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+/* Grid rows for 5x3 layout */
+@media (min-width: 1024px) {
+  .grid-rows-3 {
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: column;
+    height: calc(100vh - 180px);
+    overflow: hidden;
+  }
+  
+  .grid-container .slick-slide {
+    height: calc(100vh - 150px);
+  }
+  
+  .grid-container .slick-list {
+    overflow: visible;
+  }
+}
+
+/* Grid for when map is hidden - creates a 5x3 layout on larger screens */
+@media (min-width: 1200px) {
+  .grid-container .grid {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+  }
+}
+
+/* Grid for 5x3 layout */
+.grid-5x3 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 10px;
+  height: calc(100vh - 180px);
+  padding: 15px;
+}
+
+@media (max-width: 1023px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+    height: auto;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+  }
+}
+
+/* Responsive styles for all device types */
+
+/* Base styles */
+.grid-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+/* Mobile styles (up to 640px) */
+@media (max-width: 640px) {
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-5x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+    height: auto;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    grid-gap: 5px;
+    padding: 5px;
+  }
+  
+  .split-view-mode {
+    height: auto;
+  }
+  
+  .vertical-carousel {
+    height: calc(100vh - 150px);
+  }
+  
+  .photo-grid-item img {
+    max-height: 150px;
+  }
+  
+  .grid-slider {
+    margin: 0 25px;
+  }
+  
+  .grid-prev-arrow, 
+  .grid-next-arrow {
+    width: 30px !important;
+    height: 30px !important;
+  }
+}
+
+/* Tablet styles (641px to 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid-container {
+    padding: 0 15px;
+  }
+  
+  .grid-5x3 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    height: calc(100vh - 150px);
+    grid-gap: 8px;
+    padding: 10px;
+  }
+  
+  .vertical-carousel {
+    height: calc(100vh - 180px);
+  }
+  
+  .split-view-item {
+    max-height: 250px;
+  }
+  
+  .grid-slider {
+    margin: 0 40px;
+  }
+  
+  .grid-prev-arrow, 
+  .grid-next-arrow {
+    width: 35px !important;
+    height: 35px !important;
+  }
+}
+
+/* Laptop styles (1025px to 1366px) */
+@media (min-width: 1025px) and (max-width: 1366px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    height: calc(100vh - 165px);
+    grid-gap: 10px;
+    padding: 12px;
+  }
+  
+  .split-view-item {
+    max-height: 270px;
+  }
+}
+
+/* Desktop styles (1367px and above) */
+@media (min-width: 1367px) {
+  .grid-5x3 {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    height: calc(100vh - 180px);
+    grid-gap: 12px;
+    padding: 15px;
+  }
+  
+  .split-view-item {
+    max-height: 300px;
+  }
+}
+
+/* Grid for different screen sizes */
+.grid-2x3 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+/* Adjust 2x3 grid for tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: 12px;
+    padding: 15px;
+    height: calc(100vh - 160px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    height: auto;
+    min-height: 150px;
+    max-height: 250px;
+  }
+}
+
+/* Adjust 2x3 grid for smaller screens */
+@media (max-width: 640px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: 8px;
+    padding: 10px;
+    height: auto;
+    max-height: calc(100vh - 130px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    height: auto;
+    min-height: 120px;
+    max-height: 200px;
+  }
+}
+
+.grid-3x3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 15px;
+  padding: 20px;
+  height: auto;
+  min-height: 500px;
+  max-height: calc(100vh - 200px);
+}
+
+/* Better arrow positioning for small screens */
+@media (max-width: 480px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
     padding: 0 5px;
+  }
 }
 
-.split-view-item {
-    margin: 0.25rem;
-    padding: 0.5rem;
+/* Improve split view responsiveness */
+@media (max-width: 768px) {
+  .split-view-mode {
+    height: calc(100vh - 160px);
+  }
+  
+  .vertical-carousel {
+    padding: 10px 0;
+  }
+  
+  .split-view-slider {
+    width: 100%;
+  }
+  
+  .split-view-item {
+    max-width: 90vw;
+  }
 }
 
-.split-view-image-container {
-    aspect-ratio: 1/1;
+/* Medium screens (tablet) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .split-view-mode {
+    height: calc(100vh - 170px);
+  }
+  
+  .split-view-slider {
+    width: 90%;
+    max-width: 400px;
+  }
+  
+  .vertical-carousel {
+    padding: 15px 0;
+  }
 }
 
-/* Make buttons smaller in split view mode */
+/* Prevent image stretching */
+.photo-grid-item .relative img {
+  object-fit: contain !important;
+}
+
+/* Better photo card appearance */
+.photo-grid-item > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-grid-item .relative {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Very small devices (under 375px) */
+@media (max-width: 375px) {
+  .grid-2x3 {
+    grid-template-columns: repeat(1, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    grid-gap: 5px;
+    padding: 5px;
+  }
+  
+  .photo-grid-item {
+    max-height: 200px;
+  }
+  
+  .grid-prev-arrow,
+  .grid-next-arrow {
+    width: 25px !important;
+    height: 25px !important;
+  }
+  
+  .grid-slider {
+    margin: 0 10px;
+  }
+  
+  .split-view-mode {
+    height: calc(100vh - 130px);
+  }
+}
+
+/* New grid layouts for enhanced responsiveness */
+.grid-2x4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  grid-gap: 8px;
+  padding: 10px;
+  height: calc(100vh - 120px);
+  max-height: 700px;
+}
+
+.grid-4x2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  grid-gap: 8px;
+  padding: 10px;
+  height: calc(100vh - 120px);
+  max-height: 400px;
+}
+
+.grid-4x3 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 150px);
+  max-height: 700px;
+}
+
+.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+.grid-3x2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+/* Additional responsive hover effect styles */
+.photo-grid-item .relative .group-hover\:opacity-100 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Ensure icons are properly sized and spaced */
 .split-view-buttons {
-    gap: 0.5rem;
-    padding: 0.25rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 95%;
 }
 
-.split-view-buttons svg {
-    font-size: 1rem;
+/* Larger icons for desktop */
+@media (min-width: 1024px) {
+  .split-view-buttons svg, 
+  .photo-grid-item .relative svg {
+    font-size: 1.7rem !important;
+    padding: 4px !important;
+  }
+  
+  .split-view-buttons {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
 }
 
-/* Responsive adjustments for split view */
-@media (max-width: 1024px) {
-    .split-view-mode {
-        padding: 0.25rem;
-    }
-    
-    .split-view-mode .slider-container {
-        padding: 0 0.5rem;
-    }
+/* Even larger icons for larger screens */
+@media (min-width: 1280px) {
+  .split-view-buttons svg, 
+  .photo-grid-item .relative svg {
+    font-size: 1.5rem !important;
+    padding: 5px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .split-view-buttons {
+    padding: 2px !important;
+    gap: 2px !important;
+  }
+  
+  .split-view-buttons svg {
+    font-size: 0.75rem !important;
+    padding: 2px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
+    padding: 0 5px;
+  }
+}
+
+/* Grid layouts for different screen orientations */
+.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+.grid-3x2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: calc(100vh - 140px);
+  max-height: 600px;
+}
+
+/* Responsive adjustments for grid layouts based on orientation */
+@media (orientation: portrait) {
+  .grid-2x2, .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    height: auto;
+    min-height: 300px;
+    max-height: calc(100vh - 180px);
+  }
+  
+  .grid-2x2 {
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .grid-2x3 {
+    grid-template-rows: repeat(3, 1fr);
+  }
+  
+  .photo-grid-item {
+    min-height: 120px;
+  }
+}
+
+@media (orientation: landscape) {
+  .grid-3x2 {
+    height: auto;
+    min-height: 250px;
+    max-height: calc(100vh - 200px);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .photo-grid-item {
+    min-height: 100px;
+  }
+}
+
+/* Large screens in landscape */
+@media (min-width: 1025px) and (orientation: landscape) {
+  .grid-3x2 {
+    gap: 15px;
+    padding: 18px;
+    min-height: 300px;
+  }
+  
+  .grid-3x2 .photo-grid-item {
+    min-height: 140px;
+  }
+}
+
+/* Tablets in portrait */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .grid-2x2, .grid-2x3 {
+    gap: 12px;
+    padding: 15px;
+  }
+  
+  .photo-grid-item {
+    min-height: 150px;
+  }
+}
+
+/* Tablets in landscape */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .grid-3x2 {
+    gap: 12px;
+    padding: 15px;
+  }
+  
+  .photo-grid-item {
+    min-height: 130px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .grid-prev-arrow {
+    left: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-next-arrow {
+    right: -20px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .grid-container {
+    padding: 0 10px;
+  }
+  
+  .grid-slider {
+    margin: 0 15px;
+    padding: 0 5px;
+  }
+}
+
+/* Optimize grid-2x3 for taller tablets/iPads */
+@media (min-width: 768px) and (max-width: 1024px) and (min-height: 900px) and (orientation: portrait) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 15px;
+    padding: 18px;
+    height: auto;
+    min-height: 600px;
+    max-height: calc(100vh - 260px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    min-height: 160px;
+    max-height: 240px;
+  }
+  
+  .photo-grid-item .relative {
+    height: 100%;
+  }
+  
+  .photo-grid-item .relative img {
+    max-height: 220px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  .grid-3x3 {
+    gap: 20px;
+    padding: 25px;
+    min-height: 600px;
+  }
+  
+  .grid-3x3 .photo-grid-item {
+    min-height: 150px;
+    max-height: 260px;
+  }
+  
+  .photo-grid-item .relative img {
+    max-height: 100%;
+    object-fit: contain;
+  }
+}
+
+/* Mobile-specific 3x2 grid for split screen */
+.grid-3x2-mobile {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 6px;
+  padding: 8px;
+  height: auto;
+  min-height: 200px;
+  max-height: calc(100vh - 240px);
+}
+
+/* Mobile optimization for split view in landscape and portrait */
+@media (max-width: 640px) {
+  .grid-3x2-mobile {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .grid-3x2-mobile .photo-grid-item {
+    height: auto;
+    min-height: 60px;
+    max-height: 120px;
+  }
+  
+  .grid-3x2-mobile .photo-grid-item .relative {
+    height: 100%;
+  }
+  
+  .grid-3x2-mobile .photo-grid-item img {
+    max-height: 100px;
+    object-fit: contain;
+  }
+  
+  /* Ensure the container doesn't overflow */
+  .split-3x3-slider .grid-slide {
+    padding: 0;
+  }
+  
+  /* Smaller buttons for mobile */
+  .split-view-buttons {
+    padding: 2px !important;
+    gap: 2px !important;
+    max-width: 90%;
+  }
+  
+  .split-view-buttons svg {
+    font-size: 0.7rem !important;
+    padding: 1px !important;
+  }
+}
+
+/* Optimize grid-2x3 for taller tablets/iPads */
+@media (min-width: 768px) and (max-width: 1024px) and (min-height: 900px) and (orientation: portrait) {
+  .grid-2x3 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 15px;
+    padding: 18px;
+    height: auto;
+    min-height: 600px;
+    max-height: calc(100vh - 260px);
+  }
+  
+  .grid-2x3 .photo-grid-item {
+    min-height: 160px;
+    max-height: 240px;
+  }
+  
+  .photo-grid-item .relative {
+    height: 100%;
+  }
+  
+  .photo-grid-item .relative img {
+    max-height: 220px;
+  }
+}
+
+/* 1x2 grid for mobile portrait */
+.grid-1x2 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+  height: auto;
+  min-height: 200px;
+  max-height: calc(100vh - 200px);
+}
+
+/* Mobile portrait optimization */
+@media (max-width: 640px) and (orientation: portrait) {
+  .grid-1x2 {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+  }
+  
+  .grid-1x2 .photo-grid-item {
+    height: auto;
+    min-height: 120px;
+    max-height: 200px;
+  }
+  
+  .grid-1x2 .photo-grid-item img {
+    max-height: 180px;
+    object-fit: contain;
+  }
+}
+
+/* Specific optimization for landscape 932x430 */
+@media (min-width: 900px) and (max-width: 950px) and (min-height: 400px) and (max-height: 450px) {
+  .grid-2x2 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+    height: auto;
+    min-height: 300px;
+    max-height: 400px;
+  }
+  
+  .grid-2x2 .photo-grid-item {
+    height: auto;
+    min-height: 130px;
+    max-height: 170px;
+  }
+  
+  .grid-2x2 .photo-grid-item img {
+    max-height: 150px;
+    object-fit: contain;
+  }
+}
+
+/* 2x1 grid for mobile landscape */
+.grid-2x1 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+  gap: 10px;
+  padding: 12px;
+  height: auto;
+  min-height: 140px;
+  max-height: calc(100vh - 240px);
+}
+
+/* Mobile landscape optimization */
+@media (max-width: 640px) and (orientation: landscape) {
+  .grid-2x1 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  
+  .grid-2x1 .photo-grid-item {
+    height: auto;
+    min-height: 100px;
+    max-height: 140px;
+  }
+  
+  .grid-2x1 .photo-grid-item img {
+    max-height: 120px;
+    object-fit: contain;
+  }
+}
+
+/* Mobile portrait scrollable list in split view */
+.mobile-portrait-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.mobile-portrait-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-portrait-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-portrait-container::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+}
+
+.photo-scroll-item {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.photo-scroll-item .relative img {
+  max-height: 180px;
+  width: 100%;
+  object-fit: contain;
+}
+
+/* Mobile portrait split view optimizations */
+@media (max-width: 640px) and (orientation: portrait) {
+  .mobile-portrait-left-pane {
+    width: 30% !important;
+    min-width: 30% !important;
+    max-width: 30% !important;
+    height: 100% !important;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* Right pane (map) for mobile portrait */
+  .mobile-portrait-right-pane {
+    width: 70% !important;
+    min-width: 70% !important;
+    max-width: 70% !important;
+    height: 100% !important;
+    flex-shrink: 0;
+  }
+  
+  /* Fix for map container in mobile portrait */
+  .mobile-portrait-right-pane .leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+  }
+  
+  /* Adjustments for the scrollable carousel items */
+  .mobile-portrait-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+  
+  /* Make sure photos fit well in the narrower space */
+  .photo-scroll-item .relative img {
+    max-height: 120px;
+    object-fit: contain;
+  }
+  
+  /* Ensure the photo cards aren't too tall */
+  .photo-scroll-item > div {
+    margin-bottom: 8px;
+    max-height: 150px;
+    padding: 3px !important;
+  }
+  
+  /* Make photo cards more compact */
+  .photo-scroll-item .bg-white {
+    padding: 2px !important;
+  }
+  
+  /* Adjust card margins */
+  .photo-scroll-item {
+    margin-bottom: 10px;
+  }
+}
+
+/* Mobile portrait split view container layout */
+.mobile-portrait-container-wrapper {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+}
+
+/* Left pane (carousel) for mobile portrait */
+@media (max-width: 640px) and (orientation: portrait) {
+  .mobile-portrait-left-pane {
+    width: 30% !important;
+    min-width: 30% !important;
+    max-width: 30% !important;
+    height: 100% !important;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* Right pane (map) for mobile portrait */
+  .mobile-portrait-right-pane {
+    width: 70% !important;
+    min-width: 70% !important;
+    max-width: 70% !important;
+    height: 100% !important;
+    flex-shrink: 0;
+  }
+  
+  /* Fix for map container in mobile portrait */
+  .mobile-portrait-right-pane .leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+  }
+  
+  /* Adjustments for the scrollable carousel items */
+  .mobile-portrait-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+  
+  /* Make sure photos fit well in the narrower space */
+  .photo-scroll-item .relative img {
+    max-height: 120px;
+    object-fit: contain;
+  }
+  
+  /* Ensure the photo cards aren't too tall */
+  .photo-scroll-item > div {
+    margin-bottom: 8px;
+    max-height: 150px;
+    padding: 3px !important;
+  }
+  
+  /* Make photo cards more compact */
+  .photo-scroll-item .bg-white {
+    padding: 2px !important;
+  }
+  
+  /* Adjust card margins */
+  .photo-scroll-item {
+    margin-bottom: 10px;
+  }
+}
+
+/* Mobile portrait scrollable list in split view */
+.mobile-portrait-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.mobile-portrait-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-portrait-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-portrait-container::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+}
+
+.photo-scroll-item {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.photo-scroll-item .relative img {
+  max-height: 180px;
+  width: 100%;
+  object-fit: contain;
+}
+
+/* Mobile portrait split view optimizations */
+@media (max-width: 640px) and (orientation: portrait) {
+  .mobile-portrait-container {
+    margin-right: 0;
+    padding-right: 0;
+    padding-left: 4px;
+    max-width: 50% !important;
+  }
+  
+  .photo-scroll-item {
+    margin-bottom: 12px;
+  }
+  
+  .photo-scroll-item > div {
+    margin-bottom: 0;
+    padding: 4px;
+  }
+  
+  .photo-scroll-item .relative {
+    height: auto;
+    min-height: 120px;
+    max-height: 180px;
+  }
+  
+  /* Smaller icons for mobile portrait */
+  .split-view-buttons {
+    padding: 1px !important;
+    gap: 1px !important;
+  }
+  
+  .split-view-buttons svg {
+    font-size: 0.65rem !important;
+    padding: 1px !important;
+  }
+}
+
+/* 2x1 grid for mobile landscape */
+.grid-2x1 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+  gap: 10px;
+  padding: 12px;
+  height: auto;
+  min-height: 140px;
+  max-height: calc(100vh - 240px);
+}
+
+/* Mobile landscape optimization */
+@media (max-width: 640px) and (orientation: landscape) {
+  .grid-2x1 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  
+  .grid-2x1 .photo-grid-item {
+    height: auto;
+    min-height: 100px;
+    max-height: 140px;
+  }
+  
+  .grid-2x1 .photo-grid-item img {
+    max-height: 120px;
+    object-fit: contain;
+  }
+}
+
+.slick-list .slick-track {
+   margin-bottom: 1.5rem; /* or margin-left: 8px; adjust as needed */
 }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,17 +8,19 @@
   <title>SwaggerUI</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
 </head>
+
 <body>
-<div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
-<script>
-const apiJson = "{{asset('api.json')}}"
-  window.onload = () => {
-    window.ui = SwaggerUIBundle({
-      url: apiJson,
-      dom_id: '#swagger-ui',
-    });
-  };
-</script>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    const apiJson = "{{url('api-docs.json')}}"
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: apiJson,
+        dom_id: '#swagger-ui',
+      });
+    };
+  </script>
 </body>
+
 </html>

@@ -5,6 +5,728 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/comm_get_paths": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Get paths by user ID",
+                "operationId": "e41a4154a8bdadcb990ef55989b8e34d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "4"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_unassigned": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Get unassigned photo IDs by user ID",
+                "operationId": "b54ebf8e0aafa348ef97ce52a5aada13",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "4"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_tasks": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get tasks by user ID",
+                "operationId": "39eb5b48ccbb46e01ead123f5c685b42",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "3"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_status": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Update task status",
+                "operationId": "f5013947c32abda68bd092beef7c23ba",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "task_id": {
+                                        "type": "integer",
+                                        "example": "123"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "test"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "new"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_path": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Create a new path",
+                "operationId": "ee34dbd58c0d21d12cc8c2e98e49916f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "3"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Test example path"
+                                    },
+                                    "deviceManufacture": {
+                                        "type": "string",
+                                        "example": "Manufacturer"
+                                    },
+                                    "deviceModel": {
+                                        "type": "string",
+                                        "example": "Model"
+                                    },
+                                    "devicePlatform": {
+                                        "type": "string",
+                                        "example": "Platform"
+                                    },
+                                    "deviceVersion": {
+                                        "type": "string",
+                                        "example": "Version"
+                                    },
+                                    "start": {
+                                        "type": "string",
+                                        "example": "2024-05-01 12:00:00"
+                                    },
+                                    "end": {
+                                        "type": "string",
+                                        "example": "2024-05-01 13:00:00"
+                                    },
+                                    "area": {
+                                        "type": "number",
+                                        "example": "150.50"
+                                    },
+                                    "points": {
+                                        "type": "string",
+                                        "example": "JSON array of points"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Upload a photo",
+                "operationId": "61b7db4b632a883fdce7c3a0bc35325b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "task_id": {
+                                        "type": "integer",
+                                        "example": "125950"
+                                    },
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "4"
+                                    },
+                                    "photo": {
+                                        "type": "string",
+                                        "example": "JSON object with photo data"
+                                    },
+                                    "digest": {
+                                        "type": "string",
+                                        "example": "abc123digestvalue"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Get photo by ID",
+                "operationId": "9001524d6d295fd07653c59c97515753",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "photo_id": {
+                                        "type": "integer",
+                                        "example": "18021"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_update": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Submit task photos and update task status",
+                "operationId": "12b717e54de180285ca39e4cb0caf025",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "4"
+                                    },
+                                    "task_id": {
+                                        "type": "integer",
+                                        "example": "125950"
+                                    },
+                                    "photos": {
+                                        "type": "string",
+                                        "example": "JSON array of photos"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "data provided"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "TEST TASK NOTE"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_task_photos": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get task photos",
+                "operationId": "e2e23556f59c29f52b2732d2c304e375",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "task_id": {
+                                        "type": "integer",
+                                        "example": "125950"
+                                    },
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": "4"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_delete_path": {
+            "post": {
+                "tags": [
+                    "Paths"
+                ],
+                "summary": "Delete a path",
+                "operationId": "d7edc942edc262442a771400e3afc1d0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "path_id": {
+                                        "type": "integer",
+                                        "example": "373"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_delete_unassigned_photo": {
+            "post": {
+                "tags": [
+                    "Photos"
+                ],
+                "summary": "Delete unassigned photo",
+                "operationId": "00d5288d8355203eaccfa61af7291f1e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "photo_id": {
+                                        "type": "integer",
+                                        "example": "17804"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_lpis": {
+            "get": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Retrieve a list of LPIS records based on filters or bounding box",
+                "operationId": "f9efb0602b57a91d7b056a0e10f1278f",
+                "parameters": [
+                    {
+                        "name": "bbox",
+                        "in": "query",
+                        "description": "bbox coordinates",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "-0.6000,51.2000,-0.5900,51.2100"
+                    },
+                    {
+                        "name": "numberOfRecords",
+                        "in": "query",
+                        "description": "Number of records per page for pagination",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_lpis": {
+            "post": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Save LPIS",
+                "operationId": "7e4afd1126fca994aad1bb6a98e179ea",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "identificator": {
+                                        "type": "string",
+                                        "example": "identificator"
+                                    },
+                                    "pa_description": {
+                                        "type": "string",
+                                        "example": "pa description"
+                                    },
+                                    "wkt": {
+                                        "type": "string",
+                                        "example": "wkt data"
+                                    },
+                                    "wgs_geometry": {
+                                        "type": "string",
+                                        "example": "JSON array of coordinates"
+                                    },
+                                    "wgs_max_lat": {
+                                        "type": "number",
+                                        "example": "21.22"
+                                    },
+                                    "wgs_min_lat": {
+                                        "type": "number",
+                                        "example": "-98.32"
+                                    },
+                                    "wgs_max_lng": {
+                                        "type": "number",
+                                        "example": "3.21"
+                                    },
+                                    "wgs_min_lng": {
+                                        "type": "number",
+                                        "example": "12.01"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_lpis_record": {
+            "post": {
+                "tags": [
+                    "LPIS"
+                ],
+                "summary": "Get a single LPIS record",
+                "operationId": "2fd96eb8b9cf2dde38d3251f9e09feee",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": "627847"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_shapes": {
+            "post": {
+                "tags": [
+                    "Shapes"
+                ],
+                "summary": "Get shapes by coordinates",
+                "operationId": "152f1361375915ef681579c05cd6bb22",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "max_lat": {
+                                        "type": "number",
+                                        "example": "1"
+                                    },
+                                    "min_lat": {
+                                        "type": "number",
+                                        "example": "1"
+                                    },
+                                    "max_lng": {
+                                        "type": "number",
+                                        "example": "1"
+                                    },
+                                    "min_lng": {
+                                        "type": "number",
+                                        "example": "1"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/comm_building_part": {
             "get": {
                 "tags": [
@@ -89,6 +811,92 @@
                 ]
             }
         },
+        "/comm_osm_building_part_nearest": {
+            "get": {
+                "tags": [
+                    "OSM Building Part"
+                ],
+                "operationId": "b29ac35280ed18777dedb993cacf2137",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "distance",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "imagedirection",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "default": 9
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "http_code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "building_part": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/comm_codepoint": {
             "get": {
                 "tags": [
@@ -111,6 +919,60 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
                         }
                     }
                 ],
@@ -172,6 +1034,331 @@
                     }
                 ]
             }
+        },
+        "/comm_nhle": {
+            "get": {
+                "tags": [
+                    "NHLE"
+                ],
+                "operationId": "d9134c641e9b2fe9333c268d16ee8161",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "51.5074"
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "example": "-0.1278"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of NHLE data",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_land_registry_inspire": {
+            "get": {
+                "tags": [
+                    "Land Registry"
+                ],
+                "operationId": "d4c45ce517f94ba5e7db189884b83439",
+                "parameters": [
+                    {
+                        "name": "inspire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of land registry inspire data",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_building_attributes": {
+            "get": {
+                "tags": [
+                    "Building Attributes"
+                ],
+                "operationId": "f43b855eb105cec624ca490f6f1343ff",
+                "parameters": [
+                    {
+                        "name": "osid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "12345"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Building attributes data",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_builtup_area": {
+            "post": {
+                "tags": [
+                    "BuiltupArea"
+                ],
+                "summary": "Get all built-up areas",
+                "description": "Retrieves all built-up areas from the ONS BUA dataset as GeoJSON features",
+                "operationId": "a549ce81d61c84d0e6b4e1b86c770222",
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "shapes": {
+                                            "description": "GeoJSON FeatureCollection containing built-up area data",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_get_area": {
+            "post": {
+                "tags": [
+                    "Area"
+                ],
+                "summary": "Get buildings and center point for specified areas",
+                "description": "Retrieves buildings that intersect with the specified built-up area IDs and calculates the center point of the areas",
+                "operationId": "a013a9dc23e30e915dc2aac72f0a1262",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "area_ids": {
+                                        "description": "Array of built-up area IDs to filter buildings",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    },
+                                    "include_bua_filter": {
+                                        "description": "Whether to include built-up area filtering",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "buildings": {
+                                            "description": "GeoJSON FeatureCollection containing building data",
+                                            "type": "object"
+                                        },
+                                        "center": {
+                                            "description": "Center point coordinates of the specified areas",
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comm_login": {
+            "post": {
+                "tags": [
+                    "Authorization"
+                ],
+                "summary": "Get Bearer Token",
+                "operationId": "99cb246244957a02da9da286fa780536",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "login": {
+                                        "type": "string",
+                                        "example": "user"
+                                    },
+                                    "pswd": {
+                                        "type": "string",
+                                        "example": "1234"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "error_message": {
+                                            "type": "string",
+                                            "example": null
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abc123token"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "error_msg": {
+                                            "type": "string",
+                                            "example": "bad login or password"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -188,16 +1375,64 @@
     },
     "tags": [
         {
+            "name": "Authorization",
+            "description": "Authentication endpoints"
+        },
+        {
+            "name": "Photos",
+            "description": "Photo management endpoints"
+        },
+        {
+            "name": "BuiltupArea",
+            "description": "Built-up area data endpoints"
+        },
+        {
+            "name": "Area",
+            "description": "Area and building data endpoints"
+        },
+        {
+            "name": "Tasks",
+            "description": "Task management endpoints"
+        },
+        {
+            "name": "Paths",
+            "description": "Path tracking endpoints"
+        },
+        {
+            "name": "Shapes",
+            "description": "Shape data endpoints"
+        },
+        {
+            "name": "LPIS",
+            "description": "LPIS data endpoints"
+        },
+        {
             "name": "Building Part",
-            "description": "Building Part"
+            "description": "Building part data endpoints"
+        },
+        {
+            "name": "OSM Building Part",
+            "description": "OSM building part data endpoints"
         },
         {
             "name": "Codepoint",
-            "description": "Codepoint"
+            "description": "Codepoint data endpoints"
         },
         {
             "name": "UPRN",
-            "description": "UPRN"
+            "description": "UPRN address endpoints"
+        },
+        {
+            "name": "NHLE",
+            "description": "NHLE data endpoints"
+        },
+        {
+            "name": "Land Registry",
+            "description": "Land registry data endpoints"
+        },
+        {
+            "name": "Building Attributes",
+            "description": "Building attributes endpoints"
         }
     ]
 }

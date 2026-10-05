@@ -53,6 +53,13 @@ export type PaginatedData<T> = {
   links: PaginationLink[];
   total : number;
 };
+export type PaginatedDataExtended<T> = {
+  from: number;
+  to: number;
+  data: T[];
+  links: PaginationLink[];
+  total : number;
+};
 
 export interface PaginationLink {
   url: string;
@@ -130,6 +137,11 @@ export interface Photo {
   img?:string;
   mapImg?:string;
   link?: string;
+  network_info?: string | null;
+  provider?: string | null;
+  osnma_enabled?: string | null;
+  osnma_validated?: string | null;
+  validated_sats?: string | null;
 }
 
 export interface TaskPhotos extends Task{
@@ -149,7 +161,10 @@ export interface MapProps{
   paths?:Array<Path>;
   zoomFilter?:(leaves:Array<String>|undefined) => void;
   className?:string;
-  style?:any
+  style?:any;
+  isMapVisible?:boolean;
+  setIsMapVisible?:() => void;
+  splitView ?: boolean;
 }
 
 
@@ -185,6 +200,7 @@ export interface GalleryProps{
   setPhotos?:any
   destroy?:(id:string)=>void
   isSplitView?:boolean
+  isMapVisible?:boolean
 }
 
 export interface GalleryModalProps{
@@ -219,4 +235,5 @@ export type PageProps<
   paths:Array<Path>
   total:number;
   ziggy: Config & { location: string };
+  paginatedPhotos : PaginatedData
 };

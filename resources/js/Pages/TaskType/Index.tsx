@@ -1,21 +1,21 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {Head, Link, usePage, router} from '@inertiajs/react';
-import {Agency, PageProps, PaginatedData, TaskType} from '@/types';
+import {Agency, PageProps, PaginatedDataExtended, TaskType} from '@/types';
 import Table from "@/Components/Table/Table";
 import {PlusCircleIcon, Trash2, Edit} from "lucide-react";
 import FilterBar from "@/Components/FilterBar/FilterBar";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faBan, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
+import Pagination from '@/Components/Pagination/Pagination';
 
 export default function Dashboard({ auth }: PageProps) {
 
   const { task_types } = usePage<{
-    task_types: PaginatedData<TaskType>;
+    task_types: PaginatedDataExtended<TaskType>;
   }>().props;
 
   const {
-    data,
-    links
+    data
   } = task_types;
 
   function destroy(id : number | string) : void {
@@ -91,6 +91,7 @@ export default function Dashboard({ auth }: PageProps) {
               ]}
               rows={data}
             />
+            <Pagination pagination={task_types} />
           </div>
         </div>
       </div>

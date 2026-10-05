@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useEffect } from "react";
 import './style.css'
 import {
-    usePDF,
+    pdf,
     Document,
     Page,
     Text,
@@ -12,6 +12,8 @@ import {
     Font,
 } from "@react-pdf/renderer";
 import mapboxgl from "mapbox-gl";
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import TaskPhoto from "../Map/TaskPhoto";
@@ -175,24 +177,6 @@ const PdfPage = ({
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
     return (
         <Page size="A4" style={styles.page}>
-            {/* PDF Header */}
-            <View style={styles.header}>
-                <Image
-                    src="/logo_egnss4all_white.png"
-                    style={styles.image_brand}
-                />
-                <Text style={styles.title}>PIC2BIM export</Text>
-                <View style={styles.subtitle_container}>
-                    <Text>
-                        {" "}
-                        {`${auth.user.name} ${auth.user.surname}`}{" "}
-                        {task
-                            ? `- task detail ${task.name}`
-                            : " Gallery of unassigned photos"}
-                    </Text>
-                </View>
-            </View>
-
             {/* PDF Content */}
 
             <View style={styles.content}>
@@ -202,12 +186,17 @@ const PdfPage = ({
                         Exported {exportedPages} out of {totalPages} photos
                     </Text>
                 </View>
-                {photoKey == 0 && (
+                {isPhotoGallery && photoKey == 0 && (
+                    <View>
+                        <Text style={styles.task_title}>Photo report</Text>
+                        <Text style={{ fontSize: 10, marginBottom: 12 }}>
+                            Exported photographs with mapped locations and capture metadata.
+                        </Text>
+                    </View>
+                )}
+                {!isPhotoGallery && photoKey == 0 && (
                     <Text style={styles.task_title}>
-                        {`${auth.user.name} ${auth.user.surname}`}{" "}
-                        {task
-                            ? `- task detail ${task.name}`
-                            : " Gallery of unassigned photos"}
+                        {`Task detail ${task?.name || ""}`}
                     </Text>
                 )}
                 {!isPhotoGallery && (
@@ -359,41 +348,34 @@ const PdfPage = ({
                                 {photo?.created}
                             </Text>
                         </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
+                        
+                        <View style={styles.photo_details_row}>
+                            <Text>Network status </Text>
                             <Text style={styles.photo_details_value}>
-                                Photo location has not been{" "}
+                                {photo?.network_info ? 'Online' : '-'}
                             </Text>
                         </View>
+
+                        <View style={styles.photo_details_row}>
+                            <Text>OSNMA validation </Text>
+                            {photo?.osnma_enabled == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Enabled</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Disabled</Text>}
+                        </View>
+
+                        {photo.osnma_enabled == "1" && 
+                        <View style={styles.photo_details_row}>
+                            <Text>Validated satellites </Text>
+                            <Text style={styles.photo_details_value}>{photo.validated_sats}</Text>
+                        </View>}
+
                         <View
                             style={[
                                 styles.photo_details_row,
                                 { justifyContent: "flex-end" },
                             ]}
                         >
-                            <Text style={styles.photo_details_value}>
-                                verified yet{" "}
-                            </Text>
+                            {photo?.osnma_validated == "1" ? <Text style={[styles.photo_details_value, { color: "#31ba51" }]}>Photo location is OSNMA validated</Text> : <Text style={[styles.photo_details_value, { color: "#ef4444" }]}>Photo location is not validated</Text>}
                         </View>
-                        <View
-                            style={[
-                                styles.photo_details_row,
-                                { justifyContent: "flex-end" },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.photo_details_value,
-                                    { color: "#31ba51" },
-                                ]}
-                            >
-                                Photo is original{" "}
-                            </Text>
-                        </View>
+
                     </View>
                 </View>
             </View>
@@ -432,7 +414,6 @@ const ClientPdfRenderer = ({
     task: Task | null;
     auth: { user: User };
 }>) => {
-    const [pdfInstance, updatePdfInstance] = usePDF();
     const processPhotos = async () => {
         let photoData = photos;
         // Compress images for each photo
@@ -552,63 +533,52 @@ const ClientPdfRenderer = ({
 
     useEffect(() => {
         const createPdfDocument = async () => {
-            const pages = await processPhotos();
+            try {
+                const pages = await processPhotos();
 
-            let name = `${moment().format(
-                "YYYY.M.D"
-            )}_${`${auth.user.name} ${auth.user.surname}`} ${
-                !isPhotoGallery
-                    ? "- task detail " + `${task?.name}`
-                    : "Gallery of unassigned photos"
-            }  `;
+                const safeUser = `${auth.user.name || "user"}`
+                    .trim()
+                    .replace(/[^a-zA-Z0-9_-]+/g, "_");
 
-            const pdfDocument = (
-                <Document title={name + ".pdf"}>
-                    {pages.map((page: any, index: any) => (
-                        <React.Fragment key={index}>{page}</React.Fragment>
-                    ))}
-                </Document>
-            );
-            updatePdfInstance(pdfDocument);
+                const rawNote = isPhotoGallery
+                    ? photos?.[0]?.note
+                    : task?.note;
+
+                const safeNote = `${rawNote || "no_note"}`
+                    .trim()
+                    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+                    .slice(0, 80);
+
+                const reportType = isPhotoGallery ? "photo" : "task";
+                const name = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}.pdf`;
+
+                const pdfDocument = (
+                    <Document title={name}>
+                        {pages.map((page: any, index: any) => (
+                            <React.Fragment key={index}>{page}</React.Fragment>
+                        ))}
+                    </Document>
+                );
+
+                const blob = await pdf(pdfDocument).toBlob();
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                setIsGenerated(false);
+            } catch (error) {
+                console.error("PDF generation failed:", error);
+            }
         };
 
         createPdfDocument();
     }, []);
-
-    useEffect(() => {
-        (async () => {
-            if (pdfInstance.blob) {
-                const {
-                    blob: pdfBlob,
-                    loading: pdfLoading,
-                    error: pdfError,
-                } = pdfInstance;
-
-                let blob: any = pdfBlob;
-
-                const formData = new FormData();
-
-                let formatedName = `${moment().format(
-                    "YYYY.M.D"
-                )}_${`${auth.user.name} ${auth.user.surname}`} ${
-                    !isPhotoGallery
-                        ? "- task detail " +
-                          `${auth.user.name} ${auth.user.surname}`
-                        : ""
-                } `;
-                let name: string = `${formatedName}.pdf`;
-                formData.append("file", blob, name);
-
-                try {
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, "_blank");
-                    setIsGenerated(false)
-                } catch (error) {
-                    console.error(error);
-                }
-            }
-        })();
-    }, [pdfInstance.blob]);
 
     // Function to calculate bounding box
     const calculateBoundingBox = (coordinates: any) => {

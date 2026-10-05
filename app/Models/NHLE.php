@@ -12,15 +12,25 @@ class NHLE extends Model
 
     protected $table = 'nhle_';
     protected $connection = 'pgsql';
+    protected $primaryKey = 'gid';
+    public $timestamps = false;
+
     protected $fillable = [
         'gid',
         'objectid',
         'listentry',
         'name',
         'grade',
+        'listdate',
+        'amenddate',
+        'capturesca',
         'hyperlink',
         'ngr',
-        'geom'
+        'easting',
+        'northing',
+        'geom',
+        'latitude',
+        'longitude'
     ];
 
     protected $spatialFields = ['geom'];
@@ -31,9 +41,16 @@ class NHLE extends Model
         'listentry' => 'integer',
         'name' => 'string',
         'grade' => 'string',
+        'listdate' => 'date',
+        'amenddate' => 'date',
+        'capturesca' => 'string',
         'hyperlink' => 'string',
         'ngr' => 'string',
+        'easting' => 'string',
+        'northing' => 'string',
         'geom' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 
     public function newQuery()
@@ -46,6 +63,13 @@ class NHLE extends Model
             'grade',
             'hyperlink',
             'ngr',
+            'latitude',
+            'longitude',
+            'easting',
+            'northing',
+            'listdate',
+            'amenddate',
+            'capturesca',
             DB::raw('public.ST_AsGeoJSON(st_transform(geom, 4326)) as geom')
         );
     }

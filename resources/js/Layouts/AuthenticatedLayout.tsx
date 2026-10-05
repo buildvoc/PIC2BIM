@@ -10,6 +10,7 @@ import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { BsSquare } from "react-icons/bs";
 import { BsLayoutSplit } from "react-icons/bs";
 import axios from 'axios';
+import Footer from "@/Components/Footer";
 
 export default function Authenticated({
     user,
@@ -17,15 +18,19 @@ export default function Authenticated({
     children,
     splitView,
     setSplitView,
+    uploadPhotoHandler,
+    metadataResultsHandler
+    
 }: PropsWithChildren<{
     user: User;
     header?: ReactNode;
     splitView?: SplitViewState;
     setSplitView?: any;
+    uploadPhotoHandler?: any;
+    metadataResultsHandler?: any;
 }>) {
-
-    const {darkMode} = usePage<{
-        darkMode : boolean;
+    const { darkMode } = usePage<{
+        darkMode: boolean;
     }>().props;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
@@ -52,24 +57,35 @@ export default function Authenticated({
         setSplitView((prevState: any) => (data));
         axios.post(route('set-split-mode-in-session'));
     };
+
+    const isBuildingHeightPage = route().current("building_height");
     
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen bg-white dark:bg-gray-900">
             <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="w-100 mx-auto px-8 sm:px-8 lg:px-[8rem]">
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <div className="shrink-0 flex items-center">
-                                <Link href="/">
+                                {/* <Link href="/">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
+                                </Link> */}
+                                <Link className={`brand-image`} href="/">
+                                    {/*<ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />*/}
+                                    {isDark ? (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`/images/pic2bim_logo_white.png`} />
+                                    ) : (
+                                        <img alt={`PIC2BIM`} className={`w-auto h-auto block`} src={`/images/pic2bim_logo.png`} />
+                                    )}
+
                                 </Link>
                             </div>
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
                                     href={route("dashboard")}
-                                    active={route().current("dashboard") || route().current("user_task.index")}
+                                    active={route().current("dashboard.agencies.*") || route().current("user_task.index")}
                                 >
-                                    Home
+                                    Tasks
                                 </NavLink>
                             </div>
                             {userRoles.includes(2) && userRoles.length > 0 && (
@@ -83,6 +99,14 @@ export default function Authenticated({
                                         >
                                             Unassigned Farmers
                                         </NavLink>
+                                        <NavLink
+                                            href={route("data_map.index")}
+                                            active={route().current(
+                                                "data_map.index"
+                                            )}
+                                        >
+                                            Data Map
+                                        </NavLink>
                                     </div>
                                 </>
                             )}
@@ -93,7 +117,7 @@ export default function Authenticated({
                                         <NavLink
                                             href={route("types.index")}
                                             active={route().current(
-                                                "types.index"
+                                                "types.*"
                                             )}
                                         >
                                             Task Purpose
@@ -120,6 +144,106 @@ export default function Authenticated({
                                         >
                                             Show Paths
                                         </NavLink>
+                                        
+                                        {/* Photo options visible only when building height page is active */}
+                                        {isBuildingHeightPage && !header ? (
+                                            <>
+                                                {/* Photo options for larger screens */}
+                                                <div className="hidden lg:flex space-x-8 sm:-my-px sm:ms-10">
+                                                    <button className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300">
+                                                        Take photo again
+                                                    </button>
+                                                    <button
+                                                        className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                        onClick={() => uploadPhotoHandler()}
+                                                    >
+                                                        Upload photo again
+                                                    </button>
+                                                    <button
+                                                        className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                        onClick={() => metadataResultsHandler()}
+                                                    >
+                                                        Metadata results 
+                                                    </button>
+                                                </div>
+                                                
+                                                {/* Photo options dropdown for smaller screens */}
+                                                <div className="lg:hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                                    <Dropdown>
+                                                        <Dropdown.Trigger>
+                                                            <span className="inline-flex mt-3 rounded-md">
+                                                                <button
+                                                                    type="button"
+                                                                    className="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none border-transparent text-gray-500 hover:border-gray-300 hover:dark:text-white dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300"
+                                                                >
+                                                                    Photo Options
+                                                                    <svg
+                                                                        className="ms-2 -me-0.5 h-4 w-4"
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        viewBox="0 0 20 20"
+                                                                        fill="currentColor"
+                                                                    >
+                                                                        <path
+                                                                            fillRule="evenodd"
+                                                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                                            clipRule="evenodd"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </span>
+                                                        </Dropdown.Trigger>
+                                                        <Dropdown.Content>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                            >
+                                                                Take photo again
+                                                            </Dropdown.Link>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                                onClick={() => uploadPhotoHandler()}
+                                                            >
+                                                                Upload photo again
+                                                            </Dropdown.Link>
+                                                            <Dropdown.Link
+                                                                as="button"
+                                                                href="#"
+                                                                onClick={() => metadataResultsHandler()}
+                                                            >
+                                                                Metadata results
+                                                            </Dropdown.Link>
+                                                        </Dropdown.Content>
+                                                    </Dropdown>
+                                                </div>
+                                            </>
+                                        ) : null}
+                                        
+                                        {/* <NavLink
+                                            href={route("building_height")}
+                                            active={route().current(
+                                                "building_height"
+                                            )}
+                                        >
+                                            Building height
+                                        </NavLink> */}
+                                        <NavLink
+                                            href={route("building_attributes")}
+                                            active={route().current(
+                                                "building_attributes"
+                                            )}
+                                        >
+                                            Building attributes
+                                        </NavLink>
+
+                                        {/* <NavLink
+                                            href={route("building_attributes_2")}
+                                            active={route().current(
+                                                "building_attributes_2"
+                                            )}
+                                        >
+                                            Building attributes V2
+                                        </NavLink> */}
                                     </div>
                                 </>
                             )}
@@ -300,10 +424,102 @@ export default function Authenticated({
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink
                             href={route("dashboard")}
-                            active={route().current("dashboard")}
+                            active={route().current("dashboard") || route().current("user_task.index")}
                         >
-                            Dashboard
+                            Tasks
                         </ResponsiveNavLink>
+                        
+                        {userRoles.includes(2) && userRoles.length > 0 && (
+                          <>
+                            <ResponsiveNavLink
+                                href={route("users.unassigned")}
+                                active={route().current("users.unassigned")}
+                            >
+                                Unassigned Farmers
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                href={route("data_map.index")}
+                                active={route().current("data_map.index")}
+                            >
+                                Data Map
+                            </ResponsiveNavLink>
+                          </>
+                        )}
+
+                        {userRoles.includes(3) && userRoles.length > 0 && (
+                            <ResponsiveNavLink
+                                href={route("types.index")}
+                                active={route().current("types.index")}
+                            >
+                                Task Purpose
+                            </ResponsiveNavLink>
+                        )}
+
+                        {userRoles.includes(1) && userRoles.length > 0 && (
+                            <>
+                                <ResponsiveNavLink
+                                    href={route("photo_gallery")}
+                                    active={route().current("photo_gallery")}
+                                >
+                                    Photo Gallery
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route("user_paths")}
+                                    active={route().current("user_paths")}
+                                >
+                                    Show Paths
+                                </ResponsiveNavLink>
+                                {/* Photo options in mobile menu - only shown on building height page */}
+                                {isBuildingHeightPage && !header ? (
+                                    <>
+                                        <div className="py-2 px-4 text-gray-500 dark:text-gray-400 text-sm font-medium">
+                                            Photo Options:
+                                        </div>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                        >
+                                            Take photo again
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                            onClick={() => uploadPhotoHandler()}
+                                        >
+                                            Upload photo again
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink
+                                            as="button"
+                                            className="w-full text-left"
+                                            href="#"
+                                            onClick={() => metadataResultsHandler()}
+                                        >
+                                            Metadata results
+                                        </ResponsiveNavLink>
+                                    </>
+                                ) : null}
+                                {/* <ResponsiveNavLink
+                                        href={route("building_height")}
+                                        active={route().current("building_height")}
+                                >
+                                    Building height
+                                </ResponsiveNavLink> */}
+                                <ResponsiveNavLink
+                                    href={route("building_attributes")}
+                                    active={route().current("building_attributes")}
+                                >
+                                    Building attributes
+                                </ResponsiveNavLink>
+                                {/* <ResponsiveNavLink
+                                    href={route("building_attributes_2")}
+                                    active={route().current("building_attributes_2")}
+                                >
+                                    Building attributes V2
+                                </ResponsiveNavLink> */}
+                            </>
+                        )}
                     </div>
 
                     <div className="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
@@ -317,6 +533,38 @@ export default function Authenticated({
                         </div>
 
                         <div className="mt-3 space-y-1">
+                            {splitView && (
+                                <div className="flex items-center space-x-2 px-4 py-2">
+                                    <button
+                                        className={`flex items-center justify-center p-2 rounded-md ${
+                                            splitView?.split
+                                                ? "bg-gray-200 dark:bg-gray-600"
+                                                : ""
+                                        } text-indigo-600 dark:text-indigo-400`}
+                                        onClick={() => toggleSplitMode({
+                                            single: false,
+                                            split: true,
+                                        })}
+                                    >
+                                        <BsLayoutSplit size={18} />
+                                        <span className="ml-2">Split View</span>
+                                    </button>
+                                    <button
+                                        className={`flex items-center justify-center p-2 rounded-md ${
+                                            splitView?.single
+                                                ? "bg-gray-200 dark:bg-gray-600"
+                                                : ""
+                                        } text-indigo-600 dark:text-indigo-400`}
+                                        onClick={() => toggleSplitMode({
+                                            single: true,
+                                            split: false,
+                                        })}
+                                    >
+                                        <BsSquare size={18} />
+                                        <span className="ml-2">Single View</span>
+                                    </button>
+                                </div>
+                            )}
                             <ResponsiveNavLink href={route("profile.edit")}>
                                 Profile
                             </ResponsiveNavLink>
@@ -334,13 +582,14 @@ export default function Authenticated({
 
             {header && (
                 <header className="bg-white dark:bg-gray-800 shadow">
-                    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
                         {header}
                     </div>
                 </header>
             )}
 
-            <main>{children}</main>
+            <main className="overflow-hidden">{children}</main>
+            {/* <Footer isDark={isDark} /> */}
         </div>
     );
 }
