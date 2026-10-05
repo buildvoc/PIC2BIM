@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useEffect } from "react";
 import './style.css'
 import {
-    usePDF,
+    pdf,
     Document,
     Page,
     Text,
@@ -12,6 +12,8 @@ import {
     Font,
 } from "@react-pdf/renderer";
 import mapboxgl from "mapbox-gl";
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import TaskPhoto from "../Map/TaskPhoto";
@@ -412,7 +414,6 @@ const ClientPdfRenderer = ({
     task: Task | null;
     auth: { user: User };
 }>) => {
-    const [pdfInstance, updatePdfInstance] = usePDF();
     const processPhotos = async () => {
         let photoData = photos;
         // Compress images for each photo
@@ -532,49 +533,8 @@ const ClientPdfRenderer = ({
 
     useEffect(() => {
         const createPdfDocument = async () => {
-            const pages = await processPhotos();
-
-            const safeUser = `${auth.user.name || "user"}`
-                .trim()
-                .replace(/[^a-zA-Z0-9_-]+/g, "_");
-
-            const rawNote = isPhotoGallery
-                ? photos?.[0]?.note
-                : task?.note;
-
-            const safeNote = `${rawNote || "no_note"}`
-                .trim()
-                .replace(/[^a-zA-Z0-9_-]+/g, "_")
-                .slice(0, 80);
-
-            const reportType = isPhotoGallery ? "photo" : "task";
-            const name = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}`;
-
-            const pdfDocument = (
-                <Document title={name + ".pdf"}>
-                    {pages.map((page: any, index: any) => (
-                        <React.Fragment key={index}>{page}</React.Fragment>
-                    ))}
-                </Document>
-            );
-            updatePdfInstance(pdfDocument);
-        };
-
-        createPdfDocument();
-    }, []);
-
-    useEffect(() => {
-        (async () => {
-            if (pdfInstance.blob) {
-                const {
-                    blob: pdfBlob,
-                    loading: pdfLoading,
-                    error: pdfError,
-                } = pdfInstance;
-
-                let blob: any = pdfBlob;
-
-                const formData = new FormData();
+            try {
+                const pages = await processPhotos();
 
                 const safeUser = `${auth.user.name || "user"}`
                     .trim()
@@ -590,27 +550,35 @@ const ClientPdfRenderer = ({
                     .slice(0, 80);
 
                 const reportType = isPhotoGallery ? "photo" : "task";
-                const formatedName = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}`;
-                let name: string = `${formatedName}.pdf`;
+                const name = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}.pdf`;
 
-                formData.append("file", blob, name);
+                const pdfDocument = (
+                    <Document title={name}>
+                        {pages.map((page: any, index: any) => (
+                            <React.Fragment key={index}>{page}</React.Fragment>
+                        ))}
+                    </Document>
+                );
 
-                try {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                    setIsGenerated(false)
-                } catch (error) {
-                    console.error(error);
-                }
+                const blob = await pdf(pdfDocument).toBlob();
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                setIsGenerated(false);
+            } catch (error) {
+                console.error("PDF generation failed:", error);
             }
-        })();
-    }, [pdfInstance.blob]);
+        };
+
+        createPdfDocument();
+    }, []);
 
     // Function to calculate bounding box
     const calculateBoundingBox = (coordinates: any) => {

@@ -21,6 +21,21 @@ import { faClose } from "@fortawesome/free-solid-svg-icons";
 import BackButton from "@/Components/BackButton";
 import Filter from "@/Components/PhotoGallery/Filter";
 
+
+function generatePdf(queryString: string) {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+        iframe.style.left = "-10000px";
+        iframe.style.top = "0";
+        iframe.style.width = "1200px";
+        iframe.style.height = "900px";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+    iframe.src = route("pdf_preview") + "?" + queryString;
+    document.body.appendChild(iframe);
+    setTimeout(() => iframe.remove(), 120000);
+}
+
 export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageProps) {
     //console.log(paginatedPhotos,"paginatedPhotos")
     const [isMapVisible, setIsMapVisible] = useState(true);
@@ -124,8 +139,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                 total: photos.length.toString()
 
             }).toString();
-            let url = route("pdf_preview") + '?' + queryString;
-            window.open(url,'_blank');
+            generatePdf(queryString);
         } else {
             confirm("Please select photo!");
         }
@@ -208,8 +222,7 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
             unassigned: 'true',
             total: photos.length.toString()
         }).toString();
-        const exportUrl = route("pdf_preview") + '?' + queryString;
-        window.open(exportUrl,'_blank')
+        generatePdf(queryString);
     }
 
 
@@ -273,7 +286,25 @@ export function PhotoGallery({ auth, photos, splitMode, paginatedPhotos }: PageP
                 splitView.split ? "md:w-[55%] sm:px-4 mobile-portrait-right-pane" : ""
             }`;
             
-            return (
+        
+    const generatePdf = (queryString: string) => {
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "fixed";
+        iframe.style.left = "-10000px";
+        iframe.style.top = "0";
+        iframe.style.width = "1200px";
+        iframe.style.height = "900px";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+        iframe.src = route("pdf_preview") + "?" + queryString;
+        document.body.appendChild(iframe);
+
+        setTimeout(() => {
+            iframe.remove();
+        }, 120000);
+    };
+
+    return (
                 <div className={rightPaneClass}>
                     {" "}
                     <div className="max-w mx-auto">

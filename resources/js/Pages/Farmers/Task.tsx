@@ -28,6 +28,21 @@ interface Tsk {
     created_id: number;
 }
 
+
+function generatePdf(queryString: string) {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+        iframe.style.left = "-10000px";
+        iframe.style.top = "0";
+        iframe.style.width = "1200px";
+        iframe.style.height = "900px";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+    iframe.src = route("pdf_preview") + "?" + queryString;
+    document.body.appendChild(iframe);
+    setTimeout(() => iframe.remove(), 120000);
+}
+
 export function Task_({ auth, photos }: PageProps) {
     const { task, user, errors } = usePage<{
         task: Tsk;
@@ -100,6 +115,24 @@ export function Task_({ auth, photos }: PageProps) {
             })
         }
     }
+
+
+    const generatePdf = (queryString: string) => {
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "fixed";
+        iframe.style.left = "-10000px";
+        iframe.style.top = "0";
+        iframe.style.width = "1200px";
+        iframe.style.height = "900px";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+        iframe.src = route("pdf_preview") + "?" + queryString;
+        document.body.appendChild(iframe);
+
+        setTimeout(() => {
+            iframe.remove();
+        }, 120000);
+    };
 
     return (
         <AuthenticatedLayout
@@ -240,8 +273,7 @@ export function Task_({ auth, photos }: PageProps) {
                                         task: task.id?.toString()!,
                                         total: photos.length.toString()
                                     }).toString();
-                                    const pdfUrl = route("pdf_preview") + '?' + queryString;
-                                    window.open(pdfUrl, '_blank');
+                                    generatePdf(queryString);
                                 }}
                             >
                                 <span>Export To PDF</span>
@@ -261,8 +293,7 @@ export function Task_({ auth, photos }: PageProps) {
                                             task: task.id?.toString()!,
                                             total: photos.length.toString()
                                         }).toString();
-                                        const eUrl = route("pdf_preview") + '?' + queryString;
-                                        window.open(eUrl, '_blank');
+                                        generatePdf(queryString);
 
                                     } else {
                                         confirm("Please select a photo!");

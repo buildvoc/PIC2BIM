@@ -5,7 +5,7 @@ import Map from "@/Components/Map/Map";
 import ClientPdfRenderer from "@/Components/Pdf/ClientPdfRenderer";
 import styles from "./pdf_preview.module.css";
 export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
-    const [isGenerate, setIsGenerated] = useState(false);
+    const [isGenerate, setIsGenerated] = useState(true);
 
     const getContent = (photo: Photo, index: number) => {
         const imageSrc: any = photo?.link;
@@ -365,26 +365,7 @@ export function PdfPreview({ tasks, photos, auth, total }: PageProps) {
                     auth={auth}
                     totalPages={total}
                 />
-            ) : (
-                <>
-                    <h2 className=" py-2  text-3xl font-medium ">
-                        Generating of PDF document
-                    </h2>
-                    <div className="w-100 py-2">
-                        <button
-                            id="js_confirm_pdf_generate"
-                            type="button"
-                            className="w-32 font-semibold text-white py-1.5 rounded-lg text-lg bg-brand-primary hover:bg-brand-primaryHover"
-                            onClick={handleGenerate}
-                        >
-                            Generate
-                        </button>
-                    </div>
-                    {photos.map((photo, index: number) => {
-                        return getContent(photo, index);
-                    })}
-                </>
-            )}
+            ) : null}
         </div>
     );
 }

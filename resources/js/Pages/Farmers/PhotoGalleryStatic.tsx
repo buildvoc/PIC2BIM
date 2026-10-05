@@ -25,6 +25,21 @@ import PhotoGalleryMap from "@/Components/PhotoGallery/PhotoGalleryMap";
 import Pagination from "@/Components/PhotoGallery/Pagination";
 import PhotoItem from "@/Components/PhotoGallery/PhotoItem";
 
+
+function generatePdf(queryString: string) {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+        iframe.style.left = "-10000px";
+        iframe.style.top = "0";
+        iframe.style.width = "1200px";
+        iframe.style.height = "900px";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+    iframe.src = route("pdf_preview") + "?" + queryString;
+    document.body.appendChild(iframe);
+    setTimeout(() => iframe.remove(), 120000);
+}
+
 export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
 
     // Static card count
@@ -109,8 +124,7 @@ export function PhotoGallery({ auth, photos, splitMode }: PageProps) {
                 total: photos.length.toString()
 
             }).toString();
-            let url = route("pdf_preview") + '?' + queryString;
-            window.open(url,'_blank');
+            generatePdf(queryString);
         } else {
             confirm("Please select photo!");
         }
