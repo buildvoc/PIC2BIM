@@ -175,24 +175,6 @@ const PdfPage = ({
     const formattedDate = moment().format("YYYY-MM-DD HH:mm:ss");
     return (
         <Page size="A4" style={styles.page}>
-            {/* PDF Header */}
-            <View style={styles.header}>
-                <Image
-                    src="/logo_egnss4all_white.png"
-                    style={styles.image_brand}
-                />
-                <Text style={styles.title}>PIC2BIM export</Text>
-                <View style={styles.subtitle_container}>
-                    <Text>
-                        {" "}
-                        {`${auth.user.name} ${auth.user.surname}`}{" "}
-                        {task
-                            ? `- task detail ${task.name}`
-                            : " Gallery of unassigned photos"}
-                    </Text>
-                </View>
-            </View>
-
             {/* PDF Content */}
 
             <View style={styles.content}>
@@ -202,12 +184,17 @@ const PdfPage = ({
                         Exported {exportedPages} out of {totalPages} photos
                     </Text>
                 </View>
-                {photoKey == 0 && (
+                {isPhotoGallery && photoKey == 0 && (
+                    <View>
+                        <Text style={styles.task_title}>Photo report</Text>
+                        <Text style={{ fontSize: 10, marginBottom: 12 }}>
+                            Exported photographs with mapped locations and capture metadata.
+                        </Text>
+                    </View>
+                )}
+                {!isPhotoGallery && photoKey == 0 && (
                     <Text style={styles.task_title}>
-                        {`${auth.user.name} ${auth.user.surname}`}{" "}
-                        {task
-                            ? `- task detail ${task.name}`
-                            : " Gallery of unassigned photos"}
+                        {`Task detail ${task?.name || ""}`}
                     </Text>
                 )}
                 {!isPhotoGallery && (
@@ -547,13 +534,21 @@ const ClientPdfRenderer = ({
         const createPdfDocument = async () => {
             const pages = await processPhotos();
 
-            let name = `${moment().format(
-                "YYYY.M.D"
-            )}_${`${auth.user.name} ${auth.user.surname}`} ${
-                !isPhotoGallery
-                    ? "- task detail " + `${task?.name}`
-                    : "Gallery of unassigned photos"
-            }  `;
+            const safeUser = `${auth.user.name || "user"}`
+                .trim()
+                .replace(/[^a-zA-Z0-9_-]+/g, "_");
+
+            const rawNote = isPhotoGallery
+                ? photos?.[0]?.note
+                : task?.note;
+
+            const safeNote = `${rawNote || "no_note"}`
+                .trim()
+                .replace(/[^a-zA-Z0-9_-]+/g, "_")
+                .slice(0, 80);
+
+            const reportType = isPhotoGallery ? "photo" : "task";
+            const name = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}`;
 
             const pdfDocument = (
                 <Document title={name + ".pdf"}>
@@ -581,20 +576,34 @@ const ClientPdfRenderer = ({
 
                 const formData = new FormData();
 
-                let formatedName = `${moment().format(
-                    "YYYY.M.D"
-                )}_${`${auth.user.name} ${auth.user.surname}`} ${
-                    !isPhotoGallery
-                        ? "- task detail " +
-                          `${auth.user.name} ${auth.user.surname}`
-                        : ""
-                } `;
+                const safeUser = `${auth.user.name || "user"}`
+                    .trim()
+                    .replace(/[^a-zA-Z0-9_-]+/g, "_");
+
+                const rawNote = isPhotoGallery
+                    ? photos?.[0]?.note
+                    : task?.note;
+
+                const safeNote = `${rawNote || "no_note"}`
+                    .trim()
+                    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+                    .slice(0, 80);
+
+                const reportType = isPhotoGallery ? "photo" : "task";
+                const formatedName = `${moment().format("YYYY-MM-DD")}_${safeUser}_${safeNote}_${reportType}`;
                 let name: string = `${formatedName}.pdf`;
+
                 formData.append("file", blob, name);
 
                 try {
                     const url = URL.createObjectURL(blob);
-                    window.open(url, "_blank");
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
                     setIsGenerated(false)
                 } catch (error) {
                     console.error(error);
